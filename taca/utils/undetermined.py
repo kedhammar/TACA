@@ -46,16 +46,16 @@ def check_undetermined_status(run, und_tresh=10, q30_tresh=75, freq_tresh=40, po
                     if lb :
                         if first_qc_check(lane,lb, und_tresh, q30_tresh):
                             link_undet_to_sample(run, lane, path_per_lane)
-                            status= status && True
+                            status= status and True
                         else:
                             logger.warn("lane {} did not pass the qc checks, the Undetermined will not be added.".format(lane))
-                            status= status && False
+                            status= status and False
                     else:
                         logger.info("The HTML report is not available yet, will wait.")
-                        status= status && False
+                        status= status and False
                 else:
                     logger.warn("lane {} did not pass the qc checks, the Undetermined will not be added.".format(lane))
-                    status= status && False
+                    status= status and False
             else:
                 if lb and qc_for_pooled_lane(lane,lb,pooled_tresh):
                     return True
