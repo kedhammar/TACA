@@ -171,7 +171,8 @@ def check_index_freq(run, lane, freq_tresh):
     :returns: True if the checks passes, False otherwise
     """
     barcodes={}
-    if os.path.exists(os.path.join(run, dmux_folder,'index_count_L{}.tsv'.format(lane))):
+    index_count_file=os.path.join(run, dmux_folder,'index_count_L{}.tsv'.format(lane))
+    if os.path.exists(index_count_file) and os.stat(index_count_file).st_size !=0:
         logger.info("Found index count for lane {}.".format(lane))
         with open(os.path.join(run, dmux_folder,'index_count_L{}.tsv'.format(lane))) as idxf:
             for line in idxf:
