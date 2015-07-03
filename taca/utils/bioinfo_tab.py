@@ -79,7 +79,7 @@ def get_status(run_dir):
                     status='Ongoing'
 
     if os.path.exists(old_transfer):
-        with open(taca_transfer) as t_file:
+        with open(old_transfer) as t_file:
             for line in t_file:
                 if run_name in line:
                     elements=line.split("\s")
