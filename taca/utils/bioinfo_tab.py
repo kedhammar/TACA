@@ -57,7 +57,7 @@ def get_status(run_dir):
     xten_dmux_folder=os.path.join(run_dir, 'Demultiplexing')
     xten_dmux_stats=os.path.join(xten_dmux_folder, 'Stats', 'DemultiplexingStats.xml')
     unaligned_folder=glob.glob(os.path.join(run_dir, 'Unaligned_*'))
-    unaligned_dmux_stats=glob.glob(os.path.join(run_dir, 'Unaligned_*', 'Basecall_Stats_*', 'DemultiplexingStats.xml'))
+    unaligned_dmux_stats=glob.glob(os.path.join(run_dir, 'Unaligned_*', 'Basecall_Stats_*', 'Demultiplexing_Stats.htm'))
     taca_transfer=os.path.join(CONFIG['analysis']['status_dir'], 'transfer.tsv')
     old_transfer=CONFIG['bioinfo_tab']['b5_transfer']
 
@@ -100,7 +100,7 @@ def get_ss_projects(run_dir):
     run_name_components = run_name.split("_")
     FCID = run_name_components[3][1:]
 
-    xten_samplesheets_dir = os.path.join(CONFIG['analysis']['samplesheets_dir'],
+    xten_samplesheets_dir = os.path.join(CONFIG['bioinfo_tab']['xten_samplesheets'],
                                     current_year)
     hiseq_samplesheets_dir = os.path.join(CONFIG['bioinfo_tab']['hiseq_samplesheets'],
                                     current_year)
