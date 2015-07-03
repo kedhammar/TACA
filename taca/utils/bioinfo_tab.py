@@ -58,6 +58,8 @@ def get_status(run_dir):
     xten_dmux_stats=os.path.join(xten_dmux_folder, 'Stats', 'DemultiplexingStats.xml')
     unaligned_folder=glob.glob(os.path.join(run_dir, 'Unaligned_*'))
     unaligned_dmux_stats=glob.glob(os.path.join(run_dir, 'Unaligned_*', 'Basecall_Stats_*', 'DemultiplexingStats.xml'))
+    taca_transfer=os.path.join(CONFIG['analysis']['status_dir'], 'transfer.tsv')
+    old_transfer=CONFIG['bioinfo_tab']['b5_transfer']
 
     
 
@@ -70,10 +72,21 @@ def get_status(run_dir):
         status='Demultiplexed'
     if os.path.exists(os.path.join(run_dir, 'transferring')):
         status='Transferring'
-    with open(os.path.join(CONFIG['analysis']['status_dir'], 'transfer.tsv')) as t_file:
-        for line in t_file:
-            if run_name in line:
-                status='Ongoing'
+    if os.path.exists(taca_transfer):
+        with open(taca_transfer) as t_file:
+            for line in t_file:
+                if run_name in line:
+                    status='Ongoing'
+
+    if os.path.exists(old_transfer):
+        with open(taca_transfer) as t_file:
+            for line in t_file:
+                if run_name in line:
+                    elements=line.split("\s")
+                    if len(elements)==2:
+                        status='Transferring'
+                    else:
+                        status='Ongoing'
 
     return status
 
