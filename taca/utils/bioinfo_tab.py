@@ -124,7 +124,14 @@ def get_ss_projects(run_dir):
 
 
     for d in data:
-        project_ids.add(d['SampleID'].split('_')[0])
+        if 'SampleID' in d:
+            project_ids.add(d['SampleID'].split('_')[0])
+        elif 'Sample_ID' in d:
+            project_ids.add(d['Sample_ID'].split('_')[0])
+        elif 'SampleName' in d:
+            project_ids.add(d['SampleName'].split('_')[0])
+        elif 'Sample_Name' in d:
+            project_ids.add(d['Sample_Name'].split('_')[0])
 
     
     return project_ids
