@@ -104,21 +104,21 @@ def get_ss_projects(run_dir):
                                     current_year)
     hiseq_samplesheets_dir = os.path.join(CONFIG['bioinfo_tab']['hiseq_samplesheets'],
                                     current_year)
-    #if it is xten
-    FCID_samplesheet_origin = os.path.join(xten_samplesheets_dir, '{}.csv'.format(FCID))
+    FCID_samplesheet_origin = os.path.join(hiseq_samplesheets_dir, '{}.csv'.format(FCID))
+    #if it is not hiseq
     if not os.path.exists(FCID_samplesheet_origin):
-        #if it is hiseq
-        FCID_samplesheet_origin = os.path.join(hiseq_samplesheets_dir, '{}.csv'.format(FCID))
+        FCID_samplesheet_origin = os.path.join(xten_samplesheets_dir, '{}.csv'.format(FCID))
+        #if it is not xten
         if not os.path.exists(FCID_samplesheet_origin):
             #if it is miseq
             FCID_samplesheet_origin = os.path.join(run_dir,'Data','Intensities','BaseCalls', 'SampleSheet.csv')
 
-        csvf=open(FCID_samplesheet_origin, 'rb')
-        data=DictReader(csvf)
-
-    else:
         ss_reader=XTenSampleSheetParser(FCID_samplesheet_origin)
         data=ss_reader.data
+
+    else:
+        csvf=open(FCID_samplesheet_origin, 'rU')
+        data=DictReader(csvf)
     
 
 
