@@ -134,7 +134,7 @@ def get_ss_projects(run_dir):
                 FCID_samplesheet_origin = os.path.join(run_dir,'SampleSheet.csv')
                 if not os.path.exists(FCID_samplesheet_origin):
                     logger.warn("Cannot locate the samplesheet for run {}".format(run_dir))
-                    return []
+                    return ['UNKNOWN']
 
         ss_reader=XTenSampleSheetParser(FCID_samplesheet_origin)
         data=ss_reader.data
