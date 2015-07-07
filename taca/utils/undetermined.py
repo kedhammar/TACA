@@ -10,7 +10,33 @@ from taca.utils.config import CONFIG
 logger=logging.getLogger(__name__)
 dmux_folder='Demultiplexing'
 
-def check_undetermined_status(run, und_tresh=10, q30_tresh=75, freq_tresh=40, pooled_tresh=5, dex_status='COMPLETED'):
+
+def compute_undetermined_stats(run_dir, dex_status='COMPLETED'):
+    """Will compute undetermined stats for all the undetermined files produced so far. 
+    compute_index_freq takes care of concurrent runs.
+    :param run_dir: path to the flowcell
+    :type run_dir: str
+    :param dex_status: status of the demux (COMPLETED/IN_PROGRESS)
+    :type dex_status: string
+    """
+    global dmux_folder
+    try:
+        dmux_folder=CONFIG['analysis']['bcl2fastq']['options'][0]['output_dir']
+    except KeyError:
+        dmux_folder='Demultiplexing'
+    if os.path.exists(os.path.join(run_dir, dmux_folder)):
+        xtp=cl.XTenParser(run_dir)
+        ss=xtp.samplesheet
+        workable_lanes=get_workable_lanes(run_dir, dex_status)
+        for lane in workable_lanes:
+            compute_index_freq(run_dir, lane)
+
+    else:
+        logger.warn("No demultiplexing folder found, aborting")
+
+
+
+def check_lanes_QC(run, und_tresh=10, q30_tresh=75, freq_tresh=40, pooled_tresh=5, dex_status='COMPLETED'):
     """Will check for undetermined fastq files, and perform the linking to the sample folder if the
     quality thresholds are met.
 
@@ -25,52 +51,74 @@ def check_undetermined_status(run, und_tresh=10, q30_tresh=75, freq_tresh=40, po
 
     :returns boolean: True  if the flowcell passes the checks, False otherwise
     """
+
+    
     global dmux_folder
     try:
-        dmux_folder=CONFIG['analysis']['bcl2fastq']['options'][0]['output_dir']
+        dmux_folder=CONFIG['analysis']['bcl2fastq']['options'][0]['output-dir']
     except KeyError:
         dmux_folder='Demultiplexing'
 
     status=True
     if os.path.exists(os.path.join(run, dmux_folder)):
+        import pdb
+        pdb.set_trace()
         xtp=cl.XTenParser(run)
         ss=xtp.samplesheet
         lb=xtp.lanebarcodes
+        if not lb:
+            logger.info("The HTML report is not available. QC cannot be performed, the FC will not be tranferred.")
+            return False
+
+        #these two functions need to became lane specific and return an array
         path_per_lane=get_path_per_lane(run, ss)
         samples_per_lane=get_samples_per_lane(ss)
         workable_lanes=get_workable_lanes(run, dex_status)
         for lane in workable_lanes:
+            #QC on the yield
+            #QC on the total %>Q30 of the all lane
+            #distinguish the case between Pooled and Unpooled lanes
             if is_unpooled_lane(ss,lane):
                 rename_undet(run, lane, samples_per_lane)
                 if check_index_freq(run,lane, freq_tresh):
-                    if lb :
-                        if first_qc_check(lane,lb, und_tresh, q30_tresh):
-                            link_undet_to_sample(run, lane, path_per_lane)
-                            status= status and True
-                        else:
-                            logger.warn("lane {} did not pass the qc checks, the Undetermined will not be added.".format(lane))
-                            status= status and False
+                    #this needs to became Lane QC above, not need of sample QC now
+                    if sample_qc_check(lane,lb, und_tresh, q30_tresh):
+                        link_undet_to_sample(run, lane, path_per_lane)
+                        status= status and True
                     else:
-                        logger.info("The HTML report is not available yet, will wait.")
+                        logger.warn("lane {} did not pass the qc checks, the Undetermined will not be added.".format(lane))
                         status= status and False
                 else:
                     logger.warn("lane {} did not pass the qc checks, the Undetermined will not be added.".format(lane))
                     status= status and False
             else:
-                if lb and qc_for_pooled_lane(lane,lb,pooled_tresh):
-                    return True
+                if qc_for_pooled_lane(lane,lb,pooled_tresh):
+                    status = status and True
                 logger.warn("The lane {}  has been multiplexed, according to the samplesheet and will be skipped.".format(lane))
     else:
         logger.warn("No demultiplexing folder found, aborting")
-
+    
     return status
+        
+        
 
 def qc_for_pooled_lane(lane,lb , und_thresh):
+    """Performs QC checks for pooled lanes, i.e., more than one sample per lane
+        
+    :param lane: lane number (form 1 to 8)
+    :type lane: int
+    :param lb: parsed description of the lane
+    :type lb: XTenParse.lanebarcodes object
+    :param und_thresh: maximum allowed percentage of undetemined reads
+    :type und_thresh: int
+    """
     d={}
+    d['det']=0
+    d['undet']=0
     for entry in lb.sample_data:
         if lane == int(entry['Lane']):
             if entry.get('Sample')!='unknown':
-                d['det']=int(entry['Clusters'].replace(',',''))
+                d['det']+=int(entry['Clusters'].replace(',',''))
             else:
                 d['undet']=int(entry['Clusters'].replace(',',''))
 
@@ -106,6 +154,8 @@ def rename_undet(run, lane, samples_per_lane):
         new_name="_".join(old_name_comps)
         logger.info("Renaming {} to {}".format(file, os.path.join(os.path.dirname(file), new_name)))
         os.rename(file, os.path.join(os.path.dirname(file), new_name))
+
+
 def get_workable_lanes(run, status):
     """List the lanes that have a .fastq file
 
@@ -157,29 +207,34 @@ def save_index_count(barcodes, run, lane):
         for barcode in sorted(barcodes, key=barcodes.get, reverse=True):
             f.write("{}\t{}\n".format(barcode, barcodes[barcode]))
 
-def check_index_freq(run, lane, freq_tresh):
+
+def compute_index_freq(run, lane):
     """uses subprocess to perform zcat <file> | sed -n '1~4 p' | awk -F ':' '{print $NF}', counts the barcodes and 
     returns true if the most represented index accounts for less than freq_tresh% of the total
+    The functions creates a semaphor file, .running that prevents cuncurrent starts. This flag file(s) is used to avoid
+    early starts of the final step due to concurrent starts.
     
     :param run: path to the flowcell
     :type run: str
     :param lane: lane identifier
     :type lane: int
-    :param freq_tresh: maximal allowed frequency of the most frequent undetermined index
-    :type frew_tresh: float
-    :rtype: boolean
-    :returns: True if the checks passes, False otherwise
     """
     barcodes={}
-    if os.path.exists(os.path.join(run, dmux_folder,'index_count_L{}.tsv'.format(lane))):
-        logger.info("Found index count for lane {}.".format(lane))
-        with open(os.path.join(run, dmux_folder,'index_count_L{}.tsv'.format(lane))) as idxf:
-            for line in idxf:
-                barcodes[line.split('\t')[0]]=int(line.split('\t')[1])
-
+    if os.path.exists(os.path.join(run, dmux_folder,'index_count_L{}.running'.format(lane))):
+        logger.info("Lane {} is currenlty under processing: WARNING this lane is taking too long.".format(lane))
+        return
+    elif os.path.exists(os.path.join(run, dmux_folder,'index_count_L{}.tsv'.format(lane))):
+        logger.info("Found index count for lane {}. No need to recompute it.".format(lane))
+        return
     else:
-        open(os.path.join(run, dmux_folder,'index_count_L{}.tsv'.format(lane)), 'a').close()
-        for fastqfile in glob.glob(os.path.join(run, dmux_folder, '*Undetermined*_L0?{}_R1*'.format(lane))):
+        open(os.path.join(run, dmux_folder,'index_count_L{}.running'.format(lane)), 'a').close()
+        logger.info("Lane {} is currenlty under processing: counting undetermined indexes.".format(lane))
+    #next check is not needed but I want to be verbose
+    if os.path.exists(os.path.join(run, dmux_folder,'index_count_L{}.tsv'.format(lane))):
+        logger.info("Lane {} raised an exception: .tsv file present but should not.".format(lane))
+        return
+    open(os.path.join(run, dmux_folder,'index_count_L{}.tsv'.format(lane)), 'a').close()
+    for fastqfile in glob.glob(os.path.join(run, dmux_folder, 'Undetermined_S*_L00{}_R1*'.format(lane))):
             logger.info("working on {}".format(fastqfile))
             zcat=subprocess.Popen(['zcat', fastqfile], stdout=subprocess.PIPE)
             sed=subprocess.Popen(['sed', '-n', "1~4p"],stdout=subprocess.PIPE, stdin=zcat.stdout)
@@ -194,23 +249,52 @@ def check_index_freq(run, lane, freq_tresh):
                     barcodes[barcode]=barcodes[barcode]+1
                 except KeyError:
                     barcodes[barcode]=1
+    save_index_count(barcodes, run, lane)
+    #now remove the flag file
+    os.remove(os.path.join(run, dmux_folder,'index_count_L{}.running'.format(lane)))
+    return
 
-        save_index_count(barcodes, run, lane)
+
+                    
+
+def check_index_freq(run, lane, freq_tresh):
+    """uses the counts made by compute_index_freq to  counts the barcodes and
+    returns true if the most represented index accounts for less than freq_tresh% of the total
+                
+    :param run: path to the flowcell
+    :type run: str
+    :param lane: lane identifier
+    :type lane: int
+    :param freq_tresh: maximal allowed frequency of the most frequent undetermined index
+    :type frew_tresh: float
+    :rtype: boolean
+    :returns: True if the checks passes, False otherwise
+    """
+    barcodes={}
+    if os.path.exists(os.path.join(run, dmux_folder,'index_count_L{}.tsv'.format(lane))):
+        logger.info("Found index count for lane {}.".format(lane))
+        with open(os.path.join(run, dmux_folder,'index_count_L{}.tsv'.format(lane))) as idxf:
+            for line in idxf:
+                    barcodes[line.split('\t')[0]]=int(line.split('\t')[1])
+    else:
+        logger.warn("file index_count_L{}.tsv not found. This FC will be marked as QC failed and not tranfrred".format(lane))
+        return False
+
     total=sum(barcodes.values())
     count, bar = max((v, k) for k, v in barcodes.items())
-    if total * freq_tresh / 100<count:
+    if total * freq_tresh / 100 < count:
         logger.warn("The most frequent barcode of lane {} ({}) represents {}%, "
-                "which is over the threshold of {}%".format(lane, bar, count * 100 / total , freq_tresh))
+                    "which is over the threshold of {}%".format(lane, bar, count * 100 / total , freq_tresh))
         return False
     else:
         logger.info("Most frequent undetermined index represents less than {}% of the total, lane {} looks fine.".format(freq_tresh, lane))
         return True
+                    
 
 
 
-
-def first_qc_check(lane, lb, und_tresh, q30_tresh):
-    """checks wether the percentage of bases over q30 for the sample is 
+def sample_qc_check(lane, lb, und_tresh, q30_tresh):
+    """checks wether the percentage of bases over q30 for the sample is
     above the treshold, and if the amount of undetermined is below the treshold
     
     :param lane: lane identifier
@@ -227,6 +311,8 @@ def first_qc_check(lane, lb, und_tresh, q30_tresh):
     
     """
     d={}
+    import pdb
+    pdb.set_trace()
     for entry in lb.sample_data:
         if lane == int(entry['Lane']):
             if entry.get('Sample')!='unknown':

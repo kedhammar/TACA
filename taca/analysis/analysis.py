@@ -271,18 +271,35 @@ def run_preprocessing(run):
                 logger.info(("BCL conversion and demultiplexing process in "
                              "progress for run {}, skipping it"
                              .format(run.id)))
-                ud.check_undetermined_status(run.run_dir, dex_status=run.status, und_tresh=CONFIG['analysis']['undetermined']['lane_treshold'],
-                    q30_tresh=CONFIG['analysis']['undetermined']['q30_treshold'], freq_tresh=CONFIG['analysis']['undetermined']['highest_freq'],
-                    pooled_tresh=CONFIG['analysis']['undetermined']['pooled_und_treshold'])
+                import pdb
+                pdb.set_trace()
+                run_dir=run.run_dir
+                dex_status=run.status
+                ud.compute_undetermined_stats(run_dir, dex_status)
+            
             elif run.status == 'COMPLETED':
                 logger.info(("Preprocessing of run {} is finished, check if "
                              "run has been transferred and transfer it "
                              "otherwise".format(run.id)))
-
+                ##check that there is NO running flag
+                run_dir=run.run_dir
+                dex_status=run.status
+                ud.compute_undetermined_stats(run_dir, dex_status)
+                dmux_folder = CONFIG['analysis']['bcl2fastq']['options'][0]['output-dir']
+                running = 0
+                
+                for file in glob.glob(os.path.join(run_dir, dmux_folder, "index_count_L*.running")):
+                    running +=1
+                if running > 0:
+                    return
+                #all concurrent execution of TACA on this FC have finshed.
+                
+                
                 control_fastq_filename(os.path.join(run.run_dir, CONFIG['analysis']['bcl2fastq']['options'][0]['output-dir']))
-                passed_qc=ud.check_undetermined_status(run.run_dir, dex_status=run.status, und_tresh=CONFIG['analysis']['undetermined']['lane_treshold'],
+                passed_qc=ud.check_lanes_QC(run.run_dir, dex_status=run.status, und_tresh=CONFIG['analysis']['undetermined']['lane_treshold'],
                     q30_tresh=CONFIG['analysis']['undetermined']['q30_treshold'], freq_tresh=CONFIG['analysis']['undetermined']['highest_freq'],
                     pooled_tresh=CONFIG['analysis']['undetermined']['pooled_und_treshold'])
+
                 qc_file = os.path.join(CONFIG['analysis']['status_dir'], 'qc.tsv')
 
                 post_qc(run.run_dir, qc_file, passed_qc)
