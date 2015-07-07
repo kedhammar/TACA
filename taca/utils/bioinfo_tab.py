@@ -9,6 +9,7 @@ from csv import DictReader
 from taca.utils.config import CONFIG
 from flowcell_parser.classes import XTenSampleSheetParser
 
+logger = logging.getLogger(__name__)
 
 def setupServer(conf):
     db_conf = conf['statusdb']
@@ -34,12 +35,12 @@ def merge(d1, d2):
 
 def collect_runs():
     rundir_re=re.compile("^[0-9]{6}_[A-Z0-9\-]+_[0-9]{4}_[A-Z0-9\-]{10,16}$")
-    for data_dir in CONFIG['storage']['data_dirs']:
+    for data_dir in CONFIG['bioinfo_tab']['data_dirs']:
         if os.path.exists(data_dir):
             potential_run_dirs=glob.glob(os.path.join(data_dir, '*'))
             for run_dir in potential_run_dirs:
-                if rundir_re.match(os.path.basename(os.path.abspath(run_dir))) and os.path.isdir run_dir:
-                    print("Working on {}".format(rundir))        
+                if rundir_re.match(os.path.basename(os.path.abspath(run_dir))) and os.path.isdir(run_dir):
+                    logger.info("Working on {}".format(run_dir))        
                     #update_statusdb(run_dir)
 
 
@@ -57,8 +58,10 @@ def update_statusdb(run_dir):
             remote_status=remote_doc["status"]
             if remote_status in ['Incoming', 'Sequencing Done', 'Demultiplexing', 'Demultiplexed', 'Transferring']:
                 final_obj=merge(obj, remote_doc)
+                logger.info("saving {} {} as  {}".format(run_name, p, status))
                 db.save(final_obj)
         else:
+            logger.info("saving {} {} as  {}".format(run_name, p, status))
             db.save(obj)
 
 
