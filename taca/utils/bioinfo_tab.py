@@ -111,6 +111,7 @@ def get_status(run_dir):
 
 
 def get_ss_projects(run_dir):
+    pattern=re.compile("(P[0-9]{3,5})_[0-9]{3-5}")
     project_ids=set()
     run_name = os.path.basename(os.path.abspath(run_dir))
     current_year = '20' + run_name[0:2]
@@ -141,15 +142,10 @@ def get_ss_projects(run_dir):
 
 
     for d in data:
-        if 'SampleID' in d:
-            project_ids.add(d['SampleID'].split('_')[0])
-        elif 'Sample_ID' in d:
-            project_ids.add(d['Sample_ID'].split('_')[0])
-        elif 'SampleName' in d:
-            project_ids.add(d['SampleName'].split('_')[0])
-        elif 'Sample_Name' in d:
-            project_ids.add(d['Sample_Name'].split('_')[0])
-
+        for v in d.values():
+            matches=pattern.search(v)
+            if matches:
+                project_ids.add(matches.group(1))
     
     return project_ids
 
