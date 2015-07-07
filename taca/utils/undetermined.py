@@ -58,7 +58,10 @@ def check_undetermined_status(run, und_tresh=10, q30_tresh=75, freq_tresh=40, po
                     status= status and False
             else:
                 if lb and qc_for_pooled_lane(lane,lb,pooled_tresh):
-                    return True
+                    status = status and True
+                else:
+                    status = status and False
+
                 logger.warn("The lane {}  has been multiplexed, according to the samplesheet and will be skipped.".format(lane))
     else:
         logger.warn("No demultiplexing folder found, aborting")
@@ -66,11 +69,11 @@ def check_undetermined_status(run, und_tresh=10, q30_tresh=75, freq_tresh=40, po
     return status
 
 def qc_for_pooled_lane(lane,lb , und_thresh):
-    d={}
+    d={'det':0, 'undet':0}
     for entry in lb.sample_data:
         if lane == int(entry['Lane']):
             if entry.get('Sample')!='unknown':
-                d['det']=int(entry['Clusters'].replace(',',''))
+                d['det']+=int(entry['Clusters'].replace(',',''))
             else:
                 d['undet']=int(entry['Clusters'].replace(',',''))
 
@@ -172,8 +175,12 @@ def check_index_freq(run, lane, freq_tresh):
     """
     barcodes={}
     index_count_file=os.path.join(run, dmux_folder,'index_count_L{}.tsv'.format(lane))
-    if os.path.exists(index_count_file) and os.stat(index_count_file).st_size !=0:
+    if os.path.exists(index_count_file) :
         logger.info("Found index count for lane {}.".format(lane))
+        if os.stat(index_count_file).st_size !=0:
+            #command is still running
+            logger.info("undetermined are till being parsed on lane {}".format(lane))
+            return False
         with open(os.path.join(run, dmux_folder,'index_count_L{}.tsv'.format(lane))) as idxf:
             for line in idxf:
                 barcodes[line.split('\t')[0]]=int(line.split('\t')[1])
