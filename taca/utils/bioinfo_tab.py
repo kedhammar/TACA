@@ -42,7 +42,7 @@ def collect_runs():
             for run_dir in potential_run_dirs:
                 if rundir_re.match(os.path.basename(os.path.abspath(run_dir))) and os.path.isdir(run_dir):
                     logger.info("Working on {}".format(run_dir))        
-                    #update_statusdb(run_dir)
+                    update_statusdb(run_dir)
 
 
 def update_statusdb(run_dir):
