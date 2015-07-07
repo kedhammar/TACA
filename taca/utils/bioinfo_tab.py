@@ -129,12 +129,11 @@ def get_ss_projects(run_dir):
         #if it is not xten
         if not os.path.exists(FCID_samplesheet_origin):
             #if it is miseq
-        if not os.path.exists(FCID_samplesheet_origin):
             FCID_samplesheet_origin = os.path.join(run_dir,'Data','Intensities','BaseCalls', 'SampleSheet.csv')
             if not os.path.exists(FCID_samplesheet_origin):
                 FCID_samplesheet_origin = os.path.join(run_dir,'SampleSheet.csv')
                 if not os.path.exists(FCID_samplesheet_origin):
-                    logger.warn("Cannot locate the samplesheet for run {}".format(rundir))
+                    logger.warn("Cannot locate the samplesheet for run {}".format(run_dir))
                     return []
 
         ss_reader=XTenSampleSheetParser(FCID_samplesheet_origin)
