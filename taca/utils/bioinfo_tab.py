@@ -4,6 +4,7 @@ import os
 import couchdb
 import glob
 import re
+import logging
 
 from csv import DictReader
 from taca.utils.config import CONFIG
