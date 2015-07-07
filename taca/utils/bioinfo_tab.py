@@ -111,7 +111,7 @@ def get_status(run_dir):
 
 
 def get_ss_projects(run_dir):
-    pattern=re.compile("(P[0-9]{3,5})_[0-9]{3-5}")
+    pattern=re.compile("(P[0-9]{3,5})_[0-9]{3,5}")
     project_ids=set()
     run_name = os.path.basename(os.path.abspath(run_dir))
     current_year = '20' + run_name[0:2]
