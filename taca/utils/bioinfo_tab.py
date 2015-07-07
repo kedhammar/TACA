@@ -33,12 +33,12 @@ def merge(d1, d2):
 
 
 def collect_runs():
-    rundir_re=re.compile("[0-9]{6}_[A-Z0-9\-]+_[0-9]{4}_[A-Z0-9\-]{10,16}")
+    rundir_re=re.compile("^[0-9]{6}_[A-Z0-9\-]+_[0-9]{4}_[A-Z0-9\-]{10,16}$")
     for data_dir in CONFIG['storage']['data_dirs']:
         if os.path.exists(data_dir):
             potential_run_dirs=glob.glob(os.path.join(data_dir, '*'))
             for run_dir in potential_run_dirs:
-                if rundir_re.match(os.path.basename(os.path.abspath(run_dir))):
+                if rundir_re.match(os.path.basename(os.path.abspath(run_dir))) and os.path.isdir run_dir:
                     print("Working on {}".format(rundir))        
                     #update_statusdb(run_dir)
 
