@@ -8,20 +8,23 @@ import flowcell_parser.classes as cl
 from taca.utils.config import CONFIG
 
 logger=logging.getLogger(__name__)
+
 dmux_folder='Demultiplexing'
 
 
-def compute_undetermined_stats(run_dir, dex_status='COMPLETED'):
+def compute_undetermined_stats(run_dir, run_type, dex_status='COMPLETED'):
     """Will compute undetermined stats for all the undetermined files produced so far. 
     compute_index_freq takes care of concurrent runs.
     :param run_dir: path to the flowcell
     :type run_dir: str
+    :param run_type: type of run (HiSeqX, HiSeq)
+    :type run_type: string
     :param dex_status: status of the demux (COMPLETED/IN_PROGRESS)
     :type dex_status: string
     """
     global dmux_folder
     try:
-        dmux_folder=CONFIG['analysis']['bcl2fastq']['options'][0]['output_dir']
+        dmux_folder=CONFIG['analysis'][run_type]['bcl2fastq']['options'][0]['output_dir']
     except KeyError:
         dmux_folder='Demultiplexing'
     if os.path.exists(os.path.join(run_dir, dmux_folder)):
@@ -36,39 +39,54 @@ def compute_undetermined_stats(run_dir, dex_status='COMPLETED'):
 
 
 
-def check_lanes_QC(run, und_tresh=10, q30_tresh=75, freq_tresh=40, pooled_tresh=5, dex_status='COMPLETED'):
+def check_lanes_QC(run, run_type,
+                   max_percentage_undetermined_indexes_pooled_lane=5,
+                   max_percentage_undetermined_indexes_unpooled_lane=20,
+                   minimum_percentage_Q30_bases_per_lane=75,
+                   minimum_yield_per_lane=305000000,
+                   max_frequency_most_represented_und_index_pooled_lane=5,
+                   max_frequency_most_represented_und_index_unpooled_lane=40,
+                   dex_status='COMPLETED'):
     """Will check for undetermined fastq files, and perform the linking to the sample folder if the
     quality thresholds are met.
 
     :param run: path of the flowcell
     :type run: str
-    :param und_tresh: max percentage of undetermined indexed in a lane allowed
-    :type und_tresh: float
-    :param q30_tresh: lowest percentage of q30 bases allowed
-    :type q30_tresh: float
-    :param freq_tresh: highest allowed percentage of the most common undetermined index
-    :type freq_tresh: float:w
+    :param max_percentage_undetermined_indexes_pooled_lane: max percentage of undetermined indexed allowed in a pooled lane
+    :type max_percentage_undetermined_indexes_pooled_lane: float
+    :param max_percentage_undetermined_indexes_unpooled_lane: max percentage of undetermined indexed allowed in a unpooled lane (one sample only)
+    :type max_percentage_undetermined_indexes_unpooled_lane: float
+    :param minimum_yield_per_lane: minimum lane yield
+    :type minimum_yield_per_lane: int
+    :param max_frequency_most_represented_und_index_pooled_lane: maximum frequency among the undetermined in a pooled lane
+    :type max_frequency_most_represented_und_index_pooled_lane: float
+    :param max_frequency_most_represented_und_index_unpooled_lane:  maximum frequency among the undetermined in a unpooled lane
+    :type max_frequency_most_represented_und_index_unpooled_lane: float
+    :param dex_status: status of the demultiplexing
+    :type dex_status: sting (COMPLETED/RUNNING)
 
     :returns boolean: True  if the flowcell passes the checks, False otherwise
     """
-
     
-    global dmux_folder
-    try:
-        dmux_folder=CONFIG['analysis']['bcl2fastq']['options'][0]['output-dir']
-    except KeyError:
-        dmux_folder='Demultiplexing'
 
     status=True
     if os.path.exists(os.path.join(run, dmux_folder)):
-        import pdb
-        pdb.set_trace()
         xtp=cl.XTenParser(run)
+        
+        global dmux_folder
+        try:
+            dmux_folder=CONFIG['analysis'][run_type]['bcl2fastq']['options'][0]['output-dir']
+        except KeyError:
+            dmux_folder='Demultiplexing'
+
+        
         ss=xtp.samplesheet
         lb=xtp.lanebarcodes
+        lanes=xtp.lanes
         if not lb:
             logger.info("The HTML report is not available. QC cannot be performed, the FC will not be tranferred.")
             return False
+
 
         #these two functions need to became lane specific and return an array
         path_per_lane=get_path_per_lane(run, ss)
@@ -76,27 +94,47 @@ def check_lanes_QC(run, und_tresh=10, q30_tresh=75, freq_tresh=40, pooled_tresh=
         workable_lanes=get_workable_lanes(run, dex_status)
         for lane in workable_lanes:
             #QC on the yield
-            #QC on the total %>Q30 of the all lane
-            #distinguish the case between Pooled and Unpooled lanes
-            if is_unpooled_lane(ss,lane):
-                rename_undet(run, lane, samples_per_lane)
-                if check_index_freq(run,lane, freq_tresh):
-                    #this needs to became Lane QC above, not need of sample QC now
-                    if sample_qc_check(lane,lb, und_tresh, q30_tresh):
-                        link_undet_to_sample(run, lane, path_per_lane)
-                        status= status and True
-                    else:
-                        logger.warn("lane {} did not pass the qc checks, the Undetermined will not be added.".format(lane))
-                        status= status and False
-                else:
-                    logger.warn("lane {} did not pass the qc checks, the Undetermined will not be added.".format(lane))
-                    status= status and False
+            lane_status = True
+            if lane_check_yield(lane, lanes, minimum_yield_per_lane):
+                lane_status = lane_status and True
             else:
-                if qc_for_pooled_lane(lane,lb,pooled_tresh):
-                    status = status and True
-                logger.warn("The lane {}  has been multiplexed, according to the samplesheet and will be skipped.".format(lane))
+                logger.warn("lane {} did not pass yield qc check. This FC will not be transferred.".format(lane))
+                lane_status = lane_status and False
+            #QC on the total %>Q30 of the all lane
+            if lane_check_Q30(lane, lanes, minimum_percentage_Q30_bases_per_lane):
+                lane_status = lane_status and True
+            else:
+                logger.warn("lane {} did not pass Q30 qc check. This FC will not be transferred.".format(lane))
+                lane_status = lane_status and False
+            
+            #now QC for undetermined
+            max_percentage_undetermined_indexes = max_percentage_undetermined_indexes_pooled_lane
+            max_frequency_most_represented_und  = max_frequency_most_represented_und_index_pooled_lane
+            #distinguish the case between Pooled and Unpooled lanes, for unpooled lanes rename the Undetemriend file
+            if is_unpooled_lane(ss, lane):
+                rename_undet(run, lane, samples_per_lane)
+                max_percentage_undetermined_indexes = max_percentage_undetermined_indexes_unpooled_lane
+                max_frequency_most_represented_und  = max_frequency_most_represented_und_index_unpooled_lane
+
+            if check_undetermined_reads(run, lane, lanes, max_percentage_undetermined_indexes):
+                if check_maximum_undertemined_freq(run, lane, max_frequency_most_represented_und):
+                    if is_unpooled_lane(ss, lane):
+                        link_undet_to_sample(run, lane, path_per_lane)
+                    lane_status= lane_status and True
+                else:
+                    logger.warn("lane {} did not pass the undetermiend qc checks. Frequency of most popular undetermined index is too large.".format(lane))
+                    lane_status= lane_status and False
+            else:
+                logger.warn("lane {} did not pass the undetermiend qc checks. Fraction of undetermined too large.".format(lane))
+                lane_status= lane_status and False
+            if lane_status:
+                logger.info("lane {} passed all qc checks".format(lane))
+            #store the status for the all FC
+            status = status and lane_status
+
     else:
         logger.warn("No demultiplexing folder found, aborting")
+        status = False
     
     return status
         
@@ -255,9 +293,41 @@ def compute_index_freq(run, lane):
     return
 
 
+def check_maximum_undertemined_freq(run, lane, freq_tresh):
+    """uses the counts made by compute_index_freq to  counts the barcodes and
+        returns true if the most represented index accounts for less than freq_tresh% 
+        of the total amount of undetermiend
+        
+        :param run: path to the flowcell
+        :type run: str
+        :param lane: lane identifier
+        :type lane: int
+        :param freq_tresh: maximal allowed frequency of the most frequent undetermined index
+        :type frew_tresh: float
+        :rtype: boolean
+        :returns: True if the checks passes, False otherwise
+        """
+    barcodes={}
+    if os.path.exists(os.path.join(run, dmux_folder,'index_count_L{}.tsv'.format(lane))):
+        with open(os.path.join(run, dmux_folder,'index_count_L{}.tsv'.format(lane))) as idxf:
+            for line in idxf:
+                barcodes[line.split('\t')[0]]=int(line.split('\t')[1])
+    else:
+        logger.warn("file index_count_L{}.tsv not found. This FC will be marked as QC failed and not tranfrred".format(lane))
+        return False
+
+    total=sum(barcodes.values())
+    count, bar = max((v, k) for k, v in barcodes.items())
+    if total * (freq_tresh / float(100)) < count:
+        logger.warn("The most frequent barcode of lane {} ({}) represents {}%, "
+                    "which is over the threshold of {}%".format(lane, bar, count * 100 / total , freq_tresh))
+        return False
+    else:
+        return True
+
                     
 
-def check_index_freq(run, lane, freq_tresh):
+def check_undetermined_reads(run, lane, lanes, freq_tresh):
     """uses the counts made by compute_index_freq to  counts the barcodes and
     returns true if the most represented index accounts for less than freq_tresh% of the total
                 
@@ -265,14 +335,23 @@ def check_index_freq(run, lane, freq_tresh):
     :type run: str
     :param lane: lane identifier
     :type lane: int
-    :param freq_tresh: maximal allowed frequency of the most frequent undetermined index
+    :param lanes: reader of lanes.html
+    :type lanes: flowcell_parser.classes.XTenLaneBarcodeParser
+    :param freq_tresh: maximal allowed percentage of undetermined indexes in a lane
     :type frew_tresh: float
     :rtype: boolean
     :returns: True if the checks passes, False otherwise
     """
+    #compute lane yield
+    lane_yield = 0;
+    for entry in lanes.sample_data:
+        if lane == int(entry['Lane']):
+            if lane_yield > 0:
+                logger.warn("lane_yeld must be 0, somehting wrong is going on here")
+            lane_yield = int(entry['Clusters'].replace(',',''))
+
     barcodes={}
     if os.path.exists(os.path.join(run, dmux_folder,'index_count_L{}.tsv'.format(lane))):
-        logger.info("Found index count for lane {}.".format(lane))
         with open(os.path.join(run, dmux_folder,'index_count_L{}.tsv'.format(lane))) as idxf:
             for line in idxf:
                     barcodes[line.split('\t')[0]]=int(line.split('\t')[1])
@@ -280,16 +359,60 @@ def check_index_freq(run, lane, freq_tresh):
         logger.warn("file index_count_L{}.tsv not found. This FC will be marked as QC failed and not tranfrred".format(lane))
         return False
 
-    total=sum(barcodes.values())
-    count, bar = max((v, k) for k, v in barcodes.items())
-    if total * freq_tresh / 100 < count:
-        logger.warn("The most frequent barcode of lane {} ({}) represents {}%, "
-                    "which is over the threshold of {}%".format(lane, bar, count * 100 / total , freq_tresh))
+
+    undetermined_total=sum(barcodes.values())
+    percentage_und = (undetermined_total/float(lane_yield))*100
+    if  percentage_und > freq_tresh:
+        logger.warn("The undetermined indexes account for {}% of lane {}, "
+                    "which is over the threshold of {}%".format(percentage_und, lane, freq_tresh))
         return False
     else:
-        logger.info("Most frequent undetermined index represents less than {}% of the total, lane {} looks fine.".format(freq_tresh, lane))
         return True
                     
+
+
+def lane_check_yield(lane, lanes, minimum_yield):
+    """checks that the total yield lane (P/F reads) is higher than the minimum
+    :param lane: lane currenlty being worked
+    :type lane: int
+    :param lanes: reader of lanes.html
+    :type lanes: flowcell_parser.classes.XTenLaneBarcodeParser
+    :param minimum_yield: minimum yield as specified by documentation
+    :type minimum_yield: float
+    
+    :rtype: boolean
+    :returns: True if the lane has an yield above the specified minimum
+    """
+    
+    for entry in lanes.sample_data:
+        if lane == int(entry['Lane']):
+            lane_clusters = int(entry['Clusters'].replace(',',''))
+            if lane_clusters >= minimum_yield:
+                return True
+    return False
+
+
+def lane_check_Q30(lane, lanes, q30_tresh):
+    """checks that the total Q30 of the lane  is higher than the minimum
+    :param lane: lane currenlty being worked
+    :type lane: int
+    :param lanes: reader of lanes.html
+    :type lanes: flowcell_parser.classes.XTenLaneBarcodeParser
+    :param q30_tresh: Q30 threshold
+    :type q30_tresh: float
+        
+    :rtype: boolean
+    :returns: True if the lane has a Q30 above the specified minimum
+    """
+
+    for entry in lanes.sample_data:
+        if lane == int(entry['Lane']):
+            if float(entry['% >= Q30bases']) >= q30_tresh:
+                return True
+    return False
+
+
+
 
 
 
@@ -311,8 +434,6 @@ def sample_qc_check(lane, lb, und_tresh, q30_tresh):
     
     """
     d={}
-    import pdb
-    pdb.set_trace()
     for entry in lb.sample_data:
         if lane == int(entry['Lane']):
             if entry.get('Sample')!='unknown':
@@ -350,6 +471,7 @@ def get_path_per_lane(run, ss):
             d[int(l['Lane'])]=os.path.join(run, dmux_folder)
 
     return d
+
 def get_samples_per_lane(ss):
     """
     :param ss: SampleSheet reader

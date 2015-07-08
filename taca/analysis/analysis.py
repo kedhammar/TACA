@@ -51,6 +51,7 @@ def transfer_run(run, analysis=True):
     :param str run: Run directory
     :param bool analysis: Trigger analysis on remote server
     """
+    #TODO: chekc the run type and build the correct rsync command
     command_line = ['rsync', '-av']
     # Add R/W permissions to the group
     command_line.append('--chmod=g+rw')
@@ -95,6 +96,7 @@ def transfer_run(run, analysis=True):
     archive_run(run)
 
     if analysis:
+        #This needs to pass the runtype (i.e., Xten or HiSeq) and start the correct pipeline
         trigger_analysis(run)
 
 def archive_run(run):
@@ -271,11 +273,9 @@ def run_preprocessing(run):
                 logger.info(("BCL conversion and demultiplexing process in "
                              "progress for run {}, skipping it"
                              .format(run.id)))
-                import pdb
-                pdb.set_trace()
                 run_dir=run.run_dir
                 dex_status=run.status
-                ud.compute_undetermined_stats(run_dir, dex_status)
+                ud.compute_undetermined_stats(run_dir, run.run_type, dex_status)
             
             elif run.status == 'COMPLETED':
                 logger.info(("Preprocessing of run {} is finished, check if "
@@ -284,8 +284,10 @@ def run_preprocessing(run):
                 ##check that there is NO running flag
                 run_dir=run.run_dir
                 dex_status=run.status
-                ud.compute_undetermined_stats(run_dir, dex_status)
-                dmux_folder = CONFIG['analysis']['bcl2fastq']['options'][0]['output-dir']
+                #compute the last undetermiend index stats
+                ud.compute_undetermined_stats(run_dir, run.run_type, dex_status)
+
+                dmux_folder = CONFIG['analysis'][run.run_type]['bcl2fastq']['options'][0]['output-dir']
                 running = 0
                 
                 for file in glob.glob(os.path.join(run_dir, dmux_folder, "index_count_L*.running")):
@@ -295,11 +297,20 @@ def run_preprocessing(run):
                 #all concurrent execution of TACA on this FC have finshed.
                 
                 
-                control_fastq_filename(os.path.join(run.run_dir, CONFIG['analysis']['bcl2fastq']['options'][0]['output-dir']))
-                passed_qc=ud.check_lanes_QC(run.run_dir, dex_status=run.status, und_tresh=CONFIG['analysis']['undetermined']['lane_treshold'],
-                    q30_tresh=CONFIG['analysis']['undetermined']['q30_treshold'], freq_tresh=CONFIG['analysis']['undetermined']['highest_freq'],
-                    pooled_tresh=CONFIG['analysis']['undetermined']['pooled_und_treshold'])
+                control_fastq_filename(os.path.join(run.run_dir, CONFIG['analysis'][run.run_type]['bcl2fastq']['options'][0]['output-dir']))
+               
+                
+                passed_qc=ud.check_lanes_QC(run=run.run_dir,
+                                            run_type=run.run_type,
+                                            dex_status=run.status,
+                                            max_percentage_undetermined_indexes_pooled_lane=CONFIG['analysis']['HiSeqX']['QC']['max_percentage_undetermined_indexes_pooled_lane'],
+                                            max_percentage_undetermined_indexes_unpooled_lane=CONFIG['analysis']['HiSeqX']['QC']['max_percentage_undetermined_indexes_unpooled_lane'],
+                                            minimum_percentage_Q30_bases_per_lane=CONFIG['analysis']['HiSeqX']['QC']['minimum_percentage_Q30_bases_per_lane'],
+                                            minimum_yield_per_lane=CONFIG['analysis']['HiSeqX']['QC']['minimum_yield_per_lane'],
+                                            max_frequency_most_represented_und_index_pooled_lane=CONFIG['analysis']['HiSeqX']['QC']['max_frequency_most_represented_und_index_pooled_lane'],
+                                            max_frequency_most_represented_und_index_unpooled_lane=CONFIG['analysis']['HiSeqX']['QC']['max_frequency_most_represented_und_index_unpooled_lane'])
 
+                #store the QC results
                 qc_file = os.path.join(CONFIG['analysis']['status_dir'], 'qc.tsv')
 
                 post_qc(run.run_dir, qc_file, passed_qc)
