@@ -180,7 +180,6 @@ def check_index_freq(run, lane, freq_tresh):
         if os.stat(index_count_file).st_size !=0:
             #command is still running
             logger.info("undetermined are till being parsed on lane {}".format(lane))
-            return False
         with open(os.path.join(run, dmux_folder,'index_count_L{}.tsv'.format(lane))) as idxf:
             for line in idxf:
                 barcodes[line.split('\t')[0]]=int(line.split('\t')[1])
