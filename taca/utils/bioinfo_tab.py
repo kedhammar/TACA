@@ -5,6 +5,7 @@ import couchdb
 import glob
 import re
 import logging
+import datetime
 
 from csv import DictReader
 from taca.utils.config import CONFIG
@@ -48,10 +49,11 @@ def update_statusdb(run_dir):
     run_name = os.path.basename(os.path.abspath(run_dir))
     status=get_status(run_dir)
     couch=setupServer(CONFIG)
+    valueskey=datetime.datetime.now().isoformat()
     db=couch['bioinfo_analysis']
     view = db.view('full_doc/pj_run_to_doc')
     for p in project_ids:
-        obj={'run_id':run_name, 'project_id':p, 'status':status}
+        obj={'run_id':run_name, 'project_id':p, 'status':status, 'values':{valueskey:{'user':'taca','status':status}} }
         if len(view[[p, run_name]].rows) == 1:
             remote_doc= view[[p, run_name]].rows[0].value
             remote_status=remote_doc["status"]
