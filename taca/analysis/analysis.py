@@ -42,7 +42,7 @@ def is_transferred(run, transfer_file):
         return False
 
 
-def transfer_run(run, analysis=True):
+def transfer_run(run, run_type, analysis=True):
     """ Transfer a run to the analysis server. Will add group R/W permissions to
     the run directory in the destination server so that the run can be processed
     by any user/account in that group (i.e a functional account...). Run will be
@@ -58,12 +58,12 @@ def transfer_run(run, analysis=True):
     # rsync works in a really funny way, if you don't understand this, refer to
     # this note: http://silentorbit.com/notes/2013/08/rsync-by-extension/
     command_line.append("--include=*/")
-    for to_include in CONFIG['analysis']['analysis_server']['sync']['include']:
+    for to_include in CONFIG['analysis'][run_type]['analysis_server']['sync']['include']:
         command_line.append("--include={}".format(to_include))
     command_line.extend(["--exclude=*", "--prune-empty-dirs"])
-    r_user = CONFIG['analysis']['analysis_server']['user']
-    r_host = CONFIG['analysis']['analysis_server']['host']
-    r_dir = CONFIG['analysis']['analysis_server']['sync']['data_archive']
+    r_user = CONFIG['analysis'][run_type]['analysis_server']['user']
+    r_host = CONFIG['analysis'][run_type]['analysis_server']['host']
+    r_dir = CONFIG['analysis'][run_type]['analysis_server']['sync']['data_archive']
     remote = "{}@{}:{}".format(r_user, r_host, r_dir)
     command_line.extend([run, remote])
 
@@ -84,7 +84,7 @@ def transfer_run(run, analysis=True):
         os.remove(os.path.join(run, 'transferring'))
         raise exception
 
-    t_file = os.path.join(CONFIG['analysis']['status_dir'], 'transfer.tsv')
+    t_file = os.path.join(CONFIG['analysis'][run_type]['status_dir'], 'transfer.tsv')
     logger.info('Adding run {} to {}'
                 .format(os.path.basename(run), t_file))
     with open(t_file, 'a') as tranfer_file:
@@ -97,7 +97,7 @@ def transfer_run(run, analysis=True):
 
     if analysis:
         #This needs to pass the runtype (i.e., Xten or HiSeq) and start the correct pipeline
-        trigger_analysis(run)
+        trigger_analysis(run, run_type)
 
 def archive_run(run):
     
@@ -128,21 +128,21 @@ def archive_run(run):
             logger.info('archiving run {}'.format(run))
             os.move(os.path.abspath(run), os.path.join(destination, os.path.basename(os.path.abspath(run))))
 
-def trigger_analysis(run_id):
+def trigger_analysis(run_id, run_type):
     """ Trigger the analysis of the flowcell in the analysis sever.
 
     :param str run_id: run/flowcell id
     """
-    if not CONFIG.get('analysis', {}).get('analysis_server', {}):
+    if not CONFIG.get('analysis', {}).get(run_type,{}).get('analysis_server', {}):
         logger.warn(("No configuration found for remote analysis server. "
                      "Not triggering analysis of {}"
                      .format(os.path.basename(run_id))))
     else:
         url = ("http://{host}:{port}/flowcell_analysis/{dir}"
-               .format(host=CONFIG['analysis']['analysis_server']['host'],
-                       port=CONFIG['analysis']['analysis_server']['port'],
+               .format(host=CONFIG['analysis'][run_type]['analysis_server']['host'],
+                       port=CONFIG['analysis'][run_type]['analysis_server']['port'],
                        dir=os.path.basename(run_id)))
-        params = {'path': CONFIG['analysis']['analysis_server']['sync']['data_archive']}
+        params = {'path': CONFIG['analysis'][run_type]['analysis_server']['sync']['data_archive']}
         try:
             r = requests.get(url, params=params)
             if r.status_code != requests.status_codes.codes.OK:
@@ -153,8 +153,8 @@ def trigger_analysis(run_id):
             else:
                 logger.info('Analysis of flowcell {} triggered in {}'
                             .format(os.path.basename(run_id),
-                                    CONFIG['analysis']['analysis_server']['host']))
-                a_file = os.path.join(CONFIG['analysis']['status_dir'], 'analysis.tsv')
+                                    CONFIG['analysis'][run_type]['analysis_server']['host']))
+                a_file = os.path.join(CONFIG['analysis'][run_type]['status_dir'], 'analysis.tsv')
                 with open(a_file, 'a') as analysis_file:
                     tsv_writer = csv.writer(analysis_file, delimiter='\t')
                     tsv_writer.writerow([os.path.basename(run_id), str(datetime.now())])
@@ -164,7 +164,7 @@ def trigger_analysis(run_id):
                          "start the analysis!".format(os.path.basename(run_id))))
 
 
-def prepare_sample_sheet(run):
+def prepare_sample_sheet(run, run_type):
     """ This is a temporary function in order to solve the current problem with LIMS system
         not able to generate a compatible samplesheet for HiSeqX. This function needs to massage
         the sample sheet created by GenoLogics in order to correctly demultiplex HiSeqX runs.
@@ -176,7 +176,7 @@ def prepare_sample_sheet(run):
     #start by checking if samplesheet is in the correct place
     run_name = os.path.basename(run)
     current_year = '20' + run_name[0:2]
-    samplesheets_dir = os.path.join(CONFIG['analysis']['samplesheets_dir'],
+    samplesheets_dir = os.path.join(CONFIG['analysis'][run_type]['samplesheets_dir'],
                                     current_year)
 
     run_name_componets = run_name.split("_")
@@ -261,13 +261,15 @@ def run_preprocessing(run):
 
         :param taca.illumina.Run run: Run to be processed and transferred
         """
+        import pdb
+        pdb.set_trace()
         logger.info('Checking run {}'.format(run.id))
         if run.is_finished():
             if  run.status == 'TO_START':
                 logger.info(("Starting BCL to FASTQ conversion and "
                              "demultiplexing for run {}".format(run.id)))
                 # work around LIMS problem
-                if prepare_sample_sheet(run.run_dir):
+                if prepare_sample_sheet(run.run_dir, run.run_type):
                     run.demultiplex()
             elif run.status == 'IN_PROGRESS':
                 logger.info(("BCL conversion and demultiplexing process in "
@@ -303,12 +305,12 @@ def run_preprocessing(run):
                 passed_qc=ud.check_lanes_QC(run=run.run_dir,
                                             run_type=run.run_type,
                                             dex_status=run.status,
-                                            max_percentage_undetermined_indexes_pooled_lane=CONFIG['analysis']['HiSeqX']['QC']['max_percentage_undetermined_indexes_pooled_lane'],
-                                            max_percentage_undetermined_indexes_unpooled_lane=CONFIG['analysis']['HiSeqX']['QC']['max_percentage_undetermined_indexes_unpooled_lane'],
-                                            minimum_percentage_Q30_bases_per_lane=CONFIG['analysis']['HiSeqX']['QC']['minimum_percentage_Q30_bases_per_lane'],
-                                            minimum_yield_per_lane=CONFIG['analysis']['HiSeqX']['QC']['minimum_yield_per_lane'],
-                                            max_frequency_most_represented_und_index_pooled_lane=CONFIG['analysis']['HiSeqX']['QC']['max_frequency_most_represented_und_index_pooled_lane'],
-                                            max_frequency_most_represented_und_index_unpooled_lane=CONFIG['analysis']['HiSeqX']['QC']['max_frequency_most_represented_und_index_unpooled_lane'])
+                                            max_percentage_undetermined_indexes_pooled_lane=CONFIG['analysis'][run.run_type]['QC']['max_percentage_undetermined_indexes_pooled_lane'],
+                                            max_percentage_undetermined_indexes_unpooled_lane=CONFIG['analysis'][run.run_type]['QC']['max_percentage_undetermined_indexes_unpooled_lane'],
+                                            minimum_percentage_Q30_bases_per_lane=CONFIG['analysis'][run.run_type]['QC']['minimum_percentage_Q30_bases_per_lane'],
+                                            minimum_yield_per_lane=CONFIG['analysis'][run.run_type]['QC']['minimum_yield_per_lane'],
+                                            max_frequency_most_represented_und_index_pooled_lane=CONFIG['analysis'][run.run_type]['QC']['max_frequency_most_represented_und_index_pooled_lane'],
+                                            max_frequency_most_represented_und_index_unpooled_lane=CONFIG['analysis'][run.run_type]['QC']['max_frequency_most_represented_und_index_unpooled_lane'])
 
                 #store the QC results
                 qc_file = os.path.join(CONFIG['analysis']['status_dir'], 'qc.tsv')
@@ -324,9 +326,9 @@ def run_preprocessing(run):
                                     .format(run.id))
                         logger.info('Transferring run {} to {} into {}'
                                     .format(run.id,
-                            CONFIG['analysis']['analysis_server']['host'],
-                            CONFIG['analysis']['analysis_server']['sync']['data_archive']))
-                        transfer_run(run.run_dir)
+                            CONFIG['analysis'][run.run_type]['analysis_server']['host'],
+                            CONFIG['analysis'][run.run_type]['analysis_server']['sync']['data_archive']))
+                        transfer_run(run=run.run_dir, run_type=run.run_type)
                     else:
                         logger.info('Run {} already transferred to analysis server, skipping it'.format(run.id))
                 else:

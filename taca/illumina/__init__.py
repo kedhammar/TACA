@@ -75,9 +75,16 @@ class Run(object):
         file.
         """
         logger.info('Building bcl2fastq command')
-        config = CONFIG['analysis']
+        config = CONFIG['analysis'][self.run_type]
         with chdir(self.run_dir):
-            cl = [config.get('bcl2fastq').get(self.run_type)]
+            if 'bcl2fastq' not in config:
+                logger.warn("config file not properly set-up: bcl2fastq entry is missing for sequencing type {}".format(self.run_type))
+                return
+            if not config['bcl2fastq'].has_key('bin'):
+                logger.warn("config file not properly set-up: bcl2fastq entry has not filed bin for sequencing type {}".format(self.run_type))
+                return
+
+            cl = [config.get('bcl2fastq').get('bin')]
             if config['bcl2fastq'].has_key('options'):
                 cl_options = config['bcl2fastq']['options']
 
