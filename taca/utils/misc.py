@@ -38,10 +38,9 @@ def call_external_command(cl, with_log_files=False, prefix=None):
     command = os.path.basename(cl[0])
     stdout = sys.stdout
     stderr = sys.stderr
-
     if with_log_files:
         if prefix:
-            command = '{}_{}'.format(prefix, command)
+            command = os.path.join('{}'.format(prefix),  '{}'.format(command))
         stdout = open(command + '.out', 'wa')
         stderr = open(command + '.err', 'wa')
         started = "Started command {} on {}".format(' '.join(cl), datetime.now())

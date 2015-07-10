@@ -7,6 +7,7 @@ import re
 import subprocess
 import taca.utils.undetermined as ud
 import flowcell_parser.db as fcpdb
+import shutil
 
 from datetime import datetime
 
@@ -42,7 +43,7 @@ def is_transferred(run, transfer_file):
         return False
 
 
-def transfer_run(run, run_type, analysis=True):
+def transfer_run(run, run_type=None, analysis=True):
     """ Transfer a run to the analysis server. Will add group R/W permissions to
     the run directory in the destination server so that the run can be processed
     by any user/account in that group (i.e a functional account...). Run will be
@@ -51,6 +52,9 @@ def transfer_run(run, run_type, analysis=True):
     :param str run: Run directory
     :param bool analysis: Trigger analysis on remote server
     """
+    if run_type is None:
+        runObject = Run(run)
+        run_type = runObject.run_type
     #TODO: chekc the run type and build the correct rsync command
     command_line = ['rsync', '-av']
     # Add R/W permissions to the group
@@ -78,13 +82,14 @@ def transfer_run(run, run_type, analysis=True):
     logger.info(started)
     # In this particular case we want to capture the exception because we want
     # to delete the transfer file
+    archive_run(run)
     try:
-        misc.call_external_command(command_line, with_log_files=True)
+        misc.call_external_command(command_line, with_log_files=True, prefix=CONFIG['analysis']['status_dir'])
     except subprocess.CalledProcessError as exception:
         os.remove(os.path.join(run, 'transferring'))
         raise exception
 
-    t_file = os.path.join(CONFIG['analysis'][run_type]['status_dir'], 'transfer.tsv')
+    t_file = os.path.join(CONFIG['analysis']['status_dir'], 'transfer.tsv')
     logger.info('Adding run {} to {}'
                 .format(os.path.basename(run), t_file))
     with open(t_file, 'a') as tranfer_file:
@@ -109,24 +114,24 @@ def archive_run(run):
     else:
         try:
             #Works for recent control software
-            runtype=rp.data["Setup"].get("Application Name")
+            runtype=rp.data['RunParameters']["Setup"].get("ApplicationName")
         except KeyError :
             #should work for ancient control software
             runtype=rp.data.get("Application Name")
 
         if "HiSeq X" in runtype:
-            destination=CONFIG['storage']['archive_dir']['HiSeqX']
+            destination=CONFIG['storage']['archive_dirs']['HiSeqX']
         elif "MiSeq" in runtype:
-            destination=CONFIG['storage']['archive_dir']['MiSeq']
+            destination=CONFIG['storage']['archive_dirs']['MiSeq']
         elif "HiSeq" in runtype:
-            destination=CONFIG['storage']['archive_dir']['HiSeq']
+            destination=CONFIG['storage']['archive_dirs']['HiSeq']
         else:
             logger.warn("unrecognized runtype {}, cannot archive the run {}.".format(runtype, run)) 
             destination=None
 
         if destination:
             logger.info('archiving run {}'.format(run))
-            os.move(os.path.abspath(run), os.path.join(destination, os.path.basename(os.path.abspath(run))))
+            shutil.move(os.path.abspath(run), os.path.join(destination, os.path.basename(os.path.abspath(run))))
 
 def trigger_analysis(run_id, run_type):
     """ Trigger the analysis of the flowcell in the analysis sever.
@@ -194,7 +199,7 @@ def prepare_sample_sheet(run, run_type):
         return False
     try:
         with open(FCID_samplesheet_dest, 'wb') as fcd:
-            fcd.write(ss_reader.generate_clean_samplesheet(fields_to_remove=['index2'], rename_samples=True))
+            fcd.write(ss_reader.generate_clean_samplesheet(fields_to_remove=['index2'], rename_samples=True, rename_qPCR_suffix = True, fields_qPCR=['SampleName']))
     except Exception as e:
         logger.error(e.text)
         return False
@@ -261,8 +266,7 @@ def run_preprocessing(run):
 
         :param taca.illumina.Run run: Run to be processed and transferred
         """
-        import pdb
-        pdb.set_trace()
+        
         logger.info('Checking run {}'.format(run.id))
         if run.is_finished():
             if  run.status == 'TO_START':

@@ -259,7 +259,7 @@ def compute_index_freq(run, lane):
     """
     barcodes={}
     if os.path.exists(os.path.join(run, dmux_folder,'index_count_L{}.running'.format(lane))):
-        logger.info("Lane {} is currenlty under processing: WARNING this lane is taking too long.".format(lane))
+        logger.warn("Lane {} is currenlty under processing: WARNING this lane is taking too long.".format(lane))
         return
     elif os.path.exists(os.path.join(run, dmux_folder,'index_count_L{}.tsv'.format(lane))):
         logger.info("Found index count for lane {}. No need to recompute it.".format(lane))
