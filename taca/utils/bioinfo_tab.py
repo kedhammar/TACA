@@ -137,6 +137,9 @@ def get_ss_projects(run_dir):
                     return ['UNKNOWN']
 
         ss_reader=XTenSampleSheetParser(FCID_samplesheet_origin)
+        if 'Description' in ss_reader.header and ss_reader.header['Description'] not in ['Production', 'Application']:
+            #This is a non platform MiSeq run. Disregard it.
+            return []
         data=ss_reader.data
 
     else:
