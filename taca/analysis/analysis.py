@@ -14,12 +14,14 @@ from datetime import datetime
 
 import requests
 
-from taca.illumina import Run
+from taca.illumina.Runs import Run
+from taca.illumina.HiSeqX_Runs import HiSeqX_Run
+
 from taca.utils.filesystem import chdir, control_fastq_filename
 from taca.utils.config import CONFIG
 from taca.utils import misc
 from taca.utils import parsers
-from flowcell_parser.classes import XTenRunParametersParser,XTenSampleSheetParser,XTenParser
+from flowcell_parser.classes import RunParametersParser, SampleSheetParser, RunParser
 
 logger = logging.getLogger(__name__)
 
@@ -106,6 +108,36 @@ def transfer_run(run, run_type=None, analysis=True):
         #This needs to pass the runtype (i.e., Xten or HiSeq) and start the correct pipeline
         trigger_analysis(run, run_type)
 
+
+def _run_type(run):
+    """
+        Tries to read runParameters.xml and returns the run type.
+    """
+    rppath=os.path.join(run, 'runParameters.xml')
+    try:
+        rp=RunParametersParser(os.path.join(run, 'runParameters.xml'))
+    except OSError:
+        logger.warn("Cannot find the runParameters.xml file at {}. This is quite unexpected. please archive the run {} manually".format(rppath, run))
+    else:
+        try:
+            #Works for recent control software
+            runtype=rp.data['RunParameters']["Setup"].get("ApplicationName")
+        except KeyError :
+            #should work for ancient control software
+            runtype=rp.data.get("Application Name")
+        
+        if "HiSeq X" in runtype:
+            return 'HiSeqX'
+        elif "MiSeq" in runtype:
+            return 'MiSeq'
+        elif "HiSeq" in runtype:
+            return 'HiSeq'
+        else:
+            logger.warn("unrecognized runtype {}, cannot archive the run {}. Someone as likely bought a new sequencer without telling it to the bioinfo team".format(runtype, run))
+
+
+
+
 def archive_run(run):
 
     rppath=os.path.join(run, 'runParameters.xml')
@@ -178,12 +210,7 @@ def find_samplesheet(run):
     """
     if run.run_type == 'MiSeq':
         return os.path.join(run.run_dir, 'Data', 'Intensities', 'BaseCalls', 'SampleSheet.csv')
-    else:
-        current_year = '20' + run.id[0:2]
-        samplesheets_dir = os.path.join(CONFIG['analysis'][run.run_type]['samplesheets_dir'],
-                                        current_year)
-        FC_ID = parsers.get_flowcell_id(run.run_dir)
-        return os.path.join(samplesheets_dir, '{}.csv'.format(FC_ID))
+
 
 
 def prepare_sample_sheet(run_dir, run_type, ss_origin):
@@ -298,47 +325,51 @@ def run_preprocessing(run):
         import pdb
         pdb.set_trace()
         logger.info('Checking run {}'.format(run.id))
-        if run.is_finished():
-            if  run.status == 'TO_START':
-                logger.info(("Starting BCL to FASTQ conversion and "
+        if run.get_run_status() == 'SEQUENCING':
+            # Check status files and say i.e Run in second read, maybe something
+            # even more specific like cycle or something
+            logger.info('Run {} is not finished yet'.format(run.id))
+        elif  run.get_run_status == 'TO_START':
+            logger.info(("Starting BCL to FASTQ conversion and "
                              "demultiplexing for run {}".format(run.id)))
-                # work around LIMS problem
-                samplesheet = find_samplesheet(run)
-                if (run.run_type == 'HiSeqX' and prepare_x10_sample_sheet(run.run_dir, samplesheet)) \
+            run.demultiplex_run()
+            
+            # work around LIMS problem
+            samplesheet = find_samplesheet(run)
+            if (run.run_type == 'HiSeqX' and prepare_x10_sample_sheet(run.run_dir, samplesheet)) \
                         or (run.run_type != 'HiSeqX' and prepare_sample_sheet(run.run_dir, run.run_type, samplesheet)):
-                    run.demultiplex()
-                    # Right after demultiplexing, move data to nosync directory
-                    shutil.move(run.run_dir, os.path.join(os.path.dirname(run.run_dir, 'nosync')))
-            elif run.status == 'IN_PROGRESS':
-                logger.info(("BCL conversion and demultiplexing process in "
+                run.demultiplex()
+
+        elif run.get_run_status == 'IN_PROGRESS':
+            logger.info(("BCL conversion and demultiplexing process in "
                              "progress for run {}, skipping it"
                              .format(run.id)))
-                run_dir=run.run_dir
-                dex_status=run.status
-                ud.compute_undetermined_stats(run_dir, run.run_type, dex_status)
-            elif run.status == 'COMPLETED':
-                logger.info(("Preprocessing of run {} is finished, check if "
+            run_dir=run.run_dir
+            dex_status=run.status
+            ud.compute_undetermined_stats(run_dir, run.run_type, dex_status)
+        elif run.get_run_status == 'COMPLETED':
+            logger.info(("Preprocessing of run {} is finished, check if "
                              "run has been transferred and transfer it "
                              "otherwise".format(run.id)))
 
-                ##check that there is NO running flag
-                run_dir=run.run_dir
-                dex_status=run.status
-                #compute the last undetermiend index stats
-                ud.compute_undetermined_stats(run_dir, run.run_type, dex_status)
+            ##check that there is NO running flag
+            run_dir=run.run_dir
+            dex_status=run.status
+            #compute the last undetermiend index stats
+            ud.compute_undetermined_stats(run_dir, run.run_type, dex_status)
 
-                dmux_folder = CONFIG['analysis'][run.run_type]['bcl2fastq']['options'][0]['output-dir']
-                running = 0
+            dmux_folder = CONFIG['analysis'][run.run_type]['bcl2fastq']['options'][0]['output-dir']
+            running = 0
                 
-                for file in glob.glob(os.path.join(run_dir, dmux_folder, "index_count_L*.running")):
-                    running +=1
-                if running > 0:
-                    return
-                #all concurrent execution of TACA on this FC have finshed.
+            for file in glob.glob(os.path.join(run_dir, dmux_folder, "index_count_L*.running")):
+                running +=1
+            if running > 0:
+                return
+            #all concurrent execution of TACA on this FC have finshed.
                 
-                if run.run_type == 'HiSeqX':
-                    control_fastq_filename(os.path.join(run.run_dir, CONFIG['analysis'][run.run_type]['bcl2fastq']['options'][0]['output-dir']))
-                    passed_qc=ud.check_lanes_QC(run=run.run_dir,
+            if run.run_type == 'HiSeqX':
+                control_fastq_filename(os.path.join(run.run_dir, CONFIG['analysis'][run.run_type]['bcl2fastq']['options'][0]['output-dir']))
+                passed_qc=ud.check_lanes_QC(run=run.run_dir,
                                             run_type=run.run_type,
                                             dex_status=run.status,
                                             max_percentage_undetermined_indexes_pooled_lane=CONFIG['analysis'][run.run_type]['QC']['max_percentage_undetermined_indexes_pooled_lane'],
@@ -348,48 +379,56 @@ def run_preprocessing(run):
                                             max_frequency_most_represented_und_index_pooled_lane=CONFIG['analysis'][run.run_type]['QC']['max_frequency_most_represented_und_index_pooled_lane'],
                                             max_frequency_most_represented_und_index_unpooled_lane=CONFIG['analysis'][run.run_type]['QC']['max_frequency_most_represented_und_index_unpooled_lane'])
 
-                    #store the QC results
-                    qc_file = os.path.join(CONFIG['analysis']['status_dir'], 'qc.tsv')
+                #store the QC results
+                qc_file = os.path.join(CONFIG['analysis']['status_dir'], 'qc.tsv')
 
-                    post_qc(run.run_dir, qc_file, passed_qc)
-                    upload_to_statusdb(run.run_dir)
+                post_qc(run.run_dir, qc_file, passed_qc)
+                upload_to_statusdb(run.run_dir)
 
-                    t_file = os.path.join(CONFIG['analysis']['status_dir'], 'transfer.tsv')
-                    transferred = is_transferred(run.run_dir, t_file)
-                    if passed_qc:
-                        if not transferred:
-                            logger.info("Run {} hasn't been transferred yet."
-                                        .format(run.id))
-                            logger.info('Transferring run {} to {} into {}'
-                                        .format(run.id,
-                                CONFIG['analysis'][run.run_type]['analysis_server']['host'],
-                                CONFIG['analysis'][run.run_type]['analysis_server']['sync']['data_archive']))
-                            transfer_run(run.run_dir)
-                        else:
-                            logger.info('Run {} already transferred to analysis server, skipping it'.format(run.id))
-                    else:
-                        logger.warn('Run {} failed qc, transferring will not take place'.format(run.id))
-                        r_file = os.path.join(CONFIG['analysis']['status_dir'], 'report.out')
-                else:
-                    t_file = os.path.join(CONFIG['analysis']['status_dir'], 'transfer.tsv')
-                    if not is_transferred(run.run_dir, t_file):
+                t_file = os.path.join(CONFIG['analysis']['status_dir'], 'transfer.tsv')
+                transferred = is_transferred(run.run_dir, t_file)
+                if passed_qc:
+                    if not transferred:
                         logger.info("Run {} hasn't been transferred yet."
-                                    .format(run.id))
+                                        .format(run.id))
                         logger.info('Transferring run {} to {} into {}'
-                                    .format(run.id,
+                                        .format(run.id,
                             CONFIG['analysis'][run.run_type]['analysis_server']['host'],
                             CONFIG['analysis'][run.run_type]['analysis_server']['sync']['data_archive']))
-                        transfer_run(run=run.run_dir, run_type=run.run_type)
+                        transfer_run(run.run_dir)
                     else:
                         logger.info('Run {} already transferred to analysis server, skipping it'.format(run.id))
+                else:
+                    logger.warn('Run {} failed qc, transferring will not take place'.format(run.id))
+                    r_file = os.path.join(CONFIG['analysis']['status_dir'], 'report.out')
+            else:
+                t_file = os.path.join(CONFIG['analysis']['status_dir'], 'transfer.tsv')
+                if not is_transferred(run.run_dir, t_file):
+                    logger.info("Run {} hasn't been transferred yet."
+                                    .format(run.id))
+                    logger.info('Transferring run {} to {} into {}'
+                                .format(run.id,
+                        CONFIG['analysis'][run.run_type]['analysis_server']['host'],
+                        CONFIG['analysis'][run.run_type]['analysis_server']['sync']['data_archive']))
+                    transfer_run(run=run.run_dir, run_type=run.run_type)
+                else:
+                    logger.info('Run {} already transferred to analysis server, skipping it'.format(run.id))
 
-        if not run.is_finished():
-            # Check status files and say i.e Run in second read, maybe something
-            # even more specific like cycle or something
-            logger.info('Run {} is not finished yet'.format(run.id))
 
     if run:
-        _process(Run(run))
+        #needs to guess what run type I have (HiSeq, MiSeq, HiSeqX)
+        sequencer_type = _run_type(run)
+        if sequencer_type is 'HiSeqX':
+            import pdb
+            pdb.set_trace()
+            runObj = HiSeqX_Run(run, CONFIG["analysis"]["HiSeqX"])
+            runObj.demultiplex_run()
+        
+        elif sequencer_type is 'HiSeq':
+            print "the are more days than sousages"
+        elif sequencer_type is 'MiSeq':
+            print " miseq"
+        _process(runObj)
     else:
         data_dirs = CONFIG.get('analysis').get('data_dirs')
         for data_dir in data_dirs:
