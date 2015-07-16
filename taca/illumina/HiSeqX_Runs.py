@@ -2,9 +2,13 @@ import os
 import re
 import csv
 import glob
-import datetime
+from datetime import datetime
+from taca.utils.filesystem import chdir, control_fastq_filename
 from taca.illumina.Runs import Run
+from taca.utils import misc
 from flowcell_parser.classes import RunParametersParser, SampleSheetParser, RunParser
+import taca.illumina.HiSeqX_QC as qc
+
 
 import logging
 
@@ -68,13 +72,76 @@ class HiSeqX_Run(Run):
         ##SampleSheet.csv generated
         ##when demultiplexing SampleSheet.csv is the one I need to use
         self.runParserObj.samplesheet  = SampleSheetParser(os.path.join(self.run_dir, "SampleSheet.csv"))
-        
-        import pdb
-        pdb.set_trace()
-        
+
         per_lane_base_masks = self._generate_per_lane_base_mask()
+        max_different_base_masks =  max([len(base_masks) for base_masks in per_lane_base_masks])
+        if max_different_base_masks > 1:
+            # in a HiSeqX run I cannot have different index sizes in the SAME lane
+            logger.error("In FC {} found one or more lane with more than one base mask (i.e., different index sizes in \
+                         in the same lane".format(self.id))
+            return False
+        #I have everything to run demultiplexing now.
+        logger.info('Building bcl2fastq command')
+
+        with chdir(self.run_dir):
+            cl = [self.CONFIG.get('bcl2fastq')['bin']]
+            if self.CONFIG.get('bcl2fastq').has_key('options'):
+                cl_options = self.CONFIG['bcl2fastq']['options']
+                # Append all options that appear in the configuration file to the main command.
+                for option in cl_options:
+                    if isinstance(option, dict):
+                        opt, val = option.popitem()
+                        cl.extend(['--{}'.format(opt), str(val)])
+                    else:
+                        cl.append('--{}'.format(option))
+            #now add the base_mask for each lane
+            for lane in sorted(per_lane_base_masks):
+                #iterate thorugh each lane and add the correct --use-bases-mask for that lane
+                #there is a single basemask for each lane, I checked it a couple of lines above
+                base_mask = [per_lane_base_masks[lane][bm]['base_mask'] for bm in per_lane_base_masks[lane]][0] # get the base_mask
+                base_mask_expr = "{}:".format(lane) + ",".join(base_mask)
+                cl.extend(["--use-bases-mask", base_mask_expr])
+
+            logger.info(("BCL to FASTQ conversion and demultiplexing started for "
+                 " run {} on {}".format(os.path.basename(self.id), datetime.now())))
+            misc.call_external_command_detached(cl, with_log_files=True)
+        return True
 
 
+    def check_run_status(self):
+        """
+           This function checks the status of a run while in progress.
+           For Xten analysis it also compute undetermined stats
+        """
+        run_dir    =  self.run_dir
+        dex_status =  self.get_run_status()
+        qc.compute_undetermined_stats(self.run_dir, self.demux_dir, self.get_run_status())
+
+    def demux_done(self):
+        """
+           checks that there are no concurrent TACA processes running
+        """
+        running = 0
+        for file in glob.glob(os.path.join(self.run_dir, self.demux_dir, "index_count_L*.running")):
+            running +=1
+        if running > 0:
+            return False
+        
+        control_fastq_filename(os.path.join(self.run_dir, self.demux_dir))
+        return True
+
+
+
+    def check_QC(self):
+        passed_qc=ud.check_lanes_QC(run=run.run_dir,
+                            run_type=run.run_type,
+                            dex_status=run.status,
+                            max_percentage_undetermined_indexes_pooled_lane=CONFIG['analysis'][run.run_type]['QC']['max_percentage_undetermined_indexes_pooled_lane'],
+                            max_percentage_undetermined_indexes_unpooled_lane=CONFIG['analysis'][run.run_type]['QC']['max_percentage_undetermined_indexes_unpooled_lane'],
+                            minimum_percentage_Q30_bases_per_lane=CONFIG['analysis'][run.run_type]['QC']['minimum_percentage_Q30_bases_per_lane'],
+                            minimum_yield_per_lane=CONFIG['analysis'][run.run_type]['QC']['minimum_yield_per_lane'],
+                            max_frequency_most_represented_und_index_pooled_lane=CONFIG['analysis'][run.run_type]['QC']['max_frequency_most_represented_und_index_pooled_lane'],
+                            max_frequency_most_represented_und_index_unpooled_lane=CONFIG['analysis'][run.run_type]['QC']['max_frequency_most_represented_und_index_unpooled_lane'])
 
 
 

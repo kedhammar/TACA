@@ -288,63 +288,45 @@ def run_preprocessing(run):
 
         :param taca.illumina.Run run: Run to be processed and transferred
         """
-        import pdb
-        pdb.set_trace()
+
         logger.info('Checking run {}'.format(run.id))
         if run.get_run_status() == 'SEQUENCING':
             # Check status files and say i.e Run in second read, maybe something
             # even more specific like cycle or something
             logger.info('Run {} is not finished yet'.format(run.id))
-        elif  run.get_run_status == 'TO_START':
+        elif  run.get_run_status() == 'TO_START':
             logger.info(("Starting BCL to FASTQ conversion and "
                              "demultiplexing for run {}".format(run.id)))
             run.demultiplex_run()
-            
-            # work around LIMS problem
-            samplesheet = find_samplesheet(run)
-            if (run.run_type == 'HiSeqX' and prepare_x10_sample_sheet(run.run_dir, samplesheet)) \
-                        or (run.run_type != 'HiSeqX' and prepare_sample_sheet(run.run_dir, run.run_type, samplesheet)):
-                run.demultiplex()
 
-        elif run.get_run_status == 'IN_PROGRESS':
+        elif run.get_run_status() == 'IN_PROGRESS':
             logger.info(("BCL conversion and demultiplexing process in "
                              "progress for run {}, skipping it"
                              .format(run.id)))
-            run_dir=run.run_dir
-            dex_status=run.status
-            ud.compute_undetermined_stats(run_dir, run.run_type, dex_status)
-        elif run.get_run_status == 'COMPLETED':
+            import pdb
+            pdb.set_trace()
+            run.check_run_status()
+            
+            
+        elif run.get_run_status() == 'COMPLETED':
+            import pdb
+            pdb.set_trace()
             logger.info(("Preprocessing of run {} is finished, check if "
                              "run has been transferred and transfer it "
                              "otherwise".format(run.id)))
 
-            ##check that there is NO running flag
-            run_dir=run.run_dir
-            dex_status=run.status
             #compute the last undetermiend index stats
-            ud.compute_undetermined_stats(run_dir, run.run_type, dex_status)
-
-            dmux_folder = CONFIG['analysis'][run.run_type]['bcl2fastq']['options'][0]['output-dir']
-            running = 0
-                
-            for file in glob.glob(os.path.join(run_dir, dmux_folder, "index_count_L*.running")):
-                running +=1
-            if running > 0:
+            run.check_run_status()
+            if not run.demux_done():
                 return
-            #all concurrent execution of TACA on this FC have finshed.
-                
-            if run.run_type == 'HiSeqX':
-                control_fastq_filename(os.path.join(run.run_dir, CONFIG['analysis'][run.run_type]['bcl2fastq']['options'][0]['output-dir']))
-                passed_qc=ud.check_lanes_QC(run=run.run_dir,
-                                            run_type=run.run_type,
-                                            dex_status=run.status,
-                                            max_percentage_undetermined_indexes_pooled_lane=CONFIG['analysis'][run.run_type]['QC']['max_percentage_undetermined_indexes_pooled_lane'],
-                                            max_percentage_undetermined_indexes_unpooled_lane=CONFIG['analysis'][run.run_type]['QC']['max_percentage_undetermined_indexes_unpooled_lane'],
-                                            minimum_percentage_Q30_bases_per_lane=CONFIG['analysis'][run.run_type]['QC']['minimum_percentage_Q30_bases_per_lane'],
-                                            minimum_yield_per_lane=CONFIG['analysis'][run.run_type]['QC']['minimum_yield_per_lane'],
-                                            max_frequency_most_represented_und_index_pooled_lane=CONFIG['analysis'][run.run_type]['QC']['max_frequency_most_represented_und_index_pooled_lane'],
-                                            max_frequency_most_represented_und_index_unpooled_lane=CONFIG['analysis'][run.run_type]['QC']['max_frequency_most_represented_und_index_unpooled_lane'])
 
+            if run.check_QC():
+                run.tranfer()
+
+
+            if run.run_type == 'HiSeqX':
+               
+               
                 #store the QC results
                 qc_file = os.path.join(CONFIG['analysis']['status_dir'], 'qc.tsv')
 
@@ -388,7 +370,7 @@ def run_preprocessing(run):
             import pdb
             pdb.set_trace()
             runObj = HiSeqX_Run(run, CONFIG["analysis"]["HiSeqX"])
-            runObj.demultiplex_run()
+        
         
         elif sequencer_type is 'HiSeq':
             print "the are more days than sousages"

@@ -37,6 +37,18 @@ class Run(object):
 
     def demultiplex_run():
         raise NotImplementedError("Please Implement this method")
+    
+    def check_run_status():
+        raise NotImplementedError("Please Implement this method")
+    
+    def demux_done(self):
+        raise NotImplementedError("Please Implement this method")
+    
+    
+    def check_QC(self):
+        raise NotImplementedError("Please Implement this method")
+
+    
 
     def _set_sequencer_type(self, configuration):
         raise NotImplementedError("Please Implement this method")
@@ -215,6 +227,10 @@ class Run(object):
                             bm.append('N' + str(cycles))
         return bm
 
+
+
+    def tranfer(self):
+        raise NotImplementedError("Please Implement this method, but here it not run specific")
 
 
 
