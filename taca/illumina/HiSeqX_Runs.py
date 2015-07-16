@@ -34,7 +34,7 @@ class HiSeqX_Run(Run):
         if os.path.exists(ssname):
             return ssname
         else:
-            raise RunTimeError("not able to find samplesheet {}.csv in {}".format(self.flowcell_id, self.CONFIG['samplesheets_dir']))
+            raise RuntimeError("not able to find samplesheet {}.csv in {}".format(self.flowcell_id, self.CONFIG['samplesheets_dir']))
 
 
 
@@ -53,43 +53,28 @@ class HiSeqX_Run(Run):
         ssparser = SampleSheetParser(ssname)
 
 
-        #samplesheet to be positioned in the FC directory with name SampleSheet.csv (Illumina default)
+        #samplesheet need to be positioned in the FC directory with name SampleSheet.csv (Illumina default)
+        #if this is not the case then create it and take special care of modification to be done on the SampleSheet
         samplesheet_dest = os.path.join(self.run_dir, "SampleSheet.csv")
         #check that the samplesheet is not already present and generate the dafault SampleSheet. This avoids multiple runs on the same FC
-        if os.path.exists(samplesheet_dest):
-            logger.warn(("When trying to generate SampleSheet.csv for Flowcell "
-                         "{}  looks like that SampleSheet.csv was already "
-                         "present in {} !!".format(self.id, samplesheet_dest)))
-            return False
-        try:
-            with open(samplesheet_dest, 'wb') as fcd:
-                fcd.write(_generate_clean_samplesheet(ssparser, fields_to_remove=['index2'], rename_samples=True, rename_qPCR_suffix = True, fields_qPCR=['SampleName']))
-        except Exception as e:
-            logger.error(e.text)
-            return False
+        if not os.path.exists(samplesheet_dest):
+            try:
+                with open(samplesheet_dest, 'wb') as fcd:
+                    fcd.write(_generate_clean_samplesheet(ssparser, fields_to_remove=['index2'], rename_samples=True, rename_qPCR_suffix = True, fields_qPCR=['SampleName']))
+            except Exception as e:
+                logger.error(e.text)
+                return False
+            logger.info(("Created SampleSheet.csv for Flowcell {} in {} ".format(self.id, samplesheet_dest)))
         ##SampleSheet.csv generated
+        ##when demultiplexing SampleSheet.csv is the one I need to use
+        self.runParserObj.samplesheet  = SampleSheetParser(os.path.join(self.run_dir, "SampleSheet.csv"))
+        
         import pdb
         pdb.set_trace()
-        per_lane_base_mask = self.generate_per_lane_base_mask()
-        import pdb
-        pdb.set_trace()
+        
+        per_lane_base_masks = self._generate_per_lane_base_mask()
 
-def generate_per_lane_base_mask(self):
-    """
-    This functions generate the base masks for each lane for an HiSeqX run. RunInfo.xml contains the configuration
-    that in a X-ten run shoudl always be [Y151,I8,Y151]. However we might:
-        - run without indexes
-        - run with all lanes with indexes of size 6 (NeoPrep)
-        - run some lanes with indexes of a certain size and others of other size
-    N.B. this function will fail if the same lane has indexes of different size
-    """
-    import pdb
-    pdb.set_trace()
-    #geenrate new ssparser (from the renamed smaplesheet)
-    ssparser = SampleSheetParser(os.path.join(self.run_dir, "SampleSheet.csv"))
-    runSetup = self.runParserObj.runinfo.get_read_configuration()
-    test
-    #do more or less what get_base_masks does but with different assumptions
+
 
 
 

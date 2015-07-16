@@ -48,7 +48,6 @@ def get_base_masks(rundir):
 
     #Create the basemask for each group
     for index_size, index_group in base_masks.iteritems():
-        index_size = index_size
         group = index_size
         bm = []
         per_index_size = index_size/(int(last_index_read(rundir)) - 1)
