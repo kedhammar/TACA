@@ -34,15 +34,31 @@ def merge(d1, d2):
 
 
 def collect_runs():
+    found_runs=[]
     rundir_re=re.compile("^[0-9]{6}_[A-Z0-9\-]+_[0-9]{4}_[A-Z0-9\-]{10,16}$")
     for data_dir in CONFIG['bioinfo_tab']['data_dirs']:
         if os.path.exists(data_dir):
             potential_run_dirs=glob.glob(os.path.join(data_dir, '*'))
             for run_dir in potential_run_dirs:
                 if rundir_re.match(os.path.basename(os.path.abspath(run_dir))) and os.path.isdir(run_dir):
+                    found_runs.append(os.path.basename(run_dir))
                     logger.info("Working on {}".format(run_dir))        
                     update_statusdb(run_dir)
 
+    check_unfound_runs(found_runs)
+    
+def check_unfound_runs(found_runs):
+    couch=setupServer(CONFIG)
+    db=couch['bioinfo_analysis']
+    valueskey=datetime.datetime.now().isoformat()
+    view = db.view('general/not_ongoing_runids')
+    for row in view.rows:
+        if row.key not in found_runs:
+            obj={'run_id':run_name,'status':'Ongoing', 'values':{valueskey:{'user':'taca','status':'Ongoing'}} }
+            remote_doc=row.value
+            final_obj=merge(obj, remote_doc)
+            logger.info("saving {} as  {}".format(run_name, 'Ongoing'))
+            db.save(final_obj)
 
 def update_statusdb(run_dir):
     project_ids=get_ss_projects(run_dir)
@@ -64,8 +80,6 @@ def update_statusdb(run_dir):
         else:
             logger.info("saving {} {} as  {}".format(run_name, p, status))
             db.save(obj)
-
-
 
 def get_status(run_dir):
     status='Incoming'
@@ -89,6 +103,7 @@ def get_status(run_dir):
         status='Demultiplexed'
     if os.path.exists(os.path.join(run_dir, 'transferring')):
         status='Transferring'
+
     if os.path.exists(taca_transfer):
         with open(taca_transfer) as t_file:
             for line in t_file:
