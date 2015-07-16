@@ -227,41 +227,7 @@ def prepare_sample_sheet(run_dir, run_type, ss_origin):
     return True
 
 
-def prepare_x10_sample_sheet(run, ss_origin=None):
-    """ This is a temporary function in order to solve the current problem with LIMS system
-        not able to generate a compatible samplesheet for HiSeqX. This function needs to massage
-        the sample sheet created by GenoLogics in order to correctly demultiplex HiSeqX runs.
-        This function returns with success if the samplesheet is in the correct place, otherwise
-        this flowcell will not be processed.
 
-        :param str run: Run directory
-        :param str ss_origin: Path to the SampleSheet for this run in the filesystem
-    """
-    #start by checking if samplesheet is in the correct place
-    if not ss_origin or not os.path.exists(ss_origin):
-        logger.error("Processing FC {}. Not able to find samplesheet {}".format(run.id, ss_origin))
-        return False
-
-    FCID = parsers.get_flowcell_id(run)
-    FCID_samplesheet_dest = os.path.join(run, "SampleSheet.csv")
-
-    ss_reader=XTenSampleSheetParser(ss_origin)
-    #check that the samplesheet is not already present
-    if os.path.exists(FCID_samplesheet_dest):
-        logger.warn(("When trying to generate SampleSheet.csv for Flowcell "
-                     "{}  looks like that SampleSheet.csv was already "
-                     "present in {} !!".format(FCID, FCID_samplesheet_dest)))
-        return False
-    try:
-        with open(FCID_samplesheet_dest, 'wb') as fcd:
-            fcd.write(ss_reader.generate_clean_samplesheet(fields_to_remove=['index2'], rename_samples=True, rename_qPCR_suffix = True, fields_qPCR=['SampleName']))
-    except Exception as e:
-        logger.error(e.text)
-        return False
-
-
-    # everything ended correctly
-    return True
 
 
 
