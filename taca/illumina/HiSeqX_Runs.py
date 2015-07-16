@@ -88,6 +88,7 @@ def generate_per_lane_base_mask(self):
     #geenrate new ssparser (from the renamed smaplesheet)
     ssparser = SampleSheetParser(os.path.join(self.run_dir, "SampleSheet.csv"))
     runSetup = self.runParserObj.runinfo.get_read_configuration()
+    test
     #do more or less what get_base_masks does but with different assumptions
 
 
