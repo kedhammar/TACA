@@ -119,30 +119,30 @@ class HiSeqX_Run(Run):
 
     def demux_done(self):
         """
-           checks that there are no concurrent TACA processes running
+           checks that the demux is done and that there are no concurrent TACA processes running
         """
+        if self.get_run_status() is not 'COMPLETED':
+            return False
+        #if demux is completed check that there are no concurrent executions of TACA
         running = 0
         for file in glob.glob(os.path.join(self.run_dir, self.demux_dir, "index_count_L*.running")):
             running +=1
         if running > 0:
             return False
-        
+        #replace - with _ between project and sample name in the fastq
         control_fastq_filename(os.path.join(self.run_dir, self.demux_dir))
         return True
+
+    def post_demux(self):
+        raise NotImplementedError("Please Implement this method")
 
 
 
     def check_QC(self):
-        passed_qc=ud.check_lanes_QC(run=run.run_dir,
-                            run_type=run.run_type,
-                            dex_status=run.status,
-                            max_percentage_undetermined_indexes_pooled_lane=CONFIG['analysis'][run.run_type]['QC']['max_percentage_undetermined_indexes_pooled_lane'],
-                            max_percentage_undetermined_indexes_unpooled_lane=CONFIG['analysis'][run.run_type]['QC']['max_percentage_undetermined_indexes_unpooled_lane'],
-                            minimum_percentage_Q30_bases_per_lane=CONFIG['analysis'][run.run_type]['QC']['minimum_percentage_Q30_bases_per_lane'],
-                            minimum_yield_per_lane=CONFIG['analysis'][run.run_type]['QC']['minimum_yield_per_lane'],
-                            max_frequency_most_represented_und_index_pooled_lane=CONFIG['analysis'][run.run_type]['QC']['max_frequency_most_represented_und_index_pooled_lane'],
-                            max_frequency_most_represented_und_index_unpooled_lane=CONFIG['analysis'][run.run_type]['QC']['max_frequency_most_represented_und_index_unpooled_lane'])
-
+        if self.demux_done():
+            return qc.check_lanes_QC(self)
+        else:
+            raise RuntimeError("Trying to QC a run but the run is not compelted yet")
 
 
 

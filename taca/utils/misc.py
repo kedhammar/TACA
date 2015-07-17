@@ -27,22 +27,26 @@ def send_mail(subject, content, receiver):
     s.quit()
 
 
-def call_external_command(cl, with_log_files=False, prefix=None):
+def call_external_command(cl, with_log_files=False, prefix=None, log_dir=""):
     """ Executes an external command
 
     :param string cl: Command line to be executed (command + options and parameters)
     :param bool with_log_files: Create log files for stdout and stderr
+    :param string prefix: the prefics to add to log file
+    :param string log_dir: where to write the log file (to avoid problems with rights)
     """
     if type(cl) == str:
         cl = cl.split(' ')
-    command = os.path.basename(cl[0])
+    logFile = os.path.basename(cl[0])
     stdout = sys.stdout
     stderr = sys.stderr
     if with_log_files:
         if prefix:
-            command = os.path.join('{}'.format(prefix),  '{}'.format(command))
-        stdout = open(command + '.out', 'wa')
-        stderr = open(command + '.err', 'wa')
+            logFile = '{}_{}'.format(prefix, logFile)
+        if os.path.exists(log_dir):
+            logFile = os.path.join(log_dir,  logFile) # otherwise create it in the cwd
+        stdout = open(logFile + '.out', 'wa')
+        stderr = open(logFile + '.err', 'wa')
         started = "Started command {} on {}".format(' '.join(cl), datetime.now())
         stdout.write(started + '\n')
         stdout.write(''.join(['=']*len(cl)) + '\n')

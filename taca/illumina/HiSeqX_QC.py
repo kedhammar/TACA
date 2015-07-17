@@ -19,8 +19,6 @@ def compute_undetermined_stats(run_dir, demux_folder, run_status):
     :param run_status
     :type run: HiSeqX_run
     """
-    import pdb
-    pdb.set_trace()
     global dmux_folder
     dmux_folder=demux_folder
     
@@ -34,19 +32,12 @@ def compute_undetermined_stats(run_dir, demux_folder, run_status):
 
 
 
-def check_lanes_QC(run, demux_folder,
-                   max_percentage_undetermined_indexes_pooled_lane=5,
-                   max_percentage_undetermined_indexes_unpooled_lane=20,
-                   minimum_percentage_Q30_bases_per_lane=75,
-                   minimum_yield_per_lane=305000000,
-                   max_frequency_most_represented_und_index_pooled_lane=5,
-                   max_frequency_most_represented_und_index_unpooled_lane=40,
-                   dex_status='COMPLETED'):
+def check_lanes_QC(run):
     """Will check for undetermined fastq files, and perform the linking to the sample folder if the
     quality thresholds are met.
 
-    :param run: path of the flowcell
-    :type run: str
+    :param run: Run I am proseccing
+    :type run: HiSeqX_Run
     :param max_percentage_undetermined_indexes_pooled_lane: max percentage of undetermined indexed allowed in a pooled lane
     :type max_percentage_undetermined_indexes_pooled_lane: float
     :param max_percentage_undetermined_indexes_unpooled_lane: max percentage of undetermined indexed allowed in a unpooled lane (one sample only)
@@ -63,71 +54,70 @@ def check_lanes_QC(run, demux_folder,
     :returns boolean: True  if the flowcell passes the checks, False otherwise
     """
     
+    run_dir = run.run_dir
+    global dmux_folder
+    dmux_folder = run.demux_dir
+
+    max_percentage_undetermined_indexes_pooled_lane   = run.CONFIG['QC']['max_percentage_undetermined_indexes_pooled_lane']
+    max_percentage_undetermined_indexes_unpooled_lane = run.CONFIG['QC']['max_percentage_undetermined_indexes_unpooled_lane']
+    minimum_percentage_Q30_bases_per_lane             = run.CONFIG['QC']['minimum_percentage_Q30_bases_per_lane']
+    minimum_yield_per_lane                            = run.CONFIG['QC']['minimum_yield_per_lane']
+    max_frequency_most_represented_und_index_pooled_lane   = run.CONFIG['QC']['max_frequency_most_represented_und_index_pooled_lane']
+    max_frequency_most_represented_und_index_unpooled_lane = run.CONFIG['QC']['max_frequency_most_represented_und_index_unpooled_lane']
 
     status=True
-    if os.path.exists(os.path.join(run, dmux_folder)):
-        xtp=cl.XTenParser(run)
-        
-        global dmux_folder
-        dmux_folder=demux_folder
-
-        
-        ss=xtp.samplesheet
-        lb=xtp.lanebarcodes
-        lanes=xtp.lanes
-        if not lb:
-            logger.info("The HTML report is not available. QC cannot be performed, the FC will not be tranferred.")
-            return False
+    ss     = run.runParserObj.samplesheet
+    lb     = run.runParserObj.lanebarcodes
+    lanes  = run.runParserObj.lanes
+    if not lb or not lanes or not ss:
+        logger.warn("Something went wrong while parsing demultiplex results. QC cannot be performed, the FC will not be tranferred.")
+        return False
 
 
-        #these two functions need to became lane specific and return an array
-        path_per_lane=get_path_per_lane(run, ss)
-        samples_per_lane=get_samples_per_lane(ss)
-        workable_lanes=get_workable_lanes(run, dex_status)
-        for lane in workable_lanes:
-            #QC on the yield
-            lane_status = True
-            if lane_check_yield(lane, lanes, minimum_yield_per_lane):
-                lane_status = lane_status and True
+    #these two functions need to became lane specific and return an array
+    path_per_lane=get_path_per_lane(run_dir, ss)
+    samples_per_lane=get_samples_per_lane(ss)
+    workable_lanes=get_workable_lanes(run_dir, run.get_run_status())
+    for lane in workable_lanes:
+        #QC on the yield
+        lane_status = True
+        if lane_check_yield(lane, lanes, minimum_yield_per_lane):
+            lane_status = lane_status and True
+        else:
+            logger.warn("lane {} did not pass yield qc check. This FC will not be transferred.".format(lane))
+            lane_status = lane_status and False
+        #QC on the total %>Q30 of the all lane
+        if lane_check_Q30(lane, lanes, minimum_percentage_Q30_bases_per_lane):
+            lane_status = lane_status and True
+        else:
+            logger.warn("lane {} did not pass Q30 qc check. This FC will not be transferred.".format(lane))
+            lane_status = lane_status and False
+        #now QC for undetermined
+        max_percentage_undetermined_indexes = max_percentage_undetermined_indexes_pooled_lane
+        max_frequency_most_represented_und  = max_frequency_most_represented_und_index_pooled_lane
+        #distinguish the case between Pooled and Unpooled lanes, for unpooled lanes rename the Undetemriend file
+        if is_unpooled_lane(ss, lane):
+            #rename undetermiend, in this way PIPER will be able to use them
+            rename_undet(run_dir, lane, samples_per_lane)
+            max_percentage_undetermined_indexes = max_percentage_undetermined_indexes_unpooled_lane
+            max_frequency_most_represented_und  = max_frequency_most_represented_und_index_unpooled_lane
+
+        if check_undetermined_reads(run_dir, lane, lanes, max_percentage_undetermined_indexes):
+            if check_maximum_undertemined_freq(run_dir, lane, max_frequency_most_represented_und):
+                if is_unpooled_lane(ss, lane):
+                    link_undet_to_sample(run_dir, lane, path_per_lane)
+                lane_status= lane_status and True
             else:
-                logger.warn("lane {} did not pass yield qc check. This FC will not be transferred.".format(lane))
-                lane_status = lane_status and False
-            #QC on the total %>Q30 of the all lane
-            if lane_check_Q30(lane, lanes, minimum_percentage_Q30_bases_per_lane):
-                lane_status = lane_status and True
-            else:
-                logger.warn("lane {} did not pass Q30 qc check. This FC will not be transferred.".format(lane))
-                lane_status = lane_status and False
-            
-            #now QC for undetermined
-            max_percentage_undetermined_indexes = max_percentage_undetermined_indexes_pooled_lane
-            max_frequency_most_represented_und  = max_frequency_most_represented_und_index_pooled_lane
-            #distinguish the case between Pooled and Unpooled lanes, for unpooled lanes rename the Undetemriend file
-            if is_unpooled_lane(ss, lane):
-                rename_undet(run, lane, samples_per_lane)
-                max_percentage_undetermined_indexes = max_percentage_undetermined_indexes_unpooled_lane
-                max_frequency_most_represented_und  = max_frequency_most_represented_und_index_unpooled_lane
-
-            if check_undetermined_reads(run, lane, lanes, max_percentage_undetermined_indexes):
-                if check_maximum_undertemined_freq(run, lane, max_frequency_most_represented_und):
-                    if is_unpooled_lane(ss, lane):
-                        link_undet_to_sample(run, lane, path_per_lane)
-                    lane_status= lane_status and True
-                else:
-                    logger.warn("lane {} did not pass the undetermiend qc checks. Frequency of most popular undetermined index is too large.".format(lane))
-                    lane_status= lane_status and False
-            else:
-                logger.warn("lane {} did not pass the undetermiend qc checks. Fraction of undetermined too large.".format(lane))
+                logger.warn("lane {} did not pass the undetermiend qc checks. Frequency of most popular undetermined index is too large.".format(lane))
                 lane_status= lane_status and False
-            if lane_status:
-                logger.info("lane {} passed all qc checks".format(lane))
-            #store the status for the all FC
-            status = status and lane_status
+        else:
+            logger.warn("lane {} did not pass the undetermiend qc checks. Fraction of undetermined too large.".format(lane))
+            lane_status= lane_status and False
+        if lane_status:
+            logger.info("lane {} passed all qc checks".format(lane))
+        #store the status for the all FC
+        status = status and lane_status
 
-    else:
-        logger.warn("No demultiplexing folder found, aborting")
-        status = False
-    
     return status
         
         

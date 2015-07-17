@@ -5,7 +5,12 @@ import glob
 import datetime
 import platform
 import logging
+import subprocess
+import shutil
+
 from datetime import datetime
+from taca.utils import misc
+
 from flowcell_parser.classes import RunParametersParser, SampleSheetParser, RunParser
 
 logger = logging.getLogger(__name__)
@@ -44,6 +49,9 @@ class Run(object):
     def demux_done(self):
         raise NotImplementedError("Please Implement this method")
     
+    def post_demux(self):
+        raise NotImplementedError("Please Implement this method")
+
     
     def check_QC(self):
         raise NotImplementedError("Please Implement this method")
@@ -111,7 +119,7 @@ class Run(object):
         demux_done      = self._is_demultiplexing_done()    # True if demux is done
         sequencing_done = self._is_sequencing_done()        # True if sequencing is done
         if sequencing_done and demux_done:
-            return 'COMPLETED' # run is done, tranfer is ongoing. Onother software/operator is responisble to move the run to nosync
+            return 'COMPLETED' # run is done, tranfer might beongoing.
         elif sequencing_done and demux_started and not demux_done:
             return 'IN_PROGRESS'
         elif sequencing_done and not demux_started:
@@ -229,11 +237,159 @@ class Run(object):
 
 
 
-    def tranfer(self):
-        raise NotImplementedError("Please Implement this method, but here it not run specific")
+    def tranfer_run(self, destination, t_file, analysis):
+        """ Transfer a run to the analysis server. Will add group R/W permissions to
+            the run directory in the destination server so that the run can be processed
+            by any user/account in that group (i.e a functional account...). Run will be
+            moved to data_dir/nosync after transferred.
+        
+            :param str run: Run directory
+            :param bool analysis: Trigger analysis on remote server
+        """
+        #TODO: chekc the run type and build the correct rsync command
+        command_line = ['rsync', '-av']
+        # Add R/W permissions to the group
+        command_line.append('--chmod=g+rw')
+        # rsync works in a really funny way, if you don't understand this, refer to
+        # this note: http://silentorbit.com/notes/2013/08/rsync-by-extension/
+        command_line.append("--include=*/")
+        for to_include in self.CONFIG['analysis_server']['sync']['include']:
+            command_line.append("--include={}".format(to_include))
+        command_line.extend(["--exclude=*", "--prune-empty-dirs"])
+        r_user = self.CONFIG['analysis_server']['user']
+        r_host = self.CONFIG['analysis_server']['host']
+        r_dir = self.CONFIG['analysis_server']['sync']['data_archive']
+        remote = "{}@{}:{}".format(r_user, r_host, r_dir)
+        command_line.extend([self.run_dir, remote])
+
+        # Create temp file indicating that the run is being transferred
+        try:
+            open(os.path.join(self.run_dir, 'transferring'), 'w').close()
+        except IOError as e:
+            logger.error("Cannot create a file in {}. Check the run name, and the permissions.".format(self.id))
+            raise e
+        started = ("Started transfer of run {} on {}".format(self.id, datetime.now()))
+        logger.info(started)
+        # In this particular case we want to capture the exception because we want
+        # to delete the transfer file
+        try:
+            misc.call_external_command(command_line, with_log_files=True, prefix="", log_dir=self.run_dir)
+        except subprocess.CalledProcessError as exception:
+            os.remove(os.path.join(self.run_dir, 'transferring'))
+            raise exception
+
+        logger.info('Adding run {} to {}'.format(self.id, t_file))
+        with open(t_file, 'a') as tranfer_file:
+            tsv_writer = csv.writer(tranfer_file, delimiter='\t')
+            tsv_writer.writerow([run.id, str(datetime.now())])
+        os.remove(os.path.join(self.run_dir, 'transferring'))
+
+        #Now, let's move the run to nosync
+        self.archive_run(destination)
+    
+        if analysis:
+            #This needs to pass the runtype (i.e., Xten or HiSeq) and start the correct pipeline
+            self.trigger_analysis()
+
+
+    def archive_run(self, destination):
+        if destination:
+            logger.info('archiving run {}'.format(run))
+            shutil.move(os.path.abspath(run), os.path.join(destination, os.path.basename(os.path.abspath(run))))
+
+
+    def trigger_analysis(self):
+        """ Trigger the analysis of the flowcell in the analysis sever.
+        
+            :param str run_id: run/flowcell id
+        """
+        if not CONFIG.get('analysis', {}).get(run_type,{}).get('analysis_server', {}):
+            logger.warn(("No configuration found for remote analysis server. "
+                     "Not triggering analysis of {}"
+                     .format(os.path.basename(run_id))))
+        else:
+            url = ("http://{host}:{port}/flowcell_analysis/{dir}"
+                        .format(host=CONFIG['analysis'][run_type]['analysis_server']['host'],
+                       port=CONFIG['analysis'][run_type]['analysis_server']['port'],
+                       dir=os.path.basename(run_id)))
+            params = {'path': CONFIG['analysis'][run_type]['analysis_server']['sync']['data_archive']}
+            try:
+                r = requests.get(url, params=params)
+                if r.status_code != requests.status_codes.codes.OK:
+                    logger.warn(("Something went wrong when triggering the "
+                                    "analysis of {}. Please check the logfile "
+                                    "and make sure to start the analysis!"
+                                    .format(os.path.basename(run_id))))
+                else:
+                    logger.info('Analysis of flowcell {} triggered in {}'
+                                    .format(os.path.basename(run_id),
+                                    CONFIG['analysis'][run_type]['analysis_server']['host']))
+                    a_file = os.path.join(CONFIG['analysis'][run_type]['status_dir'], 'analysis.tsv')
+                    with open(a_file, 'a') as analysis_file:
+                        tsv_writer = csv.writer(analysis_file, delimiter='\t')
+                        tsv_writer.writerow([os.path.basename(run_id), str(datetime.now())])
+            except requests.exceptions.ConnectionError:
+                logger.warn(("Something went wrong when triggering the analysis "
+                            "of {}. Please check the logfile and make sure to "
+                            "start the analysis!".format(os.path.basename(run_id))))
 
 
 
+
+
+    def post_qc(self, qc_file, status):
+        """ Checks wether a run has passed the final qc.
+            :param str run: Run directory
+            :param str qc_file: Path to file with information about transferred runs
+        """
+        already_seen=False
+        runname=os.path.basename(os.path.abspath(self.run_dir))
+        shortrun=runname.split('_')[0] + '_' +runname.split('_')[-1]
+        with open(qc_file, 'ab+') as f:
+            f.seek(0)
+            for row in f:
+                #Rows have two columns: run and transfer date
+                if row.split('\t')[0] == runname:
+                    already_seen=True
+    
+            if not already_seen:
+                if status:
+                    f.write("{}\tPASSED\n".format(runname))
+                else:
+                    sj="{} failed QC".format(runname)
+                    cnt="""The run {run} has failed qc and will NOT be transfered to Nestor.
+                    
+                        The run might be available at : https://genomics-status.scilifelab.se/flowcells/{shortfc}
+                    
+                        To read the logs, run the following command on {server}
+                        grep -A30 "Checking run {run}" {log}
+                    
+                        To force the transfer :
+                        taca analysis transfer {rundir} """.format(run=runname, shortfc=shortrun, log=CONFIG['log']['file'], server=os.uname()[1], rundir=run)
+                    rcp=CONFIG['mail']['recipients']
+                    misc.send_mail(sj, cnt, rcp)
+                    f.write("{}\tFAILED\n".format(os.path.basename(run)))
+
+
+    def is_transferred(self, transfer_file):
+        """ Checks wether a run has been transferred to the analysis server or not.
+        Returns true in the case in which the tranfer is ongoing.
+        
+        :param str run: Run directory
+        :param str transfer_file: Path to file with information about transferred runs
+        """
+        try:
+            with open(transfer_file, 'r') as file_handle:
+                t_f = csv.reader(file_handle, delimiter='\t')
+                for row in t_f:
+                    #Rows have two columns: run and transfer date
+                    if row[0] == os.path.basename(self.run_id):
+                        return True
+            if os.path.exists(os.path.join(self.run_id, 'transferring')):
+                return True
+            return False
+        except IOError:
+            return False
 
 
 
