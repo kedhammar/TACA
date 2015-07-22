@@ -19,7 +19,7 @@ def demultiplex(run):
 	an.run_preprocessing(run)
 
 @analysis.command()
-@click.option('-a','--analysis', is_flag=True, help='Trigger the analysis for the transferred flowcell')
+@click.option('-a','--analysis', is_flag=False, help='Trigger the analysis for the transferred flowcell')
 @click.argument('rundir')
 def transfer(rundir, analysis):
     """Transfers the run without qc"""

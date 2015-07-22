@@ -7,6 +7,7 @@ import platform
 import logging
 import subprocess
 import shutil
+import requests
 
 from datetime import datetime
 from taca.utils import misc
@@ -237,7 +238,7 @@ class Run(object):
 
 
 
-    def tranfer_run(self, destination, t_file, analysis):
+    def transfer_run(self, destination, t_file, analysis):
         """ Transfer a run to the analysis server. Will add group R/W permissions to
             the run directory in the destination server so that the run can be processed
             by any user/account in that group (i.e a functional account...). Run will be
@@ -281,7 +282,7 @@ class Run(object):
         logger.info('Adding run {} to {}'.format(self.id, t_file))
         with open(t_file, 'a') as tranfer_file:
             tsv_writer = csv.writer(tranfer_file, delimiter='\t')
-            tsv_writer.writerow([run.id, str(datetime.now())])
+            tsv_writer.writerow([self.id, str(datetime.now())])
         os.remove(os.path.join(self.run_dir, 'transferring'))
 
         #Now, let's move the run to nosync
@@ -294,8 +295,8 @@ class Run(object):
 
     def archive_run(self, destination):
         if destination:
-            logger.info('archiving run {}'.format(run))
-            shutil.move(os.path.abspath(run), os.path.join(destination, os.path.basename(os.path.abspath(run))))
+            logger.info('archiving run {}'.format(self.id))
+            shutil.move(os.path.abspath(self.id), os.path.join(destination, self.id))
 
 
     def trigger_analysis(self):
@@ -303,16 +304,15 @@ class Run(object):
         
             :param str run_id: run/flowcell id
         """
-        if not CONFIG.get('analysis', {}).get(run_type,{}).get('analysis_server', {}):
+        if not self.CONFIG.get('analysis_server', {}):
             logger.warn(("No configuration found for remote analysis server. "
                      "Not triggering analysis of {}"
-                     .format(os.path.basename(run_id))))
+                     .format(os.path.basename(self.id))))
         else:
-            url = ("http://{host}:{port}/flowcell_analysis/{dir}"
-                        .format(host=CONFIG['analysis'][run_type]['analysis_server']['host'],
-                       port=CONFIG['analysis'][run_type]['analysis_server']['port'],
-                       dir=os.path.basename(run_id)))
-            params = {'path': CONFIG['analysis'][run_type]['analysis_server']['sync']['data_archive']}
+            url = ("http://{host}:{port}/flowcell_analysis/{dir}".format(host=self.CONFIG['analysis_server']['host'],
+                                                                        port=self.CONFIG['analysis_server']['port'],
+                                                                        dir=os.path.basename(self.id)))
+            params = {'path': self.CONFIG['analysis_server']['sync']['data_archive']}
             try:
                 r = requests.get(url, params=params)
                 if r.status_code != requests.status_codes.codes.OK:
@@ -383,9 +383,9 @@ class Run(object):
                 t_f = csv.reader(file_handle, delimiter='\t')
                 for row in t_f:
                     #Rows have two columns: run and transfer date
-                    if row[0] == os.path.basename(self.run_id):
+                    if row[0] == os.path.basename(self.id):
                         return True
-            if os.path.exists(os.path.join(self.run_id, 'transferring')):
+            if os.path.exists(os.path.join(self.run_dir, 'transferring')):
                 return True
             return False
         except IOError:

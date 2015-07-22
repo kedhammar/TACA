@@ -51,20 +51,60 @@ def _run_type(run):
 
 
 
-def upload_to_statusdb(run):
+def upload_to_statusdb(run_dir):
+    """
+        interface for click
+    """
+    sequencer_type = _run_type(run_dir)
+    if sequencer_type is 'HiSeqX':
+        runObj = HiSeqX_Run(run_dir, CONFIG["analysis"]["HiSeqX"])
+    elif sequencer_type is 'HiSeq':
+        print "not yet implemented: HiSeq"
+        return
+    elif sequencer_type is 'MiSeq':
+        print "not yet implemented: miseq"
+        return
+    _upload_to_statusdb(runObj)
+
+
+def _upload_to_statusdb(run):
     """
     Triggers the upload to statusdb using the dependency flowcell_parser
-
-     :param string run: the object run
+    :param Run run: the object run
     """
     couch = fcpdb.setupServer(CONFIG)
-    db=couch[CONFIG['statusdb']['xten_db']]
-    parser=run.runParserObj
-    fcpdb.update_doc(db,parser.obj)
+    db    = couch[CONFIG['statusdb']['xten_db']]
+    parser = run.runParserObj
+    fcpdb.update_doc( db , parser.obj)
 
 
-def tranfer_run(run):
-#implemnet this one
+def transfer_run(run_dir, analysis):
+    """
+    interface for click
+    :param: string run_dir: the run to tranfer
+    :param bool analysis: if trigger or not the analysis
+    """
+    sequencer_type = _run_type(run_dir)
+    if sequencer_type is 'HiSeqX':
+        runObj = HiSeqX_Run(run_dir, CONFIG["analysis"]["HiSeqX"])
+    elif sequencer_type is 'HiSeq':
+        print "not yet implemented: HiSeq"
+        return
+    elif sequencer_type is 'MiSeq':
+        print "not yet implemented: miseq"
+        return
+    _transfer_run(runObj, analysis)
+
+
+def _transfer_run(run, analysis):
+    """
+    Tranfer the run to the HPC unit
+    :param Run run: the object run
+    :param bool analysis: if trigger or not the analysis
+    """
+    run.transfer_run("nosync", os.path.join(CONFIG['analysis']['status_dir'], 'transfer.tsv'),
+                       analysis) #do not start analsysis automatically if I force the tranfer
+
 
 
 def run_preprocessing(run):
@@ -78,7 +118,6 @@ def run_preprocessing(run):
 
         :param taca.illumina.Run run: Run to be processed and transferred
         """
-
         logger.info('Checking run {}'.format(run.id))
         if run.get_run_status() == 'SEQUENCING':
             # Check status files and say i.e Run in second read, maybe something
@@ -93,10 +132,7 @@ def run_preprocessing(run):
             logger.info(("BCL conversion and demultiplexing process in "
                              "progress for run {}, skipping it"
                              .format(run.id)))
-            import pdb
-            pdb.set_trace()
             run.check_run_status()
-            
             
         elif run.get_run_status() == 'COMPLETED':
             logger.info(("Preprocessing of run {} is finished, check if "
@@ -105,17 +141,17 @@ def run_preprocessing(run):
 
             #compute the last undetermiend index stats
             run.check_run_status()
-            #this check is to be sure that no concurrent process is operating (HiSeqX case)
+            #this check is to be sure that no concurrent process is operating on this Flowcell (HiSeqX case)
             if not run.demux_done():
                 return
             
             #check the run QC
             run_QC_status = run.check_QC()
             #store QC results in appropriate file and mail user if failed
-            qc_file = os.path.join(self.CONFIG['status_dir'], 'qc.tsv')
+            qc_file = os.path.join(CONFIG['analysis']['status_dir'], 'qc.tsv')
             run.post_qc(qc_file, run_QC_status)
             #TODO: this needs to became a sepcif call to HiSeqC_Runs but it involves too many changes right now
-            if run.run_type == 'HiSeqX':
+            if run.sequencer_type == 'HiSeqX':
                 upload_to_statusdb(run)
             #if QC is ok tranfer the run in th appropriate server
             if run_QC_status:
@@ -128,7 +164,7 @@ def run_preprocessing(run):
                                     .format(run.id,
                                             run.CONFIG['analysis_server']['host'],
                                             run.CONFIG['analysis_server']['sync']['data_archive']))
-                    run.tranfer_run(CONFIG['storage']['archive_dirs'][run.sequencer_type], t_file,  True)
+                    run.transfer_run(CONFIG['storage']['archive_dirs'][run.sequencer_type], t_file,  False) #do not trigger analysis
                 else:
                     logger.info('Run {} already transferred to analysis server, skipping it'.format(run.id))
             else:
@@ -155,7 +191,18 @@ def run_preprocessing(run):
             if not runs:
                 runs = glob.glob(os.path.join(data_dir, '1*000000000*'))
             for _run in runs:
-                _process(Run(_run))
+                sequencer_type = _run_type(_run)
+                if sequencer_type is 'HiSeqX':
+                    runObj = HiSeqX_Run(_run, CONFIG["analysis"]["HiSeqX"])
+                elif sequencer_type is 'HiSeq':
+                    print "to be implemented soon"
+                #runObj = HiSeq_Run(_run, CONFIG["analysis"]["HiSeq"])
+                elif sequencer_type is 'MiSeq':
+                    print "to be implemented soon"
+                #runObj = HiSeq_Run(_run, CONFIG["analysis"]["MiSeq"])
+                else:
+                    raise RuntimeError("New instrument type {}".format(sequencer_type))
+                _process(runObj)
 
 
 

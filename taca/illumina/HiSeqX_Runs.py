@@ -90,7 +90,7 @@ class HiSeqX_Run(Run):
                 # Append all options that appear in the configuration file to the main command.
                 for option in cl_options:
                     if isinstance(option, dict):
-                        opt, val = option.popitem()
+                        opt, val = option.items()[0]
                         cl.extend(['--{}'.format(opt), str(val)])
                     else:
                         cl.append('--{}'.format(option))
