@@ -149,10 +149,10 @@ def run_preprocessing(run):
             run_QC_status = run.check_QC()
             #store QC results in appropriate file and mail user if failed
             qc_file = os.path.join(CONFIG['analysis']['status_dir'], 'qc.tsv')
-            run.post_qc(qc_file, run_QC_status)
+            run.post_qc(qc_file, run_QC_status, log_file=CONFIG['log']['file'], rcp=CONFIG['mail']['recipients'])
             #TODO: this needs to became a sepcif call to HiSeqC_Runs but it involves too many changes right now
             if run.sequencer_type == 'HiSeqX':
-                upload_to_statusdb(run)
+                _upload_to_statusdb(run)
             #if QC is ok tranfer the run in th appropriate server
             if run_QC_status:
                 #tranfer the run, specify desitnation and if analysis needs to be started on the server

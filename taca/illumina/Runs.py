@@ -337,13 +337,15 @@ class Run(object):
 
 
 
-    def post_qc(self, qc_file, status):
+    def post_qc(self, qc_file, status, log_file, rcp):
         """ Checks wether a run has passed the final qc.
             :param str run: Run directory
             :param str qc_file: Path to file with information about transferred runs
+            :param str log_file: Path to the log file
+            :param str rcp: destinatary
         """
         already_seen=False
-        runname=os.path.basename(os.path.abspath(self.run_dir))
+        runname=self.id
         shortrun=runname.split('_')[0] + '_' +runname.split('_')[-1]
         with open(qc_file, 'ab+') as f:
             f.seek(0)
@@ -365,10 +367,9 @@ class Run(object):
                         grep -A30 "Checking run {run}" {log}
                     
                         To force the transfer :
-                        taca analysis transfer {rundir} """.format(run=runname, shortfc=shortrun, log=CONFIG['log']['file'], server=os.uname()[1], rundir=run)
-                    rcp=CONFIG['mail']['recipients']
+                        taca analysis transfer {rundir} """.format(run=runname, shortfc=shortrun, log=log_file, server=os.uname()[1], rundir=self.id)
                     misc.send_mail(sj, cnt, rcp)
-                    f.write("{}\tFAILED\n".format(os.path.basename(run)))
+                    f.write("{}\tFAILED\n".format(os.path.basename(self.id)))
 
 
     def is_transferred(self, transfer_file):
