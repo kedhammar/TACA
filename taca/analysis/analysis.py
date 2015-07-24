@@ -118,6 +118,9 @@ def run_preprocessing(run):
 
         :param taca.illumina.Run run: Run to be processed and transferred
         """
+        if run is None:
+            #this is in case the methods are not yet implemented
+            return
         logger.info('Checking run {}'.format(run.id))
         if run.get_run_status() == 'SEQUENCING':
             # Check status files and say i.e Run in second read, maybe something
@@ -176,12 +179,14 @@ def run_preprocessing(run):
         sequencer_type = _run_type(run)
         if sequencer_type is 'HiSeqX':
             runObj = HiSeqX_Run(run, CONFIG["analysis"]["HiSeqX"])
-        
-        
         elif sequencer_type is 'HiSeq':
-            print "the are more days than sousages"
+            print "HiSeq: to be implemented soon"
+            runObj = None
         elif sequencer_type is 'MiSeq':
-            print " miseq"
+            print "miseq: to be implemented soon"
+            runObj = None
+        else:
+            raise RuntimeError("New instrument type {}".format(sequencer_type))
         _process(runObj)
     else:
         data_dirs = CONFIG.get('analysis').get('data_dirs')
@@ -195,11 +200,13 @@ def run_preprocessing(run):
                 if sequencer_type is 'HiSeqX':
                     runObj = HiSeqX_Run(_run, CONFIG["analysis"]["HiSeqX"])
                 elif sequencer_type is 'HiSeq':
-                    print "to be implemented soon"
-                #runObj = HiSeq_Run(_run, CONFIG["analysis"]["HiSeq"])
+                    print "HiSeq: to be implemented soon"
+                    runObj = None
+                    #runObj = HiSeq_Run(_run, CONFIG["analysis"]["HiSeq"])
                 elif sequencer_type is 'MiSeq':
-                    print "to be implemented soon"
-                #runObj = HiSeq_Run(_run, CONFIG["analysis"]["MiSeq"])
+                    print "MiSeq: to be implemented soon"
+                    runObj = None
+                    #runObj = HiSeq_Run(_run, CONFIG["analysis"]["MiSeq"])
                 else:
                     raise RuntimeError("New instrument type {}".format(sequencer_type))
                 _process(runObj)
