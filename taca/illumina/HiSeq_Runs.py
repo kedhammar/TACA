@@ -112,17 +112,89 @@ class HiSeq_Run(Run):
         ##when demultiplexing SampleSheet.csv is the one I need to use
         self.runParserObj.samplesheet  = SampleSheetParser(os.path.join(self.run_dir, "SampleSheet.csv"))
         #now geenrate the base masks per lane and decide how to demultiplex
-        import pdb
-        pdb.set_trace()
         per_lane_base_masks = self._generate_per_lane_base_mask()
         max_different_base_masks =  max([len(per_lane_base_masks[base_masks]) for base_masks in per_lane_base_masks])
         #if max_different is one, then I have a simple config and I can run a single command. Otherwirse I need to run multiples instances
-         
+        #extract lanes with a single base masks
+        simple_lanes  = {}
+        complex_lanes = {}
+        for lane in per_lane_base_masks:
+            if len(per_lane_base_masks[lane]) == 1:
+                simple_lanes[lane] = per_lane_base_masks[lane]
+            else:
+                complex_lanes[lane] = per_lane_base_masks[lane]
+        #simple lanes contains the lanes such that there is more than one base mask
+        bcl2fastq_commands = []
+        bcl2fastq_command_num = 0
+        if len(simple_lanes) > 0:
+            bcl2fastq_commands.apppend(self._generate_bcl2fastq_command(simple_lanes, True, bcl2fastq_command_num))
+            bcl2fastq_command_num += 1
+        #compute the different masks, there will be one bcl2fastq command per mask
+        base_masks_complex = [complex_lanes[base_masks].keys() for base_masks in complex_lanes]
+        different_masks    = list(set([item for sublist in base_masks_complex for item in sublist]))
+        for mask in different_masks:
+            base_masks_complex_to_demux = {}
+            for lane in complex_lanes:
+                if complex_lanes[lane].has_key(mask):
+                    base_masks_complex_to_demux[lane] = {}
+                    base_masks_complex_to_demux[lane][mask] = complex_lanes[lane][mask]
+            #at this point base_masks_complex_to_demux contains only a base mask for lane. I can build the command
+            bcl2fastq_commands.append(self._generate_bcl2fastq_command(base_masks_complex_to_demux, True, bcl2fastq_command_num))
+            bcl2fastq_command_num += 1
+
 
         import pdb
         pdb.set_trace()
 
+
+    def _generate_bcl2fastq_command(self, base_masks, strict=True, suffix=0):
+        """
+        Generates the command to demultiplex with the given base_masks. 
+        if strict is set to true demultiplex only lanes in base_masks
+        """
+        logger.info('Building bcl2fastq command')
+        cl = [self.CONFIG.get('bcl2fastq')['bin']]
+        if self.CONFIG.get('bcl2fastq').has_key('options'):
+            cl_options = self.CONFIG['bcl2fastq']['options']
+            # Append all options that appear in the configuration file to the main command.
+            for option in cl_options:
+                if isinstance(option, dict):
+                    opt, val = option.items()[0]
+                    #skip output-dir has I might need more than one
+                    if "output-dir" not in opt:
+                        cl.extend(['--{}'.format(opt), str(val)])
+                else:
+                    cl.append('--{}'.format(option))
+        #now add the base_mask for each lane
+        tiles = []
+        samplesheetMaskSpecific = os.path.join(os.path.join(self.run_dir, "SampleSheet_{}.csv".format(suffix)))
+        output_dir = "Demultiplexing_{}".format(suffix)
+        cl.extend(["--output-dir", output_dir])
         
+        with open(samplesheetMaskSpecific, 'wb') as ssms:
+            ssms.write("[Header]\n")
+            ssms.write("[Data]\n")
+            ssms.write(",".join(self.runParserObj.samplesheet.datafields))
+            ssms.write("\n")
+            for lane in sorted(base_masks):
+                #iterate thorugh each lane and add the correct --use-bases-mask for that lane
+                #there is a single basemask for each lane, I checked it a couple of lines above
+                base_mask = [base_masks[lane][bm]['base_mask'] for bm in base_masks[lane]][0] # get the base_mask
+                base_mask_expr = "{}:".format(lane) + ",".join(base_mask)
+                cl.extend(["--use-bases-mask", base_mask_expr])
+                if strict:
+                    tiles.extend(["s_{}".format(lane)])
+                #these are all the samples that need to be demux with this samplemask in this lane
+                samples   = [base_masks[lane][bm]['data'] for bm in base_masks[lane]][0]
+                for sample in samples:
+                    for field in self.runParserObj.samplesheet.datafields:
+                        ssms.write("{},".format(sample[field]))
+                    ssms.write("\n")
+            if strict:
+                cl.extend(["--tiles", ",".join(tiles) ])
+        cl.extend(["--sample-sheet", samplesheetMaskSpecific])
+        logger.info(("BCL to FASTQ command built {} ".format(" ".join(cl))))
+        return cl
         
 
 def _generate_clean_samplesheet(ssparser):
