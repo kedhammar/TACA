@@ -138,9 +138,9 @@ def qc_for_pooled_lane(lane,lb , und_thresh):
     for entry in lb.sample_data:
         if lane == int(entry['Lane']):
             if entry.get('Sample')!='unknown':
-                d['det']+=int(entry['Clusters'].replace(',',''))
+                d['det']+=int(entry['PF Clusters'].replace(',',''))
             else:
-                d['undet']=int(entry['Clusters'].replace(',',''))
+                d['undet']=int(entry['PF Clusters'].replace(',',''))
 
 
     if d['undet'] > (d['det']+d['undet']) * und_thresh / 100:
@@ -330,7 +330,7 @@ def check_undetermined_reads(run, lane, lanes, freq_tresh):
         if lane == int(entry['Lane']):
             if lane_yield > 0:
                 logger.warn("lane_yeld must be 0, somehting wrong is going on here")
-            lane_yield = int(entry['Clusters'].replace(',',''))
+            lane_yield = int(entry['PF Clusters'].replace(',',''))
 
     barcodes={}
     if os.path.exists(os.path.join(run, dmux_folder,'index_count_L{}.tsv'.format(lane))):
@@ -365,10 +365,9 @@ def lane_check_yield(lane, lanes, minimum_yield):
     :rtype: boolean
     :returns: True if the lane has an yield above the specified minimum
     """
-    
     for entry in lanes.sample_data:
         if lane == int(entry['Lane']):
-            lane_clusters = int(entry['Clusters'].replace(',',''))
+            lane_clusters = int(entry['PF Clusters'].replace(',',''))
             if lane_clusters >= minimum_yield:
                 return True
     return False
@@ -423,9 +422,9 @@ def sample_qc_check(lane, lb, und_tresh, q30_tresh):
                     logger.warn("Sample {} of lane {} has a percentage of bases over q30 of {}%, "
                             "which is below the cutoff of {}% ".format(entry['Sample'], lane, float(entry['% >= Q30bases']), q30_tresh))
                     return False
-                d['det']=int(entry['Clusters'].replace(',',''))
+                d['det']=int(entry['PF Clusters'].replace(',',''))
             else:
-                d['undet']=int(entry['Clusters'].replace(',',''))
+                d['undet']=int(entry['PF Clusters'].replace(',',''))
 
 
     if d['undet'] > (d['det']+d['undet']) * und_tresh / 100:

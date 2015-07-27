@@ -181,7 +181,7 @@ def run_preprocessing(run):
             runObj = HiSeqX_Run(run, CONFIG["analysis"]["HiSeqX"])
         elif sequencer_type is 'HiSeq':
             print "HiSeq: to be implemented soon"
-            runObj = None
+                #runObj = HiSeqX_Run(run, CONFIG["analysis"]["HiSeq"])
         elif sequencer_type is 'MiSeq':
             print "miseq: to be implemented soon"
             runObj = None
