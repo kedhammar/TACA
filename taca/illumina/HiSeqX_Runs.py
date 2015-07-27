@@ -55,12 +55,10 @@ class HiSeqX_Run(Run):
 
         ssname   = self._get_samplesheet()
         ssparser = SampleSheetParser(ssname)
-
-
         #samplesheet need to be positioned in the FC directory with name SampleSheet.csv (Illumina default)
         #if this is not the case then create it and take special care of modification to be done on the SampleSheet
         samplesheet_dest = os.path.join(self.run_dir, "SampleSheet.csv")
-        #check that the samplesheet is not already present and generate the dafault SampleSheet. This avoids multiple runs on the same FC
+        #check that the samplesheet is not already present. In this case go the next step
         if not os.path.exists(samplesheet_dest):
             try:
                 with open(samplesheet_dest, 'wb') as fcd:
@@ -74,7 +72,7 @@ class HiSeqX_Run(Run):
         self.runParserObj.samplesheet  = SampleSheetParser(os.path.join(self.run_dir, "SampleSheet.csv"))
 
         per_lane_base_masks = self._generate_per_lane_base_mask()
-        max_different_base_masks =  max([len(base_masks) for base_masks in per_lane_base_masks])
+        max_different_base_masks =  max([len(per_lane_base_masks[base_masks]) for base_masks in per_lane_base_masks])
         if max_different_base_masks > 1:
             # in a HiSeqX run I cannot have different index sizes in the SAME lane
             logger.error("In FC {} found one or more lane with more than one base mask (i.e., different index sizes in \

@@ -166,20 +166,20 @@ class Run(object):
             if lane not in base_masks:
                 base_masks[lane] = {}
             index = ""
+            index2 = ""
             is_dual_index = False
             if data_entry.get('index'):
                 index = data_entry['index']
-                is_dual_index = "-" in  data_entry['index']
-            elif data_entry.get('Index'):
+                is_dual_index = False # default for Xten
+                if data_entry.get('index2'):
+                    index2 = data_entry['index2']
+                    is_dual_index = True
                 #specific for HiSeq, will disapper once we will use bcl2fastq_2.17
-                index = data_entry['Index'].replace('-', '').replace('NoIndex', '')
-                is_dual_index = "-" in  data_entry['Index']
-            index_size = len(index)
-            ##I have computed the index size, and I know if I have a single or dual index
-            if is_dual_index:
-                index_size = index_size/2
+                #index = data_entry['Index'].replace('-', '').replace('NoIndex', '')
+            index_size  = len(index)
+            index2_size = len(index2)
             #compute the basemask
-            base_mask = self._compute_base_mask(runSetup, index_size, is_dual_index)
+            base_mask = self._compute_base_mask(runSetup, index_size, is_dual_index, index2_size)
             base_mask_string = "".join(base_mask)
             #prepare the dictionary
             if base_mask_string not in base_masks[lane]:
@@ -193,7 +193,7 @@ class Run(object):
 
 
 
-    def _compute_base_mask(self, runSetup, index_size, dual_index_sample):
+    def _compute_base_mask(self, runSetup, index_size, dual_index_sample, index2_size):
         """
             Assumptions:
                 - if runSetup is of size 3, then single index run
@@ -226,14 +226,14 @@ class Run(object):
                 else:
                 #when working on the second read index I need to know if the sample is dual index or not
                     if dual_index_sample:
-                        i_remainder = cycles - index_size
+                        i_remainder = cycles - index2_size
                         if i_remainder > 0:
-                            bm.append('I' + str(index_size) + 'N' + str(i_remainder))
+                            bm.append('I' + str(index2_size) + 'N' + str(i_remainder))
                         else:
                             bm.append('I' + str(cycles))
                     else:
                     #if this sample is not dual index but the run is, then I need to ignore the second index completely
-                            bm.append('N' + str(cycles))
+                        bm.append('N' + str(cycles))
         return bm
 
 

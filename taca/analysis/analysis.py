@@ -8,6 +8,7 @@ import re
 
 from taca.illumina.Runs import Run
 from taca.illumina.HiSeqX_Runs import HiSeqX_Run
+from taca.illumina.HiSeq_Runs import HiSeq_Run
 from taca.utils.config import CONFIG
 
 import flowcell_parser.db as fcpdb
@@ -135,6 +136,8 @@ def run_preprocessing(run):
             logger.info(("BCL conversion and demultiplexing process in "
                              "progress for run {}, skipping it"
                              .format(run.id)))
+            import pdb
+            pdb.set_trace()
             run.check_run_status()
             
         elif run.get_run_status() == 'COMPLETED':
@@ -180,8 +183,7 @@ def run_preprocessing(run):
         if sequencer_type is 'HiSeqX':
             runObj = HiSeqX_Run(run, CONFIG["analysis"]["HiSeqX"])
         elif sequencer_type is 'HiSeq':
-            print "HiSeq: to be implemented soon"
-                #runObj = HiSeqX_Run(run, CONFIG["analysis"]["HiSeq"])
+            runObj = HiSeq_Run(run, CONFIG["analysis"]["HiSeq"])
         elif sequencer_type is 'MiSeq':
             print "miseq: to be implemented soon"
             runObj = None
@@ -200,9 +202,7 @@ def run_preprocessing(run):
                 if sequencer_type is 'HiSeqX':
                     runObj = HiSeqX_Run(_run, CONFIG["analysis"]["HiSeqX"])
                 elif sequencer_type is 'HiSeq':
-                    print "HiSeq: to be implemented soon"
-                    runObj = None
-                    #runObj = HiSeq_Run(_run, CONFIG["analysis"]["HiSeq"])
+                    runObj = HiSeq_Run(_run, CONFIG["analysis"]["HiSeq"])
                 elif sequencer_type is 'MiSeq':
                     print "MiSeq: to be implemented soon"
                     runObj = None
