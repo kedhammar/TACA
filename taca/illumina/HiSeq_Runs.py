@@ -7,7 +7,7 @@ from datetime import datetime
 from taca.utils.filesystem import chdir, control_fastq_filename
 from taca.illumina.Runs import Run
 from taca.utils import misc
-from flowcell_parser.classes import RunParametersParser, SampleSheetParser, RunParser
+from flowcell_parser.classes import RunParametersParser, SampleSheetParser, RunParser, LaneBarcodeParser
 
 
 import logging
@@ -141,10 +141,16 @@ class HiSeq_Run(Run):
             #at this point base_masks_complex_to_demux contains only a base mask for lane. I can build the command
             bcl2fastq_commands.append(self._generate_bcl2fastq_command(base_masks_complex_to_demux, True, bcl2fastq_command_num))
             bcl2fastq_command_num += 1
+        #now bcl2fastq_commands contains all command to be executed. They can be executed in parallel, however run only one per time in order to avoid to overload the machine
+        with chdir(self.run_dir):
+            # create Demultiplexing dir, in this way the status of this run will became IN_PROGRESS
+            if not os.path.exists("Demultiplexing"):
+                os.makedirs("Demultiplexing")
+            execution = 0
+            for bcl2fastq_command in bcl2fastq_commands:
+                misc.call_external_command(bcl2fastq_command, with_log_files=True, prefix="demux_{}".format(execution))
+                execution += 1
 
-
-        import pdb
-        pdb.set_trace()
 
 
     def _generate_bcl2fastq_command(self, base_masks, strict=True, suffix=0):
@@ -195,7 +201,115 @@ class HiSeq_Run(Run):
         cl.extend(["--sample-sheet", samplesheetMaskSpecific])
         logger.info(("BCL to FASTQ command built {} ".format(" ".join(cl))))
         return cl
+
+
+    def check_run_status(self):
+        """
+        This function checks the status of a run while in progress.
+        In the case of HiSeq check that all demux have been done and in that case perform aggregation
+        """
+        run_dir    =  self.run_dir
+        dex_status =  self.get_run_status()
+        import pdb
+        pdb.set_trace()
+        #in this case I have already finished all demux jobs and I have aggregate all stasts unded Demultiplexing
+        if  dex_status == 'COMPLETED':
+            return
+        #otherwise check the status of running demux
+        #collect all samplesheets generated before
+        samplesheets =  glob.glob(os.path.join(run_dir, "*_*.csv"))
+        allDemuxDone = True
+        for samplesheet in samplesheets:
+            #fetch the id of this demux job
+            demux_id = os.path.splitext(os.path.split(samplesheet)[1])[0].split("_")[1]
+            #demux folder is
+            demux_folder = os.path.join(run_dir, "Demultiplexing_{}".format(demux_id))
+            #check if this job is done
+            if os.path.exists(os.path.join(run_dir, demux_folder, 'Stats', 'DemultiplexingStats.xml')):
+                allDemuxDone = allDemuxDone and True
+                logger.info("Sub-Demultiplexing in {} completed.".format(demux_folder))
+            else:
+                allDemuxDone = allDemuxDone and False
+                logger.info("Sub-Demultiplexing in {} not completed yet.".format(demux_folder))
+        #in this case, I need to aggreate in the Demultiplexing folder all the results
+        if allDemuxDone:
+            self._aggregate_demux_results()
+
+
+    def _aggregate_demux_results(self):
+        """
+        This function aggregates the results from different demultiplexing steps
+        """
+        run_dir      =  self.run_dir
+        demux_folder =  os.path.join(self.run_dir , self.demux_dir)
+        samplesheets =  glob.glob(os.path.join(run_dir, "*_*.csv"))
         
+        per_lane_base_masks = self._generate_per_lane_base_mask()
+        max_different_base_masks =  max([len(per_lane_base_masks[base_masks]) for base_masks in per_lane_base_masks])
+        simple_lanes  = {}
+        complex_lanes = {}
+        for lane in per_lane_base_masks:
+            if len(per_lane_base_masks[lane]) == 1:
+                simple_lanes[lane] = per_lane_base_masks[lane]
+            else:
+                complex_lanes[lane] = per_lane_base_masks[lane]
+        #complex lanes contains the lanes such that there is more than one base mask
+        #for simple lanes undetermined stats will be copied
+        html_reports_lane        = []
+        html_reports_laneBarcode = []
+        for samplesheet in samplesheets:
+            demux_id = os.path.splitext(os.path.split(samplesheet)[1])[0].split("_")[1]
+            #demux folder is
+            demux_id_folder  = os.path.join(run_dir, "Demultiplexing_{}".format(demux_id))
+            html_report_lane = os.path.join(run_dir, "Demultiplexing_{}".format(demux_id), "Reports", "html",self.flowcell_id, "all", "all", "all", "lane.html")
+            if os.path.exists(html_report_lane):
+                html_reports_lane.append(html_report_lane)
+            else:
+                raise RuntimeError("Not able to find html report {}: possible cause is problem in demultiplexing".format(html_report_lane))
+            
+            html_report_laneBarcode = os.path.join(run_dir, "Demultiplexing_{}".format(demux_id), "Reports", "html",self.flowcell_id, "all", "all", "all", "laneBarcode.html")
+            if os.path.exists(html_report_laneBarcode):
+                html_reports_laneBarcode.append(html_report_laneBarcode)
+            else:
+                raise RuntimeError("Not able to find html report {}: possible cause is problem in demultiplexing".format(html_report_laneBarcode))
+            #aggregate fastq
+            projects = [project for project in  os.listdir(demux_id_folder) if os.path.isdir(os.path.join(demux_id_folder,project))]
+            for project in projects:
+                if project in "Reports" or project in "Stats":
+                    continue
+                project_source = os.path.join(demux_id_folder, project)
+                project_dest   = os.path.join(demux_folder, project)
+                if not os.path.exists(project_dest):
+                    os.makedirs(project_dest)
+                #now parse all samples in this project NB: there might be projects that have been demux
+                #with different index lenghts, but NO the same sample
+                samples = [sample for sample in  os.listdir(project_source) if os.path.isdir(os.path.join(project_source,sample))]
+                for sample in samples:
+                    sample_source = os.path.join(project_source,sample)
+                    sample_dest   = os.path.join(project_dest,sample)
+                    if os.path.exists(sample_dest):
+                        raise RuntimeError("Sample {} of project {} found twice while aggregating results".format(sample, project))
+                    os.makedirs(sample_dest)
+                    #now soflink the fastq.gz
+                    fastqfiles =  glob.glob(os.path.join(sample_source, "*.fastq*"))
+                    for fastqfile in fastqfiles:
+                        os.symlink(fastqfile, os.path.join(sample_dest,os.path.split(fastqfile)[1]))
+        #now copy fastq files for undetermined (for simple lanes only)
+        for lane in simple_lanes.keys():
+            undetermined_fastq_files = glob.glob(os.path.join(run_dir, "Demultiplex_0", "Undetermined_S0_*.fastq*")) #should contain only simple lanes undetermined
+            for fastqfile in undetermined_fastq_files:
+                os.symlink(fastqfile, os.path.join(demux_folder,os.path.split(fastqfile)[1]))
+        #now create the hmll reports
+        LaneBarcodeParser(html_report_lane)
+        
+        
+
+        import pdb
+        pdb.set_trace()
+        #now create the DemultiplexingStats.xml (empty it is here only to say thay demux is done)
+
+
+
 
 def _generate_clean_samplesheet(ssparser):
     """

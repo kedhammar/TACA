@@ -136,15 +136,14 @@ def run_preprocessing(run):
             logger.info(("BCL conversion and demultiplexing process in "
                              "progress for run {}, skipping it"
                              .format(run.id)))
-            import pdb
-            pdb.set_trace()
             run.check_run_status()
             
         elif run.get_run_status() == 'COMPLETED':
             logger.info(("Preprocessing of run {} is finished, check if "
                              "run has been transferred and transfer it "
                              "otherwise".format(run.id)))
-
+            import pdb
+            pdb.set_trace()
             #compute the last undetermiend index stats
             run.check_run_status()
             #this check is to be sure that no concurrent process is operating on this Flowcell (HiSeqX case)
