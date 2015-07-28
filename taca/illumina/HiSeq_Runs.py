@@ -116,9 +116,6 @@ class HiSeq_Run(Run):
         max_different_base_masks =  max([len(per_lane_base_masks[base_masks]) for base_masks in per_lane_base_masks])
         #if max_different is one, then I have a simple config and I can run a single command. Otherwirse I need to run multiples instances
         #extract lanes with a single base masks
-        import pdb
-        pdb.set_trace()
-        
         simple_lanes  = {}
         complex_lanes = {}
         for lane in per_lane_base_masks:
@@ -130,7 +127,7 @@ class HiSeq_Run(Run):
         bcl2fastq_commands = []
         bcl2fastq_command_num = 0
         if len(simple_lanes) > 0:
-            bcl2fastq_commands.apppend(self._generate_bcl2fastq_command(simple_lanes, True, bcl2fastq_command_num))
+            bcl2fastq_commands.append(self._generate_bcl2fastq_command(simple_lanes, True, bcl2fastq_command_num))
             bcl2fastq_command_num += 1
         #compute the different masks, there will be one bcl2fastq command per mask
         base_masks_complex = [complex_lanes[base_masks].keys() for base_masks in complex_lanes]
@@ -197,7 +194,10 @@ class HiSeq_Run(Run):
                 samples   = [base_masks[lane][bm]['data'] for bm in base_masks[lane]][0]
                 for sample in samples:
                     for field in self.runParserObj.samplesheet.datafields:
-                        ssms.write("{},".format(sample[field]))
+                        if field == "index" and "NoIndex" in sample[field]:
+                            ssms.write(",") # this is emtpy due to NoIndex issue
+                        else:
+                            ssms.write("{},".format(sample[field]))
                     ssms.write("\n")
             if strict:
                 cl.extend(["--tiles", ",".join(tiles) ])

@@ -170,6 +170,8 @@ class Run(object):
             is_dual_index = False
             if data_entry.get('index'):
                 index = data_entry['index']
+                if index in "NoIndex": #special case for HiSeq when one sample is alone in a lane
+                    index = ""
                 is_dual_index = False # default for Xten
                 if data_entry.get('index2'):
                     index2 = data_entry['index2']
