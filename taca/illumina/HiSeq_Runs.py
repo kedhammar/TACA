@@ -116,6 +116,9 @@ class HiSeq_Run(Run):
         max_different_base_masks =  max([len(per_lane_base_masks[base_masks]) for base_masks in per_lane_base_masks])
         #if max_different is one, then I have a simple config and I can run a single command. Otherwirse I need to run multiples instances
         #extract lanes with a single base masks
+        import pdb
+        pdb.set_trace()
+        
         simple_lanes  = {}
         complex_lanes = {}
         for lane in per_lane_base_masks:
@@ -210,8 +213,6 @@ class HiSeq_Run(Run):
         """
         run_dir    =  self.run_dir
         dex_status =  self.get_run_status()
-        import pdb
-        pdb.set_trace()
         #in this case I have already finished all demux jobs and I have aggregate all stasts unded Demultiplexing
         if  dex_status == 'COMPLETED':
             return
@@ -234,6 +235,8 @@ class HiSeq_Run(Run):
         #in this case, I need to aggreate in the Demultiplexing folder all the results
         if allDemuxDone:
             self._aggregate_demux_results()
+            #now I can initialise the RunParser
+            self.runParserObj = RunParser(self.run_dir)
 
 
     def _aggregate_demux_results(self):
@@ -255,6 +258,12 @@ class HiSeq_Run(Run):
                 complex_lanes[lane] = per_lane_base_masks[lane]
         #complex lanes contains the lanes such that there is more than one base mask
         #for simple lanes undetermined stats will be copied
+        if len(complex_lanes) == 0:
+            #it means that each lane had only one type of index size, so no need to do super tricky stuff
+            print "implement the simple case"
+            return
+        
+        
         html_reports_lane        = []
         html_reports_laneBarcode = []
         for samplesheet in samplesheets:
@@ -299,16 +308,71 @@ class HiSeq_Run(Run):
             undetermined_fastq_files = glob.glob(os.path.join(run_dir, "Demultiplex_0", "Undetermined_S0_*.fastq*")) #should contain only simple lanes undetermined
             for fastqfile in undetermined_fastq_files:
                 os.symlink(fastqfile, os.path.join(demux_folder,os.path.split(fastqfile)[1]))
-        #now create the hmll reports
-        LaneBarcodeParser(html_report_lane)
-        
-        
+        #now create the html reports
+        #start with the lane
+        html_report_lane_parser = None
+        for next_html_report_lane in html_reports_lane:
+            if html_report_lane_parser is None:
+                html_report_lane_parser = LaneBarcodeParser(next_html_report_lane)
+            else:
+                lanesInReport = [Lane['Lane'] for Lane in html_report_lane_parser.sample_data]
+                next_html_report_lane_parser = LaneBarcodeParser(next_html_report_lane)
+                for entry in next_html_report_lane_parser.sample_data:
+                    if not entry["Lane"] in lanesInReport:
+                        #if this is a new lane not included before
+                        html_report_lane_parser.sample_data.push(entry)
+        # now all lanes have been inserted
+        for entry in html_report_lane_parser.sample_data:
+            if entry['Lane'] in complex_lanes.keys():
+                entry['% Perfectbarcode']      = None
+                entry['% One mismatchbarcode'] = None
+        #now add lanes not present in this demux
+        #now I can create the new lane.html
+        new_html_report_lane_dir = _create_folder_structure(demux_folder, ["Reports", "html", self.flowcell_id, "all", "all", "all"])
+        new_html_report_lane = os.path.join(new_html_report_lane_dir, "lane.html")
+        _generate_lane_html(new_html_report_lane, html_report_lane_parser)
 
-        import pdb
-        pdb.set_trace()
+        #now generate the laneBarcode
+        html_report_laneBarcode_parser = None
+        for next_html_report_laneBarcode in html_reports_laneBarcode:
+            if html_report_laneBarcode_parser is None:
+                html_report_laneBarcode_parser = LaneBarcodeParser(next_html_report_laneBarcode)
+            else:
+                #no need to check samples occuring in more than one file has I would have spot it while softlinking
+                next_html_report_laneBarcode_parser = LaneBarcodeParser(next_html_report_laneBarcode)
+                for entry in next_html_report_laneBarcode_parser.sample_data:
+                    html_report_laneBarcode_parser.sample_data.append(entry)
+
+        positions_to_delete = [] #find all position that contain default as poriject nameand do not belong to a simple lane
+        current_pos = 0
+        for entry in html_report_laneBarcode_parser.sample_data:
+            if  entry['Lane'] in complex_lanes.keys() and entry['Project'] in "default":
+                positions_to_delete = [current_pos] +  positions_to_delete # build the array in this way so that I can delete the elements without messing with the offsets
+            current_pos += 1
+        for position in positions_to_delete:
+            del html_report_laneBarcode_parser.sample_data[position]
+        #now generate the new report for laneBarcode.html
+        new_html_report_laneBarcode = os.path.join(new_html_report_lane_dir, "laneBarcode.html")
+        _generate_lane_html(new_html_report_laneBarcode, html_report_laneBarcode_parser)
+
         #now create the DemultiplexingStats.xml (empty it is here only to say thay demux is done)
+        DemultiplexingStats_xml_dir = _create_folder_structure(demux_folder, ["Stats"])
+        #now the run is formally COMPLETED
+        open(os.path.join(DemultiplexingStats_xml_dir, "DemultiplexingStats.xml"), 'a').close()
 
 
+
+def _create_folder_structure(root, dirs):
+    """
+    creates a fodler stucture rooted in root usinf all dirs listed in dirs (a list)
+    returns the path to the deepest directory
+    """
+    path=root
+    for dir in dirs:
+        path = os.path.join(path, dir)
+        if not os.path.exists(path):
+            os.makedirs(path)
+    return path
 
 
 def _generate_clean_samplesheet(ssparser):
@@ -386,6 +450,52 @@ def _data_filed_conversion(field):
 
 
 
+def _generate_lane_html(html_file, html_report_lane_parser):
+    with open(html_file, "w") as html:
+        #HEADER
+        html.write("<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\">\n")
+        html.write("<html xmlns:bcl2fastq>\n")
+        html.write("<link rel=\"stylesheet\" href=\"../../../../Report.css\" type=\"text/css\">\n")
+        html.write("<body>\n")
+        html.write("<table width=\"100%\"><tr>\n")
+        html.write("<td><p><p>C6L1WANXX /\n")
+        html.write("        [all projects] /\n")
+        html.write("        [all samples] /\n")
+        html.write("        [all barcodes]</p></p></td>\n")
+        html.write("<td><p align=\"right\"><a href=\"../../../../FAKE/all/all/all/laneBarcode.html\">show barcodes</a></p></td>\n")
+        html.write("</tr></table>\n")
+        #FLOWCELL SUMMARY TABLE
+        html.write("<h2>Flowcell Summary</h2>\n")
+        html.write("<table border=\"1\" ID=\"ReportTable\">\n")
+        html.write("<tr>\n")
+        keys = html_report_lane_parser.flowcell_data.keys()
+        for key in keys:
+            html.write("<th>{}</th>\n".format(key))
+        html.write("</tr>\n")
+        html.write("<tr>\n")
+        for key in keys:
+            html.write("<td>{}</td>\n".format(html_report_lane_parser.flowcell_data[key]))
+        html.write("</tr>\n")
+        html.write("</table>\n")
+        #LANE SUMMARY TABLE
+        html.write("<h2>Lane Summary</h2>\n")
+        html.write("<table border=\"1\" ID=\"ReportTable\">\n")
+        html.write("<tr>\n")
+        keys = html_report_lane_parser.sample_data[0].keys()
+        for key in keys:
+            html.write("<th>{}</th>\n".format(key))
+        html.write("</tr>\n")
+        
+        for sample in html_report_lane_parser.sample_data:
+            html.write("<tr>\n")
+            for key in keys:
+                html.write("<td>{}</td>\n".format(sample[key]))
+            html.write("</tr>\n")
+        html.write("</table>\n")
+        #FOOTER
+        html.write("<p></p>\n")
+        html.write("</body>\n")
+        html.write("</html>\n")
 
 
 

@@ -142,10 +142,13 @@ def run_preprocessing(run):
             logger.info(("Preprocessing of run {} is finished, check if "
                              "run has been transferred and transfer it "
                              "otherwise".format(run.id)))
+
+            #compute the last undetermiend index stats
             import pdb
             pdb.set_trace()
-            #compute the last undetermiend index stats
             run.check_run_status()
+            import pdb
+            pdb.set_trace()
             #this check is to be sure that no concurrent process is operating on this Flowcell (HiSeqX case)
             if not run.demux_done():
                 return
