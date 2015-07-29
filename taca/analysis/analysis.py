@@ -144,14 +144,16 @@ def run_preprocessing(run):
                              "otherwise".format(run.id)))
 
             #compute the last undetermiend index stats
-            import pdb
-            pdb.set_trace()
             run.check_run_status()
             import pdb
             pdb.set_trace()
             #this check is to be sure that no concurrent process is operating on this Flowcell (HiSeqX case)
+            #in the case of of HiSeq this function computed undetermined indexes for NoIndex lanes
             if not run.demux_done():
                 return
+            import pdb
+            pdb.set_trace()
+            
             
             #check the run QC
             run_QC_status = run.check_QC()

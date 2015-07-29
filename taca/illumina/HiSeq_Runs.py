@@ -73,6 +73,57 @@ class HiSeq_Run(Run):
             raise RuntimeError("not able to find samplesheet {}.csv in {}".format(self.flowcell_id, self.CONFIG['samplesheets_dir']))
                                 
 
+    def demux_done(self):
+        """
+        This function returns true if all demux steps are done and we can proceed to QC
+        For simple lanes with index: no check everything needs to be in place
+        for complex lanes: no check everything needs to be in place
+        for simple lanes and NoIndex: check if demux counts have been computed, if not compute or return waiting for thir completion
+        """
+        NoIndexLanes = [lane["Lane"] for lane in self.runParserObj.samplesheet.data if "NoIndex" in lane["index"]]
+        if len(NoIndexLanes) == 0:
+            return True # everything is fine I can proceed to QC
+        else:
+            NoIndex_Undetermiend = os.path.join(self.run_dir, "Demultiplexing_NoIndex")
+            if not os.path.exists(NoIndex_Undetermiend):
+                os.makedirs(NoIndex_Undetermiend)
+            else:
+                if os.path.exists(os.path.join(self.run_dir, "Demultiplexing_NoIndex", 'Stats', 'DemultiplexingStats.xml')):
+                    logger.info("Demux of NoIndex lanes ongoing")
+                else:
+                    logger.info("Demux of NoIndex lanes done.")
+                    #now I need to produce the files needed in the QC
+
+
+
+                import pdb
+                pdb.set_trace()
+                #return False
+
+        #for these lanes I have no undetermiend as I demux them without index.
+        #now geenrate the base masks per lane
+        per_lane_base_masks = self._generate_per_lane_base_mask()
+        #store here only the NoIndex lanes
+        per_lane_base_masks_NoIndex = {}
+        for NoIndexLane in NoIndexLanes:
+            per_lane_base_masks_NoIndex[NoIndexLane] = per_lane_base_masks[NoIndexLane]
+            base_mask_key = per_lane_base_masks[NoIndexLane].keys()[0]
+            new_base_mask = []
+            for baseMask_element in per_lane_base_masks_NoIndex[NoIndexLane][base_mask_key]['base_mask']:
+                if baseMask_element.startswith("Y"):
+                    new_base_mask.append(baseMask_element.replace("Y", "N"))
+                elif baseMask_element.startswith("N"):
+                    new_base_mask.append(baseMask_element.replace("N", "Y"))
+            per_lane_base_masks_NoIndex[NoIndexLane][base_mask_key]['base_mask'] = new_base_mask
+
+        command = self._generate_bcl2fastq_command(per_lane_base_masks_NoIndex, True, "NoIndex", mask_short_adapter_reads=True)
+        with chdir(self.run_dir):
+            misc.call_external_command_detached(command, with_log_files=True, prefix="demux_NoIndex")
+        #return false, as I need to wait to finish the demux for the NoIndex case
+        return False
+
+
+
 
 
 
@@ -148,12 +199,12 @@ class HiSeq_Run(Run):
                 os.makedirs("Demultiplexing")
             execution = 0
             for bcl2fastq_command in bcl2fastq_commands:
-                misc.call_external_command(bcl2fastq_command, with_log_files=True, prefix="demux_{}".format(execution))
+                misc.call_external_command_detached(bcl2fastq_command, with_log_files=True, prefix="demux_{}".format(execution))
                 execution += 1
 
 
 
-    def _generate_bcl2fastq_command(self, base_masks, strict=True, suffix=0):
+    def _generate_bcl2fastq_command(self, base_masks, strict=True, suffix=0, mask_short_adapter_reads=False):
         """
         Generates the command to demultiplex with the given base_masks. 
         if strict is set to true demultiplex only lanes in base_masks
@@ -202,6 +253,9 @@ class HiSeq_Run(Run):
             if strict:
                 cl.extend(["--tiles", ",".join(tiles) ])
         cl.extend(["--sample-sheet", samplesheetMaskSpecific])
+        if mask_short_adapter_reads:
+            cl.extend(["--mask-short-adapter-reads", "0"])
+        
         logger.info(("BCL to FASTQ command built {} ".format(" ".join(cl))))
         return cl
 
@@ -218,7 +272,7 @@ class HiSeq_Run(Run):
             return
         #otherwise check the status of running demux
         #collect all samplesheets generated before
-        samplesheets =  glob.glob(os.path.join(run_dir, "*_*.csv"))
+        samplesheets =  glob.glob(os.path.join(run_dir, "*_[0-9].csv")) # a single digit... this hipotesis should hold for a while
         allDemuxDone = True
         for samplesheet in samplesheets:
             #fetch the id of this demux job
@@ -245,7 +299,7 @@ class HiSeq_Run(Run):
         """
         run_dir      =  self.run_dir
         demux_folder =  os.path.join(self.run_dir , self.demux_dir)
-        samplesheets =  glob.glob(os.path.join(run_dir, "*_*.csv"))
+        samplesheets =  glob.glob(os.path.join(run_dir, "*_[0-9].csv")) # a single digit... this hipotesis should hold for a while
         
         per_lane_base_masks = self._generate_per_lane_base_mask()
         max_different_base_masks =  max([len(per_lane_base_masks[base_masks]) for base_masks in per_lane_base_masks])
@@ -260,10 +314,35 @@ class HiSeq_Run(Run):
         #for simple lanes undetermined stats will be copied
         if len(complex_lanes) == 0:
             #it means that each lane had only one type of index size, so no need to do super tricky stuff
-            print "implement the simple case"
-            return
-        
-        
+            demux_folder_tmp_name = "Demultiplexing_0" # in this case this is the only demux dir
+            demux_folder_tmp     = os.path.join(run_dir, demux_folder_tmp_name)
+            elements = [element for element  in  os.listdir(demux_folder_tmp) ]
+            for element in elements:
+                if "Stats" not in element: #skip this folder and treat it differently to take into account the NoIndex case
+                    source  = os.path.join(demux_folder_tmp, element)
+                    dest    = os.path.join(self.run_dir, self.demux_dir, element)
+                    os.symlink(source, dest)
+            import pdb
+            pdb.set_trace()
+            os.makedirs(os.path.join(self.run_dir, "Demultiplexing", "Stats"))
+            #now fetch the lanes that have NoIndex
+            noIndexLanes = [Sample["Lane"] for Sample in  self.runParserObj.samplesheet.data if "NoIndex" in Sample["index"]]
+            statsFiles = glob.glob(os.path.join(demux_folder_tmp, "Stats", "*" ))
+            for source in statsFiles:
+                source_name = os.path.split(source)[1]
+                if source_name not in ["DemultiplexingStats.xml", "AdapterTrimming.txt", "ConversionStats.xml"]:
+                    lane = os.path.splitext(os.path.split(source)[1])[0][-1] #lane
+                    if lane not in noIndexLanes:
+                        #in this case I can soflink the file here
+                        dest    = os.path.join(self.run_dir, self.demux_dir, "Stats", source_name)
+                        os.symlink(source, dest)
+            #now copy the three last files
+            for file in ["DemultiplexingStats.xml", "AdapterTrimming.txt", "ConversionStats.xml"]:
+                source = os.path.join(self.run_dir, "Demultiplexing_0", "Stats", file)
+                dest   = os.path.join(self.run_dir, "Demultiplexing", "Stats", file)
+                os.symlink(source, dest)
+            #this is the simple case, Demultiplexing dir is simply a symlink to the only sub-demultiplexing dir
+            return True
         html_reports_lane        = []
         html_reports_laneBarcode = []
         for samplesheet in samplesheets:
@@ -292,6 +371,8 @@ class HiSeq_Run(Run):
                     os.makedirs(project_dest)
                 #now parse all samples in this project NB: there might be projects that have been demux
                 #with different index lenghts, but NO the same sample
+                import pdb
+                pdb.set_trace()
                 samples = [sample for sample in  os.listdir(project_source) if os.path.isdir(os.path.join(project_source,sample))]
                 for sample in samples:
                     sample_source = os.path.join(project_source,sample)
@@ -303,9 +384,10 @@ class HiSeq_Run(Run):
                     fastqfiles =  glob.glob(os.path.join(sample_source, "*.fastq*"))
                     for fastqfile in fastqfiles:
                         os.symlink(fastqfile, os.path.join(sample_dest,os.path.split(fastqfile)[1]))
+        
         #now copy fastq files for undetermined (for simple lanes only)
         for lane in simple_lanes.keys():
-            undetermined_fastq_files = glob.glob(os.path.join(run_dir, "Demultiplex_0", "Undetermined_S0_*.fastq*")) #should contain only simple lanes undetermined
+            undetermined_fastq_files = glob.glob(os.path.join(run_dir, "Demultiplex_0", "Undetermined_S0_*.fastq*")) #contains only simple lanes undetermined
             for fastqfile in undetermined_fastq_files:
                 os.symlink(fastqfile, os.path.join(demux_folder,os.path.split(fastqfile)[1]))
         #now create the html reports
@@ -357,9 +439,14 @@ class HiSeq_Run(Run):
 
         #now create the DemultiplexingStats.xml (empty it is here only to say thay demux is done)
         DemultiplexingStats_xml_dir = _create_folder_structure(demux_folder, ["Stats"])
+        #copy the Undetermined stats for simple lanes
+        for lane in simple_lanes.keys():
+            DemuxSummaryFiles = glob.glob(os.path.join(run_dir, "Demultiplex_0", "Stats", "*L{}*txt".format(lane)))
+            for DemuxSummaryFile in DemuxSummaryFiles:
+                os.symlink(DemuxSummaryFile, os.path.join(demux_folder, "Stats", os.path.split(DemuxSummaryFile)[1]))
         #now the run is formally COMPLETED
         open(os.path.join(DemultiplexingStats_xml_dir, "DemultiplexingStats.xml"), 'a').close()
-
+        return True
 
 
 def _create_folder_structure(root, dirs):
