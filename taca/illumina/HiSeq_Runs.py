@@ -3,6 +3,8 @@ import re
 import csv
 import glob
 import shutil
+import gzip
+import operator
 from datetime import datetime
 from taca.utils.filesystem import chdir, control_fastq_filename
 from taca.illumina.Runs import Run
@@ -76,8 +78,8 @@ class HiSeq_Run(Run):
     def demux_done(self):
         """
         This function returns true if all demux steps are done and we can proceed to QC
-        For simple lanes with index: no check everything needs to be in place
-        for complex lanes: no check everything needs to be in place
+        For simple lanes with index: no check is done everything needs to be in place
+        for complex lanes: no check is done everything needs to be in place
         for simple lanes and NoIndex: check if demux counts have been computed, if not compute or return waiting for thir completion
         """
         NoIndexLanes = [lane["Lane"] for lane in self.runParserObj.samplesheet.data if "NoIndex" in lane["index"]]
@@ -88,16 +90,77 @@ class HiSeq_Run(Run):
             if not os.path.exists(NoIndex_Undetermiend):
                 os.makedirs(NoIndex_Undetermiend)
             else:
-                if os.path.exists(os.path.join(self.run_dir, "Demultiplexing_NoIndex", 'Stats', 'DemultiplexingStats.xml')):
+                if not os.path.exists(os.path.join(self.run_dir, "Demultiplexing_NoIndex", 'Stats', 'DemultiplexingStats.xml')):
+                    #demultiplexing of undetermined
                     logger.info("Demux of NoIndex lanes ongoing")
+                    return False
                 else:
                     logger.info("Demux of NoIndex lanes done.")
                     #now I need to produce the files needed in the QC
-
-
-
-                import pdb
-                pdb.set_trace()
+                    flag_file = os.path.join(NoIndex_Undetermiend, "ongoing")
+                    if os.path.exists(flag_file):
+                        #it means that a previous instance of TACA is running and still processing this FC
+                        logger.info("Counting of undetermined indexes for NoIndex lanes ongoing")
+                        return False
+                    #now check if the stats have been already computed
+                    computed = True
+                    for lane_id in NoIndexLanes:
+                        demuxSummary_file = os.path.join(self.run_dir,self.demux_dir, "Stats", "DemuxSummaryF1L{}.txt".format(lane_id))
+                        if not os.path.exists(demuxSummary_file):
+                            #if does not exists and the ongoing falg is not present, then I need to cet computed to False
+                            computed = False
+                    if computed:
+                        #in this case I already computed all the demux stats that I need
+                        return True
+                    #otherwise I need to comput them
+                    open(flag_file, 'a').close() # create the flag file indicating I am working on this
+                    for lane_id in NoIndexLanes:
+                        #count the index occurences, each lane corresponds to one project, a project might have multiple lanes
+                        current_lane = [lane for lane in self.runParserObj.samplesheet.data if lane_id == lane["Lane"]][0]
+                        if current_lane["index"] != "NoIndex":
+                            logger.error("while processing run {} NoIndex lane {}, index {} found in SampleSheet".format(self.id,
+                                                                                                            lane_id,
+                                                                                                            current_lane["index"]))
+                            return False
+                        index_counter = {}
+                        indexes_fastq1 = os.path.join(NoIndex_Undetermiend,
+                                                    current_lane['Sample_Project'],
+                                                    current_lane['Sample_ID'],
+                                                    "{}_S1_L00{}_R2_001.fastq.gz".format(current_lane['Sample_Name'], lane_id))
+                        indexes_fastq2 = os.path.join(NoIndex_Undetermiend,
+                                                    current_lane['Sample_Project'],
+                                                    current_lane['Sample_ID'],
+                                                    "{}_S1_L00{}_R3_001.fastq.gz".format(current_lane['Sample_Name'], lane_id))
+                        # I assume these two files are always present, maybe it is posisble to have no index with a single index...
+                        with gzip.open(indexes_fastq1, 'r') as index_fastq1_fh:
+                            index_fastq2_fh = gzip.open(indexes_fastq2, 'r')
+                            for read1_name in index_fastq1_fh:
+                                read1_index   = index_fastq1_fh.next().rstrip()
+                                read1_comment = index_fastq1_fh.next()
+                                read1_qual    = index_fastq1_fh.next()
+                                read2_name    = index_fastq2_fh.next()
+                                read2_index   = index_fastq2_fh.next().rstrip()
+                                read2_comment = index_fastq2_fh.next()
+                                read2_qual    = index_fastq2_fh.next()
+                                if "{}+{}".format(read1_index,read2_index) in index_counter:
+                                    index_counter["{}+{}".format(read1_index,read2_index)] += 1
+                                else:
+                                    index_counter["{}+{}".format(read1_index,read2_index)] = 1
+                            index_fastq2_fh.close()
+                        #now write the results
+                        import pdb
+                        pdb.set_trace()
+                        demuxSummary_file = os.path.join(self.run_dir,self.demux_dir, "Stats", "DemuxSummaryF1L{}.txt".format(lane_id))
+                        with open(demuxSummary_file, 'w') as demuxSummary_file_fh:
+                            demuxSummary_file_fh.write("### Most Popular Unknown Index Sequences\n")
+                            demuxSummary_file_fh.write("### Columns: Index_Sequence Hit_Count\n")
+                            for (index, occ) in sorted(index_counter.items(), key=operator.itemgetter(1),  reverse=True):
+                                demuxSummary_file_fh.write("{}\t{}\n".format(index, occ))
+                        
+                    os.remove(flag_file) # remove flag file to allow future iteration on this FC
+                    return True #return true, I have done everything I was supposed to do
+                
+                
                 #return False
 
         #for these lanes I have no undetermiend as I demux them without index.
@@ -322,8 +385,6 @@ class HiSeq_Run(Run):
                     source  = os.path.join(demux_folder_tmp, element)
                     dest    = os.path.join(self.run_dir, self.demux_dir, element)
                     os.symlink(source, dest)
-            import pdb
-            pdb.set_trace()
             os.makedirs(os.path.join(self.run_dir, "Demultiplexing", "Stats"))
             #now fetch the lanes that have NoIndex
             noIndexLanes = [Sample["Lane"] for Sample in  self.runParserObj.samplesheet.data if "NoIndex" in Sample["index"]]
@@ -368,30 +429,28 @@ class HiSeq_Run(Run):
                 project_source = os.path.join(demux_id_folder, project)
                 project_dest   = os.path.join(demux_folder, project)
                 if not os.path.exists(project_dest):
+                    #there might be project seqeunced with multiple index lengths
                     os.makedirs(project_dest)
-                #now parse all samples in this project NB: there might be projects that have been demux
-                #with different index lenghts, but NO the same sample
-                import pdb
-                pdb.set_trace()
                 samples = [sample for sample in  os.listdir(project_source) if os.path.isdir(os.path.join(project_source,sample))]
                 for sample in samples:
                     sample_source = os.path.join(project_source,sample)
                     sample_dest   = os.path.join(project_dest,sample)
-                    if os.path.exists(sample_dest):
-                        raise RuntimeError("Sample {} of project {} found twice while aggregating results".format(sample, project))
-                    os.makedirs(sample_dest)
+                    if not os.path.exists(sample_dest):
+                        #there should beven be the same sample sequenced with different index length, however a sample might be pooled in several lanes and therefore sequenced using different samplesheets.
+                        os.makedirs(sample_dest)
                     #now soflink the fastq.gz
                     fastqfiles =  glob.glob(os.path.join(sample_source, "*.fastq*"))
                     for fastqfile in fastqfiles:
                         os.symlink(fastqfile, os.path.join(sample_dest,os.path.split(fastqfile)[1]))
-        
+
         #now copy fastq files for undetermined (for simple lanes only)
         for lane in simple_lanes.keys():
-            undetermined_fastq_files = glob.glob(os.path.join(run_dir, "Demultiplex_0", "Undetermined_S0_*.fastq*")) #contains only simple lanes undetermined
+            undetermined_fastq_files = glob.glob(os.path.join(run_dir, "Demultiplexing_0", "Undetermined_S0_L00{}*.fastq*".format(lane))) #contains only simple lanes undetermined
             for fastqfile in undetermined_fastq_files:
                 os.symlink(fastqfile, os.path.join(demux_folder,os.path.split(fastqfile)[1]))
         #now create the html reports
         #start with the lane
+
         html_report_lane_parser = None
         for next_html_report_lane in html_reports_lane:
             if html_report_lane_parser is None:
@@ -402,7 +461,7 @@ class HiSeq_Run(Run):
                 for entry in next_html_report_lane_parser.sample_data:
                     if not entry["Lane"] in lanesInReport:
                         #if this is a new lane not included before
-                        html_report_lane_parser.sample_data.push(entry)
+                        html_report_lane_parser.sample_data.append(entry)
         # now all lanes have been inserted
         for entry in html_report_lane_parser.sample_data:
             if entry['Lane'] in complex_lanes.keys():
@@ -441,7 +500,7 @@ class HiSeq_Run(Run):
         DemultiplexingStats_xml_dir = _create_folder_structure(demux_folder, ["Stats"])
         #copy the Undetermined stats for simple lanes
         for lane in simple_lanes.keys():
-            DemuxSummaryFiles = glob.glob(os.path.join(run_dir, "Demultiplex_0", "Stats", "*L{}*txt".format(lane)))
+            DemuxSummaryFiles = glob.glob(os.path.join(run_dir, "Demultiplexing_0", "Stats", "*L{}*txt".format(lane)))
             for DemuxSummaryFile in DemuxSummaryFiles:
                 os.symlink(DemuxSummaryFile, os.path.join(demux_folder, "Stats", os.path.split(DemuxSummaryFile)[1]))
         #now the run is formally COMPLETED
