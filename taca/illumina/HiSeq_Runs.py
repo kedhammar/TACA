@@ -5,11 +5,12 @@ import glob
 import shutil
 import gzip
 import operator
+import subprocess
 from datetime import datetime
 from taca.utils.filesystem import chdir, control_fastq_filename
 from taca.illumina.Runs import Run
 from taca.utils import misc
-from flowcell_parser.classes import RunParametersParser, SampleSheetParser, RunParser, LaneBarcodeParser
+from flowcell_parser.classes import RunParametersParser, SampleSheetParser, RunParser, LaneBarcodeParser, DemuxSummaryParser
 
 
 import logging
@@ -89,9 +90,32 @@ class HiSeq_Run(Run):
             NoIndex_Undetermiend = os.path.join(self.run_dir, "Demultiplexing_NoIndex")
             if not os.path.exists(NoIndex_Undetermiend):
                 os.makedirs(NoIndex_Undetermiend)
+                #for these lanes I have no undetermiend as I demux them without index.
+                #now geenrate the base masks per lane
+                per_lane_base_masks = self._generate_per_lane_base_mask()
+                #store here only the NoIndex lanes
+                per_lane_base_masks_NoIndex = {}
+                for NoIndexLane in NoIndexLanes:
+                    per_lane_base_masks_NoIndex[NoIndexLane] = per_lane_base_masks[NoIndexLane]
+                    base_mask_key = per_lane_base_masks[NoIndexLane].keys()[0]
+                new_base_mask = []
+                for baseMask_element in per_lane_base_masks_NoIndex[NoIndexLane][base_mask_key]['base_mask']:
+                    if baseMask_element.startswith("Y"):
+                        new_base_mask.append(baseMask_element.replace("Y", "N"))
+                    elif baseMask_element.startswith("N"):
+                        new_base_mask.append(baseMask_element.replace("N", "Y"))
+                per_lane_base_masks_NoIndex[NoIndexLane][base_mask_key]['base_mask'] = new_base_mask
+                import pdb
+                pdb.set_trace()
+                command = self._generate_bcl2fastq_command(per_lane_base_masks_NoIndex, True, "NoIndex", mask_short_adapter_reads=True)
+                with chdir(self.run_dir):
+                    misc.call_external_command_detached(command, with_log_files=True, prefix="demux_NoIndex")
+                #return false, as I need to wait to finish the demux for the NoIndex case
+                return False
             else:
+                #in this case it means that I have already started to demux the NoIndex
                 if not os.path.exists(os.path.join(self.run_dir, "Demultiplexing_NoIndex", 'Stats', 'DemultiplexingStats.xml')):
-                    #demultiplexing of undetermined
+                    #demultiplexing of undetermined is still ongoing
                     logger.info("Demux of NoIndex lanes ongoing")
                     return False
                 else:
@@ -123,33 +147,33 @@ class HiSeq_Run(Run):
                                                                                                             current_lane["index"]))
                             return False
                         index_counter = {}
-                        indexes_fastq1 = os.path.join(NoIndex_Undetermiend,
+                        indexes_fastq1 = glob.glob(os.path.join(NoIndex_Undetermiend,
                                                     current_lane['Sample_Project'],
                                                     current_lane['Sample_ID'],
-                                                    "{}_S1_L00{}_R2_001.fastq.gz".format(current_lane['Sample_Name'], lane_id))
-                        indexes_fastq2 = os.path.join(NoIndex_Undetermiend,
+                                                    "{}_S?_L00{}_R2_001.fastq.gz".format(current_lane['Sample_Name'], lane_id)))[0]
+                        indexes_fastq2 = glob.glob(os.path.join(NoIndex_Undetermiend,
                                                     current_lane['Sample_Project'],
                                                     current_lane['Sample_ID'],
-                                                    "{}_S1_L00{}_R3_001.fastq.gz".format(current_lane['Sample_Name'], lane_id))
+                                                    "{}_S?_L00{}_R3_001.fastq.gz".format(current_lane['Sample_Name'], lane_id)))[0]
                         # I assume these two files are always present, maybe it is posisble to have no index with a single index...
-                        with gzip.open(indexes_fastq1, 'r') as index_fastq1_fh:
-                            index_fastq2_fh = gzip.open(indexes_fastq2, 'r')
-                            for read1_name in index_fastq1_fh:
-                                read1_index   = index_fastq1_fh.next().rstrip()
-                                read1_comment = index_fastq1_fh.next()
-                                read1_qual    = index_fastq1_fh.next()
-                                read2_name    = index_fastq2_fh.next()
-                                read2_index   = index_fastq2_fh.next().rstrip()
-                                read2_comment = index_fastq2_fh.next()
-                                read2_qual    = index_fastq2_fh.next()
-                                if "{}+{}".format(read1_index,read2_index) in index_counter:
-                                    index_counter["{}+{}".format(read1_index,read2_index)] += 1
-                                else:
-                                    index_counter["{}+{}".format(read1_index,read2_index)] = 1
-                            index_fastq2_fh.close()
-                        #now write the results
+                        logger.info("Computing Undetermiend indexes for NoIndex lane {}".format(lane_id))
                         import pdb
                         pdb.set_trace()
+                        zcat=subprocess.Popen(['zcat', indexes_fastq1], stdout=subprocess.PIPE)
+                        #this command allows to steam two files, print them line after line separated by a plus
+                        awk=subprocess.Popen(['awk', 'BEGIN {{OFS="+"}}{{  ("zcat " "{0} " ) | getline line ; print $0,line }}'.format(indexes_fastq2)], stdout=subprocess.PIPE, stdin=zcat.stdout)
+                        #now select only the 2nd line every 4 (i.e., only the index1+index2 line)
+                        sed=subprocess.Popen(['sed', '-n', "2~4p"],stdout=subprocess.PIPE, stdin=awk.stdout)
+                        zcat.stdout.close()
+                        awk.stdout.close()
+                        output = sed.communicate()[0]
+                        zcat.wait()
+                        awk.wait()
+                        for barcode in output.rstrip():
+                            try:
+                                index_counter[barcode] += 1
+                            except KeyError:
+                                barcodes[barcode]=1
                         demuxSummary_file = os.path.join(self.run_dir,self.demux_dir, "Stats", "DemuxSummaryF1L{}.txt".format(lane_id))
                         with open(demuxSummary_file, 'w') as demuxSummary_file_fh:
                             demuxSummary_file_fh.write("### Most Popular Unknown Index Sequences\n")
@@ -160,34 +184,57 @@ class HiSeq_Run(Run):
                     os.remove(flag_file) # remove flag file to allow future iteration on this FC
                     return True #return true, I have done everything I was supposed to do
                 
-                
-                #return False
 
-        #for these lanes I have no undetermiend as I demux them without index.
-        #now geenrate the base masks per lane
+
+    def check_QC(self):
+        if not self.demux_done():
+            raise RuntimeError("Trying to QC a run but the run is not compelted yet")
+        #QC an HiSeq run --> complex lane are not subject to any QC
         per_lane_base_masks = self._generate_per_lane_base_mask()
-        #store here only the NoIndex lanes
-        per_lane_base_masks_NoIndex = {}
-        for NoIndexLane in NoIndexLanes:
-            per_lane_base_masks_NoIndex[NoIndexLane] = per_lane_base_masks[NoIndexLane]
-            base_mask_key = per_lane_base_masks[NoIndexLane].keys()[0]
-            new_base_mask = []
-            for baseMask_element in per_lane_base_masks_NoIndex[NoIndexLane][base_mask_key]['base_mask']:
-                if baseMask_element.startswith("Y"):
-                    new_base_mask.append(baseMask_element.replace("Y", "N"))
-                elif baseMask_element.startswith("N"):
-                    new_base_mask.append(baseMask_element.replace("N", "Y"))
-            per_lane_base_masks_NoIndex[NoIndexLane][base_mask_key]['base_mask'] = new_base_mask
-
-        command = self._generate_bcl2fastq_command(per_lane_base_masks_NoIndex, True, "NoIndex", mask_short_adapter_reads=True)
-        with chdir(self.run_dir):
-            misc.call_external_command_detached(command, with_log_files=True, prefix="demux_NoIndex")
-        #return false, as I need to wait to finish the demux for the NoIndex case
-        return False
-
-
-
-
+        simple_lanes  = {}
+        complex_lanes = {}
+        for lane in per_lane_base_masks:
+            if len(per_lane_base_masks[lane]) == 1:
+                simple_lanes[lane] = per_lane_base_masks[lane]
+            else:
+                complex_lanes[lane] = per_lane_base_masks[lane]
+        #complex lanes contains the lanes such that there is more than one base mask
+        #I will compute QC only for NON-complex lanes. Complex lanes will be judge via GenomicStatus
+        pass_QC = True
+        for lane in simple_lanes:
+            #fetch the DemuxSummary files, that at this point must be available for all simple and NoIndex lanes
+            demuxSummary_file = os.path.join(self.run_dir,self.demux_dir, "Stats", "DemuxSummaryF1L{}.txt".format(lane))
+            undeterminedStats = DemuxSummaryParser(demuxSummary_file)
+            #now check if this is a NoIndex lane
+            #fetch the basemask, there will be only one by definition
+            base_mask = simple_lanes[lane].keys()[0]
+            #there must be at least one sample
+            sample_0  = simple_lanes[lane][base_mask]['data'][0]
+            #now fetch total amount of reads generated for this lane
+            lane_clusters = float([lane_info['PF Clusters'] for lane_info in self.runParserObj.lanes.sample_data if lane_info['Lane'] == lane][0].replace(",",""))
+            if sample_0['index'] == "NoIndex":
+                most_frequent_undet_index = undeterminedStats.result[1] # the 0 should be my Index
+                total_und_indexes = undeterminedStats.TOTAL - undeterminedStats.result[0]
+                max_percentage_undetermined_indexes_NoIndex_lane = int(self.CONFIG['QC']['max_percentage_undetermined_indexes_NoIndex_lane'])
+                if (total_und_indexes/lane_clusters)*100 > max_percentage_undetermined_indexes_NoIndex_lane:
+                    logger.warn("Lane {} found with a large percentage of undetermined indexes. This FC will not be transferred".format(lane))
+                    pass_QC = pass_QC and False
+                max_frequency_most_represented_und_index_NoIndex_lane = int(self.CONFIG['QC']['max_frequency_most_represented_und_index_NoIndex_lane'])
+                if (float(most_frequent_undet_index[1])/total_und_indexes)*100 > max_frequency_most_represented_und_index_NoIndex_lane:
+                    logger.warn("Lane {} most frequent undetermined index accounts for more than {}% of all undetermined indexes. This FC will not be transferred".format(lane, max_frequency_most_represented_und_index_NoIndex_lane))
+                    pass_QC = pass_QC and False
+            else:
+                most_frequent_undet_index = undeterminedStats.result[0]
+                max_percentage_undetermined_indexes_simple_lane = self.CONFIG['QC']['max_percentage_undetermined_indexes_simple_lane']
+                if (undeterminedStats.TOTAL/lane_clusters)*100 > max_number_undetermined_reads_simple_lane:
+                    logger.warn("Lane {} found with a large percentage of undetermined indexes. This FC will not be transferred".format(lane))
+                    pass_QC = pass_QC and False
+                max_number_undetermined_reads_simple_lane = self.CONFIG['QC']['max_number_undetermined_reads_simple_lane']
+                if undeterminedStats.TOTAL > max_number_undetermined_reads_simple_lane:
+                    logger.warn("Lane {} found with a large percentage of undetermined indexes. This FC will not be transferred".format(lane))
+                    pass_QC = pass_QC and False
+        return pass_QC
+                
 
 
     def demultiplex_run(self):
@@ -272,6 +319,8 @@ class HiSeq_Run(Run):
         Generates the command to demultiplex with the given base_masks. 
         if strict is set to true demultiplex only lanes in base_masks
         """
+        import pdb
+        pdb.set_trace()
         logger.info('Building bcl2fastq command')
         cl = [self.CONFIG.get('bcl2fastq')['bin']]
         if self.CONFIG.get('bcl2fastq').has_key('options'):
@@ -349,6 +398,9 @@ class HiSeq_Run(Run):
             else:
                 allDemuxDone = allDemuxDone and False
                 logger.info("Sub-Demultiplexing in {} not completed yet.".format(demux_folder))
+    
+    
+    
         #in this case, I need to aggreate in the Demultiplexing folder all the results
         if allDemuxDone:
             self._aggregate_demux_results()

@@ -136,21 +136,27 @@ def run_preprocessing(run):
             logger.info(("BCL conversion and demultiplexing process in "
                              "progress for run {}, skipping it"
                              .format(run.id)))
+            #in the case of Xten compute undet indexes
+            #in the case of HiSeq check that partial demux are done and performs aggregation
             run.check_run_status()
-            
-        elif run.get_run_status() == 'COMPLETED':
+        import pdb
+        pdb.set_trace()
+        # previous elif might change the status to COMPLETED, therefore to avoid skip
+        # a cicle take the last if out of the elif
+        if run.get_run_status() == 'COMPLETED':
             logger.info(("Preprocessing of run {} is finished, check if "
                              "run has been transferred and transfer it "
                              "otherwise".format(run.id)))
 
             #In the case of HiseqX compute the last undetermiend index stats
+            #I should be able to remove this one now
             run.check_run_status()
             #this check is to be sure that no concurrent process is operating on this Flowcell (HiSeqX case)
             #in the case of of HiSeq this function computed undetermined indexes for NoIndex lanes
             if not run.demux_done():
                 return
             
-            return 
+            return
             import pdb
             pdb.set_trace()
             
@@ -159,6 +165,9 @@ def run_preprocessing(run):
             run_QC_status = run.check_QC()
             #store QC results in appropriate file and mail user if failed
             qc_file = os.path.join(CONFIG['analysis']['status_dir'], 'qc.tsv')
+            
+            import pdb
+            pdb.set_trace()
             run.post_qc(qc_file, run_QC_status, log_file=CONFIG['log']['file'], rcp=CONFIG['mail']['recipients'])
             #TODO: this needs to became a sepcif call to HiSeqC_Runs but it involves too many changes right now
             if run.sequencer_type == 'HiSeqX':
