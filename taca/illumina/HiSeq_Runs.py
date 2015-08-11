@@ -98,15 +98,13 @@ class HiSeq_Run(Run):
                 for NoIndexLane in NoIndexLanes:
                     per_lane_base_masks_NoIndex[NoIndexLane] = per_lane_base_masks[NoIndexLane]
                     base_mask_key = per_lane_base_masks[NoIndexLane].keys()[0]
-                new_base_mask = []
-                for baseMask_element in per_lane_base_masks_NoIndex[NoIndexLane][base_mask_key]['base_mask']:
-                    if baseMask_element.startswith("Y"):
-                        new_base_mask.append(baseMask_element.replace("Y", "N"))
-                    elif baseMask_element.startswith("N"):
-                        new_base_mask.append(baseMask_element.replace("N", "Y"))
-                per_lane_base_masks_NoIndex[NoIndexLane][base_mask_key]['base_mask'] = new_base_mask
-                import pdb
-                pdb.set_trace()
+                    new_base_mask = []
+                    for baseMask_element in per_lane_base_masks_NoIndex[NoIndexLane][base_mask_key]['base_mask']:
+                        if baseMask_element.startswith("Y"):
+                            new_base_mask.append(baseMask_element.replace("Y", "N"))
+                        elif baseMask_element.startswith("N"):
+                            new_base_mask.append(baseMask_element.replace("N", "Y"))
+                    per_lane_base_masks_NoIndex[NoIndexLane][base_mask_key]['base_mask'] = new_base_mask
                 command = self._generate_bcl2fastq_command(per_lane_base_masks_NoIndex, True, "NoIndex", mask_short_adapter_reads=True)
                 with chdir(self.run_dir):
                     misc.call_external_command_detached(command, with_log_files=True, prefix="demux_NoIndex")
@@ -157,8 +155,6 @@ class HiSeq_Run(Run):
                                                     "{}_S?_L00{}_R3_001.fastq.gz".format(current_lane['Sample_Name'], lane_id)))[0]
                         # I assume these two files are always present, maybe it is posisble to have no index with a single index...
                         logger.info("Computing Undetermiend indexes for NoIndex lane {}".format(lane_id))
-                        import pdb
-                        pdb.set_trace()
                         zcat=subprocess.Popen(['zcat', indexes_fastq1], stdout=subprocess.PIPE)
                         #this command allows to steam two files, print them line after line separated by a plus
                         awk=subprocess.Popen(['awk', 'BEGIN {{OFS="+"}}{{  ("zcat " "{0} " ) | getline line ; print $0,line }}'.format(indexes_fastq2)], stdout=subprocess.PIPE, stdin=zcat.stdout)
@@ -169,11 +165,11 @@ class HiSeq_Run(Run):
                         output = sed.communicate()[0]
                         zcat.wait()
                         awk.wait()
-                        for barcode in output.rstrip():
+                        for barcode in output.split('\n')[:-1]:
                             try:
                                 index_counter[barcode] += 1
                             except KeyError:
-                                barcodes[barcode]=1
+                                index_counter[barcode]=1
                         demuxSummary_file = os.path.join(self.run_dir,self.demux_dir, "Stats", "DemuxSummaryF1L{}.txt".format(lane_id))
                         with open(demuxSummary_file, 'w') as demuxSummary_file_fh:
                             demuxSummary_file_fh.write("### Most Popular Unknown Index Sequences\n")
@@ -319,8 +315,6 @@ class HiSeq_Run(Run):
         Generates the command to demultiplex with the given base_masks. 
         if strict is set to true demultiplex only lanes in base_masks
         """
-        import pdb
-        pdb.set_trace()
         logger.info('Building bcl2fastq command')
         cl = [self.CONFIG.get('bcl2fastq')['bin']]
         if self.CONFIG.get('bcl2fastq').has_key('options'):
@@ -398,9 +392,6 @@ class HiSeq_Run(Run):
             else:
                 allDemuxDone = allDemuxDone and False
                 logger.info("Sub-Demultiplexing in {} not completed yet.".format(demux_folder))
-    
-    
-    
         #in this case, I need to aggreate in the Demultiplexing folder all the results
         if allDemuxDone:
             self._aggregate_demux_results()
