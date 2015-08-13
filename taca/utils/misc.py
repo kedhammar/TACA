@@ -5,6 +5,7 @@ import os
 import smtplib
 import subprocess
 import sys
+import glob
 
 from datetime import datetime
 from email.mime.text import MIMEText
@@ -164,3 +165,29 @@ def query_yes_no(question, default="yes", force=False):
         else:
             sys.stdout.write("Please respond with 'yes' or 'no' "\
                                  "(or 'y' or 'n').\n")
+
+
+
+
+
+def return_unique(seq):
+    seen = set()
+    seen_add = seen.add
+    return [ x for x in seq if not (x in seen or seen_add(x))]
+
+
+def link_undet_to_sample(run, dmux_folder, lane, path_per_lane):
+    """symlinks the undetermined file to the right sample folder with a RELATIVE path so it's carried over by rsync
+    
+    :param run: path of the flowcell
+    :type run: str
+    :param lane: lane identifier
+    :type lane: int
+    :param path_per_lane: {lane:path/to/the/sample}
+    :type path_per_lane: dict"""
+    for fastqfile in glob.glob(os.path.join(run, dmux_folder, '*Undetermined*_L0?{}_*'.format(lane))):
+        if not os.path.exists(os.path.join(path_per_lane[lane], os.path.basename(fastqfile))):
+            fqbname=os.path.basename(fastqfile)
+            os.symlink(os.path.join('..','..',fqbname), os.path.join(path_per_lane[lane], os.path.basename(fastqfile)))
+
+

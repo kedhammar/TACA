@@ -47,8 +47,6 @@ class Run(object):
     def check_run_status():
         raise NotImplementedError("Please Implement this method")
     
-    def demux_done(self):
-        raise NotImplementedError("Please Implement this method")
     
     def post_demux(self):
         raise NotImplementedError("Please Implement this method")
@@ -393,6 +391,88 @@ class Run(object):
             return False
         except IOError:
             return False
+
+
+
+
+    def lane_check_yield(self, lane, minimum_yield):
+        """checks that the total yield lane (P/F reads) is higher than the minimum
+        :param lane: lane currenlty being worked
+        :type lane: string
+        :param minimum_yield: minimum yield as specified by documentation
+        :type minimum_yield: float
+        
+        :rtype: boolean
+        :returns: True if the lane has an yield above the specified minimum
+        """
+        if not self.runParserObj.lanes:
+            logger.error("Something wrong in lane_check_yield, lanes not available, called to early....")
+        
+        for entry in self.runParserObj.lanes.sample_data:
+            if lane == entry['Lane']:
+                lane_clusters = int(entry['PF Clusters'].replace(',',''))
+                if lane_clusters >= minimum_yield:
+                    return True
+        return False
+
+
+    def lane_check_Q30(self, lane, q30_tresh):
+        """checks that the total Q30 of the lane  is higher than the minimum
+        :param lane: lane currenlty being worked
+        :type lane: string
+        :param q30_tresh: Q30 threshold
+        :type q30_tresh: float
+            
+        :rtype: boolean
+        :returns: True if the lane has a Q30 above the specified minimum
+        """
+        if not self.runParserObj.lanes:
+            logger.error("Something wrong in lane_check_Q30, lanes not available, called to early....")
+        
+        for entry in self.runParserObj.lanes.sample_data:
+            if lane == entry['Lane']:
+                if float(entry['% >= Q30bases']) >= q30_tresh:
+                    return True
+        return False
+
+
+
+    def is_unpooled_lane(self, lane):
+        """
+        :param lane: lane identifier
+        :type lane: string
+        :rtype: boolean
+        :returns: True if the samplesheet has one entry for that lane, False otherwise
+        """
+        count=0
+        for l in self.runParserObj.samplesheet.data:
+            if l['Lane'] == lane:
+                count+=1
+        return count==1
+
+    def is_unpooled_run(self):
+        """
+        :param ss: SampleSheet reader
+        :type ss: flowcell_parser.XTenSampleSheet
+        :rtype: boolean
+        :returns: True if the samplesheet has one entry per lane, False otherwise
+        """
+        ar=[]
+        for l in self.runParserObj.samplesheet.data:
+            ar.append(l['Lane'])
+        return len(ar)==len(set(ar))
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

@@ -16,6 +16,9 @@ from taca.utils import filesystem
 from taca.utils.config import CONFIG
 
 
+
+
+
 def last_index_read(directory):
     """Parse the number of the highest index read from the RunInfo.xml
     """
@@ -242,3 +245,19 @@ def merge_demux_results(fc_dir):
             #Merge Undemultiplexed_stats.metrics
             if u_s_file:
                 merge_undemultiplexed_stats_metrics(merged_dir, u, fc_id)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

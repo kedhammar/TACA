@@ -6,7 +6,7 @@ from datetime import datetime
 from taca.utils.filesystem import chdir, control_fastq_filename
 from taca.illumina.Runs import Run
 from taca.utils import misc
-from flowcell_parser.classes import RunParametersParser, SampleSheetParser, RunParser
+from flowcell_parser.classes import RunParametersParser, SampleSheetParser, RunParser, DemuxSummaryParser
 import taca.illumina.HiSeqX_QC as qc
 
 
@@ -113,38 +113,221 @@ class HiSeqX_Run(Run):
         """
         run_dir    =  self.run_dir
         dex_status =  self.get_run_status()
-        qc.compute_undetermined_stats(self.run_dir, self.demux_dir, self.get_run_status())
+        return
+        #qc.compute_undetermined_stats(self.run_dir, self.demux_dir, self.get_run_status())
 
-    def demux_done(self):
+
+    def compute_undetermined(self):
         """
-           checks that the demux is done and that there are no concurrent TACA processes running
+            This function parses the Undetermined files per lane produced by illumina
+            for now nothign done, TODO: check all undetermined files are present as sanity check
         """
-        if self.get_run_status() is not 'COMPLETED':
-            return False
-        #if demux is completed check that there are no concurrent executions of TACA
-        running = 0
-        for file in glob.glob(os.path.join(self.run_dir, self.demux_dir, "index_count_L*.running")):
-            running +=1
-        if running > 0:
-            return False
-        #replace - with _ between project and sample name in the fastq
-        control_fastq_filename(os.path.join(self.run_dir, self.demux_dir))
         return True
-
-    def post_demux(self):
-        raise NotImplementedError("Please Implement this method")
-
+    
 
 
     def check_QC(self):
-        if self.demux_done():
-            return qc.check_lanes_QC(self)
+        #TODO rewrite this using Illumina computed Undetermined files
+        run_dir = self.run_dir
+        dmux_folder = self.demux_dir
+
+        max_percentage_undetermined_indexes_pooled_lane   = self.CONFIG['QC']['max_percentage_undetermined_indexes_pooled_lane']
+        max_percentage_undetermined_indexes_unpooled_lane = self.CONFIG['QC']['max_percentage_undetermined_indexes_unpooled_lane']
+        minimum_percentage_Q30_bases_per_lane             = self.CONFIG['QC']['minimum_percentage_Q30_bases_per_lane']
+        minimum_yield_per_lane                            = self.CONFIG['QC']['minimum_yield_per_lane']
+        max_frequency_most_represented_und_index_pooled_lane   = self.CONFIG['QC']['max_frequency_most_represented_und_index_pooled_lane']
+        max_frequency_most_represented_und_index_unpooled_lane = self.CONFIG['QC']['max_frequency_most_represented_und_index_unpooled_lane']
+
+        if not self.runParserObj.samplesheet or not self.runParserObj.lanebarcodes or not self.runParserObj.lanes:
+            logger.error("Something went wrong while parsing demultiplex results. QC cannot be performed, the FC will not be tranferred.")
+            return False
+
+        status = True #initialise status as passed
+        #read the samplesheet and fetch all lanes
+        lanes_to_qc       = misc.return_unique([lanes['Lane'] for lanes in  self.runParserObj.samplesheet.data])
+        path_per_lane    =  self.get_path_per_lane()
+        samples_per_lane =  self.get_samples_per_lane()
+        #now for each lane
+        for lane in lanes_to_qc:
+            lane_status = True
+            #QC lane yield
+            if self.lane_check_yield(lane, minimum_yield_per_lane):
+                lane_status = lane_status and True
+            else:
+                logger.warn("lane {} did not pass yield qc check. This FC will not be transferred.".format(lane))
+                lane_status = lane_status and False
+            #QC on the total %>Q30 of the all lane
+            if self.lane_check_Q30(lane, minimum_percentage_Q30_bases_per_lane):
+                lane_status = lane_status and True
+            else:
+                logger.warn("lane {} did not pass Q30 qc check. This FC will not be transferred.".format(lane))
+                lane_status = lane_status and False
+            #QC for undetermined
+            max_percentage_undetermined_indexes = max_percentage_undetermined_indexes_pooled_lane
+            max_frequency_most_represented_und  = max_frequency_most_represented_und_index_pooled_lane
+            #distinguish the case between Pooled and Unpooled lanes, for unpooled lanes rename the Undetemriend file
+            if self.is_unpooled_lane(lane):
+                #rename undetermiend, in this way PIPER will be able to use them
+                self._rename_undet(lane, samples_per_lane)
+                max_percentage_undetermined_indexes = max_percentage_undetermined_indexes_unpooled_lane
+                max_frequency_most_represented_und  = max_frequency_most_represented_und_index_unpooled_lane
+            
+            
+            if self.check_undetermined_reads(lane, max_percentage_undetermined_indexes):
+                if self.check_maximum_undertemined_freq(lane, max_frequency_most_represented_und):
+                    if self.is_unpooled_lane(lane):
+                        logger.info("linking undetermined lane {} to sample".format(lane))
+                        misc.link_undet_to_sample(run_dir, dmux_folder, lane, path_per_lane)
+                    lane_status= lane_status and True
+            else:
+                logger.warn("lane {} did not pass the undetermiend qc checks. Fraction of undetermined too large.".format(lane))
+                lane_status= lane_status and False
+            if lane_status:
+                logger.info("lane {} passed all qc checks".format(lane))
+            #store the status for the all FC
+            status = status and lane_status
+
+        return status
+
+
+
+
+    def check_undetermined_reads(self, lane, freq_tresh):
+        """checks that the number of undetermined reads does not exceed a given threshold
+        returns true if the percentage is lower then freq_tresh
+        Does this by considering undetermined all reads marked as unknown
+        
+        :param lane: lane identifier
+        :type lane: string
+        :param freq_tresh: maximal allowed percentage of undetermined indexes in a lane
+        :type frew_tresh: float
+        :rtype: boolean
+        :returns: True if the checks passes, False otherwise
+        """
+        #compute lane yield
+        run = self.run_dir
+        lanes = self.runParserObj.lanes
+        lane_yield = 0;
+        for entry in lanes.sample_data:
+            if lane == entry['Lane']:
+                if lane_yield > 0:
+                    logger.warn("lane_yeld must be 0, somehting wrong is going on here")
+                lane_yield = int(entry['PF Clusters'].replace(',',''))
+    
+        #I do not need to parse undetermined here, I can use the the lanes object to fetch unknown
+        sample_lanes = self.runParserObj.lanebarcodes
+        undetermined_lane_stats = [item for item in sample_lanes.sample_data if item["Lane"]==lane and item["Sample"]=="Undetermined"]
+        if len(undetermined_lane_stats) > 1:
+            logger.error("Something wrong in check_undetermined_reads, found more than one undetermined sample in one lane")
+            return False
+        undetermined_total = int(undetermined_lane_stats[0]['PF Clusters'].replace(',',''))
+        percentage_und = (undetermined_total/float(lane_yield))*100
+        if  percentage_und > freq_tresh:
+            logger.warn("The undetermined indexes account for {}% of lane {}, "
+                        "which is over the threshold of {}%".format(percentage_und, lane, freq_tresh))
+            return False
         else:
-            raise RuntimeError("Trying to QC a run but the run is not compelted yet")
+            return True
+
+
+    def check_maximum_undertemined_freq(self, lane, freq_tresh):
+        """returns true if the most represented index accounts for less than freq_tresh
+            of the total amount of undetermiend
+            
+            :param lane: lane identifier
+            :type lane: string
+            :param freq_tresh: maximal allowed frequency of the most frequent undetermined index
+            :type frew_tresh: float
+            :rtype: boolean
+            :returns: True if the checks passes, False otherwise
+            """
+        
+        #check the most reptresented index
+        undeterminedStats = DemuxSummaryParser(os.path.join(self.run_dir,self.demux_dir, "Stats"))
+        most_frequent_undet_index_count = int(undeterminedStats.result[lane].items()[0][1])
+        most_frequent_undet_index       = undeterminedStats.result[lane].items()[0][0]
+        
+        #compute the total amount of undetermined reads
+        sample_lanes = self.runParserObj.lanebarcodes
+        undetermined_lane_stats = [item for item in sample_lanes.sample_data if item["Lane"]==lane and item["Sample"]=="Undetermined"]
+        if len(undetermined_lane_stats) > 1:
+            logger.error("Something wrong in check_undetermined_reads, found more than one undetermined sample in one lane")
+            return False
+        undetermined_total = int(undetermined_lane_stats[0]['PF Clusters'].replace(',',''))
+        
+        freq_most_occuring_undet_index = (most_frequent_undet_index_count/float(undetermined_total))*100
+        if freq_most_occuring_undet_index > freq_tresh:
+            logger.warn("The most frequent barcode of lane {} ({}) represents {}%, "
+                        "which is over the threshold of {}%".format(lane, most_frequent_undet_index, freq_most_occuring_undet_index , freq_tresh))
+            return False
+        else:
+            return True
 
 
 
 
+
+    def get_path_per_lane(self):
+        """
+        :param run: the path to the flowcell
+        :type run: str
+        :param ss: SampleSheet reader
+        :type ss: flowcell_parser.XTenSampleSheet
+        """
+        run          = self.run_dir
+        dmux_folder  = self.demux_dir
+        ss           = self.runParserObj.samplesheet
+        d={}
+        for l in ss.data:
+            try:
+                d[l['Lane']]=os.path.join(run, dmux_folder, l['Project'], l['SampleID'])
+            except KeyError:
+                logger.error("Can't find the path to the sample, is 'Project' in the samplesheet ?")
+                d[l['Lane']]=os.path.join(run, dmux_folder)
+
+        return d
+
+    def get_samples_per_lane(self):
+        """
+        :param ss: SampleSheet reader
+        :type ss: flowcell_parser.XTenSampleSheet
+        :rtype: dict
+        :returns: dictionnary of lane:samplename
+        """
+        ss = self.runParserObj.samplesheet
+        d={}
+        for l in ss.data:
+            s=l['SampleName'].replace("Sample_", "").replace("-", "_")
+            d[l['Lane']]=l['SampleName']
+
+        return d
+
+
+
+    def _rename_undet(self, lane, samples_per_lane):
+        """Renames the Undetermined fastq file by prepending the sample name in front of it
+
+        :param run: the path to the run folder
+        :type run: str
+        :param status: the demultiplexing status
+        :type status: str
+        :param samples_per_lane: lane:sample dict
+        :type status: dict
+        """
+        run = self.run_dir
+        dmux_folder = self.demux_dir
+        for file in glob.glob(os.path.join(run, dmux_folder, "Undetermined*L0?{}*".format(lane))):
+            old_name=os.path.basename(file)
+            old_name_comps=old_name.split("_")
+            old_name_comps[1]=old_name_comps[0]# replace S0 with Undetermined
+            old_name_comps[0]=samples_per_lane[lane]#replace Undetermined with samplename
+            for index, comp in enumerate(old_name_comps):
+                if comp.startswith('L00'):
+                    old_name_comps[index]=comp.replace('L00','L01')#adds a 1 as the second lane number in order to differentiate undetermined from normal in piper
+                    
+            new_name="_".join(old_name_comps)
+            logger.info("Renaming {} to {}".format(file, os.path.join(os.path.dirname(file), new_name)))
+            os.rename(file, os.path.join(os.path.dirname(file), new_name))
 
 
 
