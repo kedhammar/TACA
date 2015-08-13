@@ -7,7 +7,6 @@ from taca.utils.filesystem import chdir, control_fastq_filename
 from taca.illumina.Runs import Run
 from taca.utils import misc
 from flowcell_parser.classes import RunParametersParser, SampleSheetParser, RunParser, DemuxSummaryParser
-import taca.illumina.HiSeqX_QC as qc
 
 
 import logging
@@ -108,13 +107,11 @@ class HiSeqX_Run(Run):
 
     def check_run_status(self):
         """
-           This function checks the status of a run while in progress.
-           For Xten analysis it also compute undetermined stats
+           This function checks the status of a run while in progress. In the future will print the status
         """
         run_dir    =  self.run_dir
         dex_status =  self.get_run_status()
         return
-        #qc.compute_undetermined_stats(self.run_dir, self.demux_dir, self.get_run_status())
 
 
     def compute_undetermined(self):
