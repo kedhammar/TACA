@@ -108,13 +108,13 @@ def _transfer_run(run, analysis):
 
 
 
-def run_preprocessing(run):
+def run_preprocessing(run, force_trasfer=True):
     """Run demultiplexing in all data directories
 
     :param str run: Process a particular run instead of looking for runs
     """
 
-    def _process(run):
+    def _process(run, force_trasfer):
         """Process a run/flowcell and transfer to analysis server
 
         :param taca.illumina.Run run: Run to be processed and transferred
@@ -150,6 +150,7 @@ def run_preprocessing(run):
             #in the case of of HiSeq this function computes undetermined indexes for NoIndex lanes
             if not run.compute_undetermined():
                 return
+            
             #otherwise I can procced to QC
             #check the run QC
             run_QC_status = run.check_QC()
@@ -160,7 +161,7 @@ def run_preprocessing(run):
             #upload to statusDB
             _upload_to_statusdb(run)
             #if QC is ok tranfer the run in th appropriate server
-            if run_QC_status:
+            if run_QC_status or force_trasfer: #runs is not tranfer only it force_tranfer is False and QC_status false
                 #tranfer the run, specify desitnation and if analysis needs to be started on the server
                 logger.info("Run {} hasn't been transferred yet."
                                 .format(run.id))
@@ -188,7 +189,7 @@ def run_preprocessing(run):
             runObj = None
         else:
             raise RuntimeError("New instrument type {}".format(sequencer_type))
-        _process(runObj)
+        _process(runObj, force_trasfer)
     else:
         data_dirs = CONFIG.get('analysis').get('data_dirs')
         for data_dir in data_dirs:
@@ -208,7 +209,7 @@ def run_preprocessing(run):
                     #runObj = HiSeq_Run(_run, CONFIG["analysis"]["MiSeq"])
                 else:
                     raise RuntimeError("New instrument type {}".format(sequencer_type))
-                _process(runObj)
+                _process(runObj, force_trasfer)
 
 
 

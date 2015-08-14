@@ -21,7 +21,13 @@ class HiSeq_Run(Run):
 
     def __init__(self,  path_to_run, samplesheet_folders):
         super(HiSeq_Run, self).__init__( path_to_run, samplesheet_folders)
+        self._set_sequencer_type()
 
+
+    def _set_sequencer_type(self):
+        self.sequencer_type = "HiSeq"
+    
+    
     def _sequencer_type(self):
             return "HiSeq"
 
@@ -176,14 +182,53 @@ class HiSeq_Run(Run):
                             demuxSummary_file_fh.write("### Columns: Index_Sequence Hit_Count\n")
                             for (index, occ) in sorted(index_counter.items(), key=operator.itemgetter(1),  reverse=True):
                                 demuxSummary_file_fh.write("{}\t{}\n".format(index, occ))
-                        
+                
+                    #I need to fill in the lane and laneBarcode html reports when I demux with NoIndex I do not create many values
+                    undeterminedStats = DemuxSummaryParser(os.path.join(self.run_dir,self.demux_dir, "Stats"))
+                    sample_data_old = self.runParserObj.lanes.sample_data
+                    sample_data_new = []
+                    for lane in sample_data_old:
+                        if lane["Lane"] in NoIndexLanes:
+                            #in this case I need to fill in new values
+                            PF_clusters = undeterminedStats.TOTAL[lane["Lane"]]
+                            lane["% One mismatchbarcode"] = '0'
+                            lane["% Perfectbarcode"]      = '100'
+                            lane["% of thelane"]          = '100'
+                            lane["PF Clusters"]           = str(PF_clusters)
+                        sample_data_new.append(lane)
+                    self.runParserObj.lanes.sample_data = sample_data_new
+                    
+                    demux_folder = os.path.join(self.run_dir, "Demultiplexing")
+                    new_html_report_lane_dir = _create_folder_structure(demux_folder, ["Reports", "html", self.flowcell_id, "all", "all", "all"])
+                    new_html_report_lane = os.path.join(new_html_report_lane_dir, "lane.html")
+                    _generate_lane_html(new_html_report_lane, self.runParserObj.lanes)
+                    #now do the same for laneBarcode
+                    sampleBarcode_data_old = self.runParserObj.lanebarcodes.sample_data
+                    sampleBarcode_data_new = []
+                    for sample  in sampleBarcode_data_old:
+                        if sample["Lane"] in NoIndexLanes:
+                            #in this case I need to fill in new values
+                            PF_clusters = undeterminedStats.TOTAL[lane["Lane"]]
+                            sample["% One mismatchbarcode"] = '0'
+                            sample["% Perfectbarcode"]      = '100'
+                            sample["% of thelane"]          = '100'
+                            sample["PF Clusters"]           = str(PF_clusters)
+                        sampleBarcode_data_new.append(sample)
+                    self.runParserObj.lanebarcodes.sample_data = sampleBarcode_data_new
+                    demux_folder = os.path.join(self.run_dir, "Demultiplexing")
+                    new_html_report_sampleBarcode_dir = _create_folder_structure(demux_folder, ["Reports", "html", self.flowcell_id, "all", "all", "all"])
+                    new_html_report_sampleBarcode = os.path.join(new_html_report_sampleBarcode_dir, "laneBarcode.html")
+                    _generate_lane_html(new_html_report_sampleBarcode, self.runParserObj.lanebarcodes)
+                
+                
+                
                     os.remove(flag_file) # remove flag file to allow future iteration on this FC
                     return True #return true, I have done everything I was supposed to do
                 
 
 
     def check_QC(self):
-        if not self.demux_done():
+        if not self._is_demultiplexing_done():
             raise RuntimeError("Trying to QC a run but the run is not compelted yet")
         #QC an HiSeq run --> complex lane are not subject to any QC
         per_lane_base_masks = self._generate_per_lane_base_mask()
@@ -228,7 +273,7 @@ class HiSeq_Run(Run):
                     logger.error("Something wrong in check_undetermined_reads, found more than one undetermined sample in one lane")
                     return False
                 undetermined_total = int(undetermined_lane_stats[0]['PF Clusters'].replace(',',''))
-                if (undetermined_total/float(lane_clusters))*100 > max_number_undetermined_reads_simple_lane:
+                if (undetermined_total/float(lane_clusters))*100 > max_percentage_undetermined_indexes_simple_lane:
                     logger.warn("Lane {} found with a large percentage of undetermined indexes. This FC will not be transferred".format(lane))
                     pass_QC = pass_QC and False
                 max_number_undetermined_reads_simple_lane = self.CONFIG['QC']['max_number_undetermined_reads_simple_lane']
