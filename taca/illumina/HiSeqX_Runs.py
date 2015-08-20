@@ -136,7 +136,7 @@ class HiSeqX_Run(Run):
         max_frequency_most_represented_und_index_unpooled_lane = self.CONFIG['QC']['max_frequency_most_represented_und_index_unpooled_lane']
 
         if not self.runParserObj.samplesheet or not self.runParserObj.lanebarcodes or not self.runParserObj.lanes:
-            logger.error("Something went wrong while parsing demultiplex results. QC cannot be performed, the FC will not be tranferred.")
+            logger.error("Something went wrong while parsing demultiplex results. QC cannot be performed.")
             return False
 
         status = True #initialise status as passed
@@ -168,14 +168,15 @@ class HiSeqX_Run(Run):
                 self._rename_undet(lane, samples_per_lane)
                 max_percentage_undetermined_indexes = max_percentage_undetermined_indexes_unpooled_lane
                 max_frequency_most_represented_und  = max_frequency_most_represented_und_index_unpooled_lane
-            
+                logger.info("linking undetermined lane {} to sample".format(lane))
+                misc.link_undet_to_sample(run_dir, dmux_folder, lane, path_per_lane)
             
             if self.check_undetermined_reads(lane, max_percentage_undetermined_indexes):
                 if self.check_maximum_undertemined_freq(lane, max_frequency_most_represented_und):
-                    if self.is_unpooled_lane(lane):
-                        logger.info("linking undetermined lane {} to sample".format(lane))
-                        misc.link_undet_to_sample(run_dir, dmux_folder, lane, path_per_lane)
                     lane_status= lane_status and True
+                else:
+                    logger.warn("lane {} did not pass the check for most represented undet index. Most occurint undet index occurs too ofetn.".format(lane))
+                    lane_status= lane_status and False
             else:
                 logger.warn("lane {} did not pass the undetermiend qc checks. Fraction of undetermined too large.".format(lane))
                 lane_status= lane_status and False
