@@ -44,9 +44,16 @@ def collect_runs():
                     found_runs.append(os.path.basename(run_dir))
                     logger.info("Working on {}".format(run_dir))        
                     update_statusdb(run_dir)
+        #no check the nosync
+        nosync_data_dir = os.path.join(data_dir, "nosync")
+        potential_nosync_run_dirs=glob.glob(os.path.join(nosync_data_dir, '*'))
+        for run_dir in potential_nosync_run_dirs:
+             if rundir_re.match(os.path.basename(os.path.abspath(run_dir))) and os.path.isdir(run_dir):
+                #update the run status
+                update_statusdb(run_dir)
 
-    check_unfound_runs(found_runs)
-    
+
+
 def check_unfound_runs(found_runs):
     couch=setupServer(CONFIG)
     db=couch['bioinfo_analysis']
