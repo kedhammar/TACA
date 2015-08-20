@@ -9,7 +9,7 @@ import datetime
 
 from csv import DictReader
 from taca.utils.config import CONFIG
-from flowcell_parser.classes import XTenSampleSheetParser
+from flowcell_parser.classes import SampleSheetParser
 
 logger = logging.getLogger(__name__)
 
