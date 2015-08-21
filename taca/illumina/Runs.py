@@ -296,7 +296,7 @@ class Run(object):
     def archive_run(self, destination):
         if destination:
             logger.info('archiving run {}'.format(self.id))
-            shutil.move(os.path.abspath(self.id), os.path.join(destination, self.id))
+            shutil.move(self.run_dir, os.path.join(destination, self.id))
 
 
     def trigger_analysis(self):
