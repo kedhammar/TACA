@@ -89,22 +89,17 @@ def transfer_run(run_dir, analysis):
     if sequencer_type is 'HiSeqX':
         runObj = HiSeqX_Run(run_dir, CONFIG["analysis"]["HiSeqX"])
     elif sequencer_type is 'HiSeq':
-        print "not yet implemented: HiSeq"
-        return
+        runObj = HiSeqX_Run(run_dir, CONFIG["analysis"]["HiSeq"])
     elif sequencer_type is 'MiSeq':
-        print "not yet implemented: miseq"
+        logger.error("not yet implemented: miseq")
         return
-    _transfer_run(runObj, analysis)
-
-
-def _transfer_run(run, analysis):
-    """
-    Tranfer the run to the HPC unit
-    :param Run run: the object run
-    :param bool analysis: if trigger or not the analysis
-    """
-    run.transfer_run("nosync", os.path.join(CONFIG['analysis']['status_dir'], 'transfer.tsv'),
+    else:
+        logger.error("looks like we bough a new sequencer and no-body told me about it...")
+        return
+    runObj.transfer_run("nosync", os.path.join(CONFIG['analysis']['status_dir'], 'transfer.tsv'),
                        analysis) #do not start analsysis automatically if I force the tranfer
+    return None
+
 
 
 
