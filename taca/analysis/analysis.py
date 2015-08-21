@@ -97,7 +97,7 @@ def transfer_run(run_dir, analysis):
     if sequencer_type is 'HiSeqX':
         runObj = HiSeqX_Run(run_dir, CONFIG["analysis"]["HiSeqX"])
     elif sequencer_type is 'HiSeq':
-        runObj = HiSeqX_Run(run_dir, CONFIG["analysis"]["HiSeq"])
+        runObj = HiSeq_Run(run_dir, CONFIG["analysis"]["HiSeq"])
     elif sequencer_type is 'MiSeq':
         logger.error("not yet implemented: miseq")
         return None
