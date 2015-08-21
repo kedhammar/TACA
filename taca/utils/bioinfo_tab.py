@@ -54,19 +54,6 @@ def collect_runs():
 
 
 
-def check_unfound_runs(found_runs):
-    couch=setupServer(CONFIG)
-    db=couch['bioinfo_analysis']
-    valueskey=datetime.datetime.now().isoformat()
-    view = db.view('general/not_ongoing_runids')
-    for row in view.rows:
-        if row.key not in found_runs:
-            obj={'run_id':run_name,'status':'Ongoing', 'values':{valueskey:{'user':'taca','status':'Ongoing'}} }
-            remote_doc=row.value
-            final_obj=merge(obj, remote_doc)
-            logger.info("saving {} as  {}".format(run_name, 'Ongoing'))
-            db.save(final_obj)
-
 def update_statusdb(run_dir):
     project_ids=get_ss_projects(run_dir)
     run_name = os.path.basename(os.path.abspath(run_dir))
