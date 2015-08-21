@@ -23,9 +23,14 @@ logger = logging.getLogger(__name__)
 
 
 def _run_type(run):
+    """Tries to read runParameters.xml and returns the run type.
+        
+        :param run: run name identifier
+        :type run: string
+        :rtype: String
+        :returns: returns a string with the sequencer type name, None if the sequencer type is unknown
     """
-        Tries to read runParameters.xml and returns the run type.
-    """
+    
     rppath=os.path.join(run, 'runParameters.xml')
     try:
         rp=RunParametersParser(os.path.join(run, 'runParameters.xml'))
@@ -47,41 +52,44 @@ def _run_type(run):
             return 'HiSeq'
         else:
             logger.warn("unrecognized runtype {}, cannot archive the run {}. Someone as likely bought a new sequencer without telling it to the bioinfo team".format(runtype, run))
-
+            return None
+    return None
 
 
 
 
 def upload_to_statusdb(run_dir):
-    """
-        interface for click
+    """Function to upload run_dir informations to statusDB directly from click interface
+        
+        :param run_dir: run name identifier
+        :type run: string
+        :rtype: None
     """
     sequencer_type = _run_type(run_dir)
     if sequencer_type is 'HiSeqX':
         runObj = HiSeqX_Run(run_dir, CONFIG["analysis"]["HiSeqX"])
     elif sequencer_type is 'HiSeq':
-        print "not yet implemented: HiSeq"
-        return
+        runObj = HiSeq_Run(run_dir, CONFIG["analysis"]["HiSeq"])
     elif sequencer_type is 'MiSeq':
         print "not yet implemented: miseq"
-        return
+        return None
     _upload_to_statusdb(runObj)
-
+    return None
 
 def _upload_to_statusdb(run):
-    """
-    Triggers the upload to statusdb using the dependency flowcell_parser
+    """Triggers the upload to statusdb using the dependency flowcell_parser
+    
     :param Run run: the object run
     """
     couch = fcpdb.setupServer(CONFIG)
     db    = couch[CONFIG['statusdb']['xten_db']]
     parser = run.runParserObj
     fcpdb.update_doc( db , parser.obj)
-
+    return None
 
 def transfer_run(run_dir, analysis):
-    """
-    interface for click
+    """interface for click to tranfer a run to uppmax
+    
     :param: string run_dir: the run to tranfer
     :param bool analysis: if trigger or not the analysis
     """
@@ -92,10 +100,10 @@ def transfer_run(run_dir, analysis):
         runObj = HiSeqX_Run(run_dir, CONFIG["analysis"]["HiSeq"])
     elif sequencer_type is 'MiSeq':
         logger.error("not yet implemented: miseq")
-        return
+        return None
     else:
         logger.error("looks like we bough a new sequencer and no-body told me about it...")
-        return
+        return None
     runObj.transfer_run("nosync", os.path.join(CONFIG['analysis']['status_dir'], 'transfer.tsv'),
                        analysis) #do not start analsysis automatically if I force the tranfer
     return None
@@ -107,6 +115,7 @@ def run_preprocessing(run, force_trasfer=True):
     """Run demultiplexing in all data directories
 
     :param str run: Process a particular run instead of looking for runs
+    :param bool force_tranfer: if set to True the FC is tranferred also if fails QC
     """
 
     def _process(run, force_trasfer):
@@ -114,9 +123,9 @@ def run_preprocessing(run, force_trasfer=True):
 
         :param taca.illumina.Run run: Run to be processed and transferred
         """
-        if run is None:
+        if not run:
             #this is in case the methods are not yet implemented
-            return
+            return None
         logger.info('Checking run {}'.format(run.id))
         if run.get_run_status() == 'SEQUENCING':
             # Check status files and say i.e Run in second read, maybe something
@@ -144,7 +153,7 @@ def run_preprocessing(run, force_trasfer=True):
                              "otherwise".format(run.id)))
             #in the case of of HiSeq this function computes undetermined indexes for NoIndex lanes
             if not run.compute_undetermined():
-                return
+                return None
             
             #otherwise I can procced to QC
             #check the run QC
@@ -169,7 +178,7 @@ def run_preprocessing(run, force_trasfer=True):
                 logger.warn('Run {} failed qc, transferring will not take place'.format(run.id))
         elif run.is_transferred(t_file):
             logger.info('Run {} already transferred to analysis server, skipping it'.format(run.id))
-
+        return None
 
 
     if run:

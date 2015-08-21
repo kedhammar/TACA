@@ -111,7 +111,7 @@ class HiSeqX_Run(Run):
         """
         run_dir    =  self.run_dir
         dex_status =  self.get_run_status()
-        return
+        return None
 
 
     def compute_undetermined(self):

@@ -47,7 +47,7 @@ class HiSeq_Run(Run):
 
     def get_projects(self):
         ssheet = self.samplesheet
-        if ssheet is None:
+        if not ssheet:
             return None
         samplesheet_Obj = HiSeqSampleSheet(ssheet)
         return samplesheet_Obj.return_projects()
@@ -426,7 +426,7 @@ class HiSeq_Run(Run):
         dex_status =  self.get_run_status()
         #in this case I have already finished all demux jobs and I have aggregate all stasts unded Demultiplexing
         if  dex_status == 'COMPLETED':
-            return
+            return None
         #otherwise check the status of running demux
         #collect all samplesheets generated before
         samplesheets =  glob.glob(os.path.join(run_dir, "*_[0-9].csv")) # a single digit... this hipotesis should hold for a while
