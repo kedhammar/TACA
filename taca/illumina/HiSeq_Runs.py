@@ -308,14 +308,15 @@ class HiSeq_Run(Run):
         #this will contain the samplesheet with all the renaiming to be sued with bcl2fastq-2.17
         samplesheet_dest = os.path.join(self.run_dir, "SampleSheet.csv")
         #check that the samplesheet is not already present. In this case go the next step
-        if not os.path.exists(samplesheet_dest):
-            try:
-                with open(samplesheet_dest, 'wb') as fcd:
-                    fcd.write(_generate_clean_samplesheet(ssparser))
-            except Exception as e:
-                logger.error(e.text)
-                return False
-            logger.info(("Created SampleSheet.csv for Flowcell {} in {} ".format(self.id, samplesheet_dest)))
+        if os.path.exists(samplesheet_dest):
+            logger.info("SampleSheet.csv found ... overwriting it")
+        try:
+            with open(samplesheet_dest, 'wb') as fcd:
+                fcd.write(_generate_clean_samplesheet(ssparser))
+        except Exception as e:
+            logger.error(e.text)
+            return False
+        logger.info(("Created SampleSheet.csv for Flowcell {} in {} ".format(self.id, samplesheet_dest)))
         ##SampleSheet.csv generated
         ##when demultiplexing SampleSheet.csv is the one I need to use
         self.runParserObj.samplesheet  = SampleSheetParser(os.path.join(self.run_dir, "SampleSheet.csv"))
