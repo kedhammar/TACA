@@ -248,7 +248,7 @@ class Run(object):
             :param bool analysis: Trigger analysis on remote server
         """
         #TODO: chekc the run type and build the correct rsync command
-        command_line = ['rsync', '-av']
+        command_line = ['rsync', '-Lav']
         # Add R/W permissions to the group
         command_line.append('--chmod=g+rw')
         # rsync works in a really funny way, if you don't understand this, refer to
