@@ -1,67 +1,79 @@
-
-
 import subprocess
-import sys
-
 import json
 import gspread
 from oauth2client.client import SignedJwtAssertionCredentials as GCredentials
-import os
-import logging
-
-from config import SERVERS, USER, G_CREDENTIALS, G_SCOPE, G_SHEET, G_SHEET_MAP
+from taca.utils.config import CONFIG
 
 def get_disk_space():
 	result = {}
-	for server_url in SERVERS.keys():
-		# get server name, e.g.: milou.uppmax.uu.se -> milou
-		server_name = server_url.split('.')[0]
-		# insert path in command
-		command = SERVERS[server_url]
+	config = CONFIG['server_status']
+	servers = config.get('servers', [])
+	for server_url in servers.keys():
+		# get path of disk
+		path = servers[server_url]
 
-		logging.debug(server_url)
-		logging.debug(command)
-		print server_url
-		print command
+		# get command
+		command = "{command} {path}".format(command=config['command'], path=path)
 
+		# if localhost, don't connect to ssh
 		if server_url == "localhost":
-			ssh = None
-			for subcommand in command.split('|'):
-				logging.debug(subcommand)
-				stdin = ssh.stdout if ssh is not None else subprocess.PIPE
-				ssh = subprocess.Popen(subcommand, stdin=stdin)
+			proc = subprocess.Popen(command.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 		else:
 			# connect via ssh to server and execute the command
-			ssh = subprocess.Popen(['ssh', '-t', '%s@%s' %(USER, server_url), command],
+			proc = subprocess.Popen(['ssh', '-t', '%s@%s' %(config['user'], server_url), command],
 				stdout = subprocess.PIPE,
 				stderr = subprocess.PIPE)
-		# recieve how many percent of space left
-		output = ssh.stdout.read()
-		logging.debug(output)
-		print output
+		# read output
+		output = proc.stdout.read()
+		# parse output
+		output = __parse_output(output)
 
-		# from str to int
-		used_space = int(output.strip().replace('%', ''))
-		available_space = 100 - used_space
-		result[server_name] = str(available_space) + '%'
+		try:
+			# remove % symbol and convert string to int
+			used_space = int(output.strip().replace('%', ''))
+			# how many percent available
+			available_space = 100 - used_space
+			result[server_url] = "{value}%".format(value=available_space)
+		except:
+			# sometimes it fails for whatever reason as Popen returns not what it is supposed to
+			result[server_url] = 'NaN'
 	return result
 
+def __parse_output(output):
+	# command = df -h /home
+	# output = Filesystem            Size  Used Avail Use% Mounted on
+	# /dev/mapper/VGStor-lv_illumina
+    #                   24T   12T   13T  49% /srv/illumina
 
-def update_google_docs(data):
+	output = output.strip() # remove \n in the end
+	output = output.split('\n')[-1] # split by lines and take the last line
+	output = output.strip() # remove spaces
+	output = output.split() # split line by space symbols
+
+	# output = ['24T', '12T', '13T', '49%', '/srv/illumina']
+	for item in output: # select the item containing '%' symbol
+		if '%' in item:
+			return item
+
+	return 'NaN' # if no '%' in output, return NaN
+
+def update_google_docs(data, credentials_file):
+	config = CONFIG['server_status']
 	# open json file
-	json_key = json.load(open(G_CREDENTIALS))
+	json_key = json.load(open(credentials_file))
+
 	# get credentials from the file and authorize
-	credentials = GCredentials(json_key['client_email'], json_key['private_key'], G_SCOPE)
+	credentials = GCredentials(json_key['client_email'], json_key['private_key'], config['g_scope'])
 	gc = gspread.authorize(credentials)
-	# open the file
+	# open google sheet
 	# IMPORTANT: file must be shared with email listed in credentials
-	sheet = gc.open(G_SHEET)
+	sheet = gc.open(config['g_sheet'])
 
 	# choose worksheet from the doc
 	worksheet = sheet.get_worksheet(1)
 
 	# update cell
 	for key in data:
-		cell = G_SHEET_MAP.get(key) # key = server name
+		cell = config['g_sheet_map'].get(key) # key = server name
 		value = data.get(key)		# value = available space
 		worksheet.update_acell(cell, value)
