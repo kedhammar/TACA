@@ -2,6 +2,7 @@
 
 import os
 import shutil
+import tempfile
 import unittest
 
 from datetime import datetime
@@ -50,7 +51,7 @@ class TestTracker(unittest.TestCase):
             |__ RunInfo.xml
             |__ RTAComplete.txt
         """
-        self.tmp_dir = 'tmp'
+        self.tmp_dir = os.path.join(tempfile.mkdtemp(), 'tmp')
         self.transfer_file = os.path.join(self.tmp_dir, 'transfer.tsv')
 
         running = os.path.join(self.tmp_dir, '141124_RUNNING_FCIDXX')

@@ -140,6 +140,7 @@ class RsyncAgent(TransferAgent):
             src_path=src_path,
             dest_path=dest_path,
             opts=opts or self.DEFAULT_OPTS,
+            validate=validate,
             **kwargs)
         self.remote_host = remote_host
         self.remote_user = remote_user

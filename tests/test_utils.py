@@ -311,21 +311,32 @@ class TestRsyncAgent(unittest.TestCase):
     """ Test class for the RsyncAgent class """
 
     @classmethod
-    def setUpClass(self):
-        self.rootdir = tempfile.mkdtemp(prefix="test_taca_transfer_src")
-        (fh, self.testfile) = tempfile.mkstemp(
+    def setUpClass(cls):
+        cls.rootdir = tempfile.mkdtemp(prefix="test_taca_transfer_src")
+        (fh, cls.testfile) = tempfile.mkstemp(
             prefix="test_taca_transfer_file")
         os.write(fh,"this is some content")
         os.close(fh)
-        open(os.path.join(self.rootdir,"file0"),'w').close()
-        f = os.path.join(self.rootdir,"folder0")
+        open(os.path.join(cls.rootdir,"file0"),'w').close()
+        f = os.path.join(cls.rootdir,"folder0")
         os.mkdir(f)
         open(os.path.join(f,"file1"),'w').close()
+
+        # create a digest file
+        def _write_digest(rootdir, fhandle, fpath):
+            fhandle.write("{}  {}\n".format(misc.hashfile(fpath), os.path.relpath(fpath, rootdir)))
+
+        cls.digestfile = os.path.join(cls.rootdir, 'digestfile.sha1')
+        with open(cls.digestfile, 'w') as digesth:
+            map(lambda x:
+                map(lambda y: _write_digest(cls.rootdir, digesth, os.path.join(x[0], y)),
+                    filter(lambda z: os.path.join(x[0], z) != cls.digestfile, x[2])),
+                os.walk(cls.rootdir))
         
     @classmethod        
-    def tearDownClass(self):
-        shutil.rmtree(self.rootdir)
-        os.unlink(self.testfile)
+    def tearDownClass(cls):
+        shutil.rmtree(cls.rootdir)
+        os.unlink(cls.testfile)
         
     def setUp(self):
         self.destdir = tempfile.mkdtemp(prefix="test_taca_transfer_dest")
@@ -336,17 +347,43 @@ class TestRsyncAgent(unittest.TestCase):
         
     def tearDown(self):
         shutil.rmtree(self.destdir)
-              
+
+    def test_init(self):
+        """ test initiation of agent instance
+        """
+        # initiate with some values
+        args = ["arg1"]
+        kwargs = {"dest_path": "arg2",
+                  "remote_host": "arg3",
+                  "remote_user": "arg4",
+                  "validate": True,
+                  "digestfile": "arg5"}
+        agent = transfer.RsyncAgent(*args, **kwargs)
+        # assert that the initialized values are what is set on the instance
+        self.assertEqual(getattr(agent,"src_path"),args[0])
+        for attribute, value in kwargs.items():
+            self.assertEqual(getattr(agent, attribute), value)
+        self.assertEqual(agent.cmdopts, agent.DEFAULT_OPTS)
+
     def test_rsync_validate_transfer(self):
         """ validate_transfer 
         """
+        # validation on remote hosts are not supported
         self.agent.remote_host = "not None"
         with self.assertRaises(NotImplementedError):
             self.agent.validate_transfer()
+        # validation without a digestfile throws an exception
         self.agent.remote_host = None
         with self.assertRaises(transfer.RsyncValidationError):
             self.agent.validate_transfer()
-                      
+        # validation with a valid digestfile should return true
+        self.agent.digestfile = self.digestfile
+        self.assertTrue(self.agent.validate_transfer(), "validation with a valid digestfile should return true")
+        # modifying the contents of the digestfile should make validation fail
+        with open(self.digestfile, 'a') as fh:
+            fh.write("randomdigeststring  this-file-does-not-exist")
+        self.assertFalse(self.agent.validate_transfer(), "validation with an invalid digestfile should return false")
+
     def test_rsync_validate_dest_path(self):
         """ Destination path should be properly checked
         """
