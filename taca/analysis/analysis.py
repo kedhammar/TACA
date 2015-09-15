@@ -37,18 +37,20 @@ def _run_type(run):
     except OSError:
         logger.warn("Cannot find the runParameters.xml file at {}. This is quite unexpected. please archive the run {} manually".format(rppath, run))
     else:
+        #this information about the run type (with HiSeq2.5 applicationaName does not work anymore, but as for a long time we will have instruments not updated I need to find out somehting that works
         try:
             #Works for recent control software
-            runtype=rp.data['RunParameters']["Setup"].get("ApplicationName")
-        except KeyError :
-            #should work for ancient control software
-            runtype=rp.data.get("Application Name")
-        
+            runtype=rp.data['RunParameters']["Setup"].get("Flowcell")
+        except KeyError:
+            #use this as second resource but print a warning in the logs
+            logger.warn("Parsing runParameters to fecth instrument type, not found Flowcell information in it. Using ApplicaiotnName")
+            runtype=rp.data.get("ApplicationName")
+
         if "HiSeq X" in runtype:
             return 'HiSeqX'
         elif "MiSeq" in runtype:
             return 'MiSeq'
-        elif "HiSeq" in runtype:
+        elif "HiSeq" in runtype or "TruSeq" in runtype:
             return 'HiSeq'
         else:
             logger.warn("unrecognized runtype {}, cannot archive the run {}. Someone as likely bought a new sequencer without telling it to the bioinfo team".format(runtype, run))
