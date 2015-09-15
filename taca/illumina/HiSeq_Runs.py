@@ -135,7 +135,7 @@ class HiSeq_Run(Run):
                     for lane_id in NoIndexLanes:
                         demuxSummary_file = os.path.join(self.run_dir,self.demux_dir, "Stats", "DemuxSummaryF1L{}.txt".format(lane_id))
                         if not os.path.exists(demuxSummary_file):
-                            #if does not exists and the ongoing falg is not present, then I need to cet computed to False
+                            #if does not exists and the ongoing falg is not present, then I need to set computed to False
                             computed = False
                     if computed:
                         #in this case I already computed all the demux stats that I need

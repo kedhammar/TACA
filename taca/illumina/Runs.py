@@ -201,8 +201,8 @@ class Run(object):
         """
         bm = []
         dual_index_run = False
-        if len(runSetup) != 3 and len(runSetup) != 4:
-            raise RuntimeError("when generating base_masks flooks like there are more than 3 or 4 reads in the RunSetup.xml")
+        if len(runSetup) > 4:
+            raise RuntimeError("when generating base_masks looks like there are more than 4 reads in the RunSetup.xml")
 
         for read in runSetup:
             cycles = int(read['NumCycles'])

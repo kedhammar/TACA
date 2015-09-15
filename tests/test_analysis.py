@@ -7,7 +7,9 @@ import unittest
 from datetime import datetime
 
 from taca.analysis.analysis import *
-from taca.illumina import Run
+from taca.illumina import Runs
+from taca.illumina import HiSeq_Runs
+from taca.illumina import HiSeqX_Runs
 
 from taca.utils import config
 
@@ -80,7 +82,7 @@ class TestTracker(unittest.TestCase):
         for run in [running, to_start, in_progress, completed]:
             shutil.copy('data/RunInfo.xml', run)
             shutil.copy('data/runParameters.xml', run)
-
+        
         # Create run objects
         self.running = Run(os.path.join(self.tmp_dir, '141124_RUNNING_FCIDXX'))
         self.to_start = Run(os.path.join(self.tmp_dir, '141124_TOSTART_FCIDXXX'))
