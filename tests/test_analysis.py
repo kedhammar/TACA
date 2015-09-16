@@ -17,7 +17,7 @@ from taca.utils import config as conf
 
 # This is only run if TACA is called from the CLI, as this is a test, we need to
 # call it explicitely
-CONFIG = conf.load_yaml_config(os.path.join(os.environ.get('HOME'), '.taca/taca.yaml'))
+CONFIG = conf.load_yaml_config('data/taca_test_cfg.yaml')
 
 def processing_status(run_dir):
     demux_dir = os.path.join(run_dir, 'Demultiplexing')
