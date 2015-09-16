@@ -9,7 +9,7 @@ import datetime
 
 from csv import DictReader
 from taca.utils.config import CONFIG
-from flowcell_parser.classes import XTenSampleSheetParser
+from flowcell_parser.classes import SampleSheetParser
 
 logger = logging.getLogger(__name__)
 
@@ -44,21 +44,15 @@ def collect_runs():
                     found_runs.append(os.path.basename(run_dir))
                     logger.info("Working on {}".format(run_dir))        
                     update_statusdb(run_dir)
+        #no check the nosync
+        nosync_data_dir = os.path.join(data_dir, "nosync")
+        potential_nosync_run_dirs=glob.glob(os.path.join(nosync_data_dir, '*'))
+        for run_dir in potential_nosync_run_dirs:
+             if rundir_re.match(os.path.basename(os.path.abspath(run_dir))) and os.path.isdir(run_dir):
+                #update the run status
+                update_statusdb(run_dir)
 
-    check_unfound_runs(found_runs)
-    
-def check_unfound_runs(found_runs):
-    couch=setupServer(CONFIG)
-    db=couch['bioinfo_analysis']
-    valueskey=datetime.datetime.now().isoformat()
-    view = db.view('general/not_ongoing_runids')
-    for row in view.rows:
-        if row.key not in found_runs:
-            obj={'run_id':run_name,'status':'Ongoing', 'values':{valueskey:{'user':'taca','status':'Ongoing'}} }
-            remote_doc=row.value
-            final_obj=merge(obj, remote_doc)
-            logger.info("saving {} as  {}".format(run_name, 'Ongoing'))
-            db.save(final_obj)
+
 
 def update_statusdb(run_dir):
     project_ids=get_ss_projects(run_dir)
@@ -151,7 +145,7 @@ def get_ss_projects(run_dir):
                     logger.warn("Cannot locate the samplesheet for run {}".format(run_dir))
                     return ['UNKNOWN']
 
-        ss_reader=XTenSampleSheetParser(FCID_samplesheet_origin)
+        ss_reader=SampleSheetParser(FCID_samplesheet_origin)
         if 'Description' in ss_reader.header and ss_reader.header['Description'] not in ['Production', 'Application']:
             #This is a non platform MiSeq run. Disregard it.
             return []

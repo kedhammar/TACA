@@ -6,4 +6,3 @@ _build
 *.log
 .DS*
 .vagrant/
-.idea/

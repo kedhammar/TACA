@@ -1,2 +1,44 @@
 log:
     file: data/taca.log
+
+analysis:
+    HiSeqX:
+        QC:
+            max_percentage_undetermined_indexes_pooled_lane: 5
+            max_percentage_undetermined_indexes_unpooled_lane: 20
+            minimum_percentage_Q30_bases_per_lane: 75
+            minimum_yield_per_lane: 305000000
+            max_frequency_most_represented_und_index_pooled_lane: 5
+            max_frequency_most_represented_und_index_unpooled_lane: 40
+        bcl2fastq:
+            bin: path_to_bcl_to_fastq
+            options:
+                - output-dir: Demultiplexing
+        samplesheets_dir:
+        analysis_server:
+            host:
+            port:
+            user:
+            sync:
+                data_archive:
+                include:
+                    - "*.file"
+    HiSeq:
+        QC:
+            max_number_undetermined_reads_simple_lane: 5000000
+            max_percentage_undetermined_indexes_simple_lane: 5
+            max_percentage_undetermined_indexes_NoIndex_lane: 30
+            max_frequency_most_represented_und_index_NoIndex_lane: 40
+        bcl2fastq:
+            bin: path_to_bcl_to_fastq
+            options:
+                - output-dir: Demultiplexing
+        samplesheets_dir:
+        analysis_server:
+            host:
+            port:
+            user:
+            sync:
+                data_archive:
+                include:
+                    - "*.file"
