@@ -252,7 +252,11 @@ class HiSeq_Run(Run):
             sample_0  = simple_lanes[lane][base_mask]['data'][0]
             #now fetch total amount of reads generated for this lane
             lane_clusters = float([lane_info['PF Clusters'] for lane_info in self.runParserObj.lanes.sample_data if lane_info['Lane'] == lane][0].replace(",",""))
-            if sample_0['index'] == "NoIndex":
+            if lane_clusters == 0:
+                #in this case it means I generated No_CLUSTER (it might happen, fail the lane and transfer
+                logger.warn("Lane {}  generated 0 clusters, check manually what is happening here. FC will be failed".format(lane))
+                pass_QC = pass_QC and False
+            elif sample_0['index'] == "NoIndex":
                 #IMPORTANT: this works only in the case of NoIndex because the DemuxSummary stats contain all undetermined
                 most_frequent_undet_index = undeterminedStats.result[lane].items()[1][1] # the 0 should be my Index
                 total_und_indexes = undeterminedStats.TOTAL[lane] - undeterminedStats.result[lane].items()[0][1] # take away the most occuring index
@@ -265,7 +269,6 @@ class HiSeq_Run(Run):
                     logger.warn("Lane {} most frequent undetermined index accounts for more than {}% of all undetermined indexes. This FC will not be transferred".format(lane, max_frequency_most_represented_und_index_NoIndex_lane))
                     pass_QC = pass_QC and False
             else:
-                most_frequent_undet_index = undeterminedStats.result[lane].items()[0][1]
                 max_percentage_undetermined_indexes_simple_lane = self.CONFIG['QC']['max_percentage_undetermined_indexes_simple_lane']
                 sample_lanes = self.runParserObj.lanebarcodes
                 undetermined_lane_stats = [item for item in sample_lanes.sample_data if item["Lane"]==lane and item["Sample"]=="Undetermined"]
