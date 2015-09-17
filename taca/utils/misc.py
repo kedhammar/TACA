@@ -44,8 +44,10 @@ def call_external_command(cl, with_log_files=False, prefix=None, log_dir=""):
     if with_log_files:
         if prefix:
             logFile = '{}_{}'.format(prefix, logFile)
-        if os.path.exists(log_dir):
-            logFile = os.path.join(log_dir,  logFile) # otherwise create it in the cwd
+        #create log dir if it dint exist in CWD
+        if log_dir and not os.path.exists(log_dir):
+            os.mkdir(log_dir)
+        logFile = os.path.join(log_dir, logFile)
         stdout = open(logFile + '.out', 'wa')
         stderr = open(logFile + '.err', 'wa')
         started = "Started command {} on {}".format(' '.join(cl), datetime.now())
