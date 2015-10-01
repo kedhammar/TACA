@@ -40,11 +40,11 @@ def _run_type(run):
         #this information about the run type (with HiSeq2.5 applicationaName does not work anymore, but as for a long time we will have instruments not updated I need to find out somehting that works
         try:
             #Works for recent control software
-            runtype=rp.data['RunParameters']["Setup"].get("Flowcell")
+            runtype=rp.data['RunParameters']["Setup"]["Flowcell"]
         except KeyError:
             #use this as second resource but print a warning in the logs
             logger.warn("Parsing runParameters to fecth instrument type, not found Flowcell information in it. Using ApplicaiotnName")
-            runtype=rp.data.get("ApplicationName")
+            runtype=rp.data['RunParameters']["Setup"].get("ApplicationName", "") # here makes sense to use get with default value "" -> so that it doesnt raise an exception in the next lines (in case ApplicationName is not found, get returns None)
 
         if "HiSeq X" in runtype:
             return 'HiSeqX'
@@ -86,7 +86,7 @@ def _upload_to_statusdb(run):
     couch = fcpdb.setupServer(CONFIG)
     db    = couch[CONFIG['statusdb']['xten_db']]
     parser = run.runParserObj
-    fcpdb.update_doc( db , parser.obj)
+    fcpdb.update_doc( db , parser.obj, over_write_db_entry=True)
     return None
 
 def transfer_run(run_dir, analysis):
