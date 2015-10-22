@@ -38,7 +38,7 @@ class Run(object):
         self.flowcell_id = m.group(4)
         self.CONFIG      = configuration
         self._set_demux_folder(configuration)
-        self._get_run_parser_obj(configuration) #get parser object to update DB
+        self._set_run_parser_obj(configuration) #get parser object to update DB
         
 
 
@@ -69,7 +69,7 @@ class Run(object):
             raise RuntimeError("sequencer_type not yet available!!")
     
     
-    def _get_run_parser_obj(self, configuration):
+    def _set_run_parser_obj(self, configuration):
         self.runParserObj = RunParser(self.run_dir)
         if self.runParserObj.obj:
             self.runParserObj.obj['DemultiplexConfig'] = {'Setup': {'Software': configuration.get('bcl2fastq',{})}}
