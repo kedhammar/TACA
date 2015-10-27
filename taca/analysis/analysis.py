@@ -9,6 +9,7 @@ import re
 from taca.illumina.Runs import Run
 from taca.illumina.HiSeqX_Runs import HiSeqX_Run
 from taca.illumina.HiSeq_Runs import HiSeq_Run
+from taca.illumina.MiSeq_Runs import MiSeq_Run
 from taca.utils.config import CONFIG
 
 import flowcell_parser.db as fcpdb
@@ -73,8 +74,7 @@ def upload_to_statusdb(run_dir):
     elif sequencer_type is 'HiSeq':
         runObj = HiSeq_Run(run_dir, CONFIG["analysis"]["HiSeq"])
     elif sequencer_type is 'MiSeq':
-        print "not yet implemented: miseq"
-        return None
+        runObj = MiSeq_Run(run_dir, CONFIG["analysis"]["MiSeq"])
     _upload_to_statusdb(runObj)
     return None
 
@@ -101,8 +101,7 @@ def transfer_run(run_dir, analysis):
     elif sequencer_type is 'HiSeq':
         runObj = HiSeq_Run(run_dir, CONFIG["analysis"]["HiSeq"])
     elif sequencer_type is 'MiSeq':
-        logger.error("not yet implemented: miseq")
-        return None
+        runObj = MiSeq_Run(run_dir, CONFIG["analysis"]["MiSeq"])
     else:
         logger.error("looks like we bough a new sequencer and no-body told me about it...")
         return None
@@ -191,8 +190,7 @@ def run_preprocessing(run, force_trasfer=True):
         elif sequencer_type is 'HiSeq':
             runObj = HiSeq_Run(run, CONFIG["analysis"]["HiSeq"])
         elif sequencer_type is 'MiSeq':
-            print "miseq: to be implemented soon"
-            runObj = None
+            runObj = MiSeq_Run(run, CONFIG["analysis"]["MiSeq"])
         else:
             raise RuntimeError("New instrument type {}".format(sequencer_type))
         _process(runObj, force_trasfer)
@@ -210,9 +208,7 @@ def run_preprocessing(run, force_trasfer=True):
                 elif sequencer_type is 'HiSeq':
                     runObj = HiSeq_Run(_run, CONFIG["analysis"]["HiSeq"])
                 elif sequencer_type is 'MiSeq':
-                    print "MiSeq: to be implemented soon"
-                    runObj = None
-                    #runObj = HiSeq_Run(_run, CONFIG["analysis"]["MiSeq"])
+                    runObj = MiSeq_Run(_run, CONFIG["analysis"]["MiSeq"])
                 else:
                     raise RuntimeError("New instrument type {}".format(sequencer_type))
                 _process(runObj, force_trasfer)

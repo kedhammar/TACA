@@ -315,6 +315,8 @@ class HiSeq_Run(Run):
 
 
         ssname   = self._get_samplesheet()
+        if ssname is None:
+            return None
         ssparser = SampleSheetParser(ssname)
         #Copy the original samplesheet locally. Copy again if already done as there might have been changes to the samplesheet
         try:
@@ -332,7 +334,7 @@ class HiSeq_Run(Run):
             logger.info("SampleSheet.csv found ... overwriting it")
         try:
             with open(samplesheet_dest, 'wb') as fcd:
-                fcd.write(_generate_clean_samplesheet(ssparser))
+                fcd.write(self._generate_clean_samplesheet(ssparser))
         except Exception as e:
             logger.error(e.text)
             return False
@@ -478,7 +480,6 @@ class HiSeq_Run(Run):
         run_dir      =  self.run_dir
         demux_folder =  os.path.join(self.run_dir , self.demux_dir)
         samplesheets =  glob.glob(os.path.join(run_dir, "*_[0-9].csv")) # a single digit... this hipotesis should hold for a while
-        
         per_lane_base_masks = self._generate_per_lane_base_mask()
         max_different_base_masks =  max([len(per_lane_base_masks[base_masks]) for base_masks in per_lane_base_masks])
         simple_lanes  = {}
@@ -623,6 +624,61 @@ class HiSeq_Run(Run):
         return True
 
 
+
+
+
+    def _generate_clean_samplesheet(self, ssparser):
+        """
+        Will generate a 'clean' samplesheet, for bcl2fastq2.17
+        """
+
+        output=""
+        #Header
+        output+="[Header]{}".format(os.linesep)
+        for field in ssparser.header:
+            output+="{},{}".format(field.rstrip(), ssparser.header[field].rstrip())
+            output+=os.linesep
+        
+        
+        #now parse the data section
+        data = []
+        for line in ssparser.data:
+            entry = {}
+            for field, value in line.iteritems():
+                if 'SampleID' in field :
+                    entry[_data_filed_conversion(field)] ='Sample_{}'.format(value)
+                    entry['Sample_Name'] = value
+                elif "Index" in field:
+                    #in this case we need to distinguish between single and dual index
+                    entry[_data_filed_conversion(field)] = value.split("-")[0]
+                    if len(value.split("-")) == 2:
+                        entry['index2'] = value.split("-")[1]
+                    else:
+                        entry['index2'] = ""
+                else:
+                    entry[_data_filed_conversion(field)] = value
+            data.append(entry)
+
+        fields_to_output = ['Lane', 'Sample_ID', 'Sample_Name', 'index', 'index2', 'Sample_Project']
+        #now create the new SampleSheet data section
+        output+="[Data]{}".format(os.linesep)
+        for field in ssparser.datafields:
+            new_field = _data_filed_conversion(field)
+            if new_field not in fields_to_output:
+                fields_to_output.append(new_field)
+        output+=",".join(fields_to_output)
+        output+=os.linesep
+        #now process each data entry and output it
+        for entry in data:
+            line = []
+            for field in fields_to_output:
+                line.append(entry[field])
+            output+=",".join(line)
+            output+=os.linesep
+        return output
+
+
+
 def _create_folder_structure(root, dirs):
     """
     creates a fodler stucture rooted in root usinf all dirs listed in dirs (a list)
@@ -634,58 +690,6 @@ def _create_folder_structure(root, dirs):
         if not os.path.exists(path):
             os.makedirs(path)
     return path
-
-
-def _generate_clean_samplesheet(ssparser):
-    """
-    Will generate a 'clean' samplesheet, for bcl2fastq2.17
-    """
-    output=""
-    #Header
-    output+="[Header]{}".format(os.linesep)
-    for field in ssparser.header:
-        output+="{},{}".format(field.rstrip(), ssparser.header[field].rstrip())
-        output+=os.linesep
-    
-    
-    #now parse the data section
-    data = []
-
-    for line in ssparser.data:
-        entry = {}
-        for field, value in line.iteritems():
-            if 'SampleID' in field :
-                entry[_data_filed_conversion(field)] ='Sample_{}'.format(value)
-                entry['Sample_Name'] = value
-            elif "Index" in field:
-                #in this case we need to distinguish between single and dual index
-                entry[_data_filed_conversion(field)] = value.split("-")[0]
-                if len(value.split("-")) == 2:
-                    entry['index2'] = value.split("-")[1]
-                else:
-                    entry['index2'] = ""
-            else:
-                entry[_data_filed_conversion(field)] = value
-        data.append(entry)
-
-    fields_to_output = ['Lane', 'Sample_ID', 'Sample_Name', 'index', 'index2', 'Sample_Project']
-    #now create the new SampleSheet data section
-    output+="[Data]{}".format(os.linesep)
-    for field in ssparser.datafields:
-        new_field = _data_filed_conversion(field)
-        if new_field not in fields_to_output:
-            fields_to_output.append(new_field)
-    output+=",".join(fields_to_output)
-    output+=os.linesep
-    #now process each data entry and output it
-    for entry in data:
-        line = []
-        for field in fields_to_output:
-            line.append(entry[field])
-        output+=",".join(line)
-        output+=os.linesep
-
-    return output
 
 
 
