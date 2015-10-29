@@ -128,6 +128,12 @@ def run_preprocessing(run, force_trasfer=True):
             #this is in case the methods are not yet implemented
             return None
         logger.info('Checking run {}'.format(run.id))
+        if run.get_run_type() == 'NON-NGI-RUN':
+            #For now MiSeq specific case. Process only NGI-run, skip all the others (PhD student runs)
+            logger.warn('Run {} marked as NON-NGI-RUN, TACA will skip this and move the run to no-sync directory')
+            run.archive_run(CONFIG['storage']['archive_dirs'][run.sequencer_type])
+            return None
+        
         if run.get_run_status() == 'SEQUENCING':
             # Check status files and say i.e Run in second read, maybe something
             # even more specific like cycle or something

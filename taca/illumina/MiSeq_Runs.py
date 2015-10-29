@@ -20,18 +20,29 @@ logger = logging.getLogger(__name__)
 class MiSeq_Run(HiSeq_Run):
 
     def __init__(self,  path_to_run, configuration):
+        #constructor, it returns a MiSeq object only if the MiSeq run belongs to NGI facility, i.e., contains
+        #Application or production in the Description
         super(MiSeq_Run, self).__init__( path_to_run, configuration)
         self._set_sequencer_type()
+        self._set_run_type()
 
 
     def _set_sequencer_type(self):
         self.sequencer_type = "MiSeq"
-    
-    
-    def _sequencer_type(self):
-            return "MiSeq"
 
-
+    def _set_run_type(self):
+        ssname = os.path.join(self.run_dir, 'Data', 'Intensities', 'BaseCalls','SampleSheet.csv')
+        if not os.path.exists(ssname):
+            #case in which no samplesheet is found, assume it is a non NGI run
+            self.run_type = "NON-NGI-RUN"
+        else:
+            #it SampleSheet exists try to see if it is a NGI-run
+            ssparser = SampleSheetParser(ssname)
+            if ssparser.header['Description'] == "Production" or ssparser.header['Description'] == "Application":
+                self.run_type = "NGI-RUN"
+            else:
+            #otherwise this is a non NGI run
+                self.run_type = "NON-NGI-RUN"
 
 
     def _get_samplesheet(self):
@@ -42,17 +53,10 @@ class MiSeq_Run(HiSeq_Run):
         ssname = os.path.join(self.run_dir, 'Data', 'Intensities', 'BaseCalls','SampleSheet.csv')
         if os.path.exists(ssname):
             #if exists parse the SampleSheet
-            ssparser = SampleSheetParser(ssname)
-            if ssparser.header['Description'] == "Production" or ssparser.header['Description'] == "Application":
-                # if Description is either Production or Application we need to process it
-                return ssname
-            else:
-                #otherwise foget about it
-                self.archive_run(os.path.join(os.path.split(self.run_dir)[0], "nosync"))
-                return None
+            return ssname
         else:
-            #In this case move the run to NoSync and forget about it
-            self.archive_run(os.path.join(os.path.split(self.run_dir)[0], "nosync"))
+            #some MiSeq runs do not have the SampleSheet at all, in this case assume they are non NGI.
+            #not real clean solution but what else can be done if no samplesheet is provided?
             return None
 
                                 

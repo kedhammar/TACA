@@ -22,14 +22,16 @@ class HiSeq_Run(Run):
     def __init__(self,  path_to_run, samplesheet_folders):
         super(HiSeq_Run, self).__init__( path_to_run, samplesheet_folders)
         self._set_sequencer_type()
+        self._set_run_type()
+
 
 
     def _set_sequencer_type(self):
         self.sequencer_type = "HiSeq"
     
-    
-    def _sequencer_type(self):
-            return "HiSeq"
+    def _set_run_type(self):
+        self.run_type = "NGI-RUN"
+
 
 
     def get_run_info(self):

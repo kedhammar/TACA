@@ -57,10 +57,19 @@ class Run(object):
         raise NotImplementedError("Please Implement this method")
 
 
-
-    def _set_sequencer_type(self, configuration):
+    def _set_run_type(self):
         raise NotImplementedError("Please Implement this method")
 
+    def get_run_type(self):
+        if self.run_type:
+            return self.run_type
+        else:
+            raise RuntimeError("run_type not yet available!!")
+
+    
+    
+    def _set_sequencer_type(self, configuration):
+        raise NotImplementedError("Please Implement this method")
 
     def _get_sequencer_type(self):
         if self.sequencer_type:
