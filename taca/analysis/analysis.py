@@ -130,7 +130,7 @@ def run_preprocessing(run, force_trasfer=True):
         logger.info('Checking run {}'.format(run.id))
         if run.get_run_type() == 'NON-NGI-RUN':
             #For now MiSeq specific case. Process only NGI-run, skip all the others (PhD student runs)
-            logger.warn('Run {} marked as NON-NGI-RUN, TACA will skip this and move the run to no-sync directory')
+            logger.warn('Run {} marked as {}, TACA will skip this and move the run to no-sync directory'.format(run.id, run.get_run_type()))
             run.archive_run(CONFIG['storage']['archive_dirs'][run.sequencer_type])
             return None
         
