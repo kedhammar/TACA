@@ -57,10 +57,19 @@ class Run(object):
         raise NotImplementedError("Please Implement this method")
 
 
-
-    def _set_sequencer_type(self, configuration):
+    def _set_run_type(self):
         raise NotImplementedError("Please Implement this method")
 
+    def get_run_type(self):
+        if self.run_type:
+            return self.run_type
+        else:
+            raise RuntimeError("run_type not yet available!!")
+
+    
+    
+    def _set_sequencer_type(self, configuration):
+        raise NotImplementedError("Please Implement this method")
 
     def _get_sequencer_type(self):
         if self.sequencer_type:
@@ -360,23 +369,30 @@ class Run(object):
                 #Rows have two columns: run and transfer date
                 if row.split('\t')[0] == runname:
                     already_seen=True
-
+        
+            QC_result = "PASSED"
             if not already_seen:
                 if status:
                     f.write("{}\tPASSED\n".format(runname))
                 else:
-                    sj="{} failed QC".format(runname)
-                    cnt="""The run {run} has failed qc and will NOT be transfered to Nestor.
+                    f.write("{}\tFAILED\n".format(os.path.basename(self.id)))
+                    QC_result = "FAILED"
+            
+            sj="{} Demultiplexed".format(runname)
+            cnt="""The run {run} has been demultiplexed and automatic QC took place.
+                        The Run will be transferred to Nestor for further analysis.
+                        
+                        Autmatic QC defines the runs as: {QC}
 
-                        The run might be available at : https://genomics-status.scilifelab.se/flowcells/{shortfc}
+                        The run is available at : https://genomics-status.scilifelab.se/flowcells/{shortfc}
 
                         To read the logs, run the following command on {server}
                         grep -A30 "Checking run {run}" {log}
 
-                        To force the transfer :
-                        taca analysis transfer {rundir} """.format(run=runname, shortfc=shortrun, log=log_file, server=os.uname()[1], rundir=self.id)
-                    misc.send_mail(sj, cnt, rcp)
-                    f.write("{}\tFAILED\n".format(os.path.basename(self.id)))
+                         """.format(run=runname, QC=QC_result, shortfc=shortrun, log=log_file, server=os.uname()[1])
+            misc.send_mail(sj, cnt, rcp)
+
+    
 
 
     def is_transferred(self, transfer_file):

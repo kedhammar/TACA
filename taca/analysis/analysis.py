@@ -9,6 +9,7 @@ import re
 from taca.illumina.Runs import Run
 from taca.illumina.HiSeqX_Runs import HiSeqX_Run
 from taca.illumina.HiSeq_Runs import HiSeq_Run
+from taca.illumina.MiSeq_Runs import MiSeq_Run
 from taca.utils.config import CONFIG
 
 import flowcell_parser.db as fcpdb
@@ -40,11 +41,11 @@ def _run_type(run):
         #this information about the run type (with HiSeq2.5 applicationaName does not work anymore, but as for a long time we will have instruments not updated I need to find out somehting that works
         try:
             #Works for recent control software
-            runtype=rp.data['RunParameters']["Setup"].get("Flowcell")
+            runtype=rp.data['RunParameters']["Setup"]["Flowcell"]
         except KeyError:
             #use this as second resource but print a warning in the logs
             logger.warn("Parsing runParameters to fecth instrument type, not found Flowcell information in it. Using ApplicaiotnName")
-            runtype=rp.data.get("ApplicationName")
+            runtype=rp.data['RunParameters']["Setup"].get("ApplicationName", "") # here makes sense to use get with default value "" -> so that it doesnt raise an exception in the next lines (in case ApplicationName is not found, get returns None)
 
         if "HiSeq X" in runtype:
             return 'HiSeqX'
@@ -73,8 +74,7 @@ def upload_to_statusdb(run_dir):
     elif sequencer_type is 'HiSeq':
         runObj = HiSeq_Run(run_dir, CONFIG["analysis"]["HiSeq"])
     elif sequencer_type is 'MiSeq':
-        print "not yet implemented: miseq"
-        return None
+        runObj = MiSeq_Run(run_dir, CONFIG["analysis"]["MiSeq"])
     _upload_to_statusdb(runObj)
     return None
 
@@ -86,7 +86,7 @@ def _upload_to_statusdb(run):
     couch = fcpdb.setupServer(CONFIG)
     db    = couch[CONFIG['statusdb']['xten_db']]
     parser = run.runParserObj
-    fcpdb.update_doc( db , parser.obj)
+    fcpdb.update_doc( db , parser.obj, over_write_db_entry=True)
     return None
 
 def transfer_run(run_dir, analysis):
@@ -101,8 +101,7 @@ def transfer_run(run_dir, analysis):
     elif sequencer_type is 'HiSeq':
         runObj = HiSeq_Run(run_dir, CONFIG["analysis"]["HiSeq"])
     elif sequencer_type is 'MiSeq':
-        logger.error("not yet implemented: miseq")
-        return None
+        runObj = MiSeq_Run(run_dir, CONFIG["analysis"]["MiSeq"])
     else:
         logger.error("looks like we bough a new sequencer and no-body told me about it...")
         return None
@@ -129,6 +128,12 @@ def run_preprocessing(run, force_trasfer=True):
             #this is in case the methods are not yet implemented
             return None
         logger.info('Checking run {}'.format(run.id))
+        if run.get_run_type() == 'NON-NGI-RUN':
+            #For now MiSeq specific case. Process only NGI-run, skip all the others (PhD student runs)
+            logger.warn('Run {} marked as {}, TACA will skip this and move the run to no-sync directory'.format(run.id, run.get_run_type()))
+            run.archive_run(CONFIG['storage']['archive_dirs'][run.sequencer_type])
+            return None
+        
         if run.get_run_status() == 'SEQUENCING':
             # Check status files and say i.e Run in second read, maybe something
             # even more specific like cycle or something
@@ -191,8 +196,7 @@ def run_preprocessing(run, force_trasfer=True):
         elif sequencer_type is 'HiSeq':
             runObj = HiSeq_Run(run, CONFIG["analysis"]["HiSeq"])
         elif sequencer_type is 'MiSeq':
-            print "miseq: to be implemented soon"
-            runObj = None
+            runObj = MiSeq_Run(run, CONFIG["analysis"]["MiSeq"])
         else:
             raise RuntimeError("New instrument type {}".format(sequencer_type))
         _process(runObj, force_trasfer)
@@ -210,9 +214,7 @@ def run_preprocessing(run, force_trasfer=True):
                 elif sequencer_type is 'HiSeq':
                     runObj = HiSeq_Run(_run, CONFIG["analysis"]["HiSeq"])
                 elif sequencer_type is 'MiSeq':
-                    print "MiSeq: to be implemented soon"
-                    runObj = None
-                    #runObj = HiSeq_Run(_run, CONFIG["analysis"]["MiSeq"])
+                    runObj = MiSeq_Run(_run, CONFIG["analysis"]["MiSeq"])
                 else:
                     raise RuntimeError("New instrument type {}".format(sequencer_type))
                 _process(runObj, force_trasfer)
