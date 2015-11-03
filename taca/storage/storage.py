@@ -231,7 +231,7 @@ def _archive_run((run, days, force, compress_only)):
         """
         if not filesystem.is_in_swestore(f):
             logger.info("Sending {} to swestore".format(f))
-            misc.call_external_command('iput -P {file} {dest}'.format(file=f, dest=dest),
+            misc.call_external_command('iput -R swestoreArchCacheResc -P {file} {dest}'.format(file=f, dest=dest),
                     with_log_files=True, prefix=f.replace('.tar.bz2',''), log_dir="swestore_logs")
             logger.info('Run {} sent to swestore.'.format(f))
             if remove:
