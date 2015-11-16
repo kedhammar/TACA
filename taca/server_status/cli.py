@@ -23,3 +23,4 @@ def disk_space(credentials):
 	"""
 	disk_space = status.get_disk_space()
 	status.update_google_docs(disk_space, credentials)
+	status.update_status_db(disk_space)

@@ -1,6 +1,9 @@
 import subprocess
 import json
 import gspread
+import logging
+import couchdb
+
 from oauth2client.client import SignedJwtAssertionCredentials as GCredentials
 from taca.utils.config import CONFIG
 
@@ -77,3 +80,36 @@ def update_google_docs(data, credentials_file):
 		cell = config['g_sheet_map'].get(key) # key = server name
 		value = data.get(key)		# value = available space
 		worksheet.update_acell(cell, value)
+
+
+def update_status_db(data):
+	db_config = CONFIG.get('statusdb')
+	if db_config is None:
+		logging.error("'statusdb' must be present in the config file!")
+		raise
+
+	server = "http://{username}:{password}@{url}:{port}".format(
+        url=db_config['url'],
+        username=db_config['username'],
+        password=db_config['password'],
+        port=db_config['port'])
+	try:
+		couch = couchdb.Server(server)
+	except Exception, e:
+		logging.error(e.message)
+		raise
+
+	db = couch['server_status']
+	logging.info('Connection established')
+	for key in data.keys():
+		server = {
+			'url': key,
+			'disk_space_used_percentage': data[key]
+		}
+		try:
+			server_id, server_rev = db.save(server)
+		except Exception, e:
+			logging.error(e.message)
+			raise
+		else:
+			logging.info('{}: Server status has been updated'.format(key))
