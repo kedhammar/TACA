@@ -3,11 +3,12 @@ import json
 import gspread
 import logging
 import couchdb
+import datetime
 
 from oauth2client.client import SignedJwtAssertionCredentials as GCredentials
 from taca.utils.config import CONFIG
 
-def get_disk_space():
+def get_nases_disk_space():
 	result = {}
 	config = CONFIG['server_status']
 	servers = config.get('servers', [])
@@ -26,39 +27,52 @@ def get_disk_space():
 			proc = subprocess.Popen(['ssh', '-t', '%s@%s' %(config['user'], server_url), command],
 				stdout = subprocess.PIPE,
 				stderr = subprocess.PIPE)
-		# read output
 		output = proc.stdout.read()
-		# parse output
-		output = __parse_output(output)
-
-		try:
-			# remove % symbol and convert string to int
-			used_space = int(output.strip().replace('%', ''))
-			# how many percent available
-			available_space = 100 - used_space
-			result[server_url] = "{value}%".format(value=available_space)
-		except:
-			# sometimes it fails for whatever reason as Popen returns not what it is supposed to
-			result[server_url] = 'NaN'
+		output = _parse_output(output)
+		result[server_url] = output
 	return result
 
-def __parse_output(output):
+def _parse_output(output): # for nases
 	# command = df -h /home
 	# output = Filesystem            Size  Used Avail Use% Mounted on
 	# /dev/mapper/VGStor-lv_illumina
     #                   24T   12T   13T  49% /srv/illumina
 
-	output = output.strip() # remove \n in the end
-	output = output.split('\n')[-1] # split by lines and take the last line
-	output = output.strip() # remove spaces
-	output = output.split() # split line by space symbols
+	output = output.strip()
+	output = output.split()
+	try:
+		mounted_on = output[-1]
+		used_percentage = output[-2]
+		space_available = output[-3]
+		space_used = output[-4]
+		disk_size = output[-5]
+		filesystem = output[-6]
 
-	# output = ['24T', '12T', '13T', '49%', '/srv/illumina']
-	for item in output: # select the item containing '%' symbol
-		if '%' in item:
-			return item
+		available_percentage = str(100 - int(used_percentage.replace('%',''))) + '%'
 
-	return 'NaN' # if no '%' in output, return NaN
+		result = {
+			'disk_size': disk_size,
+			'space_used': space_used,
+			'space_available': space_available,
+			'used_percentage': used_percentage,
+			'available_percentage': available_percentage,
+			'mounted_on': mounted_on,
+			'filesystem': filesystem
+		}
+	except:
+		# sometimes it fails for whatever reason as Popen returns not what it is supposed to
+		result = {
+			'disk_size': 'NaN',
+			'space_used': 'NaN',
+			'space_available': 'NaN',
+			'used_percentage': 'NaN',
+			'available_percentage': 'NaN',
+			'mounted_on': 'NaN',
+			'filesystem': 'NaN'
+		}
+		logging.error("Can't parse the output: {}".format(output))
+
+	return result
 
 def update_google_docs(data, credentials_file):
 	config = CONFIG['server_status']
@@ -69,20 +83,23 @@ def update_google_docs(data, credentials_file):
 	credentials = GCredentials(json_key['client_email'], json_key['private_key'], config['g_scope'])
 	gc = gspread.authorize(credentials)
 	# open google sheet
-	# IMPORTANT: file must be shared with email listed in credentials
+	# IMPORTANT: file must be shared with the email listed in credentials
 	sheet = gc.open(config['g_sheet'])
 
 	# choose worksheet from the doc
 	worksheet = sheet.get_worksheet(1)
 
 	# update cell
-	for key in data:
+	for key in data: # data is a dicitonary of dictionaries
 		cell = config['g_sheet_map'].get(key) # key = server name
-		value = data.get(key)		# value = available space
+		value = data[key].get('available_percentage')
 		worksheet.update_acell(cell, value)
 
 
 def update_status_db(data):
+	"""Pushed the data to status db,
+	data can be from nases or from uppmax
+	"""
 	db_config = CONFIG.get('statusdb')
 	if db_config is None:
 		logging.error("'statusdb' must be present in the config file!")
@@ -101,15 +118,76 @@ def update_status_db(data):
 
 	db = couch['server_status']
 	logging.info('Connection established')
-	for key in data.keys():
-		server = {
-			'url': key,
-			'disk_space_used_percentage': data[key]
-		}
+	for key in data.keys(): # data is dict of dicts
+		server = data[key] # data[key] is dictionary (the command output)
+		server['name'] = key # key is nas url or uppmax project
+		server['time'] = datetime.datetime.now().isoformat() # datetime.datetime(2015, 11, 18, 9, 54, 33, 473189) is not JSON serializable
+
 		try:
-			server_id, server_rev = db.save(server)
+			db.save(server)
 		except Exception, e:
 			logging.error(e.message)
 			raise
 		else:
 			logging.info('{}: Server status has been updated'.format(key))
+
+
+def get_uppmax_quotas():
+	current_time = datetime.datetime.now()
+	try:
+		uq = subprocess.Popen(["/sw/uppmax/bin/uquota", "-q"], stdout=subprocess.PIPE)
+	except Exception, e:
+		logging.error(e.message)
+		raise
+
+	output = uq.communicate()[0]
+	logging.info("Disk Usage:")
+	logging.info(output)
+
+	projects = output.split("\n/proj/")[1:]
+
+	result = {}
+	for proj in projects:
+		project_dict = {"time": current_time.isoformat()}
+		project = proj.strip("\n").split()
+		project_dict["project"] = project[0]
+		project_dict["usage (GB)"] = project[1]
+		project_dict["quota limit (GB)"] = project[2]
+		try:
+			project_dict["over quota"] = project[3]
+		except:
+			pass
+
+		result[project[0]] = project_dict
+	return result
+
+
+
+def get_uppmax_cpu_hours():
+	current_time = datetime.datetime.now()
+	try:
+		# script that runs on uppmax
+		uq = subprocess.Popen(["/sw/uppmax/bin/projinfo", '-q'], stdout=subprocess.PIPE)
+	except Exception, e:
+		logging.error(e.message)
+		raise
+
+	# output is lines with the format: project_id  cpu_usage  cpu_limit
+	output = uq.communicate()[0]
+
+	logging.info("CPU Hours Usage:")
+	logging.info(output)
+	result = {}
+	# parsing output
+	for proj in output.strip().split('\n'):
+		project_dict = {"time": current_time.isoformat()}
+
+		# split line into a list
+		project = proj.split()
+		# creating objects
+		project_dict["project"] = project[0]
+		project_dict["cpu hours"] = project[1]
+		project_dict["cpu limit"] = project[2]
+
+		result[project[0]] = project_dict
+	return result
