@@ -10,6 +10,7 @@ import datetime
 from csv import DictReader
 from taca.utils.config import CONFIG
 from flowcell_parser.classes import SampleSheetParser
+from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +18,12 @@ def setupServer(conf):
     db_conf = conf['statusdb']
     url="http://{0}:{1}@{2}:{3}".format(db_conf['username'], db_conf['password'], db_conf['url'], db_conf['port'])
     return couchdb.Server(url)
+
+#Constructor for a search tree
+class Tree(defaultdict):
+    def __init__(self, value=None):
+        super(Tree, self).__init__(Tree)
+        self.value = value
 
 def merge(d1, d2):
     """ Will merge dictionary d2 into dictionary d1.
@@ -32,7 +39,7 @@ def merge(d1, d2):
             d1[key] = d2[key]
     return d1
 
-
+# Update command
 def collect_runs():
     found_runs=[]
     rundir_re=re.compile("^[0-9]{6}_[A-Z0-9\-]+_[0-9]{4}_[A-Z0-9\-]{10,16}$")
@@ -51,30 +58,40 @@ def collect_runs():
              if rundir_re.match(os.path.basename(os.path.abspath(run_dir))) and os.path.isdir(run_dir):
                 #update the run status
                 update_statusdb(run_dir)
+    
 
-
-
+# Updaterun command
+# Gets status for a project
 def update_statusdb(run_dir):
-    project_ids=get_ss_projects(run_dir)
+    #fetch individual fields
+    project_info=get_ss_projects(run_dir)
     run_name = os.path.basename(os.path.abspath(run_dir))
-    status=get_status(run_dir)
+    
     couch=setupServer(CONFIG)
     valueskey=datetime.datetime.now().isoformat()
     db=couch['bioinfo_analysis']
     view = db.view('full_doc/pj_run_to_doc')
-    for p in project_ids:
-        obj={'run_id':run_name, 'project_id':p, 'status':status, 'values':{valueskey:{'user':'taca','status':status}} }
-        if len(view[[p, run_name]].rows) == 1:
-            remote_doc= view[[p, run_name]].rows[0].value
-            remote_status=remote_doc["status"]
-            if remote_status in ['Incoming', 'Sequencing Done', 'Demultiplexing', 'Demultiplexed', 'Transferring']:
-                final_obj=merge(obj, remote_doc)
-                logger.info("saving {} {} as  {}".format(run_name, p, status))
-                db.save(final_obj)
-        else:
-            logger.info("saving {} {} as  {}".format(run_name, p, status))
-            db.save(obj)
+    #Construction and sending of individual records
+    for p in project_info:
+        for flowcell in project_info[p]:
+            for lane in project_info[p][flowcell]:
+                for sample in project_info[p][flowcell][lane]:
+                    sample_status = project_info[p][flowcell][lane][sample].value
+                    
+                    obj={'run_id':run_name, 'project_id':p, 'flowcell': flowcell, 'lane': lane, 'sample':sample,
+                        'values':{valueskey:{'user':'taca','sample_status':sample_status}} }
+                    if len(view[[p, flowcell, lane, sample]].rows) == 1:
+                        remote_doc= view[[p, flowcell, lane, sample]].rows[0].value
+                        remote_status=remote_doc["sample_status"]
+                        if remote_status in ['Incoming', 'Sequencing Done', 'Demultiplexing', 'Demultiplexed', 'Transferring']:
+                            final_obj=merge(obj, remote_doc)
+                            logger.info("saving {} {} as  {}".format(run_name, p, sample_status))
+                            db.save(final_obj)
+                    else:
+                        logger.info("saving {} {} as  {}".format(run_name, p, sample_status))
+                        db.save(obj)
 
+# Gets status for a specific flowcell
 def get_status(run_dir):
     status='Incoming'
 
@@ -85,9 +102,6 @@ def get_status(run_dir):
     unaligned_dmux_stats=glob.glob(os.path.join(run_dir, 'Unaligned_*', 'Basecall_Stats_*', 'Demultiplexing_Stats.htm'))
     taca_transfer=os.path.join(CONFIG['analysis']['status_dir'], 'transfer.tsv')
     old_transfer=CONFIG['bioinfo_tab']['b5_transfer']
-
-    
-
 
     if os.path.exists(os.path.join(run_dir, 'RTAComplete.txt')):
         status='Sequencing Done'
@@ -116,17 +130,18 @@ def get_status(run_dir):
 
     return status
 
-
-
-
+#Returns project, FC, lane & sample (sample-run) status for a given folder
 def get_ss_projects(run_dir):
-    pattern=re.compile("(P[0-9]{3,5})_[0-9]{3,5}")
-    project_ids=set()
+    proj_tree = Tree()
+    proj_pattern=re.compile("(P[0-9]{3,5})_[0-9]{3,5}")
+    lane_pattern=re.compile("(^[A-H]?[1-8]{1,2})$")
+    sample_pattern=re.compile("(P[0-9]{3,5}_[0-9]{3,5})")
     run_name = os.path.basename(os.path.abspath(run_dir))
     current_year = '20' + run_name[0:2]
     run_name_components = run_name.split("_")
     FCID = run_name_components[3][1:]
-
+    newData = False
+    
     xten_samplesheets_dir = os.path.join(CONFIG['bioinfo_tab']['xten_samplesheets'],
                                     current_year)
     hiseq_samplesheets_dir = os.path.join(CONFIG['bioinfo_tab']['hiseq_samplesheets'],
@@ -143,7 +158,7 @@ def get_ss_projects(run_dir):
                 FCID_samplesheet_origin = os.path.join(run_dir,'SampleSheet.csv')
                 if not os.path.exists(FCID_samplesheet_origin):
                     logger.warn("Cannot locate the samplesheet for run {}".format(run_dir))
-                    return ['UNKNOWN']
+                    return []
 
         ss_reader=SampleSheetParser(FCID_samplesheet_origin)
         if 'Description' in ss_reader.header and ss_reader.header['Description'] not in ['Production', 'Application']:
@@ -154,22 +169,28 @@ def get_ss_projects(run_dir):
     else:
         csvf=open(FCID_samplesheet_origin, 'rU')
         data=DictReader(csvf)
-    
-
-
 
     for d in data:
         for v in d.values():
-            matches=pattern.search(v)
+            #if project is found
+            matches=proj_pattern.search(v)
             if matches:
-                project_ids.add(matches.group(1))
-    
-    return project_ids
-
-
-
-
-    
-
-    
-
+                projects = matches.group(1)
+                newData = True
+            #if a lane is found
+            matches=lane_pattern.search(v)
+            if matches:
+                lanes = matches.group(1)
+                newData = True
+            #if a sample is found
+            matches=sample_pattern.search(v)
+            if matches:
+                samples = matches.group(1)
+                newData = True
+         
+        #Populates structure and adds FC  to sample status  
+        if newData == True and 'samples' in locals() and 'lanes' in locals():
+            proj_tree[projects][FCID][lanes][samples]
+            proj_tree[projects][FCID][lanes][samples].value = get_status(run_dir)
+            newData = False
+    return proj_tree
