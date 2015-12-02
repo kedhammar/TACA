@@ -75,7 +75,7 @@ def update_statusdb(run_dir):
     #Construction and sending of individual records
     if p == 'UNKNOWN':
         obj={'run_id':run_name}
-        logger.info("INVALID SAMPLSHEET, CHECK {} FORMED AT {}".format(run_name, valueskey))
+        logger.info("INVALID SAMPLESHEET, CHECK {} FORMED AT {}".format(run_name, valueskey))
         db.save(obj)
         #print obj
     else:
@@ -180,8 +180,8 @@ def get_ss_projects(run_dir):
         csvf=open(FCID_samplesheet_origin, 'rU')
         data=DictReader(csvf)
 
+    proj, lane, sample = False
     for d in data:
-        proj, lane, sample = False
         for v in d.values():
             #if project is found
             if proj_pattern.search(v):
