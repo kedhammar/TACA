@@ -73,13 +73,13 @@ def update_statusdb(run_dir):
     db=couch['bioinfo_analysis']
     view = db.view('full_doc/pj_run_to_doc')
     #Construction and sending of individual records
-    if p == 'UNKNOWN':
-        obj={'run_id':run_name}
-        logger.info("INVALID SAMPLESHEET, CHECK {} FORMED AT {}".format(run_name, valueskey))
-        db.save(obj)
-        #print obj
-    else:
-        for p in project_info:
+    for p in project_info:
+        if p == 'UNKNOWN':
+            obj={'run_id':run_name}
+            logger.info("INVALID SAMPLESHEET, CHECK {} FORMED AT {}".format(run_name, valueskey))
+            db.save(obj)
+            #print obj
+        else:
             for flowcell in project_info[p]:
                 for lane in project_info[p][flowcell]:
                     for sample in project_info[p][flowcell][lane]:
@@ -180,13 +180,17 @@ def get_ss_projects(run_dir):
         csvf=open(FCID_samplesheet_origin, 'rU')
         data=DictReader(csvf)
 
-    proj, lane, sample = False
+    proj_n_sample = False
+    lane = False
     for d in data:
         for v in d.values():
             #if project is found
             if proj_pattern.search(v):
                 projects = proj_pattern.search(v).group(1)
-                proj = True
+                #sample is also found
+                samples = sample_pattern.search(v).group(1)
+                proj_n_sample = True
+                
             #if a lane is found
             elif lane_pattern.search(v):
                 #In miseq case, writes off a well hit as lane 1
@@ -196,14 +200,11 @@ def get_ss_projects(run_dir):
                 else:
                     lanes = lane_pattern.search(v).group(1)
                 lane = True
-            #if a sample is found
-            elif sample_pattern.search(v):
-                samples = sample_pattern.search(v).group(1)
-                sample = True
          
         #Populates structure and adds FC  to sample status  
-        if proj and lane and sample:
+        if proj_n_sample and lane:
             proj_tree[projects][FCID][lanes][samples]
             proj_tree[projects][FCID][lanes][samples].value = get_status(run_dir)
-            proj, lane, sample = False
+            proj_n_sample = False
+            lane = False
     return proj_tree
