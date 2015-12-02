@@ -269,6 +269,7 @@ class Run(object):
         command_line.append('--chmod=g+rw')
         # rsync works in a really funny way, if you don't understand this, refer to
         # this note: http://silentorbit.com/notes/2013/08/rsync-by-extension/
+        command_line.append("--exclude=Demultiplexing_*/*_*") # this orible things here avoids data dup when we use multiple indexes in a lane/FC
         command_line.append("--include=*/")
         for to_include in self.CONFIG['analysis_server']['sync']['include']:
             command_line.append("--include={}".format(to_include))
