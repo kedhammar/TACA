@@ -11,6 +11,7 @@ from csv import DictReader
 from taca.utils.config import CONFIG
 from flowcell_parser.classes import SampleSheetParser
 from collections import defaultdict
+from lib2to3.tests.support import proj_dir
 
 logger = logging.getLogger(__name__)
 
@@ -72,25 +73,34 @@ def update_statusdb(run_dir):
     db=couch['bioinfo_analysis']
     view = db.view('full_doc/pj_run_to_doc')
     #Construction and sending of individual records
-    for p in project_info:
-        for flowcell in project_info[p]:
-            for lane in project_info[p][flowcell]:
-                for sample in project_info[p][flowcell][lane]:
-                    sample_status = project_info[p][flowcell][lane][sample].value
-                    
-                    obj={'run_id':run_name, 'project_id':p, 'flowcell': flowcell, 'lane': lane, 'sample':sample,
-                        'values':{valueskey:{'user':'taca','sample_status':sample_status}} }
-                    if len(view[[p, flowcell, lane, sample]].rows) == 1:
-                        remote_doc= view[[p, flowcell, lane, sample]].rows[0].value
-                        remote_status=remote_doc["sample_status"]
-                        if remote_status in ['Incoming', 'Sequencing Done', 'Demultiplexing', 'Demultiplexed', 'Transferring']:
-                            final_obj=merge(obj, remote_doc)
-                            logger.info("saving {} {} as  {}".format(run_name, p, sample_status))
-                            db.save(final_obj)
-                    else:
-                        logger.info("saving {} {} as  {}".format(run_name, p, sample_status))
-                        db.save(obj)
-
+    if p == 'UNKNOWN':
+        obj={'run_id':run_name}
+        logger.info("INVALID SAMPLSHEET, CHECK {} FORMED AT {}".format(run_name, valueskey))
+        db.save(obj)
+        #print obj
+    else:
+        for p in project_info:
+            for flowcell in project_info[p]:
+                for lane in project_info[p][flowcell]:
+                    for sample in project_info[p][flowcell][lane]:
+                        sample_status = project_info[p][flowcell][lane][sample].value
+                        
+                        obj={'run_id':run_name, 'project_id':p, 'flowcell': flowcell, 'lane': lane, 
+                             'sample':sample, 'values':{valueskey:{'user':'taca','sample_status':sample_status}} }
+                        if len(view[[p, flowcell, lane, sample]].rows) == 1:
+                            remote_doc= view[[p, flowcell, lane, sample]].rows[0].value
+                            remote_status=remote_doc["sample_status"]
+                            if remote_status in ['Incoming', 'Sequencing Done', 'Demultiplexing', 'Demultiplexed', 'Transferring']:
+                                final_obj=merge(obj, remote_doc)
+                                logger.info("saving {} {} {} {} {} as  {}".format(run_name, p, 
+                                flowcell, lane, sample, sample_status))
+                                db.save(final_obj)
+                                #print obj
+                        else:
+                            logger.info("saving {} {} {} {} {} as  {}".format(run_name, p, 
+                            flowcell, lane, sample, sample_status))
+                            db.save(obj)
+                            #print obj
 # Gets status for a specific flowcell
 def get_status(run_dir):
     status='Incoming'
@@ -134,7 +144,7 @@ def get_status(run_dir):
 def get_ss_projects(run_dir):
     proj_tree = Tree()
     proj_pattern=re.compile("(P[0-9]{3,5})_[0-9]{3,5}")
-    lane_pattern=re.compile("(^[A-H]?[1-8]{1,2})$")
+    lane_pattern=re.compile("^[A-H]([1-8]{1,2})$")
     sample_pattern=re.compile("(P[0-9]{3,5}_[0-9]{3,5})")
     run_name = os.path.basename(os.path.abspath(run_dir))
     current_year = '20' + run_name[0:2]
@@ -158,7 +168,7 @@ def get_ss_projects(run_dir):
                 FCID_samplesheet_origin = os.path.join(run_dir,'SampleSheet.csv')
                 if not os.path.exists(FCID_samplesheet_origin):
                     logger.warn("Cannot locate the samplesheet for run {}".format(run_dir))
-                    return []
+                    return ['UNKNOWN']
 
         ss_reader=SampleSheetParser(FCID_samplesheet_origin)
         if 'Description' in ss_reader.header and ss_reader.header['Description'] not in ['Production', 'Application']:
@@ -171,26 +181,29 @@ def get_ss_projects(run_dir):
         data=DictReader(csvf)
 
     for d in data:
+        proj, lane, sample = False
         for v in d.values():
             #if project is found
-            matches=proj_pattern.search(v)
-            if matches:
-                projects = matches.group(1)
-                newData = True
+            if proj_pattern.search(v):
+                projects = proj_pattern.search(v).group(1)
+                proj = True
             #if a lane is found
-            matches=lane_pattern.search(v)
-            if matches:
-                lanes = matches.group(1)
-                newData = True
+            elif lane_pattern.search(v):
+                #In miseq case, writes off a well hit as lane 1
+                lane_inner = re.compile("[A-H]")
+                if lane_inner.search(v):
+                    lanes = 1
+                else:
+                    lanes = lane_pattern.search(v).group(1)
+                lane = True
             #if a sample is found
-            matches=sample_pattern.search(v)
-            if matches:
-                samples = matches.group(1)
-                newData = True
+            elif sample_pattern.search(v):
+                samples = sample_pattern.search(v).group(1)
+                sample = True
          
         #Populates structure and adds FC  to sample status  
-        if newData == True and 'samples' in locals() and 'lanes' in locals():
+        if proj and lane and sample:
             proj_tree[projects][FCID][lanes][samples]
             proj_tree[projects][FCID][lanes][samples].value = get_status(run_dir)
-            newData = False
+            proj, lane, sample = False
     return proj_tree
