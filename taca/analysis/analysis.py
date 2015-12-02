@@ -128,17 +128,18 @@ def run_preprocessing(run, force_trasfer=True):
             #this is in case the methods are not yet implemented
             return None
         logger.info('Checking run {}'.format(run.id))
-        if run.get_run_type() == 'NON-NGI-RUN':
-            #For now MiSeq specific case. Process only NGI-run, skip all the others (PhD student runs)
-            logger.warn('Run {} marked as {}, TACA will skip this and move the run to no-sync directory'.format(run.id, run.get_run_type()))
-            run.archive_run(CONFIG['storage']['archive_dirs'][run.sequencer_type])
-            return None
         
         if run.get_run_status() == 'SEQUENCING':
             # Check status files and say i.e Run in second read, maybe something
             # even more specific like cycle or something
             logger.info('Run {} is not finished yet'.format(run.id))
         elif  run.get_run_status() == 'TO_START':
+            if run.get_run_type() == 'NON-NGI-RUN':
+                #For now MiSeq specific case. Process only NGI-run, skip all the others (PhD student runs)
+                logger.warn('Run {} marked as {}, TACA will skip this and move the run to no-sync directory'.format(run.id, run.get_run_type()))
+                run.archive_run(CONFIG['storage']['archive_dirs'][run.sequencer_type])
+                return None
+            #otherwhise it is fine, process it
             logger.info(("Starting BCL to FASTQ conversion and "
                              "demultiplexing for run {}".format(run.id)))
             run.demultiplex_run()
@@ -208,6 +209,8 @@ def run_preprocessing(run, force_trasfer=True):
             if not runs:
                 runs = glob.glob(os.path.join(data_dir, '1*000000000*'))
             for _run in runs:
+                import pdb
+                pdb.set_trace()
                 sequencer_type = _run_type(_run)
                 if sequencer_type is 'HiSeqX':
                     runObj = HiSeqX_Run(_run, CONFIG["analysis"]["HiSeqX"])
