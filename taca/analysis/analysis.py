@@ -209,8 +209,6 @@ def run_preprocessing(run, force_trasfer=True):
             if not runs:
                 runs = glob.glob(os.path.join(data_dir, '1*000000000*'))
             for _run in runs:
-                import pdb
-                pdb.set_trace()
                 sequencer_type = _run_type(_run)
                 if sequencer_type is 'HiSeqX':
                     runObj = HiSeqX_Run(_run, CONFIG["analysis"]["HiSeqX"])
