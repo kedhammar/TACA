@@ -364,14 +364,15 @@ class Run(object):
         already_seen=False
         runname=self.id
         shortrun=runname.split('_')[0] + '_' +runname.split('_')[-1]
+        QC_result = ""
         with open(qc_file, 'ab+') as f:
             f.seek(0)
             for row in f:
                 #Rows have two columns: run and transfer date
                 if row.split('\t')[0] == runname:
                     already_seen=True
+                    QC_result=row.split('\t')[1].rstrip()
         
-            QC_result = "PASSED"
             if not already_seen:
                 if status:
                     f.write("{}\tPASSED\n".format(runname))
