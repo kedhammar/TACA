@@ -156,13 +156,11 @@ def run_preprocessing(run, force_trasfer=True):
         # a cicle take the last if out of the elif
         t_file = os.path.join(CONFIG['analysis']['status_dir'], 'transfer.tsv')
         if run.get_run_status() == 'COMPLETED' and not run.is_transferred(t_file):
-            logger.info(("Preprocessing of run {} is finished, check if "
-                             "run has been transferred and transfer it "
-                             "otherwise".format(run.id)))
+            logger.info(("Preprocessing of run {} is finished, "
+                             "tranferring it".format(run.id)))
             #in the case of of HiSeq this function computes undetermined indexes for NoIndex lanes
             if not run.compute_undetermined():
                 return None
-            
             #otherwise I can procced to QC
             #check the run QC
             run_QC_status = run.check_QC()
@@ -172,18 +170,12 @@ def run_preprocessing(run, force_trasfer=True):
             run.post_qc(qc_file, run_QC_status, log_file=CONFIG['log']['file'], rcp=CONFIG['mail']['recipients'])
             #upload to statusDB
             _upload_to_statusdb(run)
-            #if QC is ok tranfer the run in th appropriate server
-            if run_QC_status or force_trasfer: #runs is not tranfer only it force_tranfer is False and QC_status false
-                #tranfer the run, specify desitnation and if analysis needs to be started on the server
-                logger.info("Run {} hasn't been transferred yet."
-                                .format(run.id))
-                logger.info('Transferring run {} to {} into {}'
-                                    .format(run.id,
-                                            run.CONFIG['analysis_server']['host'],
-                                            run.CONFIG['analysis_server']['sync']['data_archive']))
-                run.transfer_run(CONFIG['storage']['archive_dirs'][run.sequencer_type], t_file,  False) #do not trigger analysis
-            else:
-                logger.warn('Run {} failed qc, transferring will not take place'.format(run.id))
+            logger.info('Transferring run {} to {} into {}'
+                                .format(run.id,
+                                run.CONFIG['analysis_server']['host'],
+                                run.CONFIG['analysis_server']['sync']['data_archive']))
+            run.transfer_run(CONFIG['storage']['archive_dirs'][run.sequencer_type], t_file,  False) #do not trigger analysis
+            
         elif run.is_transferred(t_file):
             logger.info('Run {} already transferred to analysis server, skipping it'.format(run.id))
         return None

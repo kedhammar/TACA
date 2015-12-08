@@ -371,14 +371,15 @@ class Run(object):
                 #Rows have two columns: run and transfer date
                 if row.split('\t')[0] == runname:
                     already_seen=True
-                    QC_result=row.split('\t')[1].rstrip()
         
+            if status:
+                QC_result = "PASSED"
+            else:
+                QC_result = "FAILED"
+            
             if not already_seen:
-                if status:
-                    f.write("{}\tPASSED\n".format(runname))
-                else:
-                    f.write("{}\tFAILED\n".format(os.path.basename(self.id)))
-                    QC_result = "FAILED"
+                f.write("{}\t{}\n".format(runname,QC_result))
+                  
             
             sj="{} Demultiplexed".format(runname)
             cnt="""The run {run} has been demultiplexed and automatic QC took place.
