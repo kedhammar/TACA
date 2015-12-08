@@ -1,4 +1,3 @@
-
 import socket
 import os
 import couchdb
@@ -12,6 +11,7 @@ from taca.utils.config import CONFIG
 from flowcell_parser.classes import SampleSheetParser
 from collections import defaultdict
 from lib2to3.tests.support import proj_dir
+from taca.utils.misc import send_mail, hours_old
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,8 @@ def setupServer(conf):
     url="http://{0}:{1}@{2}:{3}".format(db_conf['username'], db_conf['password'], db_conf['url'], db_conf['port'])
     return couchdb.Server(url)
 
-#Constructor for a search tree
+"""Constructor for a search tree
+"""
 class Tree(defaultdict):
     def __init__(self, value=None):
         super(Tree, self).__init__(Tree)
@@ -40,7 +41,8 @@ def merge(d1, d2):
             d1[key] = d2[key]
     return d1
 
-# Update command
+"""Update command
+"""
 def collect_runs():
     found_runs=[]
     rundir_re=re.compile("^[0-9]{6}_[A-Z0-9\-]+_[0-9]{4}_[A-Z0-9\-]{10,16}$")
@@ -50,97 +52,99 @@ def collect_runs():
             for run_dir in potential_run_dirs:
                 if rundir_re.match(os.path.basename(os.path.abspath(run_dir))) and os.path.isdir(run_dir):
                     found_runs.append(os.path.basename(run_dir))
-                    logger.info("Working on {}".format(run_dir))        
+                    logger.info("Working on {}".format(run_dir))   
+                    #updates run status     
                     update_statusdb(run_dir)
-        #no check the nosync
         nosync_data_dir = os.path.join(data_dir, "nosync")
         potential_nosync_run_dirs=glob.glob(os.path.join(nosync_data_dir, '*'))
+        #wades through nosync directories
         for run_dir in potential_nosync_run_dirs:
              if rundir_re.match(os.path.basename(os.path.abspath(run_dir))) and os.path.isdir(run_dir):
                 #update the run status
                 update_statusdb(run_dir)
     
 
-# Updaterun command
-# Gets status for a project
+""" Gets status for a project
+"""
 def update_statusdb(run_dir):
     #fetch individual fields
     project_info=get_ss_projects(run_dir)
-    run_name = os.path.basename(os.path.abspath(run_dir))
+    run_id = os.path.basename(os.path.abspath(run_dir))
     
     couch=setupServer(CONFIG)
     valueskey=datetime.datetime.now().isoformat()
     db=couch['bioinfo_analysis']
     view = db.view('full_doc/pj_run_to_doc')
     #Construction and sending of individual records
-    for p in project_info:
-        if p == 'UNKNOWN':
-            obj={'run_id':run_name}
-            logger.info("INVALID SAMPLESHEET, CHECK {} FORMED AT {}".format(run_name, valueskey))
+    for flowcell in project_info:
+        if flowcell == 'UNKNOWN':
+            #At some point, remove this and rely only on the email function
+            obj={'run_id':run_id, 'project_id':'ERROR_Samplesheet'}
+            logger.info("INVALID SAMPLESHEET, CHECK {} FORMED AT {}".format(run_id, valueskey))
+            error_emailer('no_samplesheet', run_id)
             db.save(obj)
-            #print obj
         else:
-            for flowcell in project_info[p]:
-                for lane in project_info[p][flowcell]:
-                    for sample in project_info[p][flowcell][lane]:
-                        sample_status = project_info[p][flowcell][lane][sample].value
+            for lane in project_info[flowcell]:
+                for sample in project_info[flowcell][lane]:
+                    for project in project_info[flowcell][lane][sample]:
+                        project_info[flowcell][lane][sample].value = get_status(run_dir)
+                        sample_status = project_info[flowcell][lane][sample].value
                         
-                        obj={'run_id':run_name, 'project_id':p, 'flowcell': flowcell, 'lane': lane, 
-                             'sample':sample, 'values':{valueskey:{'user':'taca','sample_status':sample_status}} }
-                        if len(view[[p, flowcell, lane, sample]].rows) == 1:
-                            remote_doc= view[[p, flowcell, lane, sample]].rows[0].value
+                        obj={'run_id':run_id, 'project_id':project, 'flowcell': flowcell, 'lane': lane, 
+                             'sample':sample, 'status':sample_status, 'values':{valueskey:{'user':'taca','sample_status':sample_status}} }
+                        #If entry exists, append to existing
+                        if len(view[[project, flowcell, lane, sample]].rows) == 1:
+                            remote_doc= view[[project, flowcell, lane, sample]].rows[0].value
                             remote_status=remote_doc["sample_status"]
-                            if remote_status in ['Incoming', 'Sequencing Done', 'Demultiplexing', 'Demultiplexed', 'Transferring']:
+                            #Only updates the listed statuses
+                            
+                            if remote_status in ['Sequencing', 'Demultiplexing', 'QC-Failed', 'BP-Failed', 'Failed']:
                                 final_obj=merge(obj, remote_doc)
-                                logger.info("saving {} {} {} {} {} as  {}".format(run_name, p, 
+                                logger.info("saving {} {} {} {} {} as  {}".format(run_id, project, 
                                 flowcell, lane, sample, sample_status))
+                                #updates record
                                 db.save(final_obj)
-                                #print obj
+                        #Creates new entry
                         else:
-                            logger.info("saving {} {} {} {} {} as  {}".format(run_name, p, 
+                            logger.info("saving {} {} {} {} {} as  {}".format(run_id, project, 
                             flowcell, lane, sample, sample_status))
+                            #creates record
                             db.save(obj)
-                            #print obj
-# Gets status for a specific flowcell
-def get_status(run_dir):
-    status='Incoming'
-
+                        #Sets FC value
+                        if not project_info[flowcell].value == None:
+                            if (("Failed" in project_info[flowcell].value and "Failed" not in sample_status)
+                             or ("Failed" in sample_status and "Failed" not in project_info[flowcell].value)): 
+                                project_info[flowcell].value = 'Ambiguous' 
+                            else:
+                                project_info[flowcell].value = sample_status
+            #Checks if a flowcell needs partial re-doing
+            #Email error per flowcell
+            if not project_info[flowcell].value == None:
+                if 'Ambiguous' in project_info[flowcell].value:    
+                    error_emailer('failed_run', run_name) 
+""" Gets status of a sample run, based on flowcell info (folder structure)
+"""
+def get_status(run_dir):    
+    #default state, should never occur
+    status = 'ERROR'
     run_name = os.path.basename(os.path.abspath(run_dir))
     xten_dmux_folder=os.path.join(run_dir, 'Demultiplexing')
-    xten_dmux_stats=os.path.join(xten_dmux_folder, 'Stats', 'DemultiplexingStats.xml')
     unaligned_folder=glob.glob(os.path.join(run_dir, 'Unaligned_*'))
-    unaligned_dmux_stats=glob.glob(os.path.join(run_dir, 'Unaligned_*', 'Basecall_Stats_*', 'Demultiplexing_Stats.htm'))
-    taca_transfer=os.path.join(CONFIG['analysis']['status_dir'], 'transfer.tsv')
-    old_transfer=CONFIG['bioinfo_tab']['b5_transfer']
-
-    if os.path.exists(os.path.join(run_dir, 'RTAComplete.txt')):
-        status='Sequencing Done'
-    if os.path.exists(xten_dmux_folder) or unaligned_folder:
-        status="Demultiplexing"
-    if os.path.exists(xten_dmux_stats) or unaligned_dmux_stats:
-        status='Demultiplexed'
-    if os.path.exists(os.path.join(run_dir, 'transferring')):
-        status='Transferring'
-
-    if os.path.exists(taca_transfer):
-        with open(taca_transfer) as t_file:
-            for line in t_file:
-                if run_name in line:
-                    status='Ongoing'
-
-    if os.path.exists(old_transfer):
-        with open(old_transfer) as t_file:
-            for line in t_file:
-                if run_name in line:
-                    elements=line.split("\s")
-                    if len(elements)==2:
-                        status='Transferring'
-                    else:
-                        status='Ongoing'
-
+    nosync_pattern = re.compile("nosync")
+    
+    #If we're in a nosync folder
+    if nosync_pattern.search(run_dir):
+        status = 'New'
+    #If demux folder exist (or similar)
+    elif (os.path.exists(xten_dmux_folder) or unaligned_folder):
+        status = 'Demultiplexing'
+    #If RTAcomplete doesn't exist
+    elif not (os.path.exists(os.path.join(run_dir, 'RTAComplete.txt'))):
+        status = 'Sequencing'
     return status
 
-#Returns project, FC, lane & sample (sample-run) status for a given folder
+"""Fetches project, FC, lane & sample (sample-run) status for a given folder
+"""
 def get_ss_projects(run_dir):
     proj_tree = Tree()
     proj_pattern=re.compile("(P[0-9]{3,5})_[0-9]{3,5}")
@@ -201,10 +205,37 @@ def get_ss_projects(run_dir):
                     lanes = lane_pattern.search(v).group(1)
                 lane = True
          
-        #Populates structure and adds FC  to sample status  
+        #Populates structure
         if proj_n_sample and lane:
-            proj_tree[projects][FCID][lanes][samples]
-            proj_tree[projects][FCID][lanes][samples].value = get_status(run_dir)
+            proj_tree[FCID][lanes][samples][projects]
             proj_n_sample = False
             lane = False
     return proj_tree
+
+"""Sends a custom error e-mail
+    :param flag e-mail state
+    :param info variable that describes the record in some way
+"""
+def error_emailer(flag, info):
+    recipients = CONFIG['mail']['recipients']
+    
+    #no_samplesheet: A run was moved back due to QC/BP-Fail. Some samples still passed
+    #failed_run: Samplesheet for a given project couldn't be found
+    
+    body='Whazzup! TACA is behaving mad whack yo!\n'
+    body+='The playa disrespectin us is: '
+    body+= info
+    body+='\nBring down the hammer on tha fool. \n\nREPRESENT!\n'
+
+    if (flag == 'no_samplesheet'):
+        subject='ERROR, Samplesheet error'
+    elif (flag == "failed_run"):
+        subject='WARNING, Reinitialization of partially failed FC'
+       
+    hourNow = datetime.datetime.now().hour 
+    if hourNow == 7 or hourNow == 12 or hourNow == 16:
+        send_mail(subject, body, recipients)
+    
+
+    
+    
