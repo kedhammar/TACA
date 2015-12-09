@@ -322,7 +322,7 @@ class HiSeq_Run(Run):
         ssparser = SampleSheetParser(ssname)
         #Copy the original samplesheet locally. Copy again if already done as there might have been changes to the samplesheet
         try:
-            shutil.copy(ssname, self.run_dir)
+            shutil.copy(ssname, os.path.join(self.run_dir, "{}.csv".format(self.flowcell_id)))
             ssname = os.path.join(self.run_dir, os.path.split(ssname)[1])
         except:
             raise RuntimeError("unable to copy file {} to destination {}".format(ssname, self.run_dir))

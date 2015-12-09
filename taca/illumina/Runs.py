@@ -269,6 +269,7 @@ class Run(object):
         command_line.append('--chmod=g+rw')
         # rsync works in a really funny way, if you don't understand this, refer to
         # this note: http://silentorbit.com/notes/2013/08/rsync-by-extension/
+        command_line.append("--exclude=Demultiplexing_*/*_*") # this orible things here avoids data dup when we use multiple indexes in a lane/FC
         command_line.append("--include=*/")
         for to_include in self.CONFIG['analysis_server']['sync']['include']:
             command_line.append("--include={}".format(to_include))
@@ -363,6 +364,7 @@ class Run(object):
         already_seen=False
         runname=self.id
         shortrun=runname.split('_')[0] + '_' +runname.split('_')[-1]
+        QC_result = ""
         with open(qc_file, 'ab+') as f:
             f.seek(0)
             for row in f:
@@ -370,13 +372,14 @@ class Run(object):
                 if row.split('\t')[0] == runname:
                     already_seen=True
         
-            QC_result = "PASSED"
+            if status:
+                QC_result = "PASSED"
+            else:
+                QC_result = "FAILED"
+            
             if not already_seen:
-                if status:
-                    f.write("{}\tPASSED\n".format(runname))
-                else:
-                    f.write("{}\tFAILED\n".format(os.path.basename(self.id)))
-                    QC_result = "FAILED"
+                f.write("{}\t{}\n".format(runname,QC_result))
+                  
             
             sj="{} Demultiplexed".format(runname)
             cnt="""The run {run} has been demultiplexed and automatic QC took place.

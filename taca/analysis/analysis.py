@@ -128,17 +128,18 @@ def run_preprocessing(run, force_trasfer=True):
             #this is in case the methods are not yet implemented
             return None
         logger.info('Checking run {}'.format(run.id))
-        if run.get_run_type() == 'NON-NGI-RUN':
-            #For now MiSeq specific case. Process only NGI-run, skip all the others (PhD student runs)
-            logger.warn('Run {} marked as {}, TACA will skip this and move the run to no-sync directory'.format(run.id, run.get_run_type()))
-            run.archive_run(CONFIG['storage']['archive_dirs'][run.sequencer_type])
-            return None
         
         if run.get_run_status() == 'SEQUENCING':
             # Check status files and say i.e Run in second read, maybe something
             # even more specific like cycle or something
             logger.info('Run {} is not finished yet'.format(run.id))
         elif  run.get_run_status() == 'TO_START':
+            if run.get_run_type() == 'NON-NGI-RUN':
+                #For now MiSeq specific case. Process only NGI-run, skip all the others (PhD student runs)
+                logger.warn('Run {} marked as {}, TACA will skip this and move the run to no-sync directory'.format(run.id, run.get_run_type()))
+                run.archive_run(CONFIG['storage']['archive_dirs'][run.sequencer_type])
+                return None
+            #otherwhise it is fine, process it
             logger.info(("Starting BCL to FASTQ conversion and "
                              "demultiplexing for run {}".format(run.id)))
             run.demultiplex_run()
@@ -155,13 +156,11 @@ def run_preprocessing(run, force_trasfer=True):
         # a cicle take the last if out of the elif
         t_file = os.path.join(CONFIG['analysis']['status_dir'], 'transfer.tsv')
         if run.get_run_status() == 'COMPLETED' and not run.is_transferred(t_file):
-            logger.info(("Preprocessing of run {} is finished, check if "
-                             "run has been transferred and transfer it "
-                             "otherwise".format(run.id)))
+            logger.info(("Preprocessing of run {} is finished, "
+                             "tranferring it".format(run.id)))
             #in the case of of HiSeq this function computes undetermined indexes for NoIndex lanes
             if not run.compute_undetermined():
                 return None
-            
             #otherwise I can procced to QC
             #check the run QC
             run_QC_status = run.check_QC()
@@ -171,18 +170,12 @@ def run_preprocessing(run, force_trasfer=True):
             run.post_qc(qc_file, run_QC_status, log_file=CONFIG['log']['file'], rcp=CONFIG['mail']['recipients'])
             #upload to statusDB
             _upload_to_statusdb(run)
-            #if QC is ok tranfer the run in th appropriate server
-            if run_QC_status or force_trasfer: #runs is not tranfer only it force_tranfer is False and QC_status false
-                #tranfer the run, specify desitnation and if analysis needs to be started on the server
-                logger.info("Run {} hasn't been transferred yet."
-                                .format(run.id))
-                logger.info('Transferring run {} to {} into {}'
-                                    .format(run.id,
-                                            run.CONFIG['analysis_server']['host'],
-                                            run.CONFIG['analysis_server']['sync']['data_archive']))
-                run.transfer_run(CONFIG['storage']['archive_dirs'][run.sequencer_type], t_file,  False) #do not trigger analysis
-            else:
-                logger.warn('Run {} failed qc, transferring will not take place'.format(run.id))
+            logger.info('Transferring run {} to {} into {}'
+                                .format(run.id,
+                                run.CONFIG['analysis_server']['host'],
+                                run.CONFIG['analysis_server']['sync']['data_archive']))
+            run.transfer_run(CONFIG['storage']['archive_dirs'][run.sequencer_type], t_file,  False) #do not trigger analysis
+            
         elif run.is_transferred(t_file):
             logger.info('Run {} already transferred to analysis server, skipping it'.format(run.id))
         return None
