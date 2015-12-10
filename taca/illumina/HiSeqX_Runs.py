@@ -128,7 +128,6 @@ class HiSeqX_Run(Run):
 
 
     def check_QC(self):
-        #TODO rewrite this using Illumina computed Undetermined files
         run_dir = self.run_dir
         dmux_folder = self.demux_dir
 
@@ -168,8 +167,9 @@ class HiSeqX_Run(Run):
             max_frequency_most_represented_und  = max_frequency_most_represented_und_index_pooled_lane
             #distinguish the case between Pooled and Unpooled lanes, for unpooled lanes rename the Undetemriend file
             if self.is_unpooled_lane(lane):
+                ##DO NOT ADD UNDET BY DEFAULT TO SAMPLES
                 #rename undetermiend, in this way PIPER will be able to use them
-                self._rename_undet(lane, samples_per_lane)
+                ##self._rename_undet(lane, samples_per_lane)
                 max_percentage_undetermined_indexes = max_percentage_undetermined_indexes_unpooled_lane
                 max_frequency_most_represented_und  = max_frequency_most_represented_und_index_unpooled_lane
                 logger.info("linking undetermined lane {} to sample".format(lane))
