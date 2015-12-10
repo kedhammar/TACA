@@ -10,8 +10,7 @@ from csv import DictReader
 from taca.utils.config import CONFIG
 from flowcell_parser.classes import SampleSheetParser
 from collections import defaultdict
-from lib2to3.tests.support import proj_dir
-from taca.utils.misc import send_mail, hours_old
+from taca.utils.misc import send_mail
 
 logger = logging.getLogger(__name__)
 
