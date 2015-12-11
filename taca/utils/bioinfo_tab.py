@@ -221,10 +221,10 @@ def error_emailer(flag, info):
     #no_samplesheet: A run was moved back due to QC/BP-Fail. Some samples still passed
     #failed_run: Samplesheet for a given project couldn't be found
     
-    body='Whazzup! TACA is behaving mad whack yo!\n'
-    body+='The playa disrespectin us is: '
+    body='TACA has encountered an issue that might be worth investigating\n'
+    body+='The offending entry is: '
     body+= info
-    body+='\nBring down the hammer on tha fool. \n\nREPRESENT!\n'
+    body+='\n\nSincerely, TACA'
 
     if (flag == 'no_samplesheet'):
         subject='ERROR, Samplesheet error'
