@@ -169,8 +169,9 @@ class HiSeqX_Run(Run):
             if self.is_unpooled_lane(lane):
                 ##DO NOT ADD UNDET BY DEFAULT TO SAMPLES
                 #rename undetermiend, in this way PIPER will be able to use them
-                ##self._rename_undet(lane, samples_per_lane)
+                self._rename_undet(lane, samples_per_lane)
                 ##logger.info("linking undetermined lane {} to sample".format(lane))
+                ##but do not soft link them
                 #misc.link_undet_to_sample(run_dir, dmux_folder, lane, path_per_lane)
                 max_percentage_undetermined_indexes = max_percentage_undetermined_indexes_unpooled_lane
                 max_frequency_most_represented_und  = max_frequency_most_represented_und_index_unpooled_lane
