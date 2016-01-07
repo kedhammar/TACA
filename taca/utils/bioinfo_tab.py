@@ -92,11 +92,10 @@ def update_statusdb(run_dir):
                         obj={'run_id':run_id, 'project_id':project, 'flowcell': flowcell, 'lane': lane, 
                              'sample':sample, 'status':sample_status, 'values':{valueskey:{'user':'taca','sample_status':sample_status}} }
                         #If entry exists, append to existing
-                        if len(view[[project, flowcell, lane, sample]].rows) == 1:
+                        if len(view[[project, flowcell, lane, sample]].rows) >= 1:
                             remote_doc= view[[project, flowcell, lane, sample]].rows[0].value
                             remote_status=remote_doc["sample_status"]
                             #Only updates the listed statuses
-                            
                             if remote_status in ['Sequencing', 'Demultiplexing', 'QC-Failed', 'BP-Failed', 'Failed']:
                                 final_obj=merge(obj, remote_doc)
                                 logger.info("saving {} {} {} {} {} as  {}".format(run_id, project, 
@@ -109,7 +108,7 @@ def update_statusdb(run_dir):
                             flowcell, lane, sample, sample_status))
                             #creates record
                             db.save(obj)
-                        #Sets FC value
+                        #Sets FC error flag
                         if not project_info[flowcell].value == None:
                             if (("Failed" in project_info[flowcell].value and "Failed" not in sample_status)
                              or ("Failed" in sample_status and "Failed" not in project_info[flowcell].value)): 
