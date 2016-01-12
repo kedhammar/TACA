@@ -118,6 +118,7 @@ def run_preprocessing(run, force_trasfer=True):
     :param str run: Process a particular run instead of looking for runs
     :param bool force_tranfer: if set to True the FC is tranferred also if fails QC
     """
+  
 
     def _process(run, force_trasfer):
         """Process a run/flowcell and transfer to analysis server
@@ -128,6 +129,13 @@ def run_preprocessing(run, force_trasfer=True):
             #this is in case the methods are not yet implemented
             return None
         logger.info('Checking run {}'.format(run.id))
+        
+        t_file = os.path.join(CONFIG['analysis']['status_dir'], 'transfer.tsv')
+        if run.is_transferred(t_file):
+            #in this case I am either processing a run that is in tranfer or that has been already tranferred. Do nothing.
+            #time to time this situation is due to runs that are copied back from NAS after a reboot. This check avoid faiulures
+            logger.info('Run {} already transferred to analysis server, skipping it'.format(run.id))
+            return None
         
         if run.get_run_status() == 'SEQUENCING':
             # Check status files and say i.e Run in second read, maybe something
@@ -154,8 +162,7 @@ def run_preprocessing(run, force_trasfer=True):
 
         # previous elif might change the status to COMPLETED (in HiSeq), therefore to avoid skip
         # a cicle take the last if out of the elif
-        t_file = os.path.join(CONFIG['analysis']['status_dir'], 'transfer.tsv')
-        if run.get_run_status() == 'COMPLETED' and not run.is_transferred(t_file):
+        if run.get_run_status() == 'COMPLETED':
             logger.info(("Preprocessing of run {} is finished, "
                              "tranferring it".format(run.id)))
             #in the case of of HiSeq this function computes undetermined indexes for NoIndex lanes
@@ -176,10 +183,7 @@ def run_preprocessing(run, force_trasfer=True):
                                 run.CONFIG['analysis_server']['sync']['data_archive']))
             run.transfer_run(CONFIG['storage']['archive_dirs'][run.sequencer_type], t_file,  False) #do not trigger analysis
             
-        elif run.is_transferred(t_file):
-            logger.info('Run {} already transferred to analysis server, skipping it'.format(run.id))
         return None
-
 
     if run:
         #needs to guess what run type I have (HiSeq, MiSeq, HiSeqX)
