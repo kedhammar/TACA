@@ -73,7 +73,7 @@ def update_statusdb(run_dir):
     couch=setupServer(CONFIG)
     valueskey=datetime.datetime.now().isoformat()
     db=couch['bioinfo_analysis']
-    view = db.view('full_doc/pj_run_to_doc')
+    view = db.view('latest_data/sample_id')
     #Construction and sending of individual records
     for flowcell in project_info:
         if flowcell == 'UNKNOWN':
@@ -101,6 +101,7 @@ def update_statusdb(run_dir):
                                 logger.info("saving {} {} {} {} {} as  {}".format(run_id, project, 
                                 flowcell, lane, sample, sample_status))
                                 #updates record
+                                print sample
                                 db.save(final_obj)
                         #Creates new entry
                         else:
