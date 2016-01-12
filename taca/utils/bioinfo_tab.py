@@ -101,7 +101,6 @@ def update_statusdb(run_dir):
                                 logger.info("saving {} {} {} {} {} as  {}".format(run_id, project, 
                                 flowcell, lane, sample, sample_status))
                                 #updates record
-                                print sample
                                 db.save(final_obj)
                         #Creates new entry
                         else:
