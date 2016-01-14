@@ -5,6 +5,7 @@ import glob
 import re
 import logging
 import datetime
+import pdb
 
 from csv import DictReader
 from taca.utils.config import CONFIG
@@ -69,7 +70,6 @@ def update_statusdb(run_dir):
     #fetch individual fields
     project_info=get_ss_projects(run_dir)
     run_id = os.path.basename(os.path.abspath(run_dir))
-    
     couch=setupServer(CONFIG)
     valueskey=datetime.datetime.now().isoformat()
     db=couch['bioinfo_analysis']
@@ -88,7 +88,6 @@ def update_statusdb(run_dir):
                     for project in project_info[flowcell][lane][sample]:
                         project_info[flowcell][lane][sample].value = get_status(run_dir)
                         sample_status = project_info[flowcell][lane][sample].value
-                        
                         obj={'run_id':run_id, 'project_id':project, 'flowcell': flowcell, 'lane': lane, 
                              'sample':sample, 'status':sample_status, 'values':{valueskey:{'user':'taca','sample_status':sample_status}} }
                         #If entry exists, append to existing
@@ -146,7 +145,7 @@ def get_status(run_dir):
 def get_ss_projects(run_dir):
     proj_tree = Tree()
     proj_pattern=re.compile("(P[0-9]{3,5})_[0-9]{3,5}")
-    lane_pattern=re.compile("^[A-H]([1-8]{1,2})$")
+    lane_pattern=re.compile("^([1-8]{1,2})$")
     sample_pattern=re.compile("(P[0-9]{3,5}_[0-9]{3,5})")
     run_name = os.path.basename(os.path.abspath(run_dir))
     current_year = '20' + run_name[0:2]
@@ -159,6 +158,7 @@ def get_ss_projects(run_dir):
     hiseq_samplesheets_dir = os.path.join(CONFIG['bioinfo_tab']['hiseq_samplesheets'],
                                     current_year)
     FCID_samplesheet_origin = os.path.join(hiseq_samplesheets_dir, '{}.csv'.format(FCID))
+    lane_pattern=re.compile("^([1-8]{1,2})$")
     #if it is not hiseq
     if not os.path.exists(FCID_samplesheet_origin):
         FCID_samplesheet_origin = os.path.join(xten_samplesheets_dir, '{}.csv'.format(FCID))
@@ -166,6 +166,7 @@ def get_ss_projects(run_dir):
         if not os.path.exists(FCID_samplesheet_origin):
             #if it is miseq
             FCID_samplesheet_origin = os.path.join(run_dir,'Data','Intensities','BaseCalls', 'SampleSheet.csv')
+            lane_pattern=re.compile("^[A-H]([1-8]{1,2})$")
             if not os.path.exists(FCID_samplesheet_origin):
                 FCID_samplesheet_origin = os.path.join(run_dir,'SampleSheet.csv')
                 if not os.path.exists(FCID_samplesheet_origin):
