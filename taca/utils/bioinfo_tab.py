@@ -5,7 +5,6 @@ import glob
 import re
 import logging
 import datetime
-import pdb
 
 from csv import DictReader
 from taca.utils.config import CONFIG
