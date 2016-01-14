@@ -157,7 +157,6 @@ def get_ss_projects(run_dir):
     hiseq_samplesheets_dir = os.path.join(CONFIG['bioinfo_tab']['hiseq_samplesheets'],
                                     current_year)
     FCID_samplesheet_origin = os.path.join(hiseq_samplesheets_dir, '{}.csv'.format(FCID))
-    lane_pattern=re.compile("^([1-8]{1,2})$")
     #if it is not hiseq
     if not os.path.exists(FCID_samplesheet_origin):
         FCID_samplesheet_origin = os.path.join(xten_samplesheets_dir, '{}.csv'.format(FCID))
