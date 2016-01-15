@@ -69,7 +69,6 @@ def update_statusdb(run_dir):
     #fetch individual fields
     project_info=get_ss_projects(run_dir)
     run_id = os.path.basename(os.path.abspath(run_dir))
-    
     couch=setupServer(CONFIG)
     valueskey=datetime.datetime.now().isoformat()
     db=couch['bioinfo_analysis']
@@ -88,7 +87,6 @@ def update_statusdb(run_dir):
                     for project in project_info[flowcell][lane][sample]:
                         project_info[flowcell][lane][sample].value = get_status(run_dir)
                         sample_status = project_info[flowcell][lane][sample].value
-                        
                         obj={'run_id':run_id, 'project_id':project, 'flowcell': flowcell, 'lane': lane, 
                              'sample':sample, 'status':sample_status, 'values':{valueskey:{'user':'taca','sample_status':sample_status}} }
                         #If entry exists, append to existing
@@ -145,9 +143,10 @@ def get_status(run_dir):
 """
 def get_ss_projects(run_dir):
     proj_tree = Tree()
-    proj_pattern=re.compile("(P[0-9]{3,5})_[0-9]{3,5}")
-    lane_pattern=re.compile("^[A-H]([1-8]{1,2})$")
-    sample_pattern=re.compile("(P[0-9]{3,5}_[0-9]{3,5})")
+    proj_pattern=re.compile("(P[0-9]{3,5})")
+    #Make miseq well bit more explicit
+    lane_pattern=re.compile("^([1-8]{1,2})$")
+    sample_proj_pattern=re.compile("((P[0-9]{3,5})_[0-9]{3,5})")
     run_name = os.path.basename(os.path.abspath(run_dir))
     current_year = '20' + run_name[0:2]
     run_name_components = run_name.split("_")
@@ -166,6 +165,7 @@ def get_ss_projects(run_dir):
         if not os.path.exists(FCID_samplesheet_origin):
             #if it is miseq
             FCID_samplesheet_origin = os.path.join(run_dir,'Data','Intensities','BaseCalls', 'SampleSheet.csv')
+            lane_pattern=re.compile("^[A-H]([1-8]{1,2})$")
             if not os.path.exists(FCID_samplesheet_origin):
                 FCID_samplesheet_origin = os.path.join(run_dir,'SampleSheet.csv')
                 if not os.path.exists(FCID_samplesheet_origin):
@@ -181,21 +181,20 @@ def get_ss_projects(run_dir):
     else:
         csvf=open(FCID_samplesheet_origin, 'rU')
         data=DictReader(csvf)
-
     proj_n_sample = False
     lane = False
     for d in data:
         for v in d.values():
-            #if project is found
-            if proj_pattern.search(v):
-                projects = proj_pattern.search(v).group(1)
-                #sample is also found
-                samples = sample_pattern.search(v).group(1)
+            #if sample is found
+            if sample_proj_pattern.search(v):
+                samples = sample_proj_pattern.search(v).group(1)
+                #project is also found
+                projects = sample_proj_pattern.search(v).group(2)
                 proj_n_sample = True
                 
             #if a lane is found
             elif lane_pattern.search(v):
-                #In miseq case, writes off a well hit as lane 1
+                #In miseq case, FC only has 1 lane
                 lane_inner = re.compile("[A-H]")
                 if lane_inner.search(v):
                     lanes = 1
