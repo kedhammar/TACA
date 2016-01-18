@@ -9,7 +9,7 @@ import datetime
 from csv import DictReader
 from taca.utils.config import CONFIG
 from flowcell_parser.classes import SampleSheetParser
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 from taca.utils.misc import send_mail
 
 logger = logging.getLogger(__name__)
@@ -25,20 +25,6 @@ class Tree(defaultdict):
     def __init__(self, value=None):
         super(Tree, self).__init__(Tree)
         self.value = value
-
-def merge(d1, d2):
-    """ Will merge dictionary d2 into dictionary d1.
-    On the case of finding the same key, the one in d1 will be used.
-    :param d1: Dictionary object
-    :param d2: Dictionary object
-    """
-    for key in d2:
-        if key in d1:
-            if isinstance(d1[key], dict) and isinstance(d2[key], dict):
-                merge(d1[key], d2[key])
-        else:
-            d1[key] = d2[key]
-    return d1
 
 """Update command
 """
@@ -91,18 +77,25 @@ def update_statusdb(run_dir):
                              'sample':sample, 'status':sample_status, 'values':{valueskey:{'user':'taca','sample_status':sample_status}} }
                         #If entry exists, append to existing
                         if len(view[[project, flowcell, lane, sample]].rows) >= 1:
-                            remote_doc= view[[project, flowcell, lane, sample]].rows[0].value
-                            remote_status=remote_doc["sample_status"]
+                            remote_id = view[[project, flowcell, lane, sample]].rows[0].id
+                            remote_doc = db[remote_id]['values']
+                            remote_status = db[remote_id]['status']
                             #Only updates the listed statuses
                             if remote_status in ['Sequencing', 'Demultiplexing', 'QC-Failed', 'BP-Failed', 'Failed']:
-                                final_obj=merge(obj, remote_doc)
-                                logger.info("saving {} {} {} {} {} as  {}".format(run_id, project, 
+                                #Appends old entry to new. Essentially merges the two
+                                for k, v in remote_doc.items():
+                                    obj['values'][k] = v
+                                logger.info("Updating {} {} {} {} {} as {}".format(run_id, project, 
                                 flowcell, lane, sample, sample_status))
-                                #updates record
-                                db.save(final_obj)
+                                #Sorts timestamps
+                                obj['values'] = OrderedDict(sorted(obj['values'].iteritems(),key=lambda (k,v): k,reverse=True))
+                                #Update record cluster
+                                obj['_rev'] = db[remote_id].rev
+                                obj['_id'] = remote_id
+                                db.save(obj)
                         #Creates new entry
                         else:
-                            logger.info("saving {} {} {} {} {} as  {}".format(run_id, project, 
+                            logger.info("Creating {} {} {} {} {} as {}".format(run_id, project, 
                             flowcell, lane, sample, sample_status))
                             #creates record
                             db.save(obj)
