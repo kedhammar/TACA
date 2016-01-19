@@ -30,7 +30,7 @@ class Tree(defaultdict):
 """
 def collect_runs():
     found_runs=[]
-    rundir_re=re.compile("^[0-9]{6}_[A-Z0-9\-]+_[0-9]{4}_[A-Z0-9\-]{10,16}$")
+    rundir_re = re.compile("\d{6}_[ST-]*\w+\d+_\d+_[AB]?[A-Z0-9\-]+")
     for data_dir in CONFIG['bioinfo_tab']['data_dirs']:
         if os.path.exists(data_dir):
             potential_run_dirs=glob.glob(os.path.join(data_dir, '*'))
@@ -44,11 +44,9 @@ def collect_runs():
         potential_nosync_run_dirs=glob.glob(os.path.join(nosync_data_dir, '*'))
         #wades through nosync directories
         for run_dir in potential_nosync_run_dirs:
-             if rundir_re.match(os.path.basename(os.path.abspath(run_dir))) and os.path.isdir(run_dir):
+            if rundir_re.match(os.path.basename(os.path.abspath(run_dir))) and os.path.isdir(run_dir):
                 #update the run status
                 update_statusdb(run_dir)
-    
-
 """ Gets status for a project
 """
 def update_statusdb(run_dir):
