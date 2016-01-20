@@ -226,7 +226,7 @@ class HiSeqX_Run(Run):
         if len(undetermined_lane_stats) > 1:
             logger.error("Something wrong in check_undetermined_reads, found more than one undetermined sample in one lane")
             return False
-        if len(undetermined_lane_stats) == 0:
+        elif len(undetermined_lane_stats) == 0:
             #NoIndex case
             undetermined_total = 0
             percentage_und     = 0
@@ -267,7 +267,7 @@ class HiSeqX_Run(Run):
         if len(undetermined_lane_stats) > 1:
             logger.error("Something wrong in check_undetermined_reads, found more than one undetermined sample in one lane")
             return False
-        if len(undetermined_lane_stats) == 0:
+        elif len(undetermined_lane_stats) == 0:
             #NoIndex case
             freq_most_occuring_undet_index = 0
         else:
