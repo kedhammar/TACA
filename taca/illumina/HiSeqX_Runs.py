@@ -221,11 +221,20 @@ class HiSeqX_Run(Run):
         #I do not need to parse undetermined here, I can use the the lanes object to fetch unknown
         sample_lanes = self.runParserObj.lanebarcodes
         undetermined_lane_stats = [item for item in sample_lanes.sample_data if item["Lane"]==lane and item["Sample"]=="Undetermined"]
+        undetermined_total = 0
+        percentage_und     = 0
         if len(undetermined_lane_stats) > 1:
             logger.error("Something wrong in check_undetermined_reads, found more than one undetermined sample in one lane")
             return False
-        undetermined_total = int(undetermined_lane_stats[0]['PF Clusters'].replace(',',''))
-        percentage_und = (undetermined_total/float(lane_yield))*100
+        if len(undetermined_lane_stats) == 0:
+            #NoIndex case
+            undetermined_total = 0
+            percentage_und     = 0
+        else:
+            #normal case
+            undetermined_total = int(undetermined_lane_stats[0]['PF Clusters'].replace(',',''))
+            percentage_und = (undetermined_total/float(lane_yield))*100
+        
         if  percentage_und > freq_tresh:
             logger.warn("The undetermined indexes account for {}% of lane {}, "
                         "which is over the threshold of {}%".format(percentage_und, lane, freq_tresh))
@@ -254,12 +263,17 @@ class HiSeqX_Run(Run):
         #compute the total amount of undetermined reads
         sample_lanes = self.runParserObj.lanebarcodes
         undetermined_lane_stats = [item for item in sample_lanes.sample_data if item["Lane"]==lane and item["Sample"]=="Undetermined"]
+        freq_most_occuring_undet_index = 0
         if len(undetermined_lane_stats) > 1:
             logger.error("Something wrong in check_undetermined_reads, found more than one undetermined sample in one lane")
             return False
-        undetermined_total = int(undetermined_lane_stats[0]['PF Clusters'].replace(',',''))
+        if len(undetermined_lane_stats) == 0:
+            #NoIndex case
+            freq_most_occuring_undet_index = 0
+        else:
+            undetermined_total = int(undetermined_lane_stats[0]['PF Clusters'].replace(',',''))
+            freq_most_occuring_undet_index = (most_frequent_undet_index_count/float(undetermined_total))*100
         
-        freq_most_occuring_undet_index = (most_frequent_undet_index_count/float(undetermined_total))*100
         if freq_most_occuring_undet_index > freq_tresh:
             logger.warn("The most frequent barcode of lane {} ({}) represents {}%, "
                         "which is over the threshold of {}%".format(lane, most_frequent_undet_index, freq_most_occuring_undet_index , freq_tresh))
