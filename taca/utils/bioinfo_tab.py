@@ -74,8 +74,12 @@ def update_statusdb(run_dir):
                         obj={'run_id':run_id, 'project_id':project, 'flowcell': flowcell, 'lane': lane, 
                              'sample':sample, 'status':sample_status, 'values':{valueskey:{'user':'taca','sample_status':sample_status}} }
                         #If entry exists, append to existing
-                        if len(view[[project, flowcell, lane, sample]].rows) >= 1:
-                            remote_id = view[[project, flowcell, lane, sample]].rows[0].id
+                        #Special if case to handle lanes written as int
+                        if len(view[[project, run_id, int(lane), sample]].rows) >= 1:
+                            lane = int(lane)
+                        if len(view[[project, run_id, lane, sample]].rows) >= 1:
+                            remote_id = view[[project, run_id, lane, sample]].rows[0].id
+                            lane = str(lane)
                             remote_doc = db[remote_id]['values']
                             remote_status = db[remote_id]['status']
                             #Only updates the listed statuses
@@ -188,7 +192,7 @@ def get_ss_projects(run_dir):
                 #In miseq case, FC only has 1 lane
                 lane_inner = re.compile("[A-H]")
                 if lane_inner.search(v):
-                    lanes = 1
+                    lanes = str(1)
                 else:
                     lanes = lane_pattern.search(v).group(1)
                 lane = True
@@ -207,7 +211,6 @@ def get_ss_projects(run_dir):
 def error_emailer(flag, info):
     recipients = CONFIG['mail']['recipients']
     
-    #no_samplesheet: A run was moved back due to QC/BP-Fail. Some samples still passed
     #failed_run: Samplesheet for a given project couldn't be found
     
     body='TACA has encountered an issue that might be worth investigating\n'
