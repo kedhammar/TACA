@@ -88,7 +88,8 @@ class MiSeq_Run(HiSeq_Run):
                 entry['Lane'] = '1'
             data.append(entry)
 
-        fields_to_output = ['Lane', 'Sample_ID', 'Sample_Name', 'index', 'index2', 'Sample_Project']
+
+        fields_to_output = ['Lane', 'Sample_ID', 'Sample_Name', 'index', 'Sample_Project']
         #now create the new SampleSheet data section
         output+="[Data]{}".format(os.linesep)
         for field in ssparser.datafields:
