@@ -30,7 +30,7 @@ class Tree(defaultdict):
 """
 def collect_runs():
     found_runs=[]
-    rundir_re=re.compile("^[0-9]{6}_[A-Z0-9\-]+_[0-9]{4}_[A-Z0-9\-]{10,16}$")
+    rundir_re = re.compile("\d{6}_[ST-]*\w+\d+_\d+_[AB]?[A-Z0-9\-]+")
     for data_dir in CONFIG['bioinfo_tab']['data_dirs']:
         if os.path.exists(data_dir):
             potential_run_dirs=glob.glob(os.path.join(data_dir, '*'))
@@ -44,11 +44,9 @@ def collect_runs():
         potential_nosync_run_dirs=glob.glob(os.path.join(nosync_data_dir, '*'))
         #wades through nosync directories
         for run_dir in potential_nosync_run_dirs:
-             if rundir_re.match(os.path.basename(os.path.abspath(run_dir))) and os.path.isdir(run_dir):
+            if rundir_re.match(os.path.basename(os.path.abspath(run_dir))) and os.path.isdir(run_dir):
                 #update the run status
                 update_statusdb(run_dir)
-    
-
 """ Gets status for a project
 """
 def update_statusdb(run_dir):
@@ -76,8 +74,13 @@ def update_statusdb(run_dir):
                         obj={'run_id':run_id, 'project_id':project, 'flowcell': flowcell, 'lane': lane, 
                              'sample':sample, 'status':sample_status, 'values':{valueskey:{'user':'taca','sample_status':sample_status}} }
                         #If entry exists, append to existing
-                        if len(view[[project, flowcell, lane, sample]].rows) >= 1:
-                            remote_id = view[[project, flowcell, lane, sample]].rows[0].id
+                        #Special if case to handle lanes written as int, can be safely removed when old lanes
+                        #is no longer stored as int
+                        if len(view[[project, run_id, int(lane), sample]].rows) >= 1:
+                            lane = int(lane)
+                        if len(view[[project, run_id, lane, sample]].rows) >= 1:
+                            remote_id = view[[project, run_id, lane, sample]].rows[0].id
+                            lane = str(lane)
                             remote_doc = db[remote_id]['values']
                             remote_status = db[remote_id]['status']
                             #Only updates the listed statuses
@@ -190,7 +193,7 @@ def get_ss_projects(run_dir):
                 #In miseq case, FC only has 1 lane
                 lane_inner = re.compile("[A-H]")
                 if lane_inner.search(v):
-                    lanes = 1
+                    lanes = str(1)
                 else:
                     lanes = lane_pattern.search(v).group(1)
                 lane = True
@@ -209,7 +212,6 @@ def get_ss_projects(run_dir):
 def error_emailer(flag, info):
     recipients = CONFIG['mail']['recipients']
     
-    #no_samplesheet: A run was moved back due to QC/BP-Fail. Some samples still passed
     #failed_run: Samplesheet for a given project couldn't be found
     
     body='TACA has encountered an issue that might be worth investigating\n'
