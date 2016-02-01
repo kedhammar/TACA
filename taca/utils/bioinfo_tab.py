@@ -74,7 +74,8 @@ def update_statusdb(run_dir):
                         obj={'run_id':run_id, 'project_id':project, 'flowcell': flowcell, 'lane': lane, 
                              'sample':sample, 'status':sample_status, 'values':{valueskey:{'user':'taca','sample_status':sample_status}} }
                         #If entry exists, append to existing
-                        #Special if case to handle lanes written as int
+                        #Special if case to handle lanes written as int, can be safely removed when old lanes
+                        #is no longer stored as int
                         if len(view[[project, run_id, int(lane), sample]].rows) >= 1:
                             lane = int(lane)
                         if len(view[[project, run_id, lane, sample]].rows) >= 1:
