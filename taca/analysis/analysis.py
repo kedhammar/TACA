@@ -108,7 +108,7 @@ def _upload_to_statusdb(run):
                     updated +=1
                     sample['PF Clusters'] = str(PFclusters)
             if updated != 1:
-                logger.error("While taking extra care of lane {} of NoIndex type I updated more than once the barcode_lane. This is too uc to contniue so I will fail.".format(lane))
+                logger.error("While taking extra care of lane {} of NoIndex type I updated more than once the barcode_lane. This is too much to continue so I will fail.".format(lane))
                 sys.exit()
             #If I am here it means I changed the html representation to somthing else to accomodate the wired things we do
             #someone told me that in such cases it is better to put a place holder for this
