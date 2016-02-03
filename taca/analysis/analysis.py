@@ -86,9 +86,6 @@ def _upload_to_statusdb(run):
     couch = fcpdb.setupServer(CONFIG)
     db    = couch[CONFIG['statusdb']['xten_db']]
     parser = run.runParserObj
-    #check if I have NoIndex lanes
-    noIndexLanes = [element['Lane'] for element in parser.obj['samplesheet_csv'] if 'NoIndex' in element['index']]
-    
     for element in parser.obj['samplesheet_csv']:
         if 'NoIndex' in element['index']:
             lane = element['Lane'] # this is a nale with NoIndex
