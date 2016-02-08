@@ -86,6 +86,30 @@ def _upload_to_statusdb(run):
     couch = fcpdb.setupServer(CONFIG)
     db    = couch[CONFIG['statusdb']['xten_db']]
     parser = run.runParserObj
+    for element in parser.obj['samplesheet_csv']:
+        if 'NoIndex' in element['index']:
+            lane = element['Lane'] # this is a nale with NoIndex
+            #I need to fix values for NoIndex lanes
+            #in this case PF Cluster is the number of undetermined reads, ahs they are all undet
+            try:
+                PFclusters = parser.obj['Undetermined'][lane]['unknown']
+            except KeyError:
+                logger.error("While taking extra care of lane {} of NoIndex type I found out that not all values were available".format(lane))
+                continue
+            #in Lanes_stats fix the lane yield
+            parser.obj['illumina']['Demultiplex_Stats']['Lanes_stats'][int(lane) - 1]['PF Clusters'] = str(PFclusters)
+            #now fix Barcode lane stats
+            updated = 0 #check that only one update is made
+            for sample in parser.obj['illumina']['Demultiplex_Stats']['Barcode_lane_statistics']:
+                if lane in sample['Lane']:
+                    updated +=1
+                    sample['PF Clusters'] = str(PFclusters)
+            if updated != 1:
+                logger.error("While taking extra care of lane {} of NoIndex type I updated more than once the barcode_lane. This is too much to continue so I will fail.".format(lane))
+                sys.exit()
+            #If I am here it means I changed the html representation to somthing else to accomodate the wired things we do
+            #someone told me that in such cases it is better to put a place holder for this
+            parser.obj['illumina']['Demultiplex_Stats']['NotOriginal'] = "True"
     fcpdb.update_doc( db , parser.obj, over_write_db_entry=True)
     return None
 
