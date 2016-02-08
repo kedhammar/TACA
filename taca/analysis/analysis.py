@@ -176,7 +176,8 @@ def run_preprocessing(run, force_trasfer=True):
             #this method is implemented in Runs
             run.post_qc(qc_file, run_QC_status, log_file=CONFIG['log']['file'], rcp=CONFIG['mail']['recipients'])
             #upload to statusDB
-            _upload_to_statusdb(run)
+            if 'statusdb' in CONFIG:
+                _upload_to_statusdb(run)
             logger.info('Transferring run {} to {} into {}'
                                 .format(run.id,
                                 run.CONFIG['analysis_server']['host'],
