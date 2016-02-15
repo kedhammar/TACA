@@ -183,7 +183,6 @@ def get_ss_projects(run_dir):
     lane = False
     for d in data:
         for v in d.values():
-            print v
             #if sample is found
             if sample_proj_pattern.search(v):
                 samples = sample_proj_pattern.search(v).group(1)
