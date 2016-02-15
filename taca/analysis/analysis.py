@@ -86,14 +86,10 @@ def _upload_to_statusdb(run):
     couch = fcpdb.setupServer(CONFIG)
     db    = couch[CONFIG['statusdb']['xten_db']]
     parser = run.runParserObj
-    #check if I have NoIndex lanes
-    noIndexLanes = [element['Lane'] for element in parser.obj['samplesheet_csv'] if 'NoIndex' in element['index']]
-    
     for element in parser.obj['samplesheet_csv']:
-        if 'NoIndex' in element['index']:
-            lane = element['Lane'] # this is a nale with NoIndex
-            #I need to fix values for NoIndex lanes
-            #in this case PF Cluster is the number of undetermined reads, ahs they are all undet
+        if 'NoIndex' in element['index'] or not element['index']: #NoIndex in the case of HiSeq, empty in the case of HiSeqX
+            lane = element['Lane'] # this is a lane with NoIndex
+            #in this case PF Cluster is the number of undetermined reads, as they are all undet
             try:
                 PFclusters = parser.obj['Undetermined'][lane]['unknown']
             except KeyError:
@@ -203,7 +199,8 @@ def run_preprocessing(run, force_trasfer=True):
             #this method is implemented in Runs
             run.post_qc(qc_file, run_QC_status, log_file=CONFIG['log']['file'], rcp=CONFIG['mail']['recipients'])
             #upload to statusDB
-            _upload_to_statusdb(run)
+            if 'statusdb' in CONFIG:
+                _upload_to_statusdb(run)
             logger.info('Transferring run {} to {} into {}'
                                 .format(run.id,
                                 run.CONFIG['analysis_server']['host'],
