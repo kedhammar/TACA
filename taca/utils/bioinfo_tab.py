@@ -57,10 +57,9 @@ def update_statusdb(run_dir):
     valueskey=datetime.datetime.now().isoformat()
     db=couch['bioinfo_analysis']
     view = db.view('latest_data/sample_id')
-    #Construction and sending of individual records
+    #Construction and sending of individual records, if samplesheet is incorrectly formatted the loop is skipped
     for flowcell in project_info:
         if flowcell == 'UNKNOWN':
-            #At some point, remove this and rely only on the email function
             obj={'run_id':run_id, 'project_id':'ERROR_Samplesheet'}
             logger.info("INVALID SAMPLESHEET, CHECK {} FORMED AT {}".format(run_id, valueskey))
             error_emailer('no_samplesheet', run_id)
@@ -84,7 +83,7 @@ def update_statusdb(run_dir):
                             remote_doc = db[remote_id]['values']
                             remote_status = db[remote_id]['status']
                             #Only updates the listed statuses
-                            if remote_status in ['Sequencing', 'Demultiplexing', 'QC-Failed', 'BP-Failed', 'Failed']:
+                            if remote_status in ['ERROR', 'Sequencing', 'Demultiplexing', 'QC-Failed', 'BP-Failed', 'Failed']:
                                 #Appends old entry to new. Essentially merges the two
                                 for k, v in remote_doc.items():
                                     obj['values'][k] = v
@@ -139,29 +138,33 @@ def get_status(run_dir):
 """
 def get_ss_projects(run_dir):
     proj_tree = Tree()
-    proj_pattern=re.compile("(P[0-9]{3,5})")
     #Make miseq well bit more explicit
     lane_pattern=re.compile("^([1-8]{1,2})$")
-    sample_proj_pattern=re.compile("((P[0-9]{3,5})_[0-9]{3,5})")
+    sample_proj_pattern=re.compile("^((P[0-9]{3,5})_[0-9]{3,5})")
     run_name = os.path.basename(os.path.abspath(run_dir))
     current_year = '20' + run_name[0:2]
     run_name_components = run_name.split("_")
     FCID = run_name_components[3][1:]
     newData = False
+    miseq = False
     
     xten_samplesheets_dir = os.path.join(CONFIG['bioinfo_tab']['xten_samplesheets'],
                                     current_year)
     hiseq_samplesheets_dir = os.path.join(CONFIG['bioinfo_tab']['hiseq_samplesheets'],
                                     current_year)
+    #If it is not hiseq
     FCID_samplesheet_origin = os.path.join(hiseq_samplesheets_dir, '{}.csv'.format(FCID))
-    #if it is not hiseq
     if not os.path.exists(FCID_samplesheet_origin):
+        #If it is not xten
         FCID_samplesheet_origin = os.path.join(xten_samplesheets_dir, '{}.csv'.format(FCID))
-        #if it is not xten
         if not os.path.exists(FCID_samplesheet_origin):
-            #if it is miseq
+            #It is miseq
+            miseq = True
+            lanes = str(1)
+            #Pattern is a bit more rigid since we're no longer also checking for lanes
+            sample_proj_pattern=re.compile("^((P[0-9]{3,5})_[0-9]{3,5})$")
+            
             FCID_samplesheet_origin = os.path.join(run_dir,'Data','Intensities','BaseCalls', 'SampleSheet.csv')
-            lane_pattern=re.compile("^[A-H]([1-8]{1,2})$")
             if not os.path.exists(FCID_samplesheet_origin):
                 FCID_samplesheet_origin = os.path.join(run_dir,'SampleSheet.csv')
                 if not os.path.exists(FCID_samplesheet_origin):
@@ -173,7 +176,6 @@ def get_ss_projects(run_dir):
             #This is a non platform MiSeq run. Disregard it.
             return []
         data=ss_reader.data
-
     else:
         csvf=open(FCID_samplesheet_origin, 'rU')
         data=DictReader(csvf)
@@ -189,20 +191,21 @@ def get_ss_projects(run_dir):
                 proj_n_sample = True
                 
             #if a lane is found
-            elif lane_pattern.search(v):
+            elif not miseq and lane_pattern.search(v):
                 #In miseq case, FC only has 1 lane
-                lane_inner = re.compile("[A-H]")
-                if lane_inner.search(v):
-                    lanes = str(1)
-                else:
-                    lanes = lane_pattern.search(v).group(1)
+                lanes = lane_pattern.search(v).group(1)
                 lane = True
          
         #Populates structure
-        if proj_n_sample and lane:
+        if proj_n_sample and lane or proj_n_sample and miseq:
             proj_tree[FCID][lanes][samples][projects]
             proj_n_sample = False
             lane = False
+    
+    if proj_tree.keys() == []:
+        logger.info("INCORRECTLY FORMATTED SAMPLESHEET, CHECK {}".format(run_name))
+        #error_emailer('weird_samplesheet', run_name)
+    
     return proj_tree
 
 """Sends a custom error e-mail
@@ -223,6 +226,8 @@ def error_emailer(flag, info):
         subject='ERROR, Samplesheet error'
     elif (flag == "failed_run"):
         subject='WARNING, Reinitialization of partially failed FC'
+    elif (flag == 'weird_samplesheet'):
+        subject='ERROR, Incorrectly formatted samplesheet'
        
     hourNow = datetime.datetime.now().hour 
     if hourNow == 7 or hourNow == 12 or hourNow == 16:
