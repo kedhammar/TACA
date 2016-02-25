@@ -171,14 +171,23 @@ def get_ss_projects(run_dir):
                     logger.warn("Cannot locate the samplesheet for run {}".format(run_dir))
                     return ['UNKNOWN']
 
-        ss_reader=SampleSheetParser(FCID_samplesheet_origin)
-        if 'Description' in ss_reader.header and ss_reader.header['Description'] not in ['Production', 'Application']:
-            #This is a non platform MiSeq run. Disregard it.
+        try:
+            ss_reader=SampleSheetParser(FCID_samplesheet_origin)
+            if ss_reader.header['Description'] not in ['Production', 'Application']:
+                #This is a non platform MiSeq run. Disregard it.
+                return []
+            data=ss_reader.data
+        except:
+            logger.warn("Cannot initialize SampleSheetParser for {}. Most likely due to poor comma separation".format(run_dir))
             return []
-        data=ss_reader.data
     else:
-        csvf=open(FCID_samplesheet_origin, 'rU')
-        data=DictReader(csvf)
+        try:
+            csvf=open(FCID_samplesheet_origin, 'rU')
+            data=DictReader(csvf)
+        except:
+            logger.warn("Cannot initialize DictReader for {}. Most likely due to poor comma separation".format(run_dir))
+            return []
+            
     proj_n_sample = False
     lane = False
     for d in data:
