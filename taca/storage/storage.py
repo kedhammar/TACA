@@ -141,7 +141,7 @@ def cleanup_swestore(days, dry_run=False):
 
     :param int days: Threshold days to check and remove
     """
-    days = check_days('swestore', days, config)
+    days = check_days('swestore', days, CONFIG)
     if not days:
         return
     runs = filesystem.list_runs_in_swestore(path=CONFIG.get('cleanup').get('swestore').get('root'))
@@ -162,7 +162,7 @@ def cleanup_uppmax(site, days, dry_run=False):
     :param str site: site where the cleanup should be performed
     :param int days: number of days to check for closed projects
     """
-    days = check_days(site, days, config)
+    days = check_days(site, days, CONFIG)
     if not days:
         return
     root_dir = CONFIG.get('cleanup').get(site).get('root')
