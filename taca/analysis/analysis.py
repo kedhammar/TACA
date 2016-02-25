@@ -204,12 +204,12 @@ def run_preprocessing(run, force_trasfer=True):
                 _upload_to_statusdb(run)
             #copy demultiplex stat file to shard file system for LIMS purpose
             try:
-                mfs_dest = os.path.join(CONFIG['mfs_path'],"{}_data".format(_run_type(run).lower()),run.id, 'laneBarcode.html')
-                logger.info('Copying demultiplex stat for run {} to {}'.format(run.id, CONFIG[]))
+                mfs_dest = os.path.join(CONFIG['mfs_path'],"{}_data".format(_run_type(run).lower()),run.id)
+                logger.info('Copying demultiplex stat for run {} to {}'.format(run.id, mfs_dest))
                 if not os.path.exists(mfs_dest):
                     os.mkdir(mfs_dest)
                 demulti_stat_src = os.path.join(run.run_dir, run.demux_dir, 'Reports', 'html', run.flowcell_id, 'all', 'all', 'all', 'laneBarcode.html')
-                copyfile(demulti_stat_src, mfs_dest)
+                copyfile(demulti_stat_src, os.path.join(mfs_dest, 'laneBarcode.html'))
             except:
                 logger.warn('Could not copy demultiplex stat file for run {}'.format(run.id))
             #tranfer data to uppmax
