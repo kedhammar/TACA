@@ -173,13 +173,13 @@ def get_ss_projects(run_dir):
 
         try:
             ss_reader=SampleSheetParser(FCID_samplesheet_origin)
-            if ss_reader.header['Description'] not in ['Production', 'Application']:
-                #This is a non platform MiSeq run. Disregard it.
-                return []
             data=ss_reader.data
         except:
             logger.warn("Cannot initialize SampleSheetParser for {}. Most likely due to poor comma separation".format(run_dir))
             return []
+        if 'Description' in ss_reader.header and ss_reader.header['Description'] not in ['Production', 'Application']:
+                logger.warn("Run {} detected as a non platform MiSeq run. Disregarding it.".format(run_dir))
+                return []
     else:
         try:
             csvf=open(FCID_samplesheet_origin, 'rU')
