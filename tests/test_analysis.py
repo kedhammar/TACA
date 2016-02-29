@@ -16,7 +16,7 @@ from taca.utils import config as conf
 
 # This is only run if TACA is called from the CLI, as this is a test, we need to
 # call it explicitely
-CONFIG = conf.load_yaml_config('tests/data/taca_test_cfg.yaml')
+CONFIG = conf.load_yaml_config('data/taca_test_cfg.yaml')
 
 def processing_status(run_dir):
     demux_dir = os.path.join(run_dir, 'Demultiplexing')
@@ -81,8 +81,8 @@ class TestTracker(unittest.TestCase):
 
         # Move sample RunInfo.xml file to every run directory
         for run in [running, to_start, in_progress, completed]:
-            shutil.copy('tests/data/RunInfo.xml', run)
-            shutil.copy('tests/data/runParameters.xml', run)
+            shutil.copy('data/RunInfo.xml', run)
+            shutil.copy('data/runParameters.xml', run)
         
         # Create run objects
         # Jose : add tests for other sequencers
