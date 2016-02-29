@@ -57,9 +57,9 @@ def get_runObj(run):
 
         if "HiSeq X" in runtype:
             return HiSeqX_Run(run, CONFIG["analysis"]["HiSeqX"])
-        elif "Hiseq" in runtype:
+        elif "HiSeq" in runtype or "TruSeq" in runtype:
             return HiSeq_Run(run, CONFIG["analysis"]["HiSeq"])
-        elif "MiSeq" in runtype or "TruSeq" in runtype:
+        elif "MiSeq" in runtype:
             return MiSeq_Run(run, CONFIG["analysis"]["MiSeq"])
         elif "NextSeq" in runtype:
             return NextSeq_Run(run, CONFIG["analysis"]["NextSeq"])
