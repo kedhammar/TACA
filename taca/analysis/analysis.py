@@ -187,8 +187,8 @@ def run_preprocessing(run, force_trasfer=True, statusdb=True):
             if run.transfer_to_analysis_server:
                 logger.info('Transferring run {} to {} into {}'
                             .format(run.id,
-                                    CONFIG['analysis_server']['host'],
-                                    CONFIG['analysis_server']['sync']['data_archive']))
+                                    run.CONFIG['analysis_server']['host'],
+                                    run.CONFIG['analysis_server']['sync']['data_archive']))
                 run.transfer_run(t_file,  False) # Do not trigger analysis
             # Archive run if applies
             if 'finished_dir' in CONFIG['analysis']:
