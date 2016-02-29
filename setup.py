@@ -33,7 +33,6 @@ setup(name='taca',
     scripts=glob.glob('scripts/*.py'),
     include_package_data=True,
     zip_safe=False,
-    test_suite = 'tests',
     entry_points={
         'console_scripts': ['taca = taca.cli:cli'],
         'taca.subcommands': [
