@@ -5,7 +5,12 @@ import logging
 import couchdb
 import datetime
 
-from oauth2client.client import SignedJwtAssertionCredentials as GCredentials
+try:
+    from oauth2client.client import SignedJwtAssertionCredentials as GCredentials
+    has_oauth2client = True
+except ImportError:
+    has_oauth2client = False
+ 
 from taca.utils.config import CONFIG
 
 def get_nases_disk_space():
@@ -75,12 +80,21 @@ def _parse_output(output): # for nases
     return result
 
 def update_google_docs(data, credentials_file):
+    # The latest version of oauth2client or any of its dependencies
+    # is not compatible with the current approach to do the
+    # oauth2 based connection. This is just a quick fix
+    # until a proper solution is implemented.
+    if not has_oauth2client:
+        logging.warn("Google Docs cannot be updated as there was a problem"
+                    " importing the oauth2 client")
+        return
     config = CONFIG['server_status']
     # open json file
     json_key = json.load(open(credentials_file))
 
     # get credentials from the file and authorize
-    credentials = GCredentials(json_key['client_email'], json_key['private_key'], config['g_scope'])
+    credentials = GCredentials(json_key['client_email'], 
+							json_key['private_key'], config['g_scope'])
     gc = gspread.authorize(credentials)
     # open google sheet
     # IMPORTANT: file must be shared with the email listed in credentials
@@ -96,10 +110,9 @@ def update_google_docs(data, credentials_file):
         worksheet.update_acell(cell, value)
 
 
-def update_status_db(data, server_type=None):
-    """Pushed the data to status db,
+def update_status_db(data):
+    """ Pushed the data to status db,
     data can be from nases or from uppmax
-    server_type should be either 'uppmax' or 'nas'
     """
     db_config = CONFIG.get('statusdb')
     if db_config is None:
@@ -107,10 +120,10 @@ def update_status_db(data, server_type=None):
         raise RuntimeError("'statusdb' must be present in the config file!")
 
     server = "http://{username}:{password}@{url}:{port}".format(
-        url=db_config['url'],
-        username=db_config['username'],
-        password=db_config['password'],
-        port=db_config['port'])
+                                                            url=db_config['url'],
+                                                            username=db_config['username'],
+                                                            password=db_config['password'],
+                                                            port=db_config['port'])
     try:
         couch = couchdb.Server(server)
     except Exception, e:
@@ -132,7 +145,6 @@ def update_status_db(data, server_type=None):
             raise e
         else:
             logging.info('{}: Server status has been updated'.format(key))
-
 
 def get_uppmax_quotas():
     current_time = datetime.datetime.now()
@@ -162,8 +174,6 @@ def get_uppmax_quotas():
 
         result[project[0]] = project_dict
     return result
-
-
 
 def get_uppmax_cpu_hours():
     current_time = datetime.datetime.now()
