@@ -16,13 +16,14 @@ from flowcell_parser.classes import RunParametersParser
 
 logger = logging.getLogger(__name__)
 
-def _run_type(run):
-    """ Tries to read runParameters.xml and returns the run type.
+def get_runObj(run):
+    """ Tries to read runParameters.xml to parse the type of sequencer
+        and then return the respective Run object (MiSeq, HiSeq..)
         :param run: run name identifier
         :type run: string
         :rtype: Object
         :returns: returns the sequencer type object, 
-        None if the sequencer type is unknown
+        None if the sequencer type is unknown of there was an error
     """
     
     if os.path.exists(os.path.join(run, 'runParameters.xml')):
@@ -66,6 +67,9 @@ def _run_type(run):
             logger.warn("Unrecognized run type {}, cannot archive the run {}. " 
                         "Someone as likely bought a new sequencer without telling "
                         "it to the bioinfo team".format(runtype, run))
+    # Jose : not necessary as the function will return None at this point but
+    # just for being explicit 
+    return None
 
 def upload_to_statusdb(run_dir):
     """ Function to upload run_dir informations to statusDB directly from click interface
@@ -73,7 +77,7 @@ def upload_to_statusdb(run_dir):
         :type run: string
         :rtype: None
     """
-    runObj = _run_type(run_dir)   
+    runObj = get_runObj(run_dir)   
     if runObj:
         # Jose : runObj can be None
         # Make the actual upload   
@@ -207,7 +211,7 @@ def run_preprocessing(run, force_trasfer=True, statusdb=True):
 
     if run:
         # Needs to guess what run type I have (HiSeq, MiSeq, HiSeqX, NextSeq)
-        runObj = _run_type(run)
+        runObj = get_runObj(run)
         if not runObj:
             raise RuntimeError("Unrecognized instrument type")
         _process(runObj, force_trasfer)
@@ -219,7 +223,7 @@ def run_preprocessing(run, force_trasfer=True, statusdb=True):
             if not runs:
                 runs = glob.glob(os.path.join(data_dir, '1*000000000*'))
             for _run in runs:
-                runObj = _run_type(_run)
+                runObj = get_runObj(_run)
                 if not runObj:
                     raise RuntimeError("Unrecognized instrument type")
                 _process(runObj, force_trasfer)
