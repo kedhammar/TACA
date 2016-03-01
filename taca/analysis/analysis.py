@@ -204,7 +204,7 @@ def run_preprocessing(run, force_trasfer=True):
                 _upload_to_statusdb(run)
             #copy demultiplex stat file to shard file system for LIMS purpose
             try:
-                mfs_dest = os.path.join(CONFIG['mfs_path'],"{}_data".format(_run_type(run).lower()),run.id)
+                mfs_dest = os.path.join(CONFIG['mfs_path'],"{}_data".format(_run_type(run.run_dir).lower()),run.id)
                 logger.info('Copying demultiplex stat for run {} to {}'.format(run.id, mfs_dest))
                 if not os.path.exists(mfs_dest):
                     os.mkdir(mfs_dest)
