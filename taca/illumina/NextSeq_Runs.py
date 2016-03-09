@@ -18,18 +18,22 @@ class NextSeq_Run(Run):
         super(NextSeq_Run, self).__init__( path_to_run, configuration)
         self._set_sequencer_type()
         self._set_run_type()
-
+        # In the NextSeq the sample sheet is created by the operator
+        # and placed in the run root folder.
+        # For now we use the flow cell id to idenfity the sample sheet
+        self.ssname = os.path.join(self.run_dir, self.flowcell_id + ".csv")
+        
     def _set_sequencer_type(self):
         self.sequencer_type = "NextSeq"
 
     def _set_run_type(self):
-        ssname = os.path.join(self.run_dir, 'Data', 'Intensities', 'BaseCalls', 'SampleSheet.csv')
-        if not os.path.exists(ssname):
+        if not os.path.exists(self.ssname):
             # Case in which no samplesheet is found, assume it is a non NGI run
             self.run_type = "NON-NGI-RUN"
         else:
             # it SampleSheet exists try to see if it is a NGI-run
-            ssparser = SampleSheetParser(ssname)
+            # TODO SampleSheetParser may throw an exception
+            ssparser = SampleSheetParser(self.ssname)
             # Jose : a key error can perfectly occur here
             if ssparser.header['Description'] == "Production" \
             or ssparser.header['Description'] == "Application" \
@@ -43,15 +47,6 @@ class NextSeq_Run(Run):
             # case the demultiplexed reads should not be transfered to Uppmax
             if ssparser.header['Description'] == "Private":
                 self.transfer_to_analysis_server = False
-                
-    def _get_samplesheet(self):
-        """ Locate and parse the samplesheet for a run.
-            In NextSeq case this is located in run_dir/SampleSheet.csv
-        """
-        ssname = os.path.join(self.run_dir, 'Data', 'Intensities', 'BaseCalls', 'SampleSheet.csv')
-        if os.path.exists(ssname):
-            # if exists parse the SampleSheet
-            return ssname
      
     def check_run_status(self):
         return
@@ -69,9 +64,11 @@ class NextSeq_Run(Run):
             - define if necessary the bcl2fastq commands (if indexes are not of size 8, i.e. neoprep)
             - run bcl2fastq conversion
         """
-
-        ssname = self._get_samplesheet()
-        ssparser = SampleSheetParser(ssname)
+        if not os.path.exists(self.ssname):
+            # We should not get here really and this run should be defined as NON NGI-RUN
+            return False
+        # TODO SampleSheetParser may throw an exception
+        ssparser = SampleSheetParser(self.ssname)
         # Samplesheet need to be positioned in the FC directory with name SampleSheet.csv (Illumina default)
         # if this is not the case then create it and take special care of modification to be done on the SampleSheet
         samplesheet_dest = os.path.join(self.run_dir, "SampleSheet.csv")
