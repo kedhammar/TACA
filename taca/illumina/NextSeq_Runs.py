@@ -16,12 +16,12 @@ class NextSeq_Run(Run):
         # if the NextSeq run belongs to NGI facility, i.e., contains
         # Application or production in the Description
         super(NextSeq_Run, self).__init__( path_to_run, configuration)
-        self._set_sequencer_type()
-        self._set_run_type()
         # In the NextSeq the sample sheet is created by the operator
         # and placed in the run root folder.
         # For now we use the flow cell id to idenfity the sample sheet
         self.ssname = os.path.join(self.run_dir, self.flowcell_id + ".csv")
+        self._set_sequencer_type()
+        self._set_run_type()
         
     def _set_sequencer_type(self):
         self.sequencer_type = "NextSeq"
