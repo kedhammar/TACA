@@ -24,7 +24,7 @@ def get_nases_disk_space():
             proc = subprocess.Popen(command.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         else:
             # connect via ssh to server and execute the command
-            proc = subprocess.Popen(['ssh', '-t', '%s@%s' %(config['user'], server_url), command],
+            proc = subprocess.Popen(['ssh', '-t', '{}@{}'.format(config['user'], server_url), command],
                 stdout = subprocess.PIPE,
                 stderr = subprocess.PIPE)
         output = proc.stdout.read()
