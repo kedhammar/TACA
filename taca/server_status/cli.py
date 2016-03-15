@@ -26,7 +26,7 @@ def nases(credentials, gdocs, statusdb):
 	if gdocs:
 		status.update_google_docs(disk_space, credentials)
 	if statusdb:
-		status.update_status_db(disk_space)
+		status.update_status_db(disk_space, server_type='nas')
 
 #  must be run on uppmax, as no passwordless ssh to uppmax servers
 @server_status.command()
@@ -43,7 +43,7 @@ def uppmax(disk_quota, cpu_hours):
 	if cpu_hours:
 		cpu_hours_data = status.get_uppmax_cpu_hours()
 		merged_results.update(cpu_hours_data)
-	status.update_status_db(merged_results)
+	status.update_status_db(merged_results, server_type='uppmax')
 
 
 

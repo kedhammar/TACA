@@ -96,14 +96,15 @@ def update_google_docs(data, credentials_file):
         worksheet.update_acell(cell, value)
 
 
-def update_status_db(data):
+def update_status_db(data, server_type=None):
     """Pushed the data to status db,
     data can be from nases or from uppmax
+    server_type should be either 'uppmax' or 'nas'
     """
     db_config = CONFIG.get('statusdb')
     if db_config is None:
         logging.error("'statusdb' must be present in the config file!")
-        raise
+        raise RuntimeError("'statusdb' must be present in the config file!")
 
     server = "http://{username}:{password}@{url}:{port}".format(
         url=db_config['url'],
@@ -114,7 +115,7 @@ def update_status_db(data):
         couch = couchdb.Server(server)
     except Exception, e:
         logging.error(e.message)
-        raise
+        raise e
 
     db = couch['server_status']
     logging.info('Connection established')
@@ -122,13 +123,13 @@ def update_status_db(data):
         server = data[key] # data[key] is dictionary (the command output)
         server['name'] = key # key is nas url or uppmax project
         server['time'] = datetime.datetime.now().isoformat() # datetime.datetime(2015, 11, 18, 9, 54, 33, 473189) is not JSON serializable
-        server['server_type'] = 'uppmax' if 'uppmax' in server['name'] else 'nas'
+        server['server_type'] = server_type or 'unknown'
 
         try:
             db.save(server)
         except Exception, e:
             logging.error(e.message)
-            raise
+            raise e
         else:
             logging.info('{}: Server status has been updated'.format(key))
 
@@ -139,7 +140,7 @@ def get_uppmax_quotas():
         uq = subprocess.Popen(["/sw/uppmax/bin/uquota", "-q"], stdout=subprocess.PIPE)
     except Exception, e:
         logging.error(e.message)
-        raise
+        raise e
 
     output = uq.communicate()[0]
     logging.info("Disk Usage:")
@@ -171,7 +172,7 @@ def get_uppmax_cpu_hours():
         uq = subprocess.Popen(["/sw/uppmax/bin/projinfo", '-q'], stdout=subprocess.PIPE)
     except Exception, e:
         logging.error(e.message)
-        raise
+        raise e
 
     # output is lines with the format: project_id  cpu_usage  cpu_limit
     output = uq.communicate()[0]
@@ -185,10 +186,15 @@ def get_uppmax_cpu_hours():
 
         # split line into a list
         project = proj.split()
-        # creating objects
-        project_dict["project"] = project[0]
-        project_dict["cpu hours"] = project[1]
-        project_dict["cpu limit"] = project[2]
+        # sometimes it returns empty strings or something strange
+        try:
+            # creating objects
+            project_dict["project"] = project[0]
+            project_dict["cpu hours"] = project[1]
+            project_dict["cpu limit"] = project[2]
+            result[project[0]] = project_dict
+        except Exception, e:
+            logging.error(e.message)
+            continue
 
-        result[project[0]] = project_dict
     return result
