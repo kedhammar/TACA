@@ -1,12 +1,13 @@
 """Storage methods and utilities"""
 import getpass
-import os
 import logging
+import os
 import re
 import shutil
 import time
 
 from datetime import datetime
+from glob import glob
 from multiprocessing import Pool
 
 from statusdb.db import connections as statusdb
@@ -178,35 +179,39 @@ def cleanup_uppmax(site, days, dry_run=False):
         ## work flow for cleaning up illumina/analysis ##
         projects = [ p for p in os.listdir(root_dir) if re.match(filesystem.PROJECT_RE,p) ]
         list_to_delete = get_closed_projects(projects, pcon, days)
+        ## delete and log
+        for item in list_to_delete:
+            if dry_run:
+                logger.info('Will remove {} from {}'.format(item,root_dir))
+                continue
+            try:
+                shutil.rmtree(os.path.join(root_dir,item))
+                logger.info('Removed project {} from {}'.format(item,root_dir))
+                with open(log_file,'a') as to_log:
+                    to_log.write("{}\t{}\n".format(item,datetime.strftime(datetime.now(),'%Y-%m-%d %H:%M')))
+            except OSError:
+                logger.warn("Could not remove path {} from {}"
+                        .format(item,root_dir))
+                continue
     else:
         ##work flow for cleaning archive ##
-        list_to_delete = []
-        archived_in_swestore = filesystem.list_runs_in_swestore(path=CONFIG.get('cleanup').get('swestore').get('root'), no_ext=True)
         runs = [ r for r in os.listdir(root_dir) if re.match(filesystem.RUN_RE,r) ]
         with filesystem.chdir(root_dir):
             for run in runs:
-                fc_date = run.split('_')[0]
-                if misc.days_old(fc_date) > days:
-                    if run in archived_in_swestore:
-                        list_to_delete.append(run)
+                all_proj_path = glob("{}/Unaligned_*/Project_*".format(run))
+                all_proj_dict = {os.path.basename(pp).replace('Project_','').replace('__', '.'): pp for pp in all_proj_path}
+                for closed_proj in get_closed_projects(all_proj_dict.keys(), pcon, days):
+                    if dry_run:
+                        logger.info('Project {} in closed for {} days, will remove fastq files from run {}'.format(closed_proj, days, run))
                     else:
-                        logger.warn("Run {} is older than {} days but not in "
-                                    "swestore, so SKIPPING".format(run, days))
-
-    ## delete and log
-    for item in list_to_delete:
-        if dry_run:
-            logger.info('Will remove {} from {}'.format(item,root_dir))
-            continue
-        try:
-            shutil.rmtree(os.path.join(root_dir,item))
-            logger.info('Removed project {} from {}'.format(item,root_dir))
-            with open(log_file,'a') as to_log:
-                to_log.write("{}\t{}\n".format(item,datetime.strftime(datetime.now(),'%Y-%m-%d %H:%M')))
-        except OSError:
-            logger.warn("Could not remove path {} from {}"
-                        .format(item,root_dir))
-            continue
+                        for fastq_file in glob("{}/*/*.fastq.gz".format(all_proj_dict[closed_proj])):
+                            try:
+                                os.remove(fastq_file)
+                            except OSError:
+                                logger.warn('Could not remove fastq file {}, moving on,.'.format(fastq_file))
+                        with open(log_file,'a') as to_log:
+                            to_log.write("{}\t{}\n".format(closed_proj,datetime.strftime(datetime.now(),'%Y-%m-%d %H:%M')))
+                        logger.info('Project {} in closed for {} days, removed fastq files from run {}'.format(closed_proj, days, run))
 
 
 #############################################################
