@@ -198,9 +198,12 @@ def cleanup_uppmax(site, days, dry_run=False):
         runs = [ r for r in os.listdir(root_dir) if re.match(filesystem.RUN_RE,r) ]
         with filesystem.chdir(root_dir):
             for run in runs:
+                ## Collect all project path in the run folder
                 all_proj_path = glob("{}/Unaligned_*/Project_*".format(run))
                 all_proj_dict = {os.path.basename(pp).replace('Project_','').replace('__', '.'): pp for pp in all_proj_path}
-                for closed_proj in get_closed_projects(all_proj_dict.keys(), pcon, days):
+                closed_projects = get_closed_projects(all_proj_dict.keys(), pcon, days)
+                ## Only proceed cleaning the data for closed projects
+                for closed_proj in closed_projects:
                     if dry_run:
                         logger.info('Project {} in closed for {} days, will remove fastq files from run {}'.format(closed_proj, days, run))
                     else:
@@ -212,6 +215,20 @@ def cleanup_uppmax(site, days, dry_run=False):
                         with open(log_file,'a') as to_log:
                             to_log.write("{}\t{}\n".format(closed_proj,datetime.strftime(datetime.now(),'%Y-%m-%d %H:%M')))
                         logger.info('Project {} in closed for {} days, removed fastq files from run {}'.format(closed_proj, days, run))
+                ## Remove the undetermined fastq files for NoIndex case always
+                undetermined_fastq_files = glob("{}/Unaligned_0bp/Undetermined_indices/*/*.fastq.gz".format(run))
+                ## Remove undeterminded fastq files for all index length if all project run in the FC is closed
+                if len(all_proj_dict.keys()) == len(closed_projects):
+                    undetermined_fastq_files = glob("{}/Unaligned_*/Undetermined_indices/*/*.fastq.gz".format(run))
+                for fq in undetermined_fastq_files:
+                    if dry_run:
+                        logger.info("Will remove undetermined fastq file {}".format(fq))
+                    else:
+                        try:
+                            os.remove(fq)
+                            logger.info("Removed undetermined fastq file {}".format(fq))
+                        except OSError:
+                            logger.warn("Could not remove undetermined fastq file {}, moving on,.".format(fq))
 
 
 #############################################################
