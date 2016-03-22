@@ -170,65 +170,54 @@ def cleanup_uppmax(site, days, dry_run=False):
     deleted_log = CONFIG.get('cleanup').get('deleted_log')
     assert os.path.exists(os.path.join(root_dir,deleted_log)), "Log directory {} doesn't exist in {}".format(deleted_log,root_dir)
     log_file = os.path.join(root_dir,"{fl}/{fl}.log".format(fl=deleted_log))
+    list_to_delete = []
 
     # make a connection for project db #
     pcon = statusdb.ProjectSummaryConnection()
     assert pcon, "Could not connect to project database in StatusDB"
 
-    if site != "archive":
+    if site in ["analysis", "illumina"]:
         ## work flow for cleaning up illumina/analysis ##
         projects = [ p for p in os.listdir(root_dir) if re.match(filesystem.PROJECT_RE,p) ]
-        list_to_delete = get_closed_projects(projects, pcon, days)
-        ## delete and log
-        for item in list_to_delete:
-            if dry_run:
-                logger.info('Will remove {} from {}'.format(item,root_dir))
-                continue
-            try:
-                shutil.rmtree(os.path.join(root_dir,item))
-                logger.info('Removed project {} from {}'.format(item,root_dir))
-                with open(log_file,'a') as to_log:
-                    to_log.write("{}\t{}\n".format(item,datetime.strftime(datetime.now(),'%Y-%m-%d %H:%M')))
-            except OSError:
-                logger.warn("Could not remove path {} from {}"
-                        .format(item,root_dir))
-                continue
-    else:
+        list_to_delete.extend(get_closed_projects(projects, pcon, days))
+    elif site == "archive":
         ##work flow for cleaning archive ##
+        archive_config = CONFIG.get('cleanup').get('archive')
         runs = [ r for r in os.listdir(root_dir) if re.match(filesystem.RUN_RE,r) ]
-        with filesystem.chdir(root_dir):
-            for run in runs:
+        for run in runs:
+            with filesystem.chdir(os.path.join(root_dir, run)):
                 ## Collect all project path in the run folder
-                all_proj_path = glob("{}/Unaligned_*/Project_*".format(run))
+                all_proj_path = glob(archive_config.get('proj_path'))
                 all_proj_dict = {os.path.basename(pp).replace('Project_','').replace('__', '.'): pp for pp in all_proj_path}
                 closed_projects = get_closed_projects(all_proj_dict.keys(), pcon, days)
                 ## Only proceed cleaning the data for closed projects
                 for closed_proj in closed_projects:
-                    if dry_run:
-                        logger.info('Project {} in closed for {} days, will remove fastq files from run {}'.format(closed_proj, days, run))
-                    else:
-                        for fastq_file in glob("{}/*/*.fastq.gz".format(all_proj_dict[closed_proj])):
-                            try:
-                                os.remove(fastq_file)
-                            except OSError:
-                                logger.warn('Could not remove fastq file {}, moving on,.'.format(fastq_file))
-                        with open(log_file,'a') as to_log:
-                            to_log.write("{}\t{}\n".format(closed_proj,datetime.strftime(datetime.now(),'%Y-%m-%d %H:%M')))
-                        logger.info('Project {} in closed for {} days, removed fastq files from run {}'.format(closed_proj, days, run))
+                    closed_proj_fq = glob("{}/*/*.fastq.gz".format(all_proj_dict[closed_proj]))
+                    list_to_delete.extend([os.path.join(run, pfile) for pfile in closed_proj_fq])
                 ## Remove the undetermined fastq files for NoIndex case always
-                undetermined_fastq_files = glob("{}/Unaligned_0bp/Undetermined_indices/*/*.fastq.gz".format(run))
+                undetermined_fastq_files = glob(archive_config.get('undet_noindex'))
                 ## Remove undeterminded fastq files for all index length if all project run in the FC is closed
                 if len(all_proj_dict.keys()) == len(closed_projects):
-                    undetermined_fastq_files = glob("{}/Unaligned_*/Undetermined_indices/*/*.fastq.gz".format(run))
-                for fq in undetermined_fastq_files:
-                    if dry_run:
-                        logger.info("Will remove undetermined fastq file {}".format(fq))
-                    else:
-                        try:
-                            os.remove(fq)
-                            logger.info("Removed undetermined fastq file {}".format(fq))
-                        except OSError:
-                            logger.warn("Could not remove undetermined fastq file {}, moving on,.".format(fq))
+                    undetermined_fastq_files = glob(archive_config.get('undet_all'))
+                list_to_delete.extend([os.path.join(run, ufile) for ufile in undetermined_fastq_files])
+
+    ## delete and log
+    for item in list_to_delete:
+        if dry_run:
+            logger.info('Will remove {} from {}'.format(item,root_dir))
+            continue
+        try:
+            to_remove = os.path.join(root_dir,item)
+            if os.path.isfile(to_remove):
+                os.remove(to_remove)
+            elif os.path.isdir(to_remove):
+                shutil.rmtree(to_remove)
+            logger.info('Removed {} from {}'.format(item,root_dir))
+            with open(log_file,'a') as to_log:
+                to_log.write("{}\t{}\n".format(to_remove,datetime.strftime(datetime.now(),'%Y-%m-%d %H:%M')))
+        except OSError:
+            logger.warn("Could not remove {} from {}".format(item,root_dir))
+            continue
 
 
 #############################################################
