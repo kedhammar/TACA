@@ -172,6 +172,19 @@ def cleanup_uppmax(site, days, dry_run=False):
     log_file = os.path.join(root_dir,"{fl}/{fl}.log".format(fl=deleted_log))
     list_to_delete = []
 
+    ## get glob path patterns to search and remove from root directory
+    try:
+        archive_config = CONFIG['cleanup']['archive']
+        ## the glob path should be relative to the run folder, like "Unaligned_*/Project_*"
+        config_ppath = archive_config['proj_path']
+        ## Glob path should be relative to run folder, like "Unaligned_0bp/Undetermined_indices/*/*.fastq.gz"
+        config_npath = archive_config['undet_noindex']
+        ## Glob path should be relative to run folder, like "Unaligned_*bp/Undetermined_indices/*/*.fastq.gz"
+        config_upath = archive_config['undet_all']
+    except KeyError as e:
+        logger.error("Config file is missing the key {}, make sure it have all required information".format(str(e)))
+        raise SystemExit
+
     # make a connection for project db #
     pcon = statusdb.ProjectSummaryConnection()
     assert pcon, "Could not connect to project database in StatusDB"
@@ -182,13 +195,11 @@ def cleanup_uppmax(site, days, dry_run=False):
         list_to_delete.extend(get_closed_projects(projects, pcon, days))
     elif site == "archive":
         ##work flow for cleaning archive ##
-        archive_config = CONFIG['cleanup']['archive']
         runs = [ r for r in os.listdir(root_dir) if re.match(filesystem.RUN_RE,r) ]
         for run in runs:
             with filesystem.chdir(os.path.join(root_dir, run)):
                 ## Collect all project path from demultiplexed directories in the run folder
-                ## the glob path should be relative to the run folder, like "Unaligned_*/Project_*"
-                all_proj_path = glob(archive_config['proj_path'])
+                all_proj_path = glob(config_ppath)
                 all_proj_dict = {os.path.basename(pp).replace('Project_','').replace('__', '.'): pp for pp in all_proj_path}
                 closed_projects = get_closed_projects(all_proj_dict.keys(), pcon, days)
                 ## Only proceed cleaning the data for closed projects
@@ -196,12 +207,10 @@ def cleanup_uppmax(site, days, dry_run=False):
                     closed_proj_fq = glob("{}/*/*.fastq.gz".format(all_proj_dict[closed_proj]))
                     list_to_delete.extend([os.path.join(run, pfile) for pfile in closed_proj_fq])
                 ## Remove the undetermined fastq files for NoIndex case always
-                ## Glob path should be relative to run folder, like "Unaligned_0bp/Undetermined_indices/*/*.fastq.gz"
-                undetermined_fastq_files = glob(archive_config['undet_noindex'])
+                undetermined_fastq_files = glob(config_npath)
                 ## Remove undeterminded fastq files for all index length if all project run in the FC is closed
-                ## Glob path should be relative to run folder, like "Unaligned_*bp/Undetermined_indices/*/*.fastq.gz"
                 if len(all_proj_dict.keys()) == len(closed_projects):
-                    undetermined_fastq_files = glob(archive_config['undet_all'])
+                    undetermined_fastq_files = glob(config_upath)
                 list_to_delete.extend([os.path.join(run, ufile) for ufile in undetermined_fastq_files])
 
     ## delete and log
