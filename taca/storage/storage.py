@@ -182,12 +182,13 @@ def cleanup_uppmax(site, days, dry_run=False):
         list_to_delete.extend(get_closed_projects(projects, pcon, days))
     elif site == "archive":
         ##work flow for cleaning archive ##
-        archive_config = CONFIG.get('cleanup').get('archive')
+        archive_config = CONFIG['cleanup']['archive']
         runs = [ r for r in os.listdir(root_dir) if re.match(filesystem.RUN_RE,r) ]
         for run in runs:
             with filesystem.chdir(os.path.join(root_dir, run)):
-                ## Collect all project path in the run folder
-                all_proj_path = glob(archive_config.get('proj_path'))
+                ## Collect all project path from demultiplexed directories in the run folder
+                ## the glob path should be relative to the run folder, like "Unaligned_*/Project_*"
+                all_proj_path = glob(archive_config['proj_path'])
                 all_proj_dict = {os.path.basename(pp).replace('Project_','').replace('__', '.'): pp for pp in all_proj_path}
                 closed_projects = get_closed_projects(all_proj_dict.keys(), pcon, days)
                 ## Only proceed cleaning the data for closed projects
@@ -195,10 +196,12 @@ def cleanup_uppmax(site, days, dry_run=False):
                     closed_proj_fq = glob("{}/*/*.fastq.gz".format(all_proj_dict[closed_proj]))
                     list_to_delete.extend([os.path.join(run, pfile) for pfile in closed_proj_fq])
                 ## Remove the undetermined fastq files for NoIndex case always
-                undetermined_fastq_files = glob(archive_config.get('undet_noindex'))
+                ## Glob path should be relative to run folder, like "Unaligned_0bp/Undetermined_indices/*/*.fastq.gz"
+                undetermined_fastq_files = glob(archive_config['undet_noindex'])
                 ## Remove undeterminded fastq files for all index length if all project run in the FC is closed
+                ## Glob path should be relative to run folder, like "Unaligned_*bp/Undetermined_indices/*/*.fastq.gz"
                 if len(all_proj_dict.keys()) == len(closed_projects):
-                    undetermined_fastq_files = glob(archive_config.get('undet_all'))
+                    undetermined_fastq_files = glob(archive_config['undet_all'])
                 list_to_delete.extend([os.path.join(run, ufile) for ufile in undetermined_fastq_files])
 
     ## delete and log
