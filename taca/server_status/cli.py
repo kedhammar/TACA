@@ -15,16 +15,13 @@ def server_status():
 
 # server status subcommands
 @server_status.command()
-@click.option('--gdocs', is_flag=True, help="Update the google docs")
 @click.option('--statusdb', is_flag=True, help="Update the statusdb")
 @click.option('--credentials', type=click.Path(exists=True), default=os.path.join(os.environ.get('HOME'), '.taca', 'gdocs_credentials.json'),
 				 help='Path to google credentials file')
-def nases(credentials, gdocs, statusdb):
+def nases(credentials, statusdb):
 	""" Checks the available space on all the nases
 	"""
 	disk_space = status.get_nases_disk_space()
-	if gdocs:
-		status.update_google_docs(disk_space, credentials)
 	if statusdb:
 		status.update_status_db(disk_space, server_type='nas')
 

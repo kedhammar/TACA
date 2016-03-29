@@ -4,6 +4,4 @@ pyyaml
 statusdb
 flowcell_parser
 beautifulsoup4
-oauth2client
 PyOpenSSL
-gspread
