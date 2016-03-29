@@ -1,12 +1,13 @@
 """Storage methods and utilities"""
 import getpass
-import os
 import logging
+import os
 import re
 import shutil
 import time
 
 from datetime import datetime
+from glob import glob
 from multiprocessing import Pool
 
 from statusdb.db import connections as statusdb
@@ -169,29 +170,48 @@ def cleanup_uppmax(site, days, dry_run=False):
     deleted_log = CONFIG.get('cleanup').get('deleted_log')
     assert os.path.exists(os.path.join(root_dir,deleted_log)), "Log directory {} doesn't exist in {}".format(deleted_log,root_dir)
     log_file = os.path.join(root_dir,"{fl}/{fl}.log".format(fl=deleted_log))
+    list_to_delete = []
+
+    ## get glob path patterns to search and remove from root directory
+    try:
+        archive_config = CONFIG['cleanup']['archive']
+        ## the glob path should be relative to the run folder, like "Unaligned_*/Project_*"
+        config_ppath = archive_config['proj_path']
+        ## Glob path should be relative to run folder, like "Unaligned_0bp/Undetermined_indices/*/*.fastq.gz"
+        config_npath = archive_config['undet_noindex']
+        ## Glob path should be relative to run folder, like "Unaligned_*bp/Undetermined_indices/*/*.fastq.gz"
+        config_upath = archive_config['undet_all']
+    except KeyError as e:
+        logger.error("Config file is missing the key {}, make sure it have all required information".format(str(e)))
+        raise SystemExit
 
     # make a connection for project db #
     pcon = statusdb.ProjectSummaryConnection()
     assert pcon, "Could not connect to project database in StatusDB"
 
-    if site != "archive":
+    if site in ["analysis", "illumina"]:
         ## work flow for cleaning up illumina/analysis ##
         projects = [ p for p in os.listdir(root_dir) if re.match(filesystem.PROJECT_RE,p) ]
-        list_to_delete = get_closed_projects(projects, pcon, days)
-    else:
+        list_to_delete.extend(get_closed_projects(projects, pcon, days))
+    elif site == "archive":
         ##work flow for cleaning archive ##
-        list_to_delete = []
-        archived_in_swestore = filesystem.list_runs_in_swestore(path=CONFIG.get('cleanup').get('swestore').get('root'), no_ext=True)
         runs = [ r for r in os.listdir(root_dir) if re.match(filesystem.RUN_RE,r) ]
-        with filesystem.chdir(root_dir):
-            for run in runs:
-                fc_date = run.split('_')[0]
-                if misc.days_old(fc_date) > days:
-                    if run in archived_in_swestore:
-                        list_to_delete.append(run)
-                    else:
-                        logger.warn("Run {} is older than {} days but not in "
-                                    "swestore, so SKIPPING".format(run, days))
+        for run in runs:
+            with filesystem.chdir(os.path.join(root_dir, run)):
+                ## Collect all project path from demultiplexed directories in the run folder
+                all_proj_path = glob(config_ppath)
+                all_proj_dict = {os.path.basename(pp).replace('Project_','').replace('__', '.'): pp for pp in all_proj_path}
+                closed_projects = get_closed_projects(all_proj_dict.keys(), pcon, days)
+                ## Only proceed cleaning the data for closed projects
+                for closed_proj in closed_projects:
+                    closed_proj_fq = glob("{}/*/*.fastq.gz".format(all_proj_dict[closed_proj]))
+                    list_to_delete.extend([os.path.join(run, pfile) for pfile in closed_proj_fq])
+                ## Remove the undetermined fastq files for NoIndex case always
+                undetermined_fastq_files = glob(config_npath)
+                ## Remove undeterminded fastq files for all index length if all project run in the FC is closed
+                if len(all_proj_dict.keys()) == len(closed_projects):
+                    undetermined_fastq_files = glob(config_upath)
+                list_to_delete.extend([os.path.join(run, ufile) for ufile in undetermined_fastq_files])
 
     ## delete and log
     for item in list_to_delete:
@@ -199,13 +219,16 @@ def cleanup_uppmax(site, days, dry_run=False):
             logger.info('Will remove {} from {}'.format(item,root_dir))
             continue
         try:
-            shutil.rmtree(os.path.join(root_dir,item))
-            logger.info('Removed project {} from {}'.format(item,root_dir))
+            to_remove = os.path.join(root_dir,item)
+            if os.path.isfile(to_remove):
+                os.remove(to_remove)
+            elif os.path.isdir(to_remove):
+                shutil.rmtree(to_remove)
+            logger.info('Removed {} from {}'.format(item,root_dir))
             with open(log_file,'a') as to_log:
-                to_log.write("{}\t{}\n".format(item,datetime.strftime(datetime.now(),'%Y-%m-%d %H:%M')))
+                to_log.write("{}\t{}\n".format(to_remove,datetime.strftime(datetime.now(),'%Y-%m-%d %H:%M')))
         except OSError:
-            logger.warn("Could not remove path {} from {}"
-                        .format(item,root_dir))
+            logger.warn("Could not remove {} from {}".format(item,root_dir))
             continue
 
 
