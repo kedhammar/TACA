@@ -10,7 +10,7 @@ try:
     has_oauth2client = True
 except ImportError:
     has_oauth2client = False
- 
+
 from taca.utils.config import CONFIG
 
 def get_nases_disk_space():
@@ -94,7 +94,7 @@ def update_google_docs(data, credentials_file):
 
     # get credentials from the file and authorize
     credentials = GCredentials(json_key['client_email'], 
-							json_key['private_key'], config['g_scope'])
+                            json_key['private_key'], config['g_scope'])
     gc = gspread.authorize(credentials)
     # open google sheet
     # IMPORTANT: file must be shared with the email listed in credentials
@@ -108,7 +108,6 @@ def update_google_docs(data, credentials_file):
         cell = config['g_sheet_map'].get(key) # key = server name
         value = data[key].get('available_percentage')
         worksheet.update_acell(cell, value)
-
 
 def update_status_db(data):
     """ Pushed the data to status db,
@@ -128,21 +127,21 @@ def update_status_db(data):
         couch = couchdb.Server(server)
     except Exception, e:
         logging.error(e.message)
-        raise e
+        raise
 
     db = couch['server_status']
     logging.info('Connection established')
     for key in data.keys(): # data is dict of dicts
         server = data[key] # data[key] is dictionary (the command output)
         server['name'] = key # key is nas url or uppmax project
-        server['time'] = datetime.datetime.now().isoformat() # datetime.datetime(2015, 11, 18, 9, 54, 33, 473189) is not JSON serializable
-        server['server_type'] = server_type or 'unknown'
+        # datetime.datetime(2015, 11, 18, 9, 54, 33, 473189) is not JSON serializable
+        server['time'] = datetime.datetime.now().isoformat() 
 
         try:
             db.save(server)
         except Exception, e:
             logging.error(e.message)
-            raise e
+            raise
         else:
             logging.info('{}: Server status has been updated'.format(key))
 
