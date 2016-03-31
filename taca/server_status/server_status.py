@@ -1,11 +1,9 @@
 import subprocess
 import json
-import gspread
 import logging
 import couchdb
 import datetime
 
-from oauth2client.client import SignedJwtAssertionCredentials as GCredentials
 from taca.utils.config import CONFIG
 
 def get_nases_disk_space():
@@ -73,28 +71,6 @@ def _parse_output(output): # for nases
         logging.error("Can't parse the output: {}".format(output))
 
     return result
-
-def update_google_docs(data, credentials_file):
-    config = CONFIG['server_status']
-    # open json file
-    json_key = json.load(open(credentials_file))
-
-    # get credentials from the file and authorize
-    credentials = GCredentials(json_key['client_email'], json_key['private_key'], config['g_scope'])
-    gc = gspread.authorize(credentials)
-    # open google sheet
-    # IMPORTANT: file must be shared with the email listed in credentials
-    sheet = gc.open(config['g_sheet'])
-
-    # choose worksheet from the doc
-    worksheet = sheet.get_worksheet(1)
-
-    # update cell
-    for key in data: # data is a dicitonary of dictionaries
-        cell = config['g_sheet_map'].get(key) # key = server name
-        value = data[key].get('available_percentage')
-        worksheet.update_acell(cell, value)
-
 
 def update_status_db(data, server_type=None):
     """Pushed the data to status db,
