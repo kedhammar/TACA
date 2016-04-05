@@ -74,8 +74,8 @@ def _parse_output(output): # for nases
 
 def update_status_db(data, server_type=None):
     """ Pushed the data to status db,
-    data can be from nases or from uppmax
-    server_type should be either 'uppmax' or 'nas'
+        data can be from nases or from uppmax
+        server_type should be either 'uppmax' or 'nas'
     """
     db_config = CONFIG.get('statusdb')
     if db_config is None:

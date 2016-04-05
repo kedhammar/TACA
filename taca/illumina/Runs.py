@@ -46,9 +46,9 @@ class Run(object):
         self.CONFIG = configuration
         self._set_demux_folder(configuration)
         self._set_run_parser_obj(configuration) # get parser object to update DB
-        # Jose : This flag tells TACA to move demultiplexed files to the analysis server
+        # This flag tells TACA to move demultiplexed files to the analysis server
         self.transfer_to_analysis_server = True
-        # Jose : Probably worth to add the samplesheet name as a variable too
+        # Probably worth to add the samplesheet name as a variable too
         
     def demultiplex_run(self):
         raise NotImplementedError("Please Implement this method")

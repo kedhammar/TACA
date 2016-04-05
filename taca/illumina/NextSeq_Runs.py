@@ -18,7 +18,7 @@ class NextSeq_Run(Run):
         super(NextSeq_Run, self).__init__( path_to_run, configuration)
         # In the NextSeq the sample sheet is created by the operator
         # and placed in the run root folder.
-        # For now we use the flow cell id to idenfity the sample sheet
+        # For now we use the flow cell id to identify the sample sheet
         self.ssname = os.path.join(self.run_dir, self.flowcell_id + ".csv")
         self._set_sequencer_type()
         self._set_run_type()
@@ -107,7 +107,7 @@ class NextSeq_Run(Run):
     def compute_undetermined(self):
         """ This function parses the Undetermined files per lane produced by illumina
             for now nothing done, 
-            TODO: Jose : finish this function to deal with undetermined
+            TODO: finish this function to deal with undetermined if necessary
         """
         return True
         

@@ -38,7 +38,7 @@ def get_runObj(run):
     try:
         rp = RunParametersParser(os.path.join(run, run_parameters_file))
     except OSError:
-        logger.warn("Cannot find the r|RunParameters.xml file at {}. " 
+        logger.warn("Problems parsing the runParameters.xml file at {}. " 
                     "This is quite unexpected. please archive the run {} manually".format(rppath, run))
     else:
         # This information about the run type (with HiSeq2.5 applicationaName does not work anymore, 
@@ -67,7 +67,7 @@ def get_runObj(run):
             logger.warn("Unrecognized run type {}, cannot archive the run {}. " 
                         "Someone as likely bought a new sequencer without telling "
                         "it to the bioinfo team".format(runtype, run))
-    # Jose : not necessary as the function will return None at this point but
+    # Not necessary as the function will return None at this point but
     # just for being explicit 
     return None
 
@@ -79,7 +79,7 @@ def upload_to_statusdb(run_dir):
     """
     runObj = get_runObj(run_dir)   
     if runObj:
-        # Jose : runObj can be None
+        # runObj can be None
         # Make the actual upload   
         _upload_to_statusdb(runObj)
 
@@ -91,7 +91,7 @@ def _upload_to_statusdb(run):
     db = couch[CONFIG['statusdb']['xten_db']]
     parser = run.runParserObj
     # Check if I have NoIndex lanes
-    # Jose : This could be refactored and some checks for key exceptions should be added
+    # This could be refactored and some checks for key exceptions should be added
     for element in parser.obj['samplesheet_csv']:
         if 'NoIndex' in element['index'] or not element['index']: # NoIndex in the case of HiSeq, empty in the case of HiSeqX
             lane = element['Lane'] # this is a lane with NoIndex
