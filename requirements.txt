@@ -4,12 +4,4 @@ pyyaml
 statusdb
 flowcell_parser
 beautifulsoup4
-<<<<<<< HEAD
-oauth2client
 PyOpenSSL
-gspread
-mock
-couchdb
-=======
-PyOpenSSL
->>>>>>> upstream/master
