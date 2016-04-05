@@ -109,9 +109,10 @@ def update_google_docs(data, credentials_file):
         value = data[key].get('available_percentage')
         worksheet.update_acell(cell, value)
 
-def update_status_db(data):
+def update_status_db(data, server_type=None):
     """ Pushed the data to status db,
     data can be from nases or from uppmax
+    server_type should be either 'uppmax' or 'nas'
     """
     db_config = CONFIG.get('statusdb')
     if db_config is None:
@@ -119,10 +120,10 @@ def update_status_db(data):
         raise RuntimeError("'statusdb' must be present in the config file!")
 
     server = "http://{username}:{password}@{url}:{port}".format(
-                                                            url=db_config['url'],
-                                                            username=db_config['username'],
-                                                            password=db_config['password'],
-                                                            port=db_config['port'])
+        url=db_config['url'],
+        username=db_config['username'],
+        password=db_config['password'],
+        port=db_config['port'])
     try:
         couch = couchdb.Server(server)
     except Exception, e:
@@ -136,7 +137,8 @@ def update_status_db(data):
         server['name'] = key # key is nas url or uppmax project
         # datetime.datetime(2015, 11, 18, 9, 54, 33, 473189) is not JSON serializable
         server['time'] = datetime.datetime.now().isoformat() 
-
+        server['server_type'] = server_type or 'unknown'
+        
         try:
             db.save(server)
         except Exception, e:
