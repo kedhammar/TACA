@@ -174,15 +174,29 @@ def run_preprocessing(run, force_trasfer=True, statusdb=True):
             # Otherwise I can proceed to QC
             # Check the run QC
             run_QC_status = run.check_QC()
-            if run_QC_status:
-                # Store QC results in appropriate file and mail user if failed
-                qc_file = os.path.join(CONFIG['analysis']['status_dir'], 'qc.tsv')
-                # This method is implemented in Runs
-                run.post_qc(qc_file, run_QC_status, log_file=CONFIG['log']['file'], 
-                            rcp=CONFIG['mail']['recipients'])
+            # Store QC results in appropriate file and mail user if failed
+            qc_file = os.path.join(CONFIG['analysis']['status_dir'], 'qc.tsv')
+            # This method is implemented in Runs
+            run.post_qc(qc_file, run_QC_status, log_file=CONFIG['log']['file'],
+                        rcp=CONFIG['mail']['recipients'])
             # Upload to statusDB if applies
             if 'statusdb' in CONFIG:
                 _upload_to_statusdb(run)
+
+            # Copy demultiplex stats file to shared file system for LIMS purpose
+            if 'mfs_path' in CONFIG:
+                try:
+                    mfs_dest = os.path.join(CONFIG['mfs_path'],
+                                        "{}_data".format(run.sequencer_type.lower()),run.id)
+                    logger.info('Copying demultiplex stats for run {} to {}'.format(run.id, mfs_dest))
+                    if not os.path.exists(mfs_dest):
+                        os.mkdir(mfs_dest)
+                    demulti_stat_src = os.path.join(run.run_dir, run.demux_dir, 'Reports',
+                                                    'html', run.flowcell_id, 'all', 'all', 'all', 'laneBarcode.html')
+                    copyfile(demulti_stat_src, os.path.join(mfs_dest, 'laneBarcode.html'))
+                except:
+                    logger.warn('Could not copy demultiplex stat file for run {}'.format(run.id))
+
             # Transfer to analysis if applies
             if run.transfer_to_analysis_server:
                 logger.info('Transferring run {} to {} into {}'
@@ -193,6 +207,7 @@ def run_preprocessing(run, force_trasfer=True, statusdb=True):
             # Archive run if applies
             if 'finished_dir' in CONFIG['analysis']:
                 run.archive_run(CONFIG['analysis']['finished_dir'])
+
     if run:
         # Needs to guess what run type I have (HiSeq, MiSeq, HiSeqX, NextSeq)
         runObj = get_runObj(run)
