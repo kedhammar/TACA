@@ -20,19 +20,31 @@ logger = logging.getLogger(__name__)
 finished_run_indicator = CONFIG.get('storage', {}).get('finished_run_indicator',
                                                    'RTAComplete.txt')
 
-def cleanup_nas(days):
+def cleanup_nas(days, hours):
     """Will move the finished runs in NASes to nosync directory.
 
     :param int days: Number of days to consider a run to be old
     """
+    #only either days or hours should be speciefied, but atleast one should be specified
+    if days and hours:
+        raise SystemExit('Both "--days" and "--hours" was specified, use only either of them')
+    elif not days and not hours:
+        raise SystemExit('Use either "--days" or "--hours" option to set a threshold for considering old runs')
+    elif days and not hours:
+        # 1 day == 60*60*24 seconds --> 86400
+        threshold_seconds = 86400 * days
+    elif hours and not days:
+        # 1 hour == 60*60 seconds --> 3600
+        threshold_seconds = 3600 * hours
+    
     for data_dir in CONFIG.get('storage').get('data_dirs'):
         logger.info('Moving old runs in {}'.format(data_dir))
         with filesystem.chdir(data_dir):
             for run in [r for r in os.listdir(data_dir) if re.match(filesystem.RUN_RE, r)]:
                 rta_file = os.path.join(run, finished_run_indicator)
                 if os.path.exists(rta_file):
-                    # 1 day == 60*60*24 seconds --> 86400
-                    if os.stat(rta_file).st_mtime < time.time() - (86400 * days):
+                    
+                    if os.stat(rta_file).st_mtime < time.time() - threshold_seconds:
                         logger.info('Moving run {} to nosync directory'
                                     .format(os.path.basename(run)))
                         shutil.move(run, 'nosync')
