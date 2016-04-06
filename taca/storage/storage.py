@@ -27,9 +27,11 @@ def cleanup_nas(days, hours):
     """
     #only either days or hours should be speciefied, but atleast one should be specified
     if days and hours:
-        raise SystemExit('Both "--days" and "--hours" was specified, use only either of them')
+        logger.error('Both "--days" and "--hours" was specified, use only either of them')
+        raise SystemExit
     elif not days and not hours:
-        raise SystemExit('Use either "--days" or "--hours" option to set a threshold for considering old runs')
+        logger.error('Use either "--days" or "--hours" option to set a threshold for considering old runs')
+        raise SystemExit
     elif days and not hours:
         # 1 day == 60*60*24 seconds --> 86400
         threshold_seconds = 86400 * days
