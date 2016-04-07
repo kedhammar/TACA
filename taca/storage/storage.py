@@ -20,49 +20,32 @@ logger = logging.getLogger(__name__)
 finished_run_indicator = CONFIG.get('storage', {}).get('finished_run_indicator',
                                                    'RTAComplete.txt')
 
-def cleanup_nas(days, hours):
+def cleanup_nas(seconds):
     """Will move the finished runs in NASes to nosync directory.
 
-    :param int days: Number of days to consider a run to be old
+    :param int seconds: Days/hours converted as second to consider a run to be old
     """
-    #only either days or hours should be speciefied, but atleast one should be specified
-    if days and hours:
-        logger.error('Both "--days" and "--hours" was specified, use only either of them')
-        raise SystemExit
-    elif not days and not hours:
-        logger.error('Use either "--days" or "--hours" option to set a threshold for considering old runs')
-        raise SystemExit
-    elif days and not hours:
-        # 1 day == 60*60*24 seconds --> 86400
-        threshold_seconds = 86400 * days
-    elif hours and not days:
-        # 1 hour == 60*60 seconds --> 3600
-        threshold_seconds = 3600 * hours
-    
     for data_dir in CONFIG.get('storage').get('data_dirs'):
         logger.info('Moving old runs in {}'.format(data_dir))
         with filesystem.chdir(data_dir):
             for run in [r for r in os.listdir(data_dir) if re.match(filesystem.RUN_RE, r)]:
                 rta_file = os.path.join(run, finished_run_indicator)
                 if os.path.exists(rta_file):
-                    
-                    if os.stat(rta_file).st_mtime < time.time() - threshold_seconds:
+                    if os.stat(rta_file).st_mtime < time.time() - seconds:
                         logger.info('Moving run {} to nosync directory'
                                     .format(os.path.basename(run)))
                         shutil.move(run, 'nosync')
                     else:
-                        logger.info('{} file exists but is not older than {} day(s), skipping run {}'.format(
-                                    finished_run_indicator, str(days), run))
+                        logger.info('{} file exists but is not older than given time, skipping run {}'.format(
+                                    finished_run_indicator, run))
 
-
-def cleanup_processing(days):
+## this method is not used anymore and will be changed in future (real soon)
+def cleanup_processing(seconds):
     """Cleanup runs in processing server.
 
-    :param int days: Number of days to consider a run to be old
+    :param int seconds: Days/hours converted as second to consider a run to be old
     """
     transfer_file = os.path.join(CONFIG.get('preprocessing', {}).get('status_dir'), 'transfer.tsv')
-    if not days:
-        days = CONFIG.get('cleanup', {}).get('processing-server', {}).get('days', 10)
     try:
         #Move finished runs to nosync
         for data_dir in CONFIG.get('storage').get('data_dirs'):
@@ -83,15 +66,12 @@ def cleanup_processing(days):
                 for run in [r for r in os.listdir(archive_dir) if re.match(filesystem.RUN_RE, r)]:
                     rta_file = os.path.join(run, finished_run_indicator)
                     if os.path.exists(rta_file):
-                        # 1 day == 60*60*24 seconds --> 86400
-                        if os.stat(rta_file).st_mtime < time.time() - (86400 * days) and \
-                                filesystem.is_in_swestore("{}.tar.bz2".format(run)):
-                            logger.info('Removing run {} to nosync directory'
-                                        .format(os.path.basename(run)))
+                        if os.stat(rta_file).st_mtime < time.time() - seconds:
+                            logger.info('Removing run {} to nosync directory'.format(os.path.basename(run)))
                             shutil.rmtree(run)
                         else:
-                            logger.info('{} file exists but is not older than {} day(s), skipping run {}'.format(
-                                        finished_run_indicator, str(days), run))
+                            logger.info('{} file exists but is not older than given time, skipping run {}'.format(
+                                        finished_run_indicator, run))
 
     except IOError:
         sbj = "Cannot archive old runs in processing server"
@@ -103,7 +83,7 @@ def cleanup_processing(days):
         logger.error(msg)
         misc.send_mail(sbj, msg, cnt)
 
-
+## this method is not used anymore and will be changed in future (real soon)
 def archive_to_swestore(days, run=None, max_runs=None, force=False, compress_only=False):
     """Send runs (as archives) in NAS nosync to swestore for backup
 
@@ -150,7 +130,7 @@ def archive_to_swestore(days, run=None, max_runs=None, force=False, compress_onl
                 else:
                     logger.info('No old runs to be archived')
 
-
+## this method is not used anymore and will be changed/removed in future (real soon)
 def cleanup_swestore(days, dry_run=False):
     """Remove archived runs from swestore
 
@@ -170,15 +150,15 @@ def cleanup_swestore(days, dry_run=False):
             logger.info('Removed file {} from swestore'.format(run))
 
 
-def cleanup_uppmax(site, days, dry_run=False):
-    """Remove project/run that have been closed more than 'days'
+def cleanup_uppmax(site, seconds, dry_run=False):
+    """Remove project/run that have been closed more than given time (as seconds)
     from the given 'site' on uppmax
 
     :param str site: site where the cleanup should be performed
-    :param int days: number of days to check for closed projects
+    :param int seconds: Days/hours converted as second to consider a run to be old
     """
-    days = check_days(site, days, CONFIG)
-    if not days:
+    seconds = check_default(site, seconds, CONFIG)
+    if not seconds:
         return
     root_dir = CONFIG.get('cleanup').get(site).get('root')
     deleted_log = CONFIG.get('cleanup').get('deleted_log')
@@ -206,7 +186,7 @@ def cleanup_uppmax(site, days, dry_run=False):
     if site in ["analysis", "illumina"]:
         ## work flow for cleaning up illumina/analysis ##
         projects = [ p for p in os.listdir(root_dir) if re.match(filesystem.PROJECT_RE,p) ]
-        list_to_delete.extend(get_closed_projects(projects, pcon, days))
+        list_to_delete.extend(get_closed_projects(projects, pcon, seconds))
     elif site == "archive":
         ##work flow for cleaning archive ##
         runs = [ r for r in os.listdir(root_dir) if re.match(filesystem.RUN_RE,r) ]
@@ -215,7 +195,7 @@ def cleanup_uppmax(site, days, dry_run=False):
                 ## Collect all project path from demultiplexed directories in the run folder
                 all_proj_path = glob(config_ppath)
                 all_proj_dict = {os.path.basename(pp).replace('Project_','').replace('__', '.'): pp for pp in all_proj_path}
-                closed_projects = get_closed_projects(all_proj_dict.keys(), pcon, days)
+                closed_projects = get_closed_projects(all_proj_dict.keys(), pcon, seconds)
                 ## Only proceed cleaning the data for closed projects
                 for closed_proj in closed_projects:
                     closed_proj_fq = glob("{}/*/*.fastq.gz".format(all_proj_dict[closed_proj]))
@@ -249,6 +229,7 @@ def cleanup_uppmax(site, days, dry_run=False):
 #############################################################
 # Class helper methods, not exposed as commands/subcommands #
 #############################################################
+## this method is not used anymore and will be changed/removed in future (real soon)
 def _archive_run((run, days, force, compress_only)):
     """ Archive a specific run to swestore
 
@@ -302,13 +283,13 @@ def _archive_run((run, days, force, compress_only)):
     os.remove("{}.archiving".format(run.split('.')[0]))
 
 
-def get_closed_projects(projs, pj_con, days):
+def get_closed_projects(projs, pj_con, seconds):
     """Takes list of project and gives project list that are closed
-    more than given check 'days'
+    more than given time(as seconds)
 
     :param list projs: list of projects to check
     :param obj pj_con: connection object to project database
-    :param int days: number of days to check
+    :param int seconds: Days/hours converted as seconds to check
     """
     closed_projs = []
     for proj in projs:
@@ -322,32 +303,33 @@ def get_closed_projects(projs, pj_con, days):
         except KeyError:
             logger.warn("Project {} is either open or too old, so SKIPPING it..".format(proj))
             continue
-        if misc.days_old(proj_close_date,date_format='%Y-%m-%d') > days:
+        if misc.to_seconds(days=misc.days_old(proj_close_date,date_format='%Y-%m-%d')) > seconds:
             closed_projs.append(proj)
     return closed_projs
 
 
-def check_days(site, days, config):
-    """Check if 'days' given while running command. If not take the default threshold
+def check_default(site, seconds, config):
+    """Check if time(as seconds) given while running command. If not take the default threshold
     from config file (which should exist). Also when 'days' given on the command line
     raise a check to make sure it was really meant to do so
 
     :param str site: site to be cleaned and relevent date to pick
-    :param int days: number of days to check, will be None if '-d' not used
+    :param int seconds: Days/hours converted as seconds to check
     :param dict config: config file parsed and saved as dictionary
     """
     try:
         default_days = config['cleanup'][site]['days']
+        default_seconds = misc.to_seconds(days=default_days)
     except KeyError:
         raise
-    if not days:
-        return default_days
-    elif days >= default_days:
-        return days
+    if not seconds:
+        return default_seconds
+    elif seconds >= default_seconds:
+        return seconds
     else:
-        if misc.query_yes_no("Seems like given days({}) is less than the "
-                             " default({}), are you sure to proceed ?"
-                             .format(days,default_days), default="no"):
-            return days
+        if misc.query_yes_no("Seems like given time is less than the "
+                             " default({}) days, are you sure to proceed ?"
+                             .format(default_days), default="no"):
+            return seconds
         else:
             return None
