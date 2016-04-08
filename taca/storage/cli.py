@@ -5,9 +5,9 @@ from taca.storage import storage as st
 from taca.utils import misc
         
 @click.group()
-@click.option('-d', '--days', type=click.INT,
+@click.option('-d', '--days', type=click.IntRange(min=1),
               help="Days to consider as thershold, should not be combined with option '--hours'")
-@click.option('-h', '--hours', type=click.INT,
+@click.option('-h', '--hours', type=click.IntRange(min=1),
               help="Hours to consider as thershold, should not be combined with option '--days'")
 @click.option('-r', '--run', type=click.Path(exists=True))
 @click.pass_context
