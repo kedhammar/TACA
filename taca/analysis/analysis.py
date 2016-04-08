@@ -27,11 +27,11 @@ def get_runObj(run):
     """
     
     if os.path.exists(os.path.join(run, 'runParameters.xml')):
-        run_parameters_file = "runParameters.xml"
+        run_parameters_file = "runParameters.xml" 
     elif os.path.exists(os.path.join(run, 'RunParameters.xml')):
         run_parameters_file = "RunParameters.xml"
     else:
-        logger.error("Cannot find RunParameters.xml or runParameters.xml in the run folder")
+        logger.error("Cannot find RunParameters.xml or runParameters.xml in the run folder for run {}".format(run))
         return
                     
     rppath = os.path.join(run, run_parameters_file)
