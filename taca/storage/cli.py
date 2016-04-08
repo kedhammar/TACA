@@ -17,24 +17,21 @@ def storage(ctx, days, hours, run):
 
 # Storage subcommands
 @storage.command()
-@click.option('--backend', type=click.Choice(['swestore']), required=True,
-              help='Long term storage backend')
+@click.option('--backend', required=True, help='Long term storage backend')
 @click.option('-m','--max-runs', type=click.INT, help='Limit the number of runs to be archived simultaneously')
 @click.option('-f', '--force', is_flag=True, help=("Force archiving even if the run "
 												   "is not complete (not RTAComplete.txt file found)"))
 @click.option('-c', '--compress-only', is_flag=True, help='Only compress the run without archiving it')
 @click.pass_context
 def archive(ctx, backend, max_runs, force, compress_only):
-    """ Archive old runs to SWESTORE
+    """ Archive old runs
 	"""
-    params = ctx.parent.params
-    if backend == 'swestore':
-        st.archive_to_swestore(days=params.get('days'), run=params.get('run'), max_runs=max_runs,
-							   force=force, compress_only=compress_only)
+    # to be implemented yet with new method, old one is deprecated
+    raise NotImplementedError
 
 
 @storage.command()
-@click.option('-s','--site', type=click.Choice(['swestore','archive','illumina','analysis','nas','processing-server']),
+@click.option('-s','--site', type=click.Choice(['archive','illumina','analysis','nas','processing-server']),
               required=True, help='Site to perform cleanup')
 @click.option('-n','--dry-run', is_flag=True, help='Perform dry run i.e. Executes nothing but log')
 @click.pass_context
@@ -46,7 +43,5 @@ def cleanup(ctx, site, dry_run):
         st.cleanup_nas(seconds)
     if site == 'processing-server':
         st.cleanup_processing(seconds)
-    if site == 'swestore':
-        st.cleanup_swestore(days, dry_run)
     if site in ['illumina','analysis','archive']:
         st.cleanup_uppmax(site, seconds, dry_run)
