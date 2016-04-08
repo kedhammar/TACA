@@ -225,8 +225,9 @@ def run_preprocessing(run, force_trasfer=True, statusdb=True):
         # Needs to guess what run type I have (HiSeq, MiSeq, HiSeqX, NextSeq)
         runObj = get_runObj(run)
         if not runObj:
-            raise RuntimeError("Unrecognized instrument type")
-        _process(runObj, force_trasfer)
+            raise RuntimeError("Unrecognized instrument type or incorrect run folder {}".format(run))
+        else:
+            _process(runObj, force_trasfer)
     else:
         data_dirs = CONFIG.get('analysis').get('data_dirs')
         for data_dir in data_dirs:
@@ -237,8 +238,9 @@ def run_preprocessing(run, force_trasfer=True, statusdb=True):
             for _run in runs:
                 runObj = get_runObj(_run)
                 if not runObj:
-                    raise RuntimeError("Unrecognized instrument type")
-                _process(runObj, force_trasfer)
+                    logger.warning("Unrecognized instrument type or incorrect run folder {}".format(run))
+                else:
+                    _process(runObj, force_trasfer)
 
 
 
