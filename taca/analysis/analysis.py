@@ -187,11 +187,12 @@ def run_preprocessing(run, force_trasfer=True, statusdb=True):
             # Otherwise I can proceed to QC
             # Check the run QC
             run_QC_status = run.check_QC()
-            # Store QC results in appropriate file and mail user if failed
-            qc_file = os.path.join(CONFIG['analysis']['status_dir'], 'qc.tsv')
-            # This method is implemented in Runs
-            run.post_qc(qc_file, run_QC_status, log_file=CONFIG['log']['file'],
-                        rcp=CONFIG['mail']['recipients'])
+            if run_QC_status is not None:
+                # Store QC results in appropriate file and mail user if failed
+                qc_file = os.path.join(CONFIG['analysis']['status_dir'], 'qc.tsv')
+                # This method is implemented in Runs
+                run.post_qc(qc_file, run_QC_status, log_file=CONFIG['log']['file'],
+                            rcp=CONFIG['mail']['recipients'])
             # Upload to statusDB if applies
             if 'statusdb' in CONFIG:
                 _upload_to_statusdb(run)
