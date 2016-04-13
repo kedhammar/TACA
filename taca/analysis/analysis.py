@@ -241,7 +241,12 @@ def run_preprocessing(run, force_trasfer=True, statusdb=True):
                 if not runObj:
                     logger.warning("Unrecognized instrument type or incorrect run folder {}".format(run))
                 else:
-                    _process(runObj, force_trasfer)
+                    try:
+                        _process(runObj, force_trasfer)
+                    except:
+                        # this function might throw and exception,
+                        # it is better to continue processing other runs
+                        pass
 
 
 
