@@ -97,6 +97,7 @@ def call_external_command_detached(cl, with_log_files=False, prefix=None):
             stderr.close()
     return p_handle
 
+
 def days_old(date, date_format="%y%m%d"):
     """ Return the number days between today and given date
 
@@ -108,6 +109,25 @@ def days_old(date, date_format="%y%m%d"):
     except ValueError:
         return None
     return time_dif.days
+
+
+def to_seconds(days=None, hours=None):
+    """ Convert given day/hours to seconds and return
+
+        :param int days: days to be converted
+        :param int hours: hours to be converted
+    """
+    #only either days or hours should be speciefied, but atleast one should be specified
+    if days and hours:
+        raise SystemExit('Both "days" and "hours" were given, use only either of them')
+    elif not days and not hours:
+        raise SystemExit('provide either "days" or "hours"')
+    elif days and not hours:
+        # 1 day == 60*60*24 seconds --> 86400
+        return 86400 * days
+    elif hours and not days:
+        # 1 hour == 60*60 seconds --> 3600
+        return 3600 * hours
 
 def hashfile(afile, hasher='sha1', blocksize=65536):
     """ Calculate the hash digest of a file with the specified algorithm and 
@@ -129,6 +149,7 @@ def hashfile(afile, hasher='sha1', blocksize=65536):
             hashobj.update(buf)
             buf = fh.read(blocksize)
     return hashobj.hexdigest()
+
     
 def query_yes_no(question, default="yes", force=False):
     """Ask a yes/no question via raw_input() and return their answer.
@@ -167,9 +188,6 @@ def query_yes_no(question, default="yes", force=False):
         else:
             sys.stdout.write("Please respond with 'yes' or 'no' "\
                                  "(or 'y' or 'n').\n")
-
-
-
 
 
 def return_unique(seq):
