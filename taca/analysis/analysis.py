@@ -164,6 +164,7 @@ def run_preprocessing(run, force_trasfer=True, statusdb=True):
                 logger.warn("Run {} marked as {}, "
                             "TACA will skip this and move the run to "
                             "no-sync directory".format(run.id, run.get_run_type()))
+                # Archive the run if indicated in the config file
                 if 'storage' in CONFIG:
                     run.archive_run(CONFIG['storage']['archive_dirs'][run.sequencer_type])
                 return 
@@ -211,16 +212,17 @@ def run_preprocessing(run, force_trasfer=True, statusdb=True):
                 except:
                     logger.warn('Could not copy demultiplex stat file for run {}'.format(run.id))
 
-            # Transfer to analysis if applies
+            # Transfer to analysis server if flag is True
             if run.transfer_to_analysis_server:
                 logger.info('Transferring run {} to {} into {}'
                             .format(run.id,
                                     run.CONFIG['analysis_server']['host'],
                                     run.CONFIG['analysis_server']['sync']['data_archive']))
                 run.transfer_run(t_file,  False) # Do not trigger analysis
-            # Archive run if applies
-            if 'finished_dir' in CONFIG['analysis']:
-                run.archive_run(CONFIG['analysis']['finished_dir'])
+                
+            # Archive the run if indicated in the config file
+            if 'storage' in CONFIG:
+                run.archive_run(CONFIG['storage']['archive_dirs'][run.sequencer_type])
 
     if run:
         # Needs to guess what run type I have (HiSeq, MiSeq, HiSeqX, NextSeq)
