@@ -38,7 +38,7 @@ class MiSeq_Run(HiSeq_Run):
         else:
             #it SampleSheet exists try to see if it is a NGI-run
             ssparser = SampleSheetParser(ssname)
-            if ssparser.header['Description'] == "Production" or ssparser.header['Description'] == "Application":
+            if ssparser.header['Description'] == "Production" or ssparser.header['Description'] == "Applications":
                 self.run_type = "NGI-RUN"
             else:
             #otherwise this is a non NGI run
