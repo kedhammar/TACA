@@ -73,9 +73,9 @@ def _parse_output(output): # for nases
     return result
 
 def update_status_db(data, server_type=None):
-    """Pushed the data to status db,
-    data can be from nases or from uppmax
-    server_type should be either 'uppmax' or 'nas'
+    """ Pushed the data to status db,
+        data can be from nases or from uppmax
+        server_type should be either 'uppmax' or 'nas'
     """
     db_config = CONFIG.get('statusdb')
     if db_config is None:
@@ -91,24 +91,24 @@ def update_status_db(data, server_type=None):
         couch = couchdb.Server(server)
     except Exception, e:
         logging.error(e.message)
-        raise e
+        raise
 
     db = couch['server_status']
     logging.info('Connection established')
     for key in data.keys(): # data is dict of dicts
         server = data[key] # data[key] is dictionary (the command output)
         server['name'] = key # key is nas url or uppmax project
-        server['time'] = datetime.datetime.now().isoformat() # datetime.datetime(2015, 11, 18, 9, 54, 33, 473189) is not JSON serializable
+        # datetime.datetime(2015, 11, 18, 9, 54, 33, 473189) is not JSON serializable
+        server['time'] = datetime.datetime.now().isoformat() 
         server['server_type'] = server_type or 'unknown'
-
+        
         try:
             db.save(server)
         except Exception, e:
             logging.error(e.message)
-            raise e
+            raise
         else:
             logging.info('{}: Server status has been updated'.format(key))
-
 
 def get_uppmax_quotas():
     current_time = datetime.datetime.now()
@@ -138,8 +138,6 @@ def get_uppmax_quotas():
 
         result[project[0]] = project_dict
     return result
-
-
 
 def get_uppmax_cpu_hours():
     current_time = datetime.datetime.now()
