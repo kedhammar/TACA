@@ -238,6 +238,9 @@ def run_preprocessing(run, force_trasfer=True, statusdb=True):
             # Try MiSeq runs as well
             if not runs:
                 runs = glob.glob(os.path.join(data_dir, '1*000000000*'))
+            # Try NextSeq runs as well
+            if not runs:
+                runs = glob.glob(os.path.join(data_dir, '[1-9]*'))
             for _run in runs:
                 runObj = get_runObj(_run)
                 if not runObj:
