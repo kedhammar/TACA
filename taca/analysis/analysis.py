@@ -234,13 +234,11 @@ def run_preprocessing(run, force_trasfer=True, statusdb=True):
     else:
         data_dirs = CONFIG.get('analysis').get('data_dirs')
         for data_dir in data_dirs:
-            runs = glob.glob(os.path.join(data_dir, '1*XX'))
+            # Run folder can end in XX or XY
+            runs = glob.glob(os.path.join(data_dir, '[1-9]*X[X|Y]'))
             # Try MiSeq runs as well
             if not runs:
-                runs = glob.glob(os.path.join(data_dir, '1*000000000*'))
-            # Try NextSeq runs as well
-            if not runs:
-                runs = glob.glob(os.path.join(data_dir, '[1-9]*'))
+                runs = glob.glob(os.path.join(data_dir, '[1-9]*000000000*'))
             for _run in runs:
                 runObj = get_runObj(_run)
                 if not runObj:
