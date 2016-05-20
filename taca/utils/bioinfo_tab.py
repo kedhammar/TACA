@@ -69,9 +69,13 @@ def update_statusdb(run_dir):
                 for sample in project_info[flowcell][lane]:
                     for project in project_info[flowcell][lane][sample]:
                         project_info[flowcell][lane][sample].value = get_status(run_dir)
-                        sample_status = project_info[flowcell][lane][sample].value
+                        sample_status = project_info[flowcell][lane][sample].value                         
                         obj={'run_id':run_id, 'project_id':project, 'flowcell': flowcell, 'lane': lane, 
                              'sample':sample, 'status':sample_status, 'values':{valueskey:{'user':'taca','sample_status':sample_status}} }
+                        
+                        #FLOWCELL IS NEVER SET CORRECTLY
+                        #if flowcell == "160516_M01320_0063_000000000-AR6MW" or flowcell == "    ":
+                        #    print obj
                         #If entry exists, append to existing
                         #Special if case to handle lanes written as int, can be safely removed when old lanes
                         #is no longer stored as int
@@ -177,7 +181,7 @@ def get_ss_projects(run_dir):
         except:
             logger.warn("Cannot initialize SampleSheetParser for {}. Most likely due to poor comma separation".format(run_dir))
             return []
-        if 'Description' in ss_reader.header and ss_reader.header['Description'] not in ['Production', 'Application']:
+        if 'Description' in ss_reader.header and ss_reader.header['Description'] not in ['Production', 'Applications']:
             logger.warn("Run {} detected as a non platform MiSeq run. Disregarding it.".format(run_dir))
             return []
     else:
