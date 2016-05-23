@@ -177,7 +177,7 @@ def get_ss_projects(run_dir):
         except:
             logger.warn("Cannot initialize SampleSheetParser for {}. Most likely due to poor comma separation".format(run_dir))
             return []
-        if 'Description' in ss_reader.header and ss_reader.header['Description'] not in ['Production', 'Application']:
+        if 'Description' in ss_reader.header and ss_reader.header['Description'] not in ['Production', 'Applications']:
             logger.warn("Run {} detected as a non platform MiSeq run. Disregarding it.".format(run_dir))
             return []
     else:
