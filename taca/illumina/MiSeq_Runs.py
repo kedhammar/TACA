@@ -81,7 +81,7 @@ class MiSeq_Run(HiSeq_Run):
                 if 'Sample_ID' in field:
                     entry[field] ='Sample_{}'.format(value)
                 elif 'Sample_Project' in field:
-                    entry[field] = value.replace(".", "_")
+                    entry[field] = value.replace(".", "__")
                 else:
                     entry[field] = value
             if 'Lane' not in entry:
