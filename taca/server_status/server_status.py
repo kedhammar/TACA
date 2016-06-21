@@ -132,7 +132,7 @@ def get_uppmax_quotas():
         project_dict["usage (GB)"] = project[1]
         project_dict["quota limit (GB)"] = project[2]
         try:
-            project_dict["over quota"] = project[3]
+            project_dict["quota_decrease"] = project[3]
         except:
             pass
 
