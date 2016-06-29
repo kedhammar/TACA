@@ -181,11 +181,11 @@ def _get_uppmax_cpu_quotas(project_id):
     result = []
     try:
         logging.info("CPU Quotas Decrease, project {}:".format(project_id))
-        cpu_quotas = subprocess.Popen("grep -A 10 {} /sw/uppmax/etc/projects".format(project_id).split())
+        cpu_quotas = subprocess.Popen("grep -A 10 {} /sw/uppmax/etc/projects".format(project_id).split(), stdout=subprocess.PIPE)
+        output = cpu_quotas.communicate()[0].split('\n')
     except Exception, e:
         logging.error(e.message)
     else:
-        output = cpu_quotas.communicate()[0]
         for line in output:
             # line should be: "Shortgrants:  milou=7000	20150421"
             if 'Shortgrants' in line:
