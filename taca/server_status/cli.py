@@ -37,8 +37,11 @@ def uppmax(disk_quota, cpu_hours):
 		merged_results.update(disk_quota_data)
 	if cpu_hours:
 		cpu_hours_data = status.get_uppmax_cpu_hours()
-		for key in cpu_hours_data.keys():
-			merged_results[key].update(cpu_hours_data[key])
+		if not merged_results:
+			merged_results = cpu_hours_data
+		else:
+			for key in cpu_hours_data.keys():
+				merged_results[key].update(cpu_hours_data[key])
 	status.update_status_db(merged_results, server_type='uppmax')
 
 
