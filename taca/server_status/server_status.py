@@ -178,7 +178,7 @@ def get_uppmax_cpu_hours():
 
 def _get_uppmax_cpu_quotas(project_id):
     today = datetime.date.today()
-    result = []
+    result = {}
     try:
         logging.info("CPU Quotas Decrease, project {}:".format(project_id))
         cpu_quotas = subprocess.Popen("grep -A 10 {} /sw/uppmax/etc/projects".format(project_id).split(), stdout=subprocess.PIPE)
@@ -198,6 +198,7 @@ def _get_uppmax_cpu_quotas(project_id):
                     quota_date = datetime.datetime.strptime(date_string, "%Y%m%d").date()
                     if quota_date > today:
                         # cpu_hours will be 'milou=20000' or 'irma=20000'
-                        cpu_hours = cpu_hours.split('='[-1])
-                        result.append({'quota': cpu_hours, 'date': quota_date})
+                        cpu_hours = cpu_hours.split('=')[-1]
+                        quota_date = '{}-{}-{}'.format(quota_date.year, quota_date.month, quota_date.day)
+                        result[quota_date] = cpu_hours
     return result
