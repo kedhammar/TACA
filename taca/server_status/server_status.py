@@ -132,7 +132,7 @@ def get_uppmax_quotas():
         project_dict["usage (GB)"] = project[1]
         project_dict["quota limit (GB)"] = project[2]
         try:
-            project_dict["over quota"] = project[3]
+            project_dict["quota_decrease"] = project[3]
         except:
             pass
 
@@ -158,17 +158,51 @@ def get_uppmax_cpu_hours():
     for proj in output.strip().split('\n'):
         project_dict = {"time": current_time.isoformat()}
 
-        # split line into a list
-        project = proj.split()
+        try: # split line into a list
+            project_id, cpu_hours, cpu_limit = proj.split()
         # sometimes it returns empty strings or something strange
-        try:
-            # creating objects
-            project_dict["project"] = project[0]
-            project_dict["cpu hours"] = project[1]
-            project_dict["cpu limit"] = project[2]
-            result[project[0]] = project_dict
         except Exception, e:
             logging.error(e.message)
-            continue
+        else:
+            project_dict["project"] = project_id
+            project_dict["cpu hours"] = cpu_hours
+            project_dict["cpu limit"] = cpu_limit
 
+            quotas = _get_uppmax_cpu_quotas(project_id)
+            if quotas:
+                project_dict["cpu_quota_decrease"] = quotas
+
+            result[project_id] = project_dict
+
+    return result
+
+def _get_uppmax_cpu_quotas(project_id):
+    today = datetime.date.today()
+    result = {}
+    try:
+        logging.info("CPU Quotas Decrease, project {}:".format(project_id))
+        # sed will look for lines between the one containing project_id and the section with the next project (starts with Name:..)
+        # grep select the lines containing 'Shortgrants'
+        command = "sed -n '/{}/,/Name/p' /sw/uppmax/etc/projects | grep Shortgrants".format(project_id)
+        # shell=True and universal_newlines=True - to make it work with quotes
+        cpu_quotas = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, universal_newlines=True)
+        output = cpu_quotas.communicate[0].split('\n')
+
+    except Exception, e:
+        logging.error(e.message)
+    else:
+        for line in output:
+            # line should be: "Shortgrants:  milou=7000	20150421"
+            logging.info(line)
+            try:
+                shortgrants, cpu_hours, date_string = line.split()
+            except Exception, e:
+                logging.error(e.message)
+            else:
+                quota_date = datetime.datetime.strptime(date_string, "%Y%m%d").date()
+                if quota_date > today:
+                    # cpu_hours will be 'milou=20000' or 'irma=20000'
+                    cpu_hours = cpu_hours.split('=')[-1]
+                    quota_date = '{}-{}-{}'.format(quota_date.year, quota_date.month, quota_date.day)
+                    result[quota_date] = cpu_hours
     return result
