@@ -185,8 +185,8 @@ def _get_uppmax_cpu_quotas(project_id):
         # grep select the lines containing 'Shortgrants'
         command = "sed -n '/{}/,/Name/p' /sw/uppmax/etc/projects | grep Shortgrants".format(project_id)
         # shell=True and universal_newlines=True - to make it work with quotes
-        cpu_quotas = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, universal_newlines=True)
-        output = cpu_quotas.communicate[0].split('\n')
+        cpu_quotas = subprocess.Popen(command, universal_newlines=True, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        output = cpu_quotas.communicate()[0].split('\n')
 
     except Exception, e:
         logging.error(e.message)
