@@ -235,8 +235,6 @@ def run_preprocessing(run, force_trasfer=True, statusdb=True):
         data_dirs = CONFIG.get('analysis').get('data_dirs')
         for data_dir in data_dirs:
             # Run folder looks like DATE_*_*_*, the last section is the FC name. See Courtesy information from illumina of 10 June 2016 (no more XX at the end of the FC)
-            import pdb
-            pdb.set_trace()
             runs = glob.glob(os.path.join(data_dir, '[1-9]*_*_*_*'))
             for _run in runs:
                 runObj = get_runObj(_run)
