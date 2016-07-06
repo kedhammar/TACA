@@ -20,7 +20,7 @@ def send_mail(subject, content, receiver):
     """
     msg = MIMEText(content)
     msg['Subject'] = "TACA - {}".format(subject)
-    msg['From'] = 'TACA'
+    msg['From'] = 'TACA@scilifelab.se'
     msg['to'] = receiver
 
     s = smtplib.SMTP('localhost')
