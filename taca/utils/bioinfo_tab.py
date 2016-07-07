@@ -83,7 +83,7 @@ def update_statusdb(run_dir):
                             remote_doc = db[remote_id]['values']
                             remote_status = db[remote_id]['status']
                             #Only updates the listed statuses
-                            if remote_status in ['New', 'ERROR', 'Sequencing', 'Demultiplexing', 'QC-Failed', 'BP-Failed', 'Failed'] and sample_status is not remote_status:
+                            if remote_status in ['New', 'ERROR', 'Sequencing', 'Demultiplexing', 'QC-Failed', 'BP-Failed', 'Failed'] and sample_status != remote_status:
                                 #Appends old entry to new. Essentially merges the two
                                 for k, v in remote_doc.items():
                                     obj['values'][k] = v
