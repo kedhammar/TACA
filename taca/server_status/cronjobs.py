@@ -12,7 +12,9 @@ from taca.utils.config import CONFIG
 def update_cronjob_db():
     logging.info('Getting list of cronjobs')
     crontab = CronTab()
-    # for some reasons, sometimes it's empty
+    # CronTab() is supposed to return the list of cronjobs
+    # it works on milou, but doesn't work on preproc (returns an empty list)
+    # when it doesn't work, create CronTab object from the output of command 'crontab -l'
     if crontab.crons == []:
         try:
             p = subprocess.Popen('crontab -l', shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
