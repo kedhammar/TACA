@@ -12,6 +12,16 @@ from taca.utils.config import CONFIG
 def update_cronjob_db():
     logging.info('Getting list of cronjobs')
     crontab = CronTab()
+    # for some reasons, sometimes it's empty
+    if crontab.crons == []:
+        try:
+            p = subprocess.Popen('crontab -l', shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        except Exception, e:
+            logging.error(e.message)
+        else:
+            output = p.communicate()[0]
+            crontab = CronTab(tab=output)
+
     server = platform.node().split('.')[0]
     user = getpass.getuser()
     timestamp = datetime.datetime.now()
@@ -26,7 +36,6 @@ def update_cronjob_db():
                        'Day of month' : str(job.month),
                        'Month': str(job.month),
                        'Day of week': str(job.day)})
-    print result
     # connect to db
     url = "http://{username}:{password}@{url}:{port}".format(
             url=CONFIG.get('statusdb', {}).get('url'),
@@ -42,14 +51,29 @@ def update_cronjob_db():
         # update document
         crontab_db = couch['cronjobs']
         view = crontab_db.view('server/alias')
+        # to be safe
+        doc = {}
+        # create doc if not exist
+        if not view[server].rows:
+            logging.info('Creating a document')
+            doc = {
+                'users': {user: result},
+                'Last updated': str(timestamp),
+                'server': server,
+            }
+        # else: get existing doc
         for row in view[server]:
+            logging.info('Updating the document')
             doc = crontab_db.get(row.value)
             doc['users'][user] = result
             doc['Last updated'] = str(timestamp)
-            logging.info('Updating the document')
+        if doc:
             try:
                 crontab_db.save(doc)
             except Exception, e:
                 logging.error(e.message)
             else:
-                logging.info('Document {} has been successfully updated'.format(row.value))
+                logging.info('{} has been successfully updated'.format(server))
+        else:
+            logging.warning('Document has not been created/updated')
+

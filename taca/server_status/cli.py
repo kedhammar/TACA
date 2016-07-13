@@ -12,8 +12,7 @@ from taca.server_status import cronjobs as cj # to avoid similar names with comm
 def server_status():
     """ Monitor server status """
     if not CONFIG.get('server_status', ''):
-        raise RuntimeError("Configuration missing required entries: server_status")
-
+        logging.warning("Configuration missing required entries: server_status")
 
 # server status subcommands
 @server_status.command()
