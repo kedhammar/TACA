@@ -1,10 +1,11 @@
-""" 
-Analysis methods for TACA 
+"""
+Analysis methods for TACA
 """
 import glob
 import logging
 import os
 
+from shutil import copyfile
 from taca.illumina.HiSeqX_Runs import HiSeqX_Run
 from taca.illumina.HiSeq_Runs import HiSeq_Run
 from taca.illumina.MiSeq_Runs import MiSeq_Run
@@ -22,26 +23,26 @@ def get_runObj(run):
         :param run: run name identifier
         :type run: string
         :rtype: Object
-        :returns: returns the sequencer type object, 
+        :returns: returns the sequencer type object,
         None if the sequencer type is unknown of there was an error
     """
-    
+
     if os.path.exists(os.path.join(run, 'runParameters.xml')):
-        run_parameters_file = "runParameters.xml" 
+        run_parameters_file = "runParameters.xml"
     elif os.path.exists(os.path.join(run, 'RunParameters.xml')):
         run_parameters_file = "RunParameters.xml"
     else:
         logger.error("Cannot find RunParameters.xml or runParameters.xml in the run folder for run {}".format(run))
         return
-                    
+
     rppath = os.path.join(run, run_parameters_file)
     try:
         rp = RunParametersParser(os.path.join(run, run_parameters_file))
     except OSError:
-        logger.warn("Problems parsing the runParameters.xml file at {}. " 
+        logger.warn("Problems parsing the runParameters.xml file at {}. "
                     "This is quite unexpected. please archive the run {} manually".format(rppath, run))
     else:
-        # This information about the run type (with HiSeq2.5 applicationaName does not work anymore, 
+        # This information about the run type (with HiSeq2.5 applicationaName does not work anymore,
         # but as for a long time we will have instruments not updated I need to find out something that works
         try:
             # Works for recent control software
@@ -50,10 +51,10 @@ def get_runObj(run):
             # Use this as second resource but print a warning in the logs
             logger.warn("Parsing runParameters to fecth instrument type, "
                         "not found Flowcell information in it. Using ApplicaiotnName")
-            # here makes sense to use get with default value "" -> 
-            # so that it doesn't raise an exception in the next lines 
+            # here makes sense to use get with default value "" ->
+            # so that it doesn't raise an exception in the next lines
             # (in case ApplicationName is not found, get returns None)
-            runtype = rp.data['RunParameters']["Setup"].get("ApplicationName", "") 
+            runtype = rp.data['RunParameters']["Setup"].get("ApplicationName", "")
 
         if "HiSeq X" in runtype:
             return HiSeqX_Run(run, CONFIG["analysis"]["HiSeqX"])
@@ -64,11 +65,11 @@ def get_runObj(run):
         elif "NextSeq" in runtype:
             return NextSeq_Run(run, CONFIG["analysis"]["NextSeq"])
         else:
-            logger.warn("Unrecognized run type {}, cannot archive the run {}. " 
+            logger.warn("Unrecognized run type {}, cannot archive the run {}. "
                         "Someone as likely bought a new sequencer without telling "
                         "it to the bioinfo team".format(runtype, run))
     # Not necessary as the function will return None at this point but
-    # just for being explicit 
+    # just for being explicit
     return None
 
 def upload_to_statusdb(run_dir):
@@ -77,10 +78,10 @@ def upload_to_statusdb(run_dir):
         :type run: string
         :rtype: None
     """
-    runObj = get_runObj(run_dir)   
+    runObj = get_runObj(run_dir)
     if runObj:
         # runObj can be None
-        # Make the actual upload   
+        # Make the actual upload
         _upload_to_statusdb(runObj)
 
 def _upload_to_statusdb(run):
@@ -111,11 +112,11 @@ def _upload_to_statusdb(run):
                     updated +=1
                     sample['PF Clusters'] = str(PFclusters)
             if updated != 1:
-                logger.error("While taking extra care of lane {} of NoIndex type " 
-                             "I updated more than once the barcode_lane. " 
+                logger.error("While taking extra care of lane {} of NoIndex type "
+                             "I updated more than once the barcode_lane. "
                              "This is too much to continue so I will fail.".format(lane))
                 os.sys.exit()
-            # If I am here it means I changed the HTML representation to something 
+            # If I am here it means I changed the HTML representation to something
             # else to accomodate the wired things we do
             # someone told me that in such cases it is better to put a place holder for this
             parser.obj['illumina']['Demultiplex_Stats']['NotOriginal'] = "True"
@@ -133,7 +134,7 @@ def transfer_run(run_dir, analysis):
     else:
         runObj.transfer_run("nosync", os.path.join(CONFIG['analysis']['status_dir'], 'transfer.tsv'),
                             analysis) # do not start analsysis automatically if I force the transfer
- 
+
 def run_preprocessing(run, force_trasfer=True, statusdb=True):
     """ Run demultiplexing in all data directories
         :param str run: Process a particular run instead of looking for runs
@@ -147,13 +148,13 @@ def run_preprocessing(run, force_trasfer=True, statusdb=True):
         logger.info('Checking run {}'.format(run.id))
         t_file = os.path.join(CONFIG['analysis']['status_dir'], 'transfer.tsv')
         if run.is_transferred(t_file):
-            # In this case I am either processing a run that is in transfer 
+            # In this case I am either processing a run that is in transfer
             # or that has been already transferred. Do nothing.
-            # time to time this situation is due to runs that are copied back from NAS after a reboot. 
+            # time to time this situation is due to runs that are copied back from NAS after a reboot.
             # This check avoid failures
             logger.info('Run {} already transferred to analysis server, skipping it'.format(run.id))
             return
-        
+
         if run.get_run_status() == 'SEQUENCING':
             # Check status files and say i.e Run in second read, maybe something
             # even more specific like cycle or something
@@ -167,7 +168,7 @@ def run_preprocessing(run, force_trasfer=True, statusdb=True):
                 # Archive the run if indicated in the config file
                 if 'storage' in CONFIG:
                     run.archive_run(CONFIG['storage']['archive_dirs'][run.sequencer_type])
-                return 
+                return
             # Otherwise it is fine, process it
             logger.info(("Starting BCL to FASTQ conversion and demultiplexing for run {}".format(run.id)))
             run.demultiplex_run()
@@ -219,7 +220,7 @@ def run_preprocessing(run, force_trasfer=True, statusdb=True):
                                     run.CONFIG['analysis_server']['host'],
                                     run.CONFIG['analysis_server']['sync']['data_archive']))
                 run.transfer_run(t_file,  False) # Do not trigger analysis
-                
+
             # Archive the run if indicated in the config file
             if 'storage' in CONFIG:
                 run.archive_run(CONFIG['storage']['archive_dirs'][run.sequencer_type])
@@ -234,11 +235,8 @@ def run_preprocessing(run, force_trasfer=True, statusdb=True):
     else:
         data_dirs = CONFIG.get('analysis').get('data_dirs')
         for data_dir in data_dirs:
-            # Run folder can end in XX or XY
-            runs = glob.glob(os.path.join(data_dir, '[1-9]*X[X|Y]'))
-            # Try MiSeq runs as well
-            if not runs:
-                runs = glob.glob(os.path.join(data_dir, '[1-9]*000000000*'))
+            # Run folder looks like DATE_*_*_*, the last section is the FC name. See Courtesy information from illumina of 10 June 2016 (no more XX at the end of the FC)
+            runs = glob.glob(os.path.join(data_dir, '[1-9]*_*_*_*'))
             for _run in runs:
                 runObj = get_runObj(_run)
                 if not runObj:
