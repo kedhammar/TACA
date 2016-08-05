@@ -33,11 +33,11 @@ def encrypt_data(run, force):
     
     runs = []
     if run:
-        run_tmp = run.split('.', 1)[0] # in case if the given run was a zipped file
-        if not re.match(filesystem.RUN_RE, os.path.basename(run_tmp)):
+        run_abs_path = os.path.join(os.path.dirname(os.path.abspath(run)), os.path.basename(run).split('.', 1)[0])
+        if not re.match(filesystem.RUN_RE, os.path.basename(run_abs_path)):
             logger.error("Given run {} did not match a FC pattern".format(run))
             raise SystemExit
-        runs.append(run_tmp)
+        runs.append(run_abs_path)
     else:
         for adir in archive_dirs:
             runs.extend(_get_runs_from_path(path=adir, ext=".tar.gz"))
