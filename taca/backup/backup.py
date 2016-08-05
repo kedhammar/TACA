@@ -1,6 +1,8 @@
 """Backup methods and utilities"""
 import couchdb
+import logging
 import os
+import re
 import sys
 import shutil
 import subprocess as sp
@@ -49,6 +51,7 @@ def encrypt_data(run, force):
         run_flag = "{}.encrypting".format(run)
         run_key_encrypted = "{}.key.gpg".format(run)
         run_zip_encrypted = "{}.tar.gz.gpg".format(run)
+        dst_key_encrypted = os.path.join(keys_path, run_key_encrypted)
         _tmp_files = [run_zip_encrypted, run_key_encrypted, run_key, run_flag]
         logger.info("Encryption of run {} is now started".format(run))
         # Check if there is enough space 
@@ -56,7 +59,7 @@ def encrypt_data(run, force):
             logger.error("There is no enough disk space for compression, kindly check and archive encrypted runs")
             raise SystemExit
         # Check if the run in demultiplexed
-        if not force and not _run_is_demuxed(run=run):
+        if not force and not _run_is_demuxed(run, couch_info):
             continue
         
         with filesystem.chdir(run_path):
@@ -70,6 +73,7 @@ def encrypt_data(run, force):
             if os.path.exists(run_zip):
                 if os.path.isdir(run):
                     logger.warn("Both run source and zipped archive exist for run {}, skipping run as precaution".format(run))
+                    _clean_tmp_files([run_flag])
                     continue
                 logger.info("Zipped archive already exist for run {}, so using it for encryption".format(run))
             else:
@@ -77,11 +81,11 @@ def encrypt_data(run, force):
                 with open(run_zip, 'w') as rzip:
                     tar_proc = sp.Popen(['tar', '-cf', '-', run], stdout=sp.PIPE, stderr=sp.PIPE)
                     pigz_proc = sp.Popen(['pigz', '--fast', '-c', '-'], stdin=tar_proc.stdout, stdout=rzip, stderr=sp.PIPE)
-                    tar_status = p_tar.wait()
-                    pigz_status = p_pigz.wait()
+                    tar_status = tar_proc.wait()
+                    pigz_status = pigz_proc.wait()
                 # Check if the process have completed succesfully, Popen returns 0 for successfull completion
                 if tar_status == 0 and pigz_status == 0:
-                    logger.info("Run {} was successfully compressed, so removing the original directoy".format(run))
+                    logger.info("Run {} was successfully compressed, so removing the run source directory".format(run))
                     shutil.rmtree(run)
                 else:
                     if os.path.exists(run_zip):
@@ -94,6 +98,12 @@ def encrypt_data(run, force):
                     logger.error(err_msg)
                     _clean_tmp_files(_tmp_files)
                     continue
+
+            # Remove encrypted file if already exists
+            if os.path.exists(run_zip_encrypted):
+                logger.warn(("Removing already existing encrypted file for run {}, this is a precaution "
+                             "to make sure the file was encrypted with correct key file".format(run)))
+                _clean_tmp_files([run_zip_encrypted, run_key, run_key_encrypted, dst_key_encrypted])
             
             # Generate random key to use as pasphrase:
             with open(run_key, 'w') as kfl:
@@ -111,30 +121,30 @@ def encrypt_data(run, force):
                 md5_proc = sp.Popen(['md5sum', run_zip ], stdout=sp.PIPE, stderr=sp.PIPE)
                 md5_status = md5_proc.wait()
                 md5_out, md5_err = md5_proc.communicate()
-                if not _check_status(md5_status, md5_err, _tmp_file):
+                if not _check_status(md5_status, md5_err, _tmp_files):
                     logger.warn("Skipping run {}".format(run))
                     continue
                 pre_encrypt_md5 = md5_out.split()[0]
             
             # Encrypt the zipped run file
             logger.info("Encrypting the zipped run file")
-            gpg_proc = sp.Popen(['gpg', '--symmetric', '--cipher-algo', 'aes256', '--passphrase-file', run_key, '--batch', '--compress-algo', 'none', '-o', run_gpg, run_zip], 
+            gpg_proc = sp.Popen(['gpg', '--symmetric', '--cipher-algo', 'aes256', '--passphrase-file', run_key, '--batch', '--compress-algo', 'none', '-o', run_zip_encrypted, run_zip], 
                                 stdout=sp.PIPE, stderr=sp.PIPE)
             gpg_status = gpg_proc.wait()
             gpg_out, gpg_err = gpg_proc.communicate()
-            if not _check_status(gpg_status, gpg_err, _tmp_file):
+            if not _check_status(gpg_status, gpg_err, _tmp_files):
                 logger.warn("Skipping run {}".format(run))
                 continue
             
             # Decrypt and check for md5
             if not force:
-                logger.info("Calculating md5sum after decryption")
-                dpg_proc = sp.Popen(['gpg', '--decrypt', '--cipher-algo', 'aes256', '--passphrase-file', run_key, '--batch', run_gpg], stdout=sp.PIPE, stderr=sp.PIPE)
+                logger.info("Calculating md5sum after encryption")
+                dpg_proc = sp.Popen(['gpg', '--decrypt', '--cipher-algo', 'aes256', '--passphrase-file', run_key, '--batch', run_zip_encrypted], stdout=sp.PIPE, stderr=sp.PIPE)
                 md5_proc = sp.Popen(['md5sum'], stdin=dpg_proc.stdout, stdout=sp.PIPE, stderr=sp.PIPE)
                 dpg_status = dpg_proc.wait()
                 md5_status = md5_proc.wait()
                 md5_out, md5_err = md5_proc.communicate()
-                if not _check_status(md5_status, md5_err, _tmp_file):
+                if not _check_status(md5_status, md5_err, _tmp_files):
                     logger.warn("Skipping run {}".format(run))
                     continue
                 post_encrypt_md5 = md5_out.split()[0]
@@ -142,7 +152,8 @@ def encrypt_data(run, force):
                     logger.error("md5sum did not match before ({}) and after ({}) encryption. Will remove temp files and move on".format(pre_encrypt_md5, post_encrypt_md5))
                     _clean_tmp_files(_tmp_files)
                     continue
-            
+           
+            logger.info("Md5sum is macthing before and after encryption") 
             # Encrypt and move the key file
             try:
                 sp.check_call(['gpg', '-e', '-r', 'Senthilkumar', '-o', run_key_encrypted, run_key])
@@ -153,10 +164,7 @@ def encrypt_data(run, force):
                 continue
             
             logger.info("Encryption of run {} is successfully done, removing zipped run file".format(run))
-            os.remove(run_zip)
-            os.remove(run_key)
-            os.remove(run_flag)
-
+            _clean_tmp_files([run_zip, run_key,run_flag])
             
 
 #############################################################
@@ -244,7 +252,7 @@ def _get_run_type(run):
     
     return run_type
 
-def _run_is_demuxed(run):
+def _run_is_demuxed(run, couch_info):
     """Check in StatusDB 'x_flowcells' database if the given run has an entry
     which means it was demultiplexed (as TACA only creates a document upon
     successfull demultiplexing)
