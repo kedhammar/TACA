@@ -1,7 +1,7 @@
 """ CLI for the backup subcommand
 """
 import click
-from taca.backup import backup as bk
+from taca.backup.backup_util import backup_utils as bk
         
 @click.group()
 @click.pass_context
@@ -15,7 +15,7 @@ def backup(ctx):
 @click.option('-f', '--force', is_flag=True, help="Ignore the checks and just try encryption. USE IT WITH CAUTION.")
 @click.pass_context
 def encrypt(ctx, run, force):
-    bk.encrypt_data(run, force)
+    clr = bk(run=run, todo="encrypt_data", force=force)
 
 @backup.command()
 @click.option('-r', '--run', type=click.Path(exists=True), help="A run name (without extension) to be sent to PDC")
