@@ -213,7 +213,7 @@ class backup_utils(object):
             tmp_files = [run.zip_encrypted, run.key_encrypted, run.key, run.flag]
             logger.info("Encryption of run {} is now started".format(run.name))
             # Check if there is enough space 
-            if not force and not bk.avail_disk_space(path=run.path, run=run.name):
+            if not bk.avail_disk_space(path=run.path, run=run.name):
                 logger.error("There is no enough disk space for compression, kindly check and archive encrypted runs")
                 raise SystemExit
             # Check if the run in demultiplexed
@@ -294,7 +294,7 @@ class backup_utils(object):
     def pdc_put(cls, run):
         bk = cls(run)
         bk.collect_runs(ext=".tar.gz.gpg", filter_by_ext=True)
-        logger.info("In total, found {} run(s) to be encrypted".format(len(bk.runs)))
+        logger.info("In total, found {} run(s) to send PDC".format(len(bk.runs)))
         for run in bk.runs:
             run.flag = "{}.archiving".format(run.name)
             run.dst_key_encrypted = os.path.join(bk.keys_path, run.key_encrypted)
@@ -306,8 +306,9 @@ class backup_utils(object):
                 logger.error("Encrypted key file {} is not found for file {}, skipping it".format(run.dst_key_encrypted, run.zip_encrypted))
                 continue
             with filesystem.chdir(run.path):
-                if bk._call_commands(cmd1="mv {} zipped_runs/".format(run.zip_encrypted)):
-                    logger.info("Successfully sent file {} to PDC, removing file locally from {}".format(run.zip_encrypted, run.path))
-                else:
-                    logger.warn("Sending file {} to PDC failed".format(run.zip_encrypted))
+                if bk._call_commands(cmd1="dsmc archive {}".format(run.zip_encrypted), tmp_files=[run.flag]):
+                    if bk._call_commands(cmd1="dsmc archive {}".format(run.dst_key_encrypted), tmp_files=[run.flag])
+                        logger.info("Successfully sent file {} to PDC, removing file locally from {}".format(run.zip_encrypted, run.path))
+                        continue
+                logger.warn("Sending file {} to PDC failed".format(run.zip_encrypted))
             
