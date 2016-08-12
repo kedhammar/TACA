@@ -309,6 +309,8 @@ class backup_utils(object):
                 if bk._call_commands(cmd1="dsmc archive {}".format(run.zip_encrypted), tmp_files=[run.flag]):
                     if bk._call_commands(cmd1="dsmc archive {}".format(run.dst_key_encrypted), tmp_files=[run.flag])
                         logger.info("Successfully sent file {} to PDC, removing file locally from {}".format(run.zip_encrypted, run.path))
+                        shutil.move(run.zip_encrypted, os.path.join("sent_data", run.zip_encrypted))
+                        shutil.move(run.dst_key_encrypted, os.path.join("sent_data", run.key_encrypted))
                         continue
                 logger.warn("Sending file {} to PDC failed".format(run.zip_encrypted))
             
