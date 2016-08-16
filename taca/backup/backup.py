@@ -38,7 +38,9 @@ class backup_utils(object):
             self.archive_dirs = CONFIG['backup']['archive_dirs']
             self.keys_path = CONFIG['backup']['keys_path']
             self.gpg_receiver = CONFIG['backup']['gpg_receiver']
-            self.couch_info = CONFIG['statusdb']
+            self.check_demux = CONFIG.get('backup', {}).get('check_demux', False)
+            if self.check_demux:
+                self.couch_info = CONFIG['statusdb']
         except KeyError as e:
             logger.error("Config file is missing the key {}, make sure it have all required information".format(str(e)))
             raise SystemExit
@@ -202,8 +204,9 @@ class backup_utils(object):
                 logger.error("There is no enough disk space for compression, kindly check and archive encrypted runs")
                 raise SystemExit
             # Check if the run in demultiplexed
-            if not force and not bk.run_is_demuxed(run.name):
-                continue
+            if not force and bk.check_demux:
+                if not bk.run_is_demuxed(run.name):
+                    continue
             with filesystem.chdir(run.path):
                 # skip run if already ongoing
                 if os.path.exists(run.flag):
