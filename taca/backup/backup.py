@@ -1,5 +1,4 @@
 """Backup methods and utilities"""
-import couchdb
 import logging
 import os
 import re
@@ -30,6 +29,7 @@ class backup_utils(object):
     def __init__(self, run=None):
         self.run = run
         self.fetch_config_info()
+        self.host_name = os.getenv('HOSTNAME', os.uname()[1]).split('.', 1)[0]
 
     def fetch_config_info(self):
         """Try to fecth required info from the config file. Log and exit if any neccesary info is missing"""
@@ -38,15 +38,15 @@ class backup_utils(object):
             self.archive_dirs = CONFIG['backup']['archive_dirs']
             self.keys_path = CONFIG['backup']['keys_path']
             self.gpg_receiver = CONFIG['backup']['gpg_receiver']
+            self.mail_recipients = CONFIG['mail']['recipients']
             self.check_demux = CONFIG.get('backup', {}).get('check_demux', False)
-            if self.check_demux:
-                self.couch_info = CONFIG['statusdb']
+            self.couch_info = CONFIG.get('statusdb')
         except KeyError as e:
             logger.error("Config file is missing the key {}, make sure it have all required information".format(str(e)))
             raise SystemExit
 
     def collect_runs(self, ext=None, filter_by_ext=False):
-        """Collect runs from archive directeries"""
+        """Collect runs from archive directories"""
         self.runs = []
         if self.run:
             run = run_vars(self.run)
@@ -69,31 +69,6 @@ class backup_utils(object):
                     if re.match(filesystem.RUN_RE, item) and item not in self.runs:
                         self.runs.append(run_vars(os.path.join(adir, item)))
 
-    def run_is_demuxed(self, run):
-        """Check in StatusDB 'x_flowcells' database if the given run has an entry which means it was
-        demultiplexed (as TACA only creates a document upon successfull demultiplexing)"""
-        run_terms = run.split('_')
-        run_date = run_terms[0]
-        run_fc = run_terms[-1]
-        run_name = "{}_{}".format(run_date, run_fc)
-        couch_info = self.couch_info
-        # connect to statusdb using info fectched from config file
-        try:
-            server = "http://{username}:{password}@{url}:{port}".format(url=couch_info['url'],username=couch_info['username'],
-                                                                        password=couch_info['password'],port=couch_info['port'])
-            couch = couchdb.Server(server)
-            fc_db = couch[couch_info['db']]
-            fc_names = [entry.key for entry in fc_db.view("names/name", reduce=False)]
-        except Exception, e:
-            logger.error(e.message)
-            raise
-        if run_name in fc_names:
-            logger.info("Run {} is demultiplexed and proceeding with encryption".format(run))
-            return True
-        else:
-            logger.warn("Run {} is not demultiplexed yet, so skipping it".format(run))
-            return False
-
     def avail_disk_space(self, path, run):
         """Check the space on file system based on parent directory of the run"""
         # not able to fetch runtype use the max size as precaution, size units in GB
@@ -113,10 +88,13 @@ class backup_utils(object):
             available_size = int(df_out.strip().split('\n')[-1].strip().split()[2])/1024/1024
         except Exception, e:
             logger.error("Evaluation of disk space failed with error {}".format(e))
-            return False
-        if available_size > required_size:
-            return True
-        return False
+            raise SystemExit
+        if available_size < required_size:
+            e_msg = "Required space for encryption is {}GB, but only {}GB available".format(required_size, available_size)
+            subjt = "Low space for encryption - {}".format(self.host_name)
+            logger.error(e_msg)
+            misc.send_mail(subjt, e_msg, self.mail_recipients)
+            raise SystemExit
 
     def _get_run_type(self, run):
         """Returns run type based on the flowcell name"""
@@ -132,7 +110,7 @@ class backup_utils(object):
             logger.warn("Could not fetch run type for run {}".format(run))
         return run_type
 
-    def _call_commands(self, cmd1, cmd2=None, out_file=None, return_out=False, tmp_files=[]):
+    def _call_commands(self, cmd1, cmd2=None, out_file=None, return_out=False, mail_failed=False, tmp_files=[]):
         """Call an external command(s) with atmost two commands per function call.
         Given 'out_file' is always used for the later cmd and also stdout can be return
         for the later cmd. In case of failure, the 'tmp_files' are removed"""
@@ -154,12 +132,12 @@ class backup_utils(object):
                 p2 = sp.Popen(cmd2, stdin=p1.stdout, stdout=stdout2, stderr=sp.PIPE)
                 p2_stat = p2.wait()
                 p2_out, p2_err = p2.communicate()
-                if not self._check_status(cmd2, p2_stat, p2_err, tmp_files):
-                    return False
+                if not self._check_status(cmd2, p2_stat, p2_err, mail_failed, tmp_files):
+                    return (False, p2_err) if return_out else False
             p1_stat = p1.wait()
             p1_out, p1_err = p1.communicate()
-            if not self._check_status(cmd1, p1_stat, p1_err, tmp_files):
-                return False
+            if not self._check_status(cmd1, p1_stat, p1_err, mail_failed, tmp_files):
+                return (False, p1_err) if return_out else False
         except Exception, e:
             raise e
         finally:
@@ -169,15 +147,17 @@ class backup_utils(object):
                 else:
                     stdout2.close()
             if return_out:
-                if cmd2:
-                    return (True, p2_out)
-                return (True, p1_out)
+                return (True, p2_out) if cmd2 else (True, p1_out)
             return True
 
-    def _check_status(self, cmd, status, err_msg, files_to_remove=[]):
+    def _check_status(self, cmd, status, err_msg, mail_failed, files_to_remove=[]):
         """Check if a subprocess status is success and log error if failed"""
         if status != 0:
             self._clean_tmp_files(files_to_remove)
+            if mail_failed:
+                subjt = "Command call failed - {}".format(self.host_name)
+                e_msg = "Called cmd: {}\n\nError msg: {}".format(" ".join(cmd), err_msg)
+                misc.send_mail(subjt, e_msg, self.mail_recipients)
             logger.error("Command '{}' failed with the error '{}'".format(" ".join(cmd),err_msg))
             return False
         return True
@@ -199,14 +179,17 @@ class backup_utils(object):
             run.dst_key_encrypted = os.path.join(bk.keys_path, run.key_encrypted)
             tmp_files = [run.zip_encrypted, run.key_encrypted, run.key, run.flag]
             logger.info("Encryption of run {} is now started".format(run.name))
-            # Check if there is enough space
-            if not bk.avail_disk_space(path=run.path, run=run.name):
-                logger.error("There is no enough disk space for compression, kindly check and archive encrypted runs")
-                raise SystemExit
+            # Check if there is enough space and exit if not
+            bk.avail_disk_space(run.path, run.name)
             # Check if the run in demultiplexed
             if not force and bk.check_demux:
-                if not bk.run_is_demuxed(run.name):
+                if not bk.couch_info:
+                    logger.error("To check for demultiplexing is enabled in config file but no 'statusDB' info was given")
+                    raise SystemExit
+                if not misc.run_is_demuxed(run.name, bk.couch_info):
+                    logger.warn("Run {} is not demultiplexed yet, so skipping it".format(run.name))
                     continue
+                logger.info("Run {} is demultiplexed and proceeding with encryption".format(run.name))
             with filesystem.chdir(run.path):
                 # skip run if already ongoing
                 if os.path.exists(run.flag):
@@ -223,7 +206,7 @@ class backup_utils(object):
                 else:
                     logger.info("Creating zipped archive for run {}".format(run.name))
                     if bk._call_commands(cmd1="tar -cf - {}".format(run.name), cmd2="pigz --fast -c -",
-                                         out_file=run.zip, tmp_files=[run.zip, run.flag]):
+                                         out_file=run.zip, mail_failed=True, tmp_files=[run.zip, run.flag]):
                         logger.info("Run {} was successfully compressed, so removing the run source directory".format(run.name))
                         shutil.rmtree(run.name)
                     else:

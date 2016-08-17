@@ -1,5 +1,6 @@
 """ Miscellaneous or general-use methods
 """
+import couchdb
 import hashlib
 import os
 import smtplib
@@ -211,3 +212,26 @@ def link_undet_to_sample(run, dmux_folder, lane, path_per_lane):
             os.symlink(os.path.join('..','..',fqbname), os.path.join(path_per_lane[lane], os.path.basename(fastqfile)))
 
 
+def run_is_demuxed(run, couch_info):
+    """Check in StatusDB 'x_flowcells' database if the given run has an entry which means it was
+    demultiplexed (as TACA only creates a document upon successfull demultiplexing)
+    
+    :param str run: run name
+    :param dict couch_info: a dict with 'statusDB' info
+    """
+    run_terms = run.split('_')
+    run_date = run_terms[0]
+    run_fc = run_terms[-1]
+    run_name = "{}_{}".format(run_date, run_fc)
+    # connect to statusdb using info fectched from config file
+    try:
+        server = "http://{username}:{password}@{url}:{port}".format(url=couch_info['url'],username=couch_info['username'],
+                                                                    password=couch_info['password'],port=couch_info['port'])
+        couch = couchdb.Server(server)
+        fc_db = couch[couch_info['db']]
+        fc_names = [entry.key for entry in fc_db.view("names/name", reduce=False)]
+    except Exception, e:
+        raise e
+    if run_name in fc_names:
+        return True
+    return False
