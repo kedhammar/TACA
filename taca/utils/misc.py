@@ -19,6 +19,8 @@ def send_mail(subject, content, receiver):
     :param str content: Content of the email
     :param str receiver: Address to send the email
     """
+    if not receiver:
+        raise SystemExit("No receiver was given to send mail")
     msg = MIMEText(content)
     msg['Subject'] = "TACA - {}".format(subject)
     msg['From'] = 'TACA@scilifelab.se'
@@ -212,13 +214,16 @@ def link_undet_to_sample(run, dmux_folder, lane, path_per_lane):
             os.symlink(os.path.join('..','..',fqbname), os.path.join(path_per_lane[lane], os.path.basename(fastqfile)))
 
 
-def run_is_demuxed(run, couch_info):
+def run_is_demuxed(run, couch_info=None):
     """Check in StatusDB 'x_flowcells' database if the given run has an entry which means it was
     demultiplexed (as TACA only creates a document upon successfull demultiplexing)
     
     :param str run: run name
     :param dict couch_info: a dict with 'statusDB' info
     """
+    # check if statusdb info is given
+    if not couch_info:
+        raise SystemExit("To check for demultiplexing is enabled in config file but no 'statusDB' info was given")
     run_terms = run.split('_')
     run_date = run_terms[0]
     run_fc = run_terms[-1]

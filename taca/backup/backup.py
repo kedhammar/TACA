@@ -183,9 +183,6 @@ class backup_utils(object):
             bk.avail_disk_space(run.path, run.name)
             # Check if the run in demultiplexed
             if not force and bk.check_demux:
-                if not bk.couch_info:
-                    logger.error("To check for demultiplexing is enabled in config file but no 'statusDB' info was given")
-                    raise SystemExit
                 if not misc.run_is_demuxed(run.name, bk.couch_info):
                     logger.warn("Run {} is not demultiplexed yet, so skipping it".format(run.name))
                     continue
