@@ -24,19 +24,34 @@ def cleanup_nas(seconds):
 
     :param int seconds: Days/hours converted as second to consider a run to be old
     """
+    couch_info = CONFIG.get('statusdb')
+    mail_recipients = CONFIG.get('mail', {}).get('recipients')
+    check_demux = CONFIG.get('storage', {}).get('check_demux', False)
+    host_name = os.getenv('HOSTNAME', os.uname()[1]).split('.', 1)[0]
     for data_dir in CONFIG.get('storage').get('data_dirs'):
         logger.info('Moving old runs in {}'.format(data_dir))
         with filesystem.chdir(data_dir):
             for run in [r for r in os.listdir(data_dir) if re.match(filesystem.RUN_RE, r)]:
                 rta_file = os.path.join(run, finished_run_indicator)
                 if os.path.exists(rta_file):
-                    if os.stat(rta_file).st_mtime < time.time() - seconds:
-                        logger.info('Moving run {} to nosync directory'
-                                    .format(os.path.basename(run)))
-                        shutil.move(run, 'nosync')
+                    if check_demux:
+                        if misc.run_is_demuxed(run, couch_info):
+                            logger.info('Moving run {} to nosync directory'.format(os.path.basename(run)))
+                            shutil.move(run, 'nosync')
+                        elif os.stat(rta_file).st_mtime < time.time() - seconds:
+                            logger.warn('Run {} is older than given time, but it is not demultiplexed yet'
+                                        .format(run))
+                            sbt = "Run not demultiplexed - {}".format(run)
+                            msg = ("Run '{}' in '{}' is older then given threshold, but seems like it is not "
+                                  "yet demultiplexed".format(os.path.join(data_dir, run), host_name))
+                            misc.send_mail(sbt, msg, mail_recipients)
                     else:
-                        logger.info('{} file exists but is not older than given time, skipping run {}'.format(
-                                    finished_run_indicator, run))
+                        if os.stat(rta_file).st_mtime < time.time() - seconds:
+                            logger.info('Moving run {} to nosync directory'.format(os.path.basename(run)))
+                            shutil.move(run, 'nosync')
+                        else:
+                            logger.info('{} file exists but is not older than given time, skipping run {}'
+                                        .format(finished_run_indicator, run))
 
 
 def cleanup_processing(seconds):
