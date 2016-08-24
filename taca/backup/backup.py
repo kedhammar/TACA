@@ -5,6 +5,7 @@ import re
 import sys
 import shutil
 import subprocess as sp
+import time
 
 from datetime import datetime
 from taca.utils.config import CONFIG
@@ -95,6 +96,17 @@ class backup_utils(object):
             logger.error(e_msg)
             misc.send_mail(subjt, e_msg, self.mail_recipients)
             raise SystemExit
+    
+    def file_in_pdc(self, _file, silent=True):
+        """Check if the given files exist in PDC"""
+        # dsmc will return zero/True only when file exists, it returns
+        # non-zero/False though cmd is execudted but file not found
+        _file_abs = os.path.abspath(_file)
+        value = self._call_commands(cmd1="dsmc query archive {}".format(_file_abs))
+        if not silent:
+            msg = "File {} {} in PDC".format(_file_abs, "exist" if value else "do not exist")
+            logger.info(msg)
+        return value
 
     def _get_run_type(self, run):
         """Returns run type based on the flowcell name"""
@@ -279,11 +291,17 @@ class backup_utils(object):
                 continue
             flag = open(run.flag, 'w').close()
             with filesystem.chdir(run.path):
+                if bk.file_in_pdc(run.zip_encrypted, silent=False) or bk.file_in_pdc(run.dst_key_encrypted, silent=False):
+                    logger.warn("Seems like files realted to run {} already exist in PDC, check and cleanup".format(run.name))
+                    continue
                 if bk._call_commands(cmd1="dsmc archive {}".format(run.zip_encrypted), tmp_files=[run.flag]):
+                    time.sleep(15) # just give some rest to be sure
                     if bk._call_commands(cmd1="dsmc archive {}".format(run.dst_key_encrypted), tmp_files=[run.flag]):
-                        logger.info("Successfully sent file {} to PDC, removing file locally from {}".format(run.zip_encrypted, run.path))
-                        shutil.move(run.zip_encrypted, os.path.join("sent_data", run.zip_encrypted))
-                        shutil.move(run.dst_key_encrypted, os.path.join("sent_data", run.key_encrypted))
+                        time.sleep(5) # give some time just in case 'dsmc' needs to settle
+                        if bk.file_in_pdc(run.zip_encrypted) and bk.file_in_pdc(run.dst_key_encrypted):
+                            logger.info("Successfully sent file {} to PDC, removing file locally from {}".format(run.zip_encrypted, run.path))
+                            bk._clean_tmp_files([run.zip_encrypted, run.dst_key_encrypted, run.flag])
                         continue
+                bk._clean_tmp_files([run.flag])
                 logger.warn("Sending file {} to PDC failed".format(run.zip_encrypted))
 
