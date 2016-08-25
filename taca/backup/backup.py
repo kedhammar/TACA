@@ -102,7 +102,11 @@ class backup_utils(object):
         # dsmc will return zero/True only when file exists, it returns
         # non-zero/False though cmd is execudted but file not found
         _file_abs = os.path.abspath(_file)
-        value = self._call_commands(cmd1="dsmc query archive {}".format(_file_abs))
+        try:
+            sp.check_call(['dsmc', 'query', 'archive', _file_abs], stdout=sp.PIPE, stderr=sp.PIPE)
+            value = True
+        except sp.CalledProcessError:
+            value = False
         if not silent:
             msg = "File {} {} in PDC".format(_file_abs, "exist" if value else "do not exist")
             logger.info(msg)
@@ -150,17 +154,17 @@ class backup_utils(object):
             p1_out, p1_err = p1.communicate()
             if not self._check_status(cmd1, p1_stat, p1_err, mail_failed, tmp_files):
                 return (False, p1_err) if return_out else False
+            if return_out:
+                return (True, p2_out) if cmd2 else (True, p1_out)
+            return True
         except Exception, e:
             raise e
-        finally:
+        finally:    
             if out_file:
                 if not cmd2:
                     stdout1.close()
                 else:
                     stdout2.close()
-            if return_out:
-                return (True, p2_out) if cmd2 else (True, p1_out)
-            return True
 
     def _check_status(self, cmd, status, err_msg, mail_failed, files_to_remove=[]):
         """Check if a subprocess status is success and log error if failed"""
@@ -293,7 +297,9 @@ class backup_utils(object):
             with filesystem.chdir(run.path):
                 if bk.file_in_pdc(run.zip_encrypted, silent=False) or bk.file_in_pdc(run.dst_key_encrypted, silent=False):
                     logger.warn("Seems like files realted to run {} already exist in PDC, check and cleanup".format(run.name))
+                    bk._clean_tmp_files([run.flag])
                     continue
+                logger.info("Sending file {} to PDC".format(run.zip_encrypted))
                 if bk._call_commands(cmd1="dsmc archive {}".format(run.zip_encrypted), tmp_files=[run.flag]):
                     time.sleep(15) # just give some rest to be sure
                     if bk._call_commands(cmd1="dsmc archive {}".format(run.dst_key_encrypted), tmp_files=[run.flag]):
@@ -302,6 +308,5 @@ class backup_utils(object):
                             logger.info("Successfully sent file {} to PDC, removing file locally from {}".format(run.zip_encrypted, run.path))
                             bk._clean_tmp_files([run.zip_encrypted, run.dst_key_encrypted, run.flag])
                         continue
-                bk._clean_tmp_files([run.flag])
                 logger.warn("Sending file {} to PDC failed".format(run.zip_encrypted))
 
