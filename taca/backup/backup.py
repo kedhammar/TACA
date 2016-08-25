@@ -159,7 +159,7 @@ class backup_utils(object):
             return True
         except Exception, e:
             raise e
-        finally:    
+        finally:
             if out_file:
                 if not cmd2:
                     stdout1.close()
@@ -301,7 +301,7 @@ class backup_utils(object):
                     continue
                 logger.info("Sending file {} to PDC".format(run.zip_encrypted))
                 if bk._call_commands(cmd1="dsmc archive {}".format(run.zip_encrypted), tmp_files=[run.flag]):
-                    time.sleep(15) # just give some rest to be sure
+                    time.sleep(15) # give some time just in case 'dsmc' needs to settle
                     if bk._call_commands(cmd1="dsmc archive {}".format(run.dst_key_encrypted), tmp_files=[run.flag]):
                         time.sleep(5) # give some time just in case 'dsmc' needs to settle
                         if bk.file_in_pdc(run.zip_encrypted) and bk.file_in_pdc(run.dst_key_encrypted):
