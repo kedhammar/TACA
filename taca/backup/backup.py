@@ -183,7 +183,25 @@ class backup_utils(object):
         for fl in files:
             if os.path.exists(fl):
                 os.remove(fl)
-
+    
+    def _log_pdc_statusdb(self, run):
+        """Log the time stamp in statusDB if a file is succussfully sent to PDC"""
+        try:
+            run_vals = run.split('_')
+            run_fc = "{}_{}".format(run_vals[0],run_vals[-1]) 
+            server = "http://{username}:{password}@{url}:{port}".format(url=self.couch_info['url'],username=self.couch_info['username'],
+                                                                        password=self.couch_info['password'],port=self.couch_info['port'])
+            couch = couchdb.Server(server)
+            db = couch[self.couch_info['db']]
+            fc_names = {e.key:e.id for e in db.view("names/name", reduce=False)}
+            d_id = fc_names[run_fc]
+            doc = db.get(d_id)
+            doc['pdc_archived'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            db.save(doc)
+            logger.info("Logged 'pdc_archived' timestamp for fc {} in statusdb doc '{}'".format(run, d_id))
+        except:
+            logger.warn("Not able to log 'pdc_archived' timestamp for run {}".format(run))
+            
     @classmethod
     def encrypt_runs(cls, run, force):
         """Encrypt the runs that have been collected"""
@@ -306,6 +324,7 @@ class backup_utils(object):
                         time.sleep(5) # give some time just in case 'dsmc' needs to settle
                         if bk.file_in_pdc(run.zip_encrypted) and bk.file_in_pdc(run.dst_key_encrypted):
                             logger.info("Successfully sent file {} to PDC, removing file locally from {}".format(run.zip_encrypted, run.path))
+                            bk._log_pdc_statusdb(run.name)
                             bk._clean_tmp_files([run.zip_encrypted, run.dst_key_encrypted, run.flag])
                         continue
                 logger.warn("Sending file {} to PDC failed".format(run.zip_encrypted))
