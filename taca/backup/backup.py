@@ -1,4 +1,5 @@
 """Backup methods and utilities"""
+import couchdb
 import logging
 import os
 import re
