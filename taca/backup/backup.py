@@ -98,18 +98,18 @@ class backup_utils(object):
             misc.send_mail(subjt, e_msg, self.mail_recipients)
             raise SystemExit
     
-    def file_in_pdc(self, _file, silent=True):
+    def file_in_pdc(self, src_file, silent=True):
         """Check if the given files exist in PDC"""
         # dsmc will return zero/True only when file exists, it returns
         # non-zero/False though cmd is execudted but file not found
-        _file_abs = os.path.abspath(_file)
+        src_file_abs = os.path.abspath(src_file)
         try:
-            sp.check_call(['dsmc', 'query', 'archive', _file_abs], stdout=sp.PIPE, stderr=sp.PIPE)
+            sp.check_call(['dsmc', 'query', 'archive', src_file_abs], stdout=sp.PIPE, stderr=sp.PIPE)
             value = True
         except sp.CalledProcessError:
             value = False
         if not silent:
-            msg = "File {} {} in PDC".format(_file_abs, "exist" if value else "do not exist")
+            msg = "File {} {} in PDC".format(src_file_abs, "exist" if value else "do not exist")
             logger.info(msg)
         return value
 
