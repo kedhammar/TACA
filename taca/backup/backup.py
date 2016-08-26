@@ -1,10 +1,12 @@
 """Backup methods and utilities"""
+import couchdb
 import logging
 import os
 import re
 import sys
 import shutil
 import subprocess as sp
+import time
 
 from datetime import datetime
 from taca.utils.config import CONFIG
@@ -95,6 +97,21 @@ class backup_utils(object):
             logger.error(e_msg)
             misc.send_mail(subjt, e_msg, self.mail_recipients)
             raise SystemExit
+    
+    def file_in_pdc(self, src_file, silent=True):
+        """Check if the given files exist in PDC"""
+        # dsmc will return zero/True only when file exists, it returns
+        # non-zero/False though cmd is execudted but file not found
+        src_file_abs = os.path.abspath(src_file)
+        try:
+            sp.check_call(['dsmc', 'query', 'archive', src_file_abs], stdout=sp.PIPE, stderr=sp.PIPE)
+            value = True
+        except sp.CalledProcessError:
+            value = False
+        if not silent:
+            msg = "File {} {} in PDC".format(src_file_abs, "exist" if value else "do not exist")
+            logger.info(msg)
+        return value
 
     def _get_run_type(self, run):
         """Returns run type based on the flowcell name"""
@@ -138,6 +155,9 @@ class backup_utils(object):
             p1_out, p1_err = p1.communicate()
             if not self._check_status(cmd1, p1_stat, p1_err, mail_failed, tmp_files):
                 return (False, p1_err) if return_out else False
+            if return_out:
+                return (True, p2_out) if cmd2 else (True, p1_out)
+            return True
         except Exception, e:
             raise e
         finally:
@@ -146,9 +166,6 @@ class backup_utils(object):
                     stdout1.close()
                 else:
                     stdout2.close()
-            if return_out:
-                return (True, p2_out) if cmd2 else (True, p1_out)
-            return True
 
     def _check_status(self, cmd, status, err_msg, mail_failed, files_to_remove=[]):
         """Check if a subprocess status is success and log error if failed"""
@@ -167,7 +184,25 @@ class backup_utils(object):
         for fl in files:
             if os.path.exists(fl):
                 os.remove(fl)
-
+    
+    def _log_pdc_statusdb(self, run):
+        """Log the time stamp in statusDB if a file is succussfully sent to PDC"""
+        try:
+            run_vals = run.split('_')
+            run_fc = "{}_{}".format(run_vals[0],run_vals[-1]) 
+            server = "http://{username}:{password}@{url}:{port}".format(url=self.couch_info['url'],username=self.couch_info['username'],
+                                                                        password=self.couch_info['password'],port=self.couch_info['port'])
+            couch = couchdb.Server(server)
+            db = couch[self.couch_info['db']]
+            fc_names = {e.key:e.id for e in db.view("names/name", reduce=False)}
+            d_id = fc_names[run_fc]
+            doc = db.get(d_id)
+            doc['pdc_archived'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            db.save(doc)
+            logger.info("Logged 'pdc_archived' timestamp for fc {} in statusdb doc '{}'".format(run, d_id))
+        except:
+            logger.warn("Not able to log 'pdc_archived' timestamp for run {}".format(run))
+            
     @classmethod
     def encrypt_runs(cls, run, force):
         """Encrypt the runs that have been collected"""
@@ -279,11 +314,19 @@ class backup_utils(object):
                 continue
             flag = open(run.flag, 'w').close()
             with filesystem.chdir(run.path):
+                if bk.file_in_pdc(run.zip_encrypted, silent=False) or bk.file_in_pdc(run.dst_key_encrypted, silent=False):
+                    logger.warn("Seems like files realted to run {} already exist in PDC, check and cleanup".format(run.name))
+                    bk._clean_tmp_files([run.flag])
+                    continue
+                logger.info("Sending file {} to PDC".format(run.zip_encrypted))
                 if bk._call_commands(cmd1="dsmc archive {}".format(run.zip_encrypted), tmp_files=[run.flag]):
+                    time.sleep(15) # give some time just in case 'dsmc' needs to settle
                     if bk._call_commands(cmd1="dsmc archive {}".format(run.dst_key_encrypted), tmp_files=[run.flag]):
-                        logger.info("Successfully sent file {} to PDC, removing file locally from {}".format(run.zip_encrypted, run.path))
-                        shutil.move(run.zip_encrypted, os.path.join("sent_data", run.zip_encrypted))
-                        shutil.move(run.dst_key_encrypted, os.path.join("sent_data", run.key_encrypted))
+                        time.sleep(5) # give some time just in case 'dsmc' needs to settle
+                        if bk.file_in_pdc(run.zip_encrypted) and bk.file_in_pdc(run.dst_key_encrypted):
+                            logger.info("Successfully sent file {} to PDC, removing file locally from {}".format(run.zip_encrypted, run.path))
+                            bk._log_pdc_statusdb(run.name)
+                            bk._clean_tmp_files([run.zip_encrypted, run.dst_key_encrypted, run.flag])
                         continue
                 logger.warn("Sending file {} to PDC failed".format(run.zip_encrypted))
 
