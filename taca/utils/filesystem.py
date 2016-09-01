@@ -6,7 +6,7 @@ import re
 import shutil
 from subprocess import check_call, CalledProcessError, Popen, PIPE
 
-RUN_RE = '\d{6}_[a-zA-Z\d\-]+_\d{4}_[AB0][A-Z\d]'
+RUN_RE = '^\d{6}_[a-zA-Z\d\-]+_\d{4}_[AB0][A-Z\d\-]+$'
 PROJECT_RE = '[a-zA-Z]+\.[a-zA-Z]+_\d{2}_\d{2}'
 
 @contextlib.contextmanager
