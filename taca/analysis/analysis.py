@@ -200,10 +200,9 @@ def run_preprocessing(run, force_trasfer=True, statusdb=True):
                 _upload_to_statusdb(run)
 
             # Copy demultiplex stats file to shared file system for LIMS purpose
-            if 'mfs_path' in CONFIG:
+            if 'mfs_path' in CONFIG['analysis']:
                 try:
-                    mfs_dest = os.path.join(CONFIG['mfs_path'],
-                                        "{}_data".format(run.sequencer_type.lower()),run.id)
+                    mfs_dest = os.path.join(CONFIG['analysis']['mfs_path'][run.sequencer_type.lower()],run.id)
                     logger.info('Copying demultiplex stats for run {} to {}'.format(run.id, mfs_dest))
                     if not os.path.exists(mfs_dest):
                         os.mkdir(mfs_dest)
