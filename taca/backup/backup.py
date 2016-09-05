@@ -325,7 +325,8 @@ class backup_utils(object):
                         time.sleep(5) # give some time just in case 'dsmc' needs to settle
                         if bk.file_in_pdc(run.zip_encrypted) and bk.file_in_pdc(run.dst_key_encrypted):
                             logger.info("Successfully sent file {} to PDC, removing file locally from {}".format(run.zip_encrypted, run.path))
-                            bk._log_pdc_statusdb(run.name)
+                            if bk.couch_info:
+                                bk._log_pdc_statusdb(run.name)
                             bk._clean_tmp_files([run.zip_encrypted, run.dst_key_encrypted, run.flag])
                         continue
                 logger.warn("Sending file {} to PDC failed".format(run.zip_encrypted))
