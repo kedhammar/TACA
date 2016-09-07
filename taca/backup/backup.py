@@ -308,6 +308,10 @@ class backup_utils(object):
             if not os.path.exists(run.dst_key_encrypted):
                 logger.error("Encrypted key file {} is not found for file {}, skipping it".format(run.dst_key_encrypted, run.zip_encrypted))
                 continue
+            #skip run if being encrypted
+            if os.path.exists("{}.encrypting".format(run.name)):
+                logger.warn("Run {} is currently being encrypted, so skipping now".format(run.name))
+                continue
             # skip run if already ongoing
             if os.path.exists(run.flag):
                 logger.warn("Run {} is already being archived, so skipping now".format(run.name))
