@@ -38,7 +38,7 @@ class MiSeq_Run(HiSeq_Run):
         else:
             #it SampleSheet exists try to see if it is a NGI-run
             ssparser = SampleSheetParser(ssname)
-            if ssparser.header['Description'] == "Production" or ssparser.header['Description'] == "Application":
+            if ssparser.header['Description'] == "Production" or ssparser.header['Description'] == "Applications":
                 self.run_type = "NGI-RUN"
             else:
             #otherwise this is a non NGI run
@@ -81,7 +81,7 @@ class MiSeq_Run(HiSeq_Run):
                 if 'Sample_ID' in field:
                     entry[field] ='Sample_{}'.format(value)
                 elif 'Sample_Project' in field:
-                    entry[field] = value.replace(".", "_")
+                    entry[field] = value.replace(".", "__")
                 else:
                     entry[field] = value
             if 'Lane' not in entry:

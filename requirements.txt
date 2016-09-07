@@ -4,4 +4,5 @@ pyyaml
 statusdb
 flowcell_parser
 beautifulsoup4
-PyOpenSSL
+#PyOpenSSL
+python-crontab

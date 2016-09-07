@@ -83,7 +83,7 @@ def update_statusdb(run_dir):
                             remote_doc = db[remote_id]['values']
                             remote_status = db[remote_id]['status']
                             #Only updates the listed statuses
-                            if remote_status in ['ERROR', 'Sequencing', 'Demultiplexing', 'QC-Failed', 'BP-Failed', 'Failed']:
+                            if remote_status in ['New', 'ERROR', 'Sequencing', 'Demultiplexing'] and sample_status != remote_status:
                                 #Appends old entry to new. Essentially merges the two
                                 for k, v in remote_doc.items():
                                     obj['values'][k] = v
@@ -177,7 +177,7 @@ def get_ss_projects(run_dir):
         except:
             logger.warn("Cannot initialize SampleSheetParser for {}. Most likely due to poor comma separation".format(run_dir))
             return []
-        if 'Description' in ss_reader.header and ss_reader.header['Description'] not in ['Production', 'Application']:
+        if 'Description' in ss_reader.header and ss_reader.header['Description'] not in ['Production', 'Applications']:
             logger.warn("Run {} detected as a non platform MiSeq run. Disregarding it.".format(run_dir))
             return []
     else:
