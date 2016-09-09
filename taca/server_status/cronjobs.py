@@ -9,35 +9,34 @@ import couchdb
 
 from taca.utils.config import CONFIG
 
-def update_cronjob_db():
-    logging.info('Getting list of cronjobs')
-    crontab = CronTab()
-    # CronTab() is supposed to return the list of cronjobs
-    # it works on milou, but doesn't work on preproc (returns an empty list)
-    # when it doesn't work, create CronTab object from the output of command 'crontab -l'
-    if crontab.crons == []:
-        try:
-            p = subprocess.Popen('crontab -l', shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        except Exception, e:
-            logging.error(e.message)
-        else:
-            output = p.communicate()[0]
-            crontab = CronTab(tab=output)
-
-    server = platform.node().split('.')[0]
+def _parse_crontab():
+    result = {}
     user = getpass.getuser()
+    logging.info('Getting crontab for user {}'.format(user))
+    try:
+        crontab = CronTab(user=user)
+    except Exception, e:
+        logging.error('Cannot get a crontab for user: {}'.format(user))
+        logging.error(e.message)
+    else:
+        result[user] = []
+        for job in crontab.crons:
+            result[user].append({'Command': job.command,
+                           'Comment': job.comment,
+                           'Enabled': job.enabled,
+                           'Minute': str(job.minutes),
+                           'Hour': str(job.hours),
+                           'Day of month' : str(job.month),
+                           'Month': str(job.month),
+                           'Day of week': str(job.day)})
+    return result
+
+
+def update_cronjob_db():
+    server = platform.node().split('.')[0]
     timestamp = datetime.datetime.now()
-    result = []
     # parse results
-    for job in crontab.crons:
-        result.append({'Command': job.command,
-                       'Comment': job.comment,
-                       'Enabled': job.enabled,
-                       'Minute': str(job.minutes),
-                       'Hour': str(job.hours),
-                       'Day of month' : str(job.month),
-                       'Month': str(job.month),
-                       'Day of week': str(job.day)})
+    result = _parse_crontab()
     # connect to db
     url = "http://{username}:{password}@{url}:{port}".format(
             url=CONFIG.get('statusdb', {}).get('url'),
@@ -59,7 +58,7 @@ def update_cronjob_db():
         if not view[server].rows:
             logging.info('Creating a document')
             doc = {
-                'users': {user: result},
+                'users': {user: cronjobs for user, cronjobs in result.items()},
                 'Last updated': str(timestamp),
                 'server': server,
             }
@@ -67,7 +66,7 @@ def update_cronjob_db():
         for row in view[server]:
             logging.info('Updating the document')
             doc = crontab_db.get(row.value)
-            doc['users'][user] = result
+            doc['users'].update(result)
             doc['Last updated'] = str(timestamp)
         if doc:
             try:
