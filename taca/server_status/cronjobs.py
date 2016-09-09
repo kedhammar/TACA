@@ -13,19 +13,12 @@ def _parse_crontab():
     result = {}
     user = getpass.getuser()
     logging.info('Getting crontab for user {}'.format(user))
-    crontab = None
     try:
         crontab = CronTab(user=user)
     except Exception, e:
-        logging.warning('Cannot get a crontab for user: {}'.format(user))
-        logging.warning(e.message)
-        try:
-            logging.info('Getting a crontab for default user')
-            crontab = CronTab()
-        except Exception, e:
-            logging.error('Cannot get a crontab for default user')
-            logging.error(e.message)
-    if crontab:
+        logging.error('Cannot get a crontab for user: {}'.format(user))
+        logging.error(e.message)
+    else:
         result[user] = []
         for job in crontab.crons:
             result[user].append({'Command': job.command,
@@ -36,7 +29,6 @@ def _parse_crontab():
                            'Day of month' : str(job.month),
                            'Month': str(job.month),
                            'Day of week': str(job.day)})
-    print result
     return result
 
 
