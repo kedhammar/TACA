@@ -65,7 +65,7 @@ class HiSeqX_Run(Run):
         if not os.path.exists(samplesheet_dest):
             try:
                 with open(samplesheet_dest, 'wb') as fcd:
-                    fcd.write(_generate_clean_samplesheet(ssparser, fields_to_remove=['index2'], rename_samples=True, rename_qPCR_suffix = True, fields_qPCR=['SampleName']))
+                    fcd.write(_generate_clean_samplesheet(ssparser, fields_to_remove=['index2'], rename_samples=True, rename_qPCR_suffix = True, fields_qPCR=[ssparser.dfield_snm]))
             except Exception as e:
                 logger.error(e.text)
                 return False
@@ -298,7 +298,7 @@ class HiSeqX_Run(Run):
         d={}
         for l in ss.data:
             try:
-                d[l['Lane']]=os.path.join(run, dmux_folder, l['Project'], l['SampleID'])
+                d[l['Lane']]=os.path.join(run, dmux_folder, l[ss.dfield_proj], l[ss.dfield_sid])
             except KeyError:
                 logger.error("Can't find the path to the sample, is 'Project' in the samplesheet ?")
                 d[l['Lane']]=os.path.join(run, dmux_folder)
@@ -315,8 +315,8 @@ class HiSeqX_Run(Run):
         ss = self.runParserObj.samplesheet
         d={}
         for l in ss.data:
-            s=l['SampleName'].replace("Sample_", "").replace("-", "_")
-            d[l['Lane']]=l['SampleName']
+            s=l[ss.dfield_snm].replace("Sample_", "").replace("-", "_")
+            d[l['Lane']]=l[ss.dfield_snm]
 
         return d
 
@@ -375,17 +375,17 @@ def _generate_clean_samplesheet(ssparser, fields_to_remove=None, rename_samples=
         line_ar=[]
         for field in datafields:
             value = line[field]
-            if rename_samples and 'SampleID' in field :
+            if rename_samples and ssparser.dfield_sid in field :
                 try:
-                    if rename_qPCR_suffix and 'SampleName' in fields_qPCR:
+                    if rename_qPCR_suffix and ssparser.dfield_snm in fields_qPCR:
                         #substitute SampleID with SampleName, add Sample_ as prefix and remove __qPCR_ suffix
-                        value =re.sub('__qPCR_$', '', 'Sample_{}'.format(line['SampleName']))
+                        value =re.sub('__qPCR_$', '', 'Sample_{}'.format(line[ssparser.dfield_snm]))
                     else:
                         #substitute SampleID with SampleName, add Sample_ as prefix
-                        value ='Sample_{}'.format(line['SampleName'])
+                        value ='Sample_{}'.format(line[ssparser.dfield_snm])
                 except:
                         #otherwise add Sample_ as prefix
-                        value = 'Sample_{}'.format(line['SampleID'])
+                        value = 'Sample_{}'.format(line[ssparser.dfield_sid])
             elif rename_qPCR_suffix and field in fields_qPCR:
                 value = re.sub('__qPCR_$', '', line[field])
                                                                                                                             

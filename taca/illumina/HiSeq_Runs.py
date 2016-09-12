@@ -171,13 +171,13 @@ class HiSeq_Run(Run):
                         return False
                     index_counter = {}
                     indexes_fastq1 = glob.glob(os.path.join(NoIndex_Undetermiend,
-                                                current_lane['Sample_Project'],
-                                                current_lane['Sample_ID'],
-                                                "{}_S?_L00{}_R2_001.fastq.gz".format(current_lane['Sample_Name'], lane_id)))[0]
+                                                current_lane[self.runParserObj.samplesheet.proj],
+                                                current_lane[self.runParserObj.samplesheet.sid],
+                                                "{}_S?_L00{}_R2_001.fastq.gz".format(current_lane[self.runParserObj.samplesheet.snm], lane_id)))[0]
                     indexes_fastq2 = glob.glob(os.path.join(NoIndex_Undetermiend,
-                                                current_lane['Sample_Project'],
-                                                current_lane['Sample_ID'],
-                                                "{}_S?_L00{}_R3_001.fastq.gz".format(current_lane['Sample_Name'], lane_id)))[0]
+                                                current_lane[self.runParserObj.samplesheet.proj],
+                                                current_lane[self.runParserObj.samplesheet.sid],
+                                                "{}_S?_L00{}_R3_001.fastq.gz".format(current_lane[self.runParserObj.samplesheet.snm], lane_id)))[0]
                     # I assume these two files are always present, maybe it is posisble to have no index with a single index...
                     logger.info("Computing Undetermiend indexes for NoIndex lane {}".format(lane_id))
                     zcat=subprocess.Popen(['zcat', indexes_fastq1], stdout=subprocess.PIPE)
@@ -647,9 +647,9 @@ class HiSeq_Run(Run):
         for line in ssparser.data:
             entry = {}
             for field, value in line.iteritems():
-                if 'SampleID' in field :
-                    entry[_data_filed_conversion(field)] ='Sample_{}'.format(value)
-                    entry['Sample_Name'] = value
+                if ssparser.dfield_sid in field :
+                    entry[ssparser.dfield_sid] ='Sample_{}'.format(value)
+                    entry[ssparser.dfield_snm] = value
                 elif "Index" in field:
                     #in this case we need to distinguish between single and dual index
                     entry[_data_filed_conversion(field)] = value.split("-")[0]
@@ -661,13 +661,14 @@ class HiSeq_Run(Run):
                     entry[_data_filed_conversion(field)] = value
             data.append(entry)
 
-        fields_to_output = ['Lane', 'Sample_ID', 'Sample_Name', 'index', 'index2', 'Sample_Project']
+        fields_to_output = ['Lane', ssparser.dfield_sid, ssparser.dfield_snm, 'index', 'index2', ssparser.dfield_proj]
         #now create the new SampleSheet data section
         output+="[Data]{}".format(os.linesep)
         for field in ssparser.datafields:
-            new_field = _data_filed_conversion(field)
-            if new_field not in fields_to_output:
-                fields_to_output.append(new_field)
+            if field not in fields_to_output:
+                new_field = _data_filed_conversion(field)
+                if new_field not in fields_to_output:
+                    fields_to_output.append(new_field)
         output+=",".join(fields_to_output)
         output+=os.linesep
         #now process each data entry and output it
