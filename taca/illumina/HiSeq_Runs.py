@@ -171,13 +171,13 @@ class HiSeq_Run(Run):
                         return False
                     index_counter = {}
                     indexes_fastq1 = glob.glob(os.path.join(NoIndex_Undetermiend,
-                                                current_lane[self.runParserObj.samplesheet.proj],
-                                                current_lane[self.runParserObj.samplesheet.sid],
-                                                "{}_S?_L00{}_R2_001.fastq.gz".format(current_lane[self.runParserObj.samplesheet.snm], lane_id)))[0]
+                                                current_lane[self.runParserObj.samplesheet.dfield_proj],
+                                                current_lane[self.runParserObj.samplesheet.dfield_sid],
+                                                "{}_S?_L00{}_R2_001.fastq.gz".format(current_lane[self.runParserObj.samplesheet.dfield_snm], lane_id)))[0]
                     indexes_fastq2 = glob.glob(os.path.join(NoIndex_Undetermiend,
-                                                current_lane[self.runParserObj.samplesheet.proj],
-                                                current_lane[self.runParserObj.samplesheet.sid],
-                                                "{}_S?_L00{}_R3_001.fastq.gz".format(current_lane[self.runParserObj.samplesheet.snm], lane_id)))[0]
+                                                current_lane[self.runParserObj.samplesheet.dfield_proj],
+                                                current_lane[self.runParserObj.samplesheet.dfield_sid],
+                                                "{}_S?_L00{}_R3_001.fastq.gz".format(current_lane[self.runParserObj.samplesheet.dfield_snm], lane_id)))[0]
                     # I assume these two files are always present, maybe it is posisble to have no index with a single index...
                     logger.info("Computing Undetermiend indexes for NoIndex lane {}".format(lane_id))
                     zcat=subprocess.Popen(['zcat', indexes_fastq1], stdout=subprocess.PIPE)
