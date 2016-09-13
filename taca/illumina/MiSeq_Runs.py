@@ -78,9 +78,9 @@ class MiSeq_Run(HiSeq_Run):
         for line in ssparser.data:
             entry = {}
             for field, value in line.iteritems():
-                if 'Sample_ID' in field:
+                if ssparser.dfield_sid in field:
                     entry[field] ='Sample_{}'.format(value)
-                elif 'Sample_Project' in field:
+                elif ssparser.dfield_proj in field:
                     entry[field] = value.replace(".", "__")
                 else:
                     entry[field] = value
@@ -89,7 +89,7 @@ class MiSeq_Run(HiSeq_Run):
             data.append(entry)
 
 
-        fields_to_output = ['Lane', 'Sample_ID', 'Sample_Name', 'index', 'Sample_Project']
+        fields_to_output = ['Lane', ssparser.dfield_sid, ssparser.dfield_snm, 'index', ssparser.dfield_proj]
         #now create the new SampleSheet data section
         output+="[Data]{}".format(os.linesep)
         for field in ssparser.datafields:
