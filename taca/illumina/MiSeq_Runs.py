@@ -66,7 +66,6 @@ class MiSeq_Run(HiSeq_Run):
         """
         Will generate a 'clean' samplesheet, for bcl2fastq2.17
         """
-
         output=""
         #Header
         output+="[Header]{}".format(os.linesep)

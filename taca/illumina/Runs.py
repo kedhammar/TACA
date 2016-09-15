@@ -357,7 +357,7 @@ class Run(object):
             
             if not already_seen:
                 f.write("{}\t{}\n".format(runname,QC_result))
-                  
+            
             sj = "{} Demultiplexed".format(runname)
             cnt = """The run {run} has been demultiplexed and automatic QC took place.
                     The Run will be transferred to Nestor for further analysis.
