@@ -6,4 +6,3 @@ flowcell_parser
 beautifulsoup4
 #PyOpenSSL
 python-crontab
-CronTab
