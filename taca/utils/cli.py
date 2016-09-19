@@ -4,7 +4,6 @@
 import click
 import taca.utils.bioinfo_tab as bt
 
-
 @click.group()
 def bioinfo_deliveries():
 	""" Update statusdb with information about FC entry point """

@@ -40,7 +40,8 @@ setup(name='taca',
             'analysis = taca.analysis.cli:analysis',
             'bioinfo_deliveries = taca.utils.cli:bioinfo_deliveries',
             'server_status = taca.server_status.cli:server_status',
-            'backup = taca.backup.cli:backup'
+            'backup = taca.backup.cli:backup',
+            'create_env = taca.testing.cli:uppmax_env'
         ]
     },
     install_requires=install_requires,

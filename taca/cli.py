@@ -36,4 +36,4 @@ def cli(ctx, config_file):
 
 #Add subcommands dynamically to the CLI
 for entry_point in iter_entry_points('taca.subcommands'):
-	cli.add_command(entry_point.load())
+    cli.add_command(entry_point.load())
