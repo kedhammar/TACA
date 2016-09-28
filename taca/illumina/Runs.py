@@ -244,12 +244,11 @@ class Run(object):
             :param bool analysis: Trigger analysis on remote server
         """
         # TODO: check the run type and build the correct rsync command
-        command_line = ['rsync', '-Lav']
+	# The option -a implies -o and -g which is not the desired behaviour
+        command_line = ['rsync', '-Lav', '--no-o', '--no-g']
         # Add R/W permissions to the group
         command_line.append('--chmod=g+rw')
-        # rsync works in a really funny way, if you don't understand this, refer to
-        # this note: http://silentorbit.com/notes/2013/08/rsync-by-extension/
-        # this horrible thing here avoids data dup when we use multiple indexes in a lane/FC
+        # This horrible thing here avoids data dup when we use multiple indexes in a lane/FC
         command_line.append("--exclude=Demultiplexing_*/*_*") 
         command_line.append("--include=*/")
         for to_include in self.CONFIG['analysis_server']['sync']['include']:
