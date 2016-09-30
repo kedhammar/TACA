@@ -1,6 +1,7 @@
 
 """ CLI for the testing commands
 """
+import os
 import click
 import taca.testing.create_uppmax_like_env as createupp
 
@@ -12,8 +13,10 @@ def uppmax_env():
 
 @uppmax_env.command()
 @click.option('-p', '--projects', type=int, default=30, help='number of projects to be extracted from statusdb')
+@click.option('-nc', '--ngi-config', type=str,  default=os.environ.get('NGI_CONFIG') , help='path to ngi configuration file (expected in variable NGI_CONFIG)')
 
-def create(projects):
+
+def create(projects, ngi_config):
     """creates a uppmax like env 
     """
-    createupp.create(projects)
+    createupp.create(projects, ngi_config)
