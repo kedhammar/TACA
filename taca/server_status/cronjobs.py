@@ -21,14 +21,17 @@ def _parse_crontab():
     else:
         result[user] = []
         for job in crontab.crons:
+            # this is for special syntax like @monthly or @reboot
+            special_syntax = str(job).split()[0] if str(job).startswith('@') else ''
             result[user].append({'Command': job.command,
                            'Comment': job.comment,
                            'Enabled': job.enabled,
                            'Minute': str(job.minutes),
                            'Hour': str(job.hours),
-                           'Day of month' : str(job.month),
+                           'Day of month' : str(job.dom),
                            'Month': str(job.month),
-                           'Day of week': str(job.day)})
+                           'Day of week': str(job.dow),
+                           'Special syntax': special_syntax})
     return result
 
 
