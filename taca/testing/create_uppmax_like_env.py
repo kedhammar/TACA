@@ -23,6 +23,43 @@ def setupServer(conf):
     return couchdb.Server(url)
 
 
+
+def create_version_report(path):
+    #creates the file version_report.txt for stuff run ngi_pipeline
+    with open(os.path.join(path, "version_report.txt"), "w") as VERSION_REPORT:
+        VERSION_REPORT.write("******\n")
+        VERSION_REPORT.write("README\n")
+        VERSION_REPORT.write("******\n")
+        VERSION_REPORT.write("\n")
+        VERSION_REPORT.write("Data has been aligned to to the reference using bwa. The raw alignments have then been deduplicated, recalibrated and cleaned using GATK. Quality control information was gathered using Qualimap. SNVs and indels have been called using the HaplotypeCaller. These variants were then funcionally annotated using snpEff. The pipeline used was Piper, see below for more information.\n")
+        VERSION_REPORT.write("\n")
+        VERSION_REPORT.write("The versions of programs and references used:\n")
+        VERSION_REPORT.write("piper: unknown\n")
+        VERSION_REPORT.write("bwa: 0.7.12\n")
+        VERSION_REPORT.write("samtools: 0.1.19\n")
+        VERSION_REPORT.write("qualimap: v2.2\n")
+        VERSION_REPORT.write("snpEff: 4.1\n")
+        VERSION_REPORT.write("snpEff reference: GRCh37.75\n")
+        VERSION_REPORT.write("gatk: 3.3-0-geee94ec\n")
+        VERSION_REPORT.write("\n")
+        VERSION_REPORT.write("reference: human_g1k_v37.fasta\n")
+        VERSION_REPORT.write("db_snp: gatk-bundle/2.8\n")
+        VERSION_REPORT.write("hapmap: gatk-bundle/2.8\n")
+        VERSION_REPORT.write("omni: gatk-bundle/2.8\n")
+        VERSION_REPORT.write("1000G_indels: gatk-bundle/2.8\n")
+        VERSION_REPORT.write("Mills_and_1000G_golden_standard_indels: gatk-bundle/2.8\n")
+        VERSION_REPORT.write("\n")
+        VERSION_REPORT.write("indel resource file: {Mills_and_1000G_gold_standard.indels.b37.vcf version: gatk-bundle/2.8}\n")
+        VERSION_REPORT.write("indel resource file: {1000G_phase1.indels.b37.vcf version: gatk-bundle/2.8}\n")
+        VERSION_REPORT.write("\n")
+        VERSION_REPORT.write("piper\n")
+        VERSION_REPORT.write("-----\n")
+        VERSION_REPORT.write("Piper is a pipeline system developed and maintained at the National Genomics Infrastructure build on top of GATK Queue. For more information and the source code visit: www.github.com/NationalGenomicsInfrastructure/piper\n")
+        
+        
+
+
+
 def create_FC(incoming_dir, run_name, samplesheet):
     # create something like 160217_ST-E00201_0063_AHJHNYCCXX
     if os.path.exists(run_name):
@@ -191,6 +228,13 @@ def produce_analysis_piper(ngi_config, project_id):
             for sample_id in os.listdir(data_dir):
                 vcf_file = "{}.clean.dedup.recal.bam.raw.indel.vcf.gz".format(sample_id)
                 touch(os.path.join(current_dir, vcf_file))
+    current_dir = os.path.join(piper_ngi_dir, "sbatch")
+    safe_makedir(current_dir)
+    current_dir = os.path.join(piper_ngi_dir, "setup_xml_files")
+    safe_makedir(current_dir)
+    current_dir = os.path.join(piper_ngi_dir, "logs")
+    safe_makedir(current_dir)
+    create_version_report(current_dir)
 
 
 
@@ -367,6 +411,7 @@ def create(projects, ngi_config_file):
             produce_analysis_qc_ngi(ngi_config, project[0])
             if project[1].startswith("WGreseq"):
                 produce_analysis_piper(ngi_config, project[0])
+                
 
 
     #now I need to store in a file the results
