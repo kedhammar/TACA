@@ -124,6 +124,8 @@ def create_uppmax_env(ngi_config):
         paths["base_root"] = base_root
         sthlm_root = ngi_config["analysis"]["sthlm_root"]
         paths["sthlm_root"] = sthlm_root
+        top_dir = ngi_config["analysis"]["top_dir"]
+        paths["top_dir"] = top_dir
     except KeyError as e:
         raise SystemExit("Config file is missing the key {}, make sure it have all required information".format(str(e)))
     if "environment" not in ngi_config:
