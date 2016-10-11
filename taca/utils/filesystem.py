@@ -36,6 +36,24 @@ def create_folder(target_folder):
         pass
     return os.path.exists(target_folder)
 
+def touch(file):
+    open(file, "w").close()
+
+def do_symlink(src_file, dst_file):
+    do_link(src_file, dst_file, 'soft')
+
+def do_hardlink(src_file, dst_file):
+    do_link(src_file, dst_file, 'hard')
+
+def do_link(src_file, dst_file, link_type='soft'):
+    if link_type == 'hard':
+        link_f=os.link
+    else:
+        link_f=os.symlink
+    if not os.path.isfile(dst_file):
+        link_f(os.path.realpath(src_file), dst_file)
+
+
 def is_in_swestore(f):
     """ Checks if a file exists in Swestore
 

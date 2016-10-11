@@ -16,8 +16,8 @@ import subprocess
 
 logger = logging.getLogger(__name__)
 
-def touch(file):
-    open(file, "w").close()
+
+
 
 def setupServer(conf):
     url="http://{0}:{1}@{2}:{3}".format(conf['username'], conf['password'], conf['url'], conf['port'])
@@ -61,14 +61,14 @@ def create_version_report(path):
 
 
 
-def create_FC(incoming_dir, run_name, samplesheet):
+def create_FC(incoming_dir, run_name, samplesheet, fastq_1 = None, fastq_2=None ):
     # create something like 160217_ST-E00201_0063_AHJHNYCCXX
     path_to_fc = os.path.join(incoming_dir, run_name)
     if os.path.exists(path_to_fc):
         # this FC exists, skip it
         return
     fs.create_folder(path_to_fc)
-    touch(os.path.join(path_to_fc, "RTAComplete.txt"))
+    fs.touch(os.path.join(path_to_fc, "RTAComplete.txt"))
     # create folder Demultiplexing
     fs.create_folder(os.path.join(path_to_fc, "Demultiplexing"))
     # create folder Demultiplexing/Reports
@@ -82,7 +82,7 @@ def create_FC(incoming_dir, run_name, samplesheet):
     counter = 1
     current_lane = ""
     for line in samplesheet:
-        project_name = line.get("Sample_project", line.get("Project", ""))
+        project_name = line.get("Sample_Project", line.get("Project", ""))
         lane = line["Lane"]
         if current_lane == "":
             current_lane = lane
@@ -94,11 +94,15 @@ def create_FC(incoming_dir, run_name, samplesheet):
         #create dir structure
         fs.create_folder(os.path.join(path_to_fc, "Demultiplexing", project_name, sample_id))
         #now create the data
-        fastq1 = "{}_S{}_L00{}_R1_001.fastq.gz".format(sample_name, counter, lane)
-        fastq2 = "{}_S{}_L00{}_R2_001.fastq.gz".format(sample_name, counter, lane)
+        fastq_1_dest = "{}_S{}_L00{}_R1_001.fastq.gz".format(sample_name, counter, lane)
+        fastq_2_dest = "{}_S{}_L00{}_R2_001.fastq.gz".format(sample_name, counter, lane)
         counter += 1
-        touch(os.path.join(path_to_fc, "Demultiplexing", project_name, sample_id, fastq1))
-        touch(os.path.join(path_to_fc, "Demultiplexing", project_name, sample_id, fastq2))
+        if fastq_1 is None:
+            fs.touch(os.path.join(path_to_fc, "Demultiplexing", project_name, sample_id, fastq_1_dest))
+            fs.touch(os.path.join(path_to_fc, "Demultiplexing", project_name, sample_id, fastq_2_dest))
+        else:
+            fs.do_symlink(fastq_1, os.path.join(path_to_fc, "Demultiplexing", project_name, sample_id, fastq_1_dest))
+            fs.do_symlink(fastq_2, os.path.join(path_to_fc, "Demultiplexing", project_name, sample_id, fastq_2_dest))
     
     with open(os.path.join(path_to_fc, "SampleSheet.csv"), "w") as Samplesheet_file:
         Samplesheet_file.write("[Header]\n")
@@ -192,11 +196,11 @@ def produce_analysis_piper(ngi_config, project_id):
         if piper_dir == "05_processed_alignments":
             for sample_id in os.listdir(data_dir):
                 bam_file = "{}.clean.dedup.bam".format(sample_id)
-                touch(os.path.join(current_dir, bam_file))
+                fs.touch(os.path.join(current_dir, bam_file))
         if piper_dir == "07_variant_calls":
             for sample_id in os.listdir(data_dir):
                 vcf_file = "{}.clean.dedup.recal.bam.raw.indel.vcf.gz".format(sample_id)
-                touch(os.path.join(current_dir, vcf_file))
+                fs.touch(os.path.join(current_dir, vcf_file))
     current_dir = os.path.join(piper_ngi_dir, "sbatch")
     fs.create_folder(current_dir)
     current_dir = os.path.join(piper_ngi_dir, "setup_xml_files")
@@ -239,7 +243,7 @@ def select_random_projects(projects_in, num_proj, application, projects_out, lab
 
 
 
-def create(projects, ngi_config_file):
+def create(projects, ngi_config_file, fastq_1, fastq_2):
     #connect to statusdb
     couch_info = CONFIG.get('statusdb')
     if couch_info is None:
@@ -334,7 +338,7 @@ def create(projects, ngi_config_file):
                 #this FC needs to be created
                 if not found:
                     #I create the FC only the first time I see a project belonging to it
-                    create_FC(paths["flowcell_inbox"] , flowcellDB[fc_doc]["RunInfo"]["Id"], samplesheet_csv)
+                    create_FC(paths["flowcell_inbox"] , flowcellDB[fc_doc]["RunInfo"]["Id"], samplesheet_csv, fastq_1, fastq_2)
                     found = True
                 #but I keep track of all projects-run I need to organise
                 if project not in reproduced_projects:

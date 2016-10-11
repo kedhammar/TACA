@@ -54,13 +54,20 @@ def uppmax_env():
 @uppmax_env.command()
 @click.option('-p', '--projects', type=int, default=30, help='number of projects to be extracted from statusdb')
 @click.option('-nc', '--ngi-config', type=str,  default=os.environ.get('NGI_CONFIG') , help='path to ngi configuration file (expected in variable NGI_CONFIG)')
+@click.option('-fq1', '--fastq_1', type=str,  default=None , help='Path to fastq file for read 1')
+@click.option('-fq2', '--fastq_2', type=str,  default=None , help='Path to fastq file for read 2')
 
-
-def create(projects, ngi_config):
+def create(projects, ngi_config, fastq_1, fastq_2):
     """creates a uppmax like env 
     """
+    if (fastq_1 is None and fastq_2 is not None) or (fastq_1 is not None and fastq_2 is None):
+        print "ERROR: either both fastq_1 and fastq_2 are specified or none of them"
+        return 1
+    fastq_1 = os.path.abspath(fastq_1)
+    fastq_2 = os.path.abspath(fastq_2)
+
     if which("ngi_pipeline_start.py"):
-        createupp.create(projects, ngi_config)
+        createupp.create(projects, ngi_config, fastq_1, fastq_2)
     else:
         print "ERROR: ngi_pipeline_start.py needs to be available and properly installed"
 
