@@ -67,19 +67,14 @@ def create_FC(incoming_dir, run_name, samplesheet):
         # this FC exists, skip it
         return
     path_to_fc = os.path.join(incoming_dir, run_name)
-    if not os.path.exists(path_to_fc):
-        os.mkdir(path_to_fc)
+    fs.create_folder(path_to_fc):
     touch(os.path.join(path_to_fc, "RTAComplete.txt"))
     # create folder Demultiplexing
-    if not os.path.exists(os.path.join(path_to_fc, "Demultiplexing")):
-        os.mkdir(os.path.join(path_to_fc, "Demultiplexing"))
+    fs.create_folder(os.path.join(path_to_fc, "Demultiplexing"))
     # create folder Demultiplexing/Reports
-    if not os.path.exists(os.path.join(path_to_fc, "Demultiplexing", "Reports")):
-        os.mkdir(os.path.join(path_to_fc, "Demultiplexing", "Reports"))
+    fs.create_folder((os.path.join(path_to_fc, "Demultiplexing", "Reports"))
     # create folder Demultiplexing/Stats
-    if not os.path.exists(os.path.join(path_to_fc, "Demultiplexing", "Stats")):
-        os.mkdir(os.path.join(path_to_fc, "Demultiplexing", "Stats"))
-
+    fs.create_folder(os.path.join(path_to_fc, "Demultiplexing", "Stats"))
     #memorise SampleSheet stats
     header = []
     for key in samplesheet[0]:
