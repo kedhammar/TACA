@@ -62,7 +62,7 @@ def create(projects, ngi_config):
     if which("ngi_pipeline_start.py"):
         createupp.create(projects, ngi_config)
     else:
-        sys.exit("ERROR: ngi_pipeline_start.py needs to be available and properly installed")
+        print "ERROR: ngi_pipeline_start.py needs to be available and properly installed"
 
 
 def which(file):

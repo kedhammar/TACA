@@ -63,16 +63,16 @@ def create_version_report(path):
 
 def create_FC(incoming_dir, run_name, samplesheet):
     # create something like 160217_ST-E00201_0063_AHJHNYCCXX
-    if os.path.exists(run_name):
+    path_to_fc = os.path.join(incoming_dir, run_name)
+    if os.path.exists(path_to_fc):
         # this FC exists, skip it
         return
-    path_to_fc = os.path.join(incoming_dir, run_name)
-    fs.create_folder(path_to_fc):
+    fs.create_folder(path_to_fc)
     touch(os.path.join(path_to_fc, "RTAComplete.txt"))
     # create folder Demultiplexing
     fs.create_folder(os.path.join(path_to_fc, "Demultiplexing"))
     # create folder Demultiplexing/Reports
-    fs.create_folder((os.path.join(path_to_fc, "Demultiplexing", "Reports"))
+    fs.create_folder(os.path.join(path_to_fc, "Demultiplexing", "Reports"))
     # create folder Demultiplexing/Stats
     fs.create_folder(os.path.join(path_to_fc, "Demultiplexing", "Stats"))
     #memorise SampleSheet stats
@@ -82,27 +82,15 @@ def create_FC(incoming_dir, run_name, samplesheet):
     counter = 1
     current_lane = ""
     for line in samplesheet:
-        project_name = ""
-        if "Project" not in line:
-            project_name = line["Sample_Project"]
-        else:
-            project_name = line["Project"]
+        project_name = line.get("Sample_project", line.get("Project", ""))
         lane = line["Lane"]
         if current_lane == "":
             current_lane = lane
         elif current_lane != lane:
             counter = 1
             current_lane = lane
-        sample_id = ""
-        if "SampleID" not in line:
-            sample_id = line["Sample_ID"]
-        else:
-            sample_id = line["SampleID"]
-        sample_name = ""
-        if "SampleName" in line:
-            sample_name = line["SampleName"]
-        else:
-            sample_name = line["Sample_Name"]
+        sample_id = line.get("SampleID", line.get("Sample_ID", ""))
+        sample_name = line.get("SampleName", line.get("Sample_Name", ""))
         #create dir structure
         fs.create_folder(os.path.join(path_to_fc, "Demultiplexing", project_name, sample_id))
         #now create the data
@@ -132,24 +120,12 @@ def create_uppmax_env(ngi_config):
     if "analysis" not in ngi_config:
         sys.exit("ERROR: analysis must be a field of NGI_CONFIG.")
     try:
-        # get base root
         base_root = ngi_config["analysis"]["base_root"]
         paths["base_root"] = base_root
-    except ValueError as e:
-            sys.exit('key error, base_root not found in "{}": {}'.format(ngi_config, e))
-    try:
-        # get base root
         sthlm_root = ngi_config["analysis"]["sthlm_root"]
         paths["sthlm_root"] = sthlm_root
-    except ValueError as e:
-            sys.exit('key error, sthlm_root not found in "{}": {}'.format(ngi_config, e))
-    try:
-        # get base root
-        top_dir = ngi_config["analysis"]["top_dir"]
-        paths["top_dir"] = top_dir
-    except ValueError as e:
-            sys.exit('key error, top_dir not found in "{}": {}'.format(ngi_config, e))
-
+    except KeyError as e:
+        raise SystemExit("Config file is missing the key {}, make sure it have all required information".format(str(e)))
     if "environment" not in ngi_config:
         sys.exit("ERROR: environment must be a field of NGI_CONFIG.")
     try:
