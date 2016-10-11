@@ -5,6 +5,7 @@ import glob
 import logging
 from taca.utils.config import CONFIG
 from taca.utils import config as conf
+from taca.utils import filesystem as fs
 import couchdb
 import os
 import datetime
@@ -108,8 +109,7 @@ def create_FC(incoming_dir, run_name, samplesheet):
         else:
             sample_name = line["Sample_Name"]
         #create dir structure
-        if not os.path.exists(os.path.join(path_to_fc, "Demultiplexing", project_name, sample_id)):
-            os.makedirs(os.path.join(path_to_fc, "Demultiplexing", project_name, sample_id))
+        fs.create_folder(os.path.join(path_to_fc, "Demultiplexing", project_name, sample_id))
         #now create the data
         fastq1 = "{}_S{}_L00{}_R1_001.fastq.gz".format(sample_name, counter, lane)
         fastq2 = "{}_S{}_L00{}_R2_001.fastq.gz".format(sample_name, counter, lane)
@@ -167,16 +167,12 @@ def create_uppmax_env(ngi_config):
     #now I need to create the folders for this
     if not os.path.exists(base_root):
         sys.exit('base_root needs to exists: {}'.format(base_root))
-    if not os.path.exists(flowcell_inbox):
-        os.makedirs(flowcell_inbox)
+    fs.create_folder(flowcell_inbox)
     if sthlm_root is None:
         path_to_analysis = os.path.join(base_root, top_dir)
     else:
         path_to_analysis = os.path.join(base_root, sthlm_root, top_dir)
-
-
-    if not os.path.exists(path_to_analysis):
-        os.makedirs(path_to_analysis)
+    fs.create_folder(path_to_analysis)
     return paths
 
 
@@ -191,14 +187,14 @@ def produce_analysis_qc_ngi(ngi_config, project_id):
                                             "DATA", project_id)
 
     qc_ngi_dir = os.path.join(analysis_dir, "qc_ngi")
-    safe_makedir(qc_ngi_dir)
+    fs.create_folder(qc_ngi_dir)
     for sample_id in os.listdir(data_dir):
         sample_dir_qc = os.path.join(qc_ngi_dir, sample_id)
-        safe_makedir(sample_dir_qc)
+        fs.create_folder(sample_dir_qc)
         fastqc_dir = os.path.join(sample_dir_qc, "fastqc")
-        safe_makedir(fastqc_dir)
+        fs.create_folder(fastqc_dir)
         fastq_screen_dir  = os.path.join(sample_dir_qc, "fastq_screen")
-        safe_makedir(fastq_screen_dir)
+        fs.create_folder(fastq_screen_dir)
         #do not create more than this....
 
 
@@ -214,12 +210,12 @@ def produce_analysis_piper(ngi_config, project_id):
                                             "DATA", project_id)
 
     piper_ngi_dir = os.path.join(analysis_dir, "piper_ngi")
-    safe_makedir(piper_ngi_dir)
+    fs.create_folder(piper_ngi_dir)
     piper_dirs = ["01_raw_alignments","02_preliminary_alignment_qc","03_genotype_concordance",
                 "04_merged_aligments","05_processed_alignments","06_final_alignment_qc","07_variant_calls","08_misc"]
     for piper_dir in piper_dirs:
         current_dir =  os.path.join(piper_ngi_dir, piper_dir)
-        safe_makedir(current_dir)
+        fs.create_folder(current_dir)
         if piper_dir == "05_processed_alignments":
             for sample_id in os.listdir(data_dir):
                 bam_file = "{}.clean.dedup.bam".format(sample_id)
@@ -229,30 +225,16 @@ def produce_analysis_piper(ngi_config, project_id):
                 vcf_file = "{}.clean.dedup.recal.bam.raw.indel.vcf.gz".format(sample_id)
                 touch(os.path.join(current_dir, vcf_file))
     current_dir = os.path.join(piper_ngi_dir, "sbatch")
-    safe_makedir(current_dir)
+    fs.create_folder(current_dir)
     current_dir = os.path.join(piper_ngi_dir, "setup_xml_files")
-    safe_makedir(current_dir)
+    fs.create_folder(current_dir)
     current_dir = os.path.join(piper_ngi_dir, "logs")
-    safe_makedir(current_dir)
+    fs.create_folder(current_dir)
     create_version_report(current_dir)
 
 
 
 
-
-def safe_makedir(dname, mode=0o2770):
-    """Make a directory (tree) if it doesn't exist, handling concurrent race
-    conditions.
-    """
-    if not os.path.exists(dname):
-        # we could get an error here if multiple processes are creating
-        # the directory at the same time. Grr, concurrency.
-        try:
-            os.makedirs(dname, mode=mode)
-        except OSError:
-            if not os.path.isdir(dname):
-                raise
-    return dname
 
 
 
