@@ -6,6 +6,7 @@ import re
 import shutil
 import time
 
+from collections import defaultdict
 from datetime import datetime
 from glob import glob
 from multiprocessing import Pool
@@ -84,25 +85,26 @@ def cleanup_processing(seconds):
         misc.send_mail(sbj, msg, cnt)
 
 
-def cleanup_uppmax(site, seconds, dry_run=False):
+def cleanup_milou(site, seconds, dry_run=False):
     """Remove project/run that have been closed more than given time (as seconds)
     from the given 'site' on uppmax
 
     :param str site: site where the cleanup should be performed
     :param int seconds: Days/hours converted as second to consider a run to be old
+    :param bool dry_run: Will summarize what is going to be done without really doing it
     """
     seconds = check_default(site, seconds, CONFIG)
     if not seconds:
         return
-    root_dir = CONFIG.get('cleanup').get(site).get('root')
-    deleted_log = CONFIG.get('cleanup').get('deleted_log')
+    root_dir = CONFIG.get('cleanup').get('milou').get(site).get('root')
+    deleted_log = CONFIG.get('cleanup').get('milou').get('deleted_log')
     assert os.path.exists(os.path.join(root_dir,deleted_log)), "Log directory {} doesn't exist in {}".format(deleted_log,root_dir)
     log_file = os.path.join(root_dir,"{fl}/{fl}.log".format(fl=deleted_log))
     list_to_delete = []
 
     ## get glob path patterns to search and remove from root directory
     try:
-        archive_config = CONFIG['cleanup']['archive']
+        archive_config = CONFIG['cleanup']['milou']['archive']
         ## the glob path should be relative to the run folder, like "Unaligned_*/Project_*"
         config_ppath = archive_config['proj_path']
         ## Glob path should be relative to run folder, like "Unaligned_0bp/Undetermined_indices/*/*.fastq.gz"
@@ -160,9 +162,208 @@ def cleanup_uppmax(site, seconds, dry_run=False):
             continue
 
 
+def cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, include_cleaned=False, dry_run=False):
+    """Remove fastq/analysis data for projects that have been closed more than given 
+    days (as days_fastq/days_analysis) from the given 'irma' cluster
+
+    :param int days_fastq: Days to consider to remove fastq files for project
+    :param int days_analysis: Days to consider to remove analysis data for project
+    :param bool only_fastq: Remove only fastq files for closed projects
+    :param bool only_analysis: Remove only analysis data for closed projects
+    :param bool dry_run: Will summarize what is going to be done without really doing it
+    """
+    try:
+        config = CONFIG['cleanup']['irma']
+        flowcell_dir = config['flowcell']['root']
+        flowcell_project_source = config['flowcell']['relative_project_source']
+        data_dir = config['data_dir']
+        analysis_dir = config['analysis']['root']
+        analysis_data_to_remove = config['analysis']['files_to_remove']
+    except KeyError as e:
+        logger.error("Config file is missing the key {}, make sure it have all required information".format(str(e)))
+        raise SystemExit
+    
+    # make a connection for project db #
+    pcon = statusdb.ProjectSummaryConnection()
+    assert pcon, "Could not connect to project database in StatusDB"
+
+    #compile list for project to delete
+    project_clean_list, project_processed_list = ({}, [])
+    logger.info("Compiling project list for removing data..")
+    if only_fastq:
+        logger.info("Option 'only_fastq' is given, so will not look for analysis data")
+    elif only_analysis:
+        logger.info("Option 'only_analysis' is given, so will not look for fastq data")
+    
+    #go through flowcells and collect the projects to delete
+    for fc in [d for d in os.listdir(flowcell_dir) if re.match(filesystem.RUN_RE,d)]:
+        fc_abs_path = os.path.join(flowcell_dir, fc)
+        with filesystem.chdir(fc_abs_path):
+            projects_in_fc = [d for d in os.listdir(flowcell_project_source) \
+                              if re.match(r'^[A-Z]+[_\.]+[A-Za-z]+_\d\d_\d\d$',d) and \
+                              not os.path.exists(os.path.join(flowcell_project_source, d, "cleaned"))]
+            for _proj in projects_in_fc:
+                proj = re.sub(r'_+', '.', _proj, 1)
+                if proj in project_processed_list:
+                    if not only_analysis and proj in project_clean_list and project_clean_list[proj]['closed_days'] > days_fastq:
+                        fc_fq_files = collect_fastq_data_irma(fc_abs_path, os.path.join(flowcell_project_source, _proj))
+                        project_clean_list[proj]['fastq_to_remove']['flowcells'][fc] = fc_fq_files['flowcells'][fc]
+                    continue
+                proj_doc = pcon.get_entry(proj)
+                if "close_date" in proj_doc:
+                    closed_date = proj_doc['close_date']
+                    closed_days = misc.days_old(closed_date, "%Y-%m-%d")
+                    if closed_days < days_analysis:
+                        project_processed_list.append(proj)
+                        continue
+                    pid = proj_doc.get('project_id')
+                    bioinfo_res = proj_doc.get('project_summary',{}).get('bioinfo_responsible','')
+                    if not only_fastq:
+                        analysis_data = collect_analysis_data_irma(pid, analysis_dir, analysis_data_to_remove)
+                    else:
+                        analysis_data = "not_selected"
+                    if only_analysis:
+                        fastq_data = "not_selected"
+                    elif closed_days < days_fastq:
+                        fastq_data = "young"
+                    else:
+                        fastq_data = collect_fastq_data_irma(fc_abs_path, os.path.join(flowcell_project_source, _proj),
+                                                             data_dir, pid)
+                    project_clean_list[proj] = {'name' : proj,
+                                                'pid' : pid,
+                                                'closed_date' : closed_date,
+                                                'closed_days' : closed_days,
+                                                'analysis_to_remove' : analysis_data,
+                                                'fastq_to_remove' : fastq_data,
+                                                'bioinfo_responsible' : bioinfo_res}
+                project_processed_list.append(proj)
+    
+    logger.info("In total {} projects are found to remove data".format(len(project_clean_list)))
+    #go through complied project list and remove files
+    for proj, info in project_clean_list.iteritems():
+        delete = misc.query_yes_no("{}Delete files for this project".format(get_proj_meta_info(info)), default="no")
+        if delete:
+            logger.info("Will proceed with cleaning up project {}".format(proj))
+            analysis_data_info = info['analysis_to_remove']
+            if isinstance(analysis_data_info ,dict):
+                logger.info("Cleaning up analysis data in {}".format(analysis_data_info['proj_analysis_root']))
+                for qc_type, files in analysis_data_info['analysis_files'].iteritems():
+                    if dry_run:
+                        logger.info("DRY RUN: Will Clean up qc directory '{}'".format(qc_type))
+                        continue
+                    logger.info("Cleaning up qc directory '{}'".format(qc_type))
+                    
+        else:
+            logger.info("Will not remove files for project {}".format(proj))
+        
+    
+
 #############################################################
 # Class helper methods, not exposed as commands/subcommands #
 #############################################################
+
+def collect_analysis_data_irma(pid, analysis_root, files_ext_to_remove={}):
+    """Collect the analysis files that have to be removed from IRMA
+    
+    :param str pid: Project id to collect the analysis files for
+    :param str analysis_root: Root path where the projects are analyzed
+    :param dict files_ext_to_remove: dict with analysis type as key and
+    'ext' of files to be removed as value
+    """
+    proj_abs_path = os.path.join(analysis_root, pid)
+    if not os.path.exists(proj_abs_path):
+        return None
+    if os.path.exists(os.path.join(proj_abs_path, "cleaned")):
+        return "cleaned"
+    file_list = {'proj_analysis_root':proj_abs_path,
+                 'analysis_files': defaultdict(list)}
+    for qc_type,ext in files_ext_to_remove.items():
+        qc_path = os.path.join(proj_abs_path, qc_type)
+        if os.path.exists(qc_path):
+            file_list['analysis_files'][qc_type].extend(collect_files_by_ext(qc_path, ext))
+    return file_list
+
+def collect_fastq_data_irma(fc_root, fc_proj_src, proj_root=None, pid=None):
+    """Collect the fastq files that have to be removed from IRMA
+    
+    :param str pid: Project id to collect the analysis files for
+    :param str proj_root: Root path where the projects are analyzed
+    :param dict files_ext_to_remove: dict with analysis type as key and
+    'ext' of files to be removed as value
+    """
+    file_list = {'flowcells': defaultdict(dict)}
+    fc_proj_path = os.path.join(fc_root, fc_proj_src)
+    fc_id = os.path.basename(fc_root)
+    file_list['flowcells'][fc_id] = collect_files_by_ext(fc_proj_path, "*.fastq.gz")
+    if proj_root and pid:
+        proj_abs_path = os.path.join(proj_root, pid)
+        if not os.path.exists(proj_abs_path):
+            file_list['proj_data'] = None
+        elif os.path.exists(os.path.join(proj_abs_path, "cleaned")):
+            file_list['proj_data'] = "cleaned"
+        else:
+            file_list['proj_data'] = {'proj_data_root': proj_abs_path,
+                                      'fastq_files' : collect_files_by_ext(proj_abs_path, "*.fastq.gz")}
+    return file_list
+
+def collect_files_by_ext(path, ext=[]):
+    """Collect files with given extension from given path"""
+    if isinstance(ext, str):
+        ext = [ext]
+    collected_files = []
+    for root, dirs, files in os.walk(path):
+        for e in ext:
+            collected_files.extend(glob(os.path.join(root,e)))
+        for d in dirs:
+            collected_files.extend(collect_files_by_ext(d, ext))
+    return collected_files
+
+def get_proj_meta_info(info):
+    """From given info collect meta info for a project"""    
+    template = ("\nProject overview - {proj_name}\n"
+                "Project id: {proj_id}\n"
+                "Bioinfo Responsible: {bio_res}\n"
+                "Closed for (days): {closed_days}\n"
+                "Closed from (date): {closed_date}\n")
+    
+    meta_info = {'proj_name' : info.get('name'),
+                 'proj_id' : info.get('pid'),
+                 'bio_res' : info.get('bioinfo_responsible'),
+                 'closed_days' : info.get('closed_days'),
+                 'closed_date' : info.get('closed_date')}
+    
+    template = template.format(**meta_info)
+    
+    # set analysis info based upon what we have
+    analysis_info = info.get('analysis_to_remove')
+    if not analysis_info:
+        template += "Project analysis: No analysis directory\n"
+    elif isinstance(analysis_info, str) and analysis_info == "cleaned":
+        template += "Project analysis: Analysis directory already cleaned\n"
+    elif isinstance(analysis_info, dict):
+        f_stat = []
+        for qc_type, files in analysis_info['analysis_files'].iteritems():
+            f_stat.append("{} ({} files)".format(qc_type, len(files)))
+        template += "Project analyzed: {}\n".format(", ".join(f_stat))
+    
+    # set fastq info based upon what we have
+    fq_info = info.get('fastq_to_remove')
+    if isinstance(fq_info, str) and fq_info == "young":
+        template += "Project been closed less than threshold days, so will not remove any 'fastq' files\n"
+    elif isinstance(fq_info, dict):
+        proj_fq_info = fq_info.get('proj_data')
+        if not proj_fq_info:
+            template += "Project organized: No organized directory for project\n"
+        elif isinstance(proj_fq_info, str) and proj_fq_info == "cleaned":
+            template += "Project organized: Project directory is already cleaned\n"
+        elif isinstance(proj_fq_info, dict):
+            template += "Project organized: Project is organized with {} fastq files\n".format(len(proj_fq_info['fastq_files']))
+        fc_fq_info = fq_info.get('flowcells', {})
+        fc_num = len(fc_fq_info.keys())
+        fc_files = sum(map(len, fc_fq_info.values()))
+        template += "Flowcells: There are {} FC with total {} fastq files\n".format(fc_num, fc_files)
+
+    return template
 
 def get_closed_projects(projs, pj_con, seconds):
     """Takes list of project and gives project list that are closed
@@ -199,7 +400,7 @@ def check_default(site, seconds, config):
     :param dict config: config file parsed and saved as dictionary
     """
     try:
-        default_days = config['cleanup'][site]['days']
+        default_days = config['cleanup']['milou'][site]['days']
         default_seconds = misc.to_seconds(days=default_days)
     except KeyError:
         raise
@@ -214,7 +415,6 @@ def check_default(site, seconds, config):
             return seconds
         else:
             return None
-
 
 ############################################################
 #######             DEPRECATED METHODS               #######

@@ -36,7 +36,7 @@ setup(name='taca',
     entry_points={
         'console_scripts': ['taca = taca.cli:cli'],
         'taca.subcommands': [
-            'storage = taca.storage.cli:storage',
+            'cleanup = taca.cleanup.cli:cleanup',
             'analysis = taca.analysis.cli:analysis',
             'bioinfo_deliveries = taca.utils.cli:bioinfo_deliveries',
             'server_status = taca.server_status.cli:server_status',
