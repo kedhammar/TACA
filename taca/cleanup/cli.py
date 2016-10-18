@@ -45,17 +45,21 @@ def milou(ctx, site, days, dry_run):
     cln.cleanup_milou(site, seconds, dry_run)
 
 @cleanup.command()
-@click.option('--days_fastq', type=click.IntRange(min=1), required=True,
+@click.option('--days_fastq', type=click.IntRange(min=1),
               help="Days to consider as thershold for removing 'fastq' files")
-@click.option('--days_analysis', type=click.IntRange(min=1), required=True,
+@click.option('--days_analysis', type=click.IntRange(min=1),
               help="Days to consider as thershold for removing analysis data")
 @click.option('--only_fastq', is_flag=True, help="Clean only fastq data in 'irma'")
 @click.option('--only_analysis', is_flag=True, help="Clean only analysis data in 'irma'")
-@click.option('-n','--dry-run', is_flag=True, help='Perform dry run i.e. Executes nothing but log')
+@click.option('-n','--dry_run', is_flag=True, help='Perform dry run i.e. Executes nothing but log')
 @click.pass_context
 def irma(ctx, days_fastq, days_analysis, only_fastq, only_analysis, dry_run):
     """ Do appropriate cleanup on IRMA"""
     pass
     if only_fastq and only_analysis:
-        raise SystemExit("Both option 'only_fastq' and 'only_analysis' is given, should only give either one")
+        raise SystemExit("ERROR: Both option 'only_fastq' and 'only_analysis' is given, should only give either one")
+    if not days_fastq and not only_analysis:
+        raise SystemExit("ERROR: 'days_fastq' is not given while not selecting 'only_analysis' option")
+    if not days_analysis and not only_fastq:
+        raise SystemExit("ERROR: 'days_analysis' is not given while not selecting 'only_fastq' option")
     cln.cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, dry_run)
