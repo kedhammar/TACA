@@ -232,7 +232,6 @@ def cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, dry_run=F
                             if not only_fastq:
                                 # if project is old enough for fastq files and not 'only_fastq' try collect analysis files 
                                 if proj_info['closed_days'] >= days_analysis:
-    #                                import pdb; pdb.set_trace()
                                     analysis_data, analysis_size = collect_analysis_data_irma(proj_info['pid'], analysis_dir,
                                                                                               analysis_data_to_remove, return_size=True)
                                 # if both fastq and analysis files are not old enough move on
