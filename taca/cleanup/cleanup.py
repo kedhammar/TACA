@@ -453,8 +453,8 @@ def get_files_size_text(plist):
     fsize = _def_get_size_unit(sum([i.get('fastq_size',0) for i in plist.values()]))
     asize = _def_get_size_unit(sum([i.get('analysis_size',0) for i in plist.values()]))
     return "({f}{s}{a}) ".format(f = "~{} fastq data".format(fsize) if fsize else "",
-                                      a = "~{} analysis data".format(asize) if asize else "",
-                                      s = " and " if fsize and asize else "")
+                                 a = "~{} analysis data".format(asize) if asize else "",
+                                 s = " and " if fsize and asize else "")
 
 def _remove_files(files):
     """Remove files from given list"""
