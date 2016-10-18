@@ -201,8 +201,11 @@ def cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, dry_run=F
             proj_abs_path = os.path.join(analysis_dir, pid)
             proj_info = get_closed_proj_info(pcon.get_entry(pid, use_id_view=True))
             if proj_info and proj_info['closed_days'] >= days_analysis:
-                proj_info['analysis_to_remove'] = collect_analysis_data_irma(pid, analysis_dir, analysis_data_to_remove)
+                analysis_data, analysis_size = collect_analysis_data_irma(pid, analysis_dir, analysis_data_to_remove, return_size=True)
+                proj_info['analysis_to_remove'] = analysis_data
+                proj_info['analysis_size'] = analysis_size
                 proj_info['fastq_to_remove'] = "not_selected"
+                proj_info['fastq_size'] = 0
                 project_clean_list[proj_info['name']] = proj_info
     else:
         for flowcell_dir in flowcell_dir_root:
@@ -216,8 +219,9 @@ def cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, dry_run=F
                         proj = re.sub(r'_+', '.', _proj, 1)
                         if proj in project_processed_list:
                             if proj in project_clean_list and project_clean_list[proj]['closed_days'] >= days_fastq:
-                                fc_fq_files = collect_fastq_data_irma(fc_abs_path, os.path.join(flowcell_project_source, _proj))
+                                fc_fq_files, fq_size = collect_fastq_data_irma(fc_abs_path, os.path.join(flowcell_project_source, _proj), return_size=True)
                                 project_clean_list[proj]['fastq_to_remove']['flowcells'][fc] = fc_fq_files['flowcells'][fc]
+                                project_clean_list[proj]['fastq_size'] += fq_size
                             continue
                         project_processed_list.append(proj)
                         #by default assume all projects are not old enough for delete
