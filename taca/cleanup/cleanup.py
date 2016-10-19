@@ -162,7 +162,7 @@ def cleanup_milou(site, seconds, dry_run=False):
             continue
 
 
-def cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, dry_run=False):
+def cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, status_db_config, dry_run=False):
     """Remove fastq/analysis data for projects that have been closed more than given 
     days (as days_fastq/days_analysis) from the given 'irma' cluster
 
@@ -203,7 +203,7 @@ def cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, dry_run=F
         raise SystemExit
     
     # make a connection for project db #
-    pcon = statusdb.ProjectSummaryConnection()
+    pcon = statusdb.ProjectSummaryConnection(conf=status_db_config)
     assert pcon, "Could not connect to project database in StatusDB"
 
     #compile list for project to delete

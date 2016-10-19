@@ -6,7 +6,9 @@ from taca.utils import misc
 
 @click.group()
 @click.pass_context
-def cleanup(ctx):
+@click.option('--status_db_config', type=click.Path(exists=True, dir_okay=False),
+              help="Config to use for fetching 'status_db' credentials")
+def cleanup(ctx, status_db_config):
 	""" Cleaning up servers - management methods and utilities """
 	pass
 
@@ -55,10 +57,11 @@ def milou(ctx, site, days, dry_run):
 @click.pass_context
 def irma(ctx, days_fastq, days_analysis, only_fastq, only_analysis, dry_run):
     """ Do appropriate cleanup on IRMA"""
+    status_db_config = ctx.parent.params['status_db_config']
     if only_fastq and only_analysis:
         raise SystemExit("ERROR: Both option 'only_fastq' and 'only_analysis' is given, should only give either one")
     if not days_fastq and not only_analysis:
         raise SystemExit("ERROR: 'days_fastq' is not given while not selecting 'only_analysis' option")
     if not days_analysis and not only_fastq:
         raise SystemExit("ERROR: 'days_analysis' is not given while not selecting 'only_fastq' option")
-    cln.cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, dry_run)
+    cln.cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, status_db_config, dry_run)
