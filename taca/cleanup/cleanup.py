@@ -162,7 +162,7 @@ def cleanup_milou(site, seconds, dry_run=False):
             continue
 
 
-def cleanup_irma(conf_file, days_fastq, days_analysis, only_fastq, only_analysis, dry_run=False):
+def cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, dry_run=False):
     """Remove fastq/analysis data for projects that have been closed more than given 
     days (as days_fastq/days_analysis) from the given 'irma' cluster
 
@@ -203,7 +203,7 @@ def cleanup_irma(conf_file, days_fastq, days_analysis, only_fastq, only_analysis
         raise SystemExit
     
     # make a connection for project db #
-    pcon = statusdb.ProjectSummaryConnection(conf=conf_file)
+    pcon = statusdb.ProjectSummaryConnection()
     assert pcon, "Could not connect to project database in StatusDB"
 
     #compile list for project to delete
@@ -319,8 +319,8 @@ def cleanup_irma(conf_file, days_fastq, days_analysis, only_fastq, only_analysis
         if analysis_info and isinstance(analysis_info, dict):
             proj_analysis_root = analysis_info['proj_analysis_root']
             logger.info("cleaning analysis data for project {}".format(proj))
+            removed_qc = []
             for qc, files in analysis_info['analysis_files'].iteritems():
-                removed_qc = []
                 logger.info("Removing files of '{}' from {}".format(qc, proj_analysis_root))
                 if not dry_run:
                     _remove_files(files)
@@ -420,6 +420,9 @@ def get_proj_meta_info(info, days_fastq):
                 "Closed for (days): {closed_days}\n"
                 "Closed from (date): {closed_date}\n")
     
+    # remove any special characters if the responsible name
+    bioinfo_res = info.get('bioinfo_responsible')
+    bioinfo_res = bioinfo_res.encode('ascii', 'ignore')
     meta_info = {'proj_name' : info.get('name'),
                  'proj_id' : info.get('pid'),
                  'bio_res' : info.get('bioinfo_responsible'),
