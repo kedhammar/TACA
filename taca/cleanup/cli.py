@@ -55,11 +55,11 @@ def milou(ctx, site, days, dry_run):
 @click.pass_context
 def irma(ctx, days_fastq, days_analysis, only_fastq, only_analysis, dry_run):
     """ Do appropriate cleanup on IRMA"""
-    pass
+    config_file = ctx.parent.parent.params['config_file'].name
     if only_fastq and only_analysis:
         raise SystemExit("ERROR: Both option 'only_fastq' and 'only_analysis' is given, should only give either one")
     if not days_fastq and not only_analysis:
         raise SystemExit("ERROR: 'days_fastq' is not given while not selecting 'only_analysis' option")
     if not days_analysis and not only_fastq:
         raise SystemExit("ERROR: 'days_analysis' is not given while not selecting 'only_fastq' option")
-    cln.cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, dry_run)
+    cln.cleanup_irma(config_file, days_fastq, days_analysis, only_fastq, only_analysis, dry_run)
