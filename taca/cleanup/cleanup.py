@@ -301,6 +301,7 @@ def cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, status_db
         if fastq_info and isinstance(fastq_info, dict):
             logger.info("Cleaning fastq files for project {}".format(proj))
             fastq_fc = fastq_info.get('flowcells', {})
+            removed_fc = []
             for fc, fc_info in fastq_fc.iteritems():
                 proj_fc_root = fc_info['proj_root']
                 logger.info("Removing fastq files from {}".format(proj_fc_root))
@@ -308,14 +309,14 @@ def cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, status_db
                     _remove_files(fc_info['fq_files'])
                     logger.info("Removed fastq files from FC {} for project {}, marking it as cleaned".format(fc, proj))
                     _touch_cleaned(proj_fc_root)
-            fastq_proj = fastq_info.get('proj_data')
-            if fastq_proj and isinstance(fastq_proj, dict):
-                proj_data_root = fastq_proj['proj_data_root']
-                logger.info("Removing fastq_files from {}".format(proj_data_root))
-                if not dry_run:
-                    _remove_files(fastq_proj['fastq_files'])
-                    logger.info("Removed fastq files from data directory for project {}, marking it as cleaned".format(proj))
+                    removed_fc.append(fc)
+            if len(fastq_fc) == len(removed_fc):
+                try:
+                    proj_data_root = fastq_info['proj_data']['proj_data_root']
+                    logger.info("All flowcells cleaned for this project, marking it as cleaned in {}".format(proj_data_root))
                     _touch_cleaned(proj_data_root)
+                except:
+                    pass
             
         analysis_info = info.get('analysis_to_remove')
         if analysis_info and isinstance(analysis_info, dict):
@@ -396,10 +397,6 @@ def collect_fastq_data_irma(fc_root, fc_proj_src, proj_root=None, pid=None):
             file_list['proj_data'] = {'proj_data_root': proj_abs_path,
                                       'fastq_files' : collect_files_by_ext(proj_abs_path, "*.fastq.gz")}
     size += sum(map(os.path.getsize, file_list['flowcells'][fc_id]['fq_files']))
-    try:
-        size += sum(map(os.path.getsize, file_list['proj_data']['fastq_files']))
-    except:
-        pass
     return (file_list, size)
 
 def collect_files_by_ext(path, ext=[]):
