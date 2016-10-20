@@ -279,10 +279,12 @@ def cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, status_db
     get_files_size_text(project_clean_list)
     logger.info("Initial list is built with {} projects {}".format(len(project_clean_list), get_files_size_text(project_clean_list)))
     if  misc.query_yes_no("Interactively filter projects for cleanup ?", default="yes"):
-        filtered_project = []
+        filtered_project, proj_count = ([], 0)
         #go through complied project list and remove files
         for proj, info in project_clean_list.iteritems():
-            if not misc.query_yes_no("{}Delete files for this project".format(get_proj_meta_info(info, days_fastq)), default="no"):
+            proj_count += 1
+            if not misc.query_yes_no("{}Delete files for this project ({}/{})".format(get_proj_meta_info(info, days_fastq),
+                   proj_count, len(project_clean_list)), default="no"):
                 logger.info("Will not remove files for project {}".format(proj))
                 filtered_project.append(proj)
         # remove projects that were decided not to delete
@@ -459,32 +461,35 @@ def get_proj_meta_info(info, days_fastq):
         fc_num = len(fc_fq_info.keys())
         fc_files = sum(map(len, [fc_info.get('fq_files', [])for fc_info in fc_fq_info.values()]))
         template += "Flowcells: There are {} FC with total {} fastq files\n".format(fc_num, fc_files)
+    template += "Estimated data size: {}\n".format(_def_get_size_unit(info.get('fastq_size',0) + info.get('fastq_size',0)))
 
     return template
 
 def get_files_size_text(plist):
     """Get project list dict and give back string with overll sizes"""
-    def _def_get_size_unit(s):
-        kb = 1000
-        mb = kb * 1000
-        gb = mb * 1000
-        tb = gb * 1000
-        if s > tb:
-            s = "~{}tb".format(s/tb)
-        elif s > gb:
-            s = "~{}gb".format(s/gb)
-        elif s > mb:
-            s = "~{}mb".format(s/mb)
-        elif s > kb:
-            s = "~{}kb".format(s/kb)
-        elif s > 0:
-            s = "~{}b".format(s/b)
-        return s
     fsize = _def_get_size_unit(sum([i.get('fastq_size',0) for i in plist.values()]))
     asize = _def_get_size_unit(sum([i.get('analysis_size',0) for i in plist.values()]))
     return "({f}{s}{a}) ".format(f = "~{} fastq data".format(fsize) if fsize else "",
                                  a = "~{} analysis data".format(asize) if asize else "",
                                  s = " and " if fsize and asize else "")
+
+def _def_get_size_unit(s):
+    """Change the given size to appropriate unit measurement for better readability"""
+    kb = 1000
+    mb = kb * 1000
+    gb = mb * 1000
+    tb = gb * 1000
+    if s > tb:
+        s = "~{}tb".format(s/tb)
+    elif s > gb:
+        s = "~{}gb".format(s/gb)
+    elif s > mb:
+        s = "~{}mb".format(s/mb)
+    elif s > kb:
+        s = "~{}kb".format(s/kb)
+    elif s > 0:
+        s = "~{}b".format(s/b)
+    return s
 
 def _remove_files(files):
     """Remove files from given list"""
