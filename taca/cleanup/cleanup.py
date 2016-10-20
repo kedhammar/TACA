@@ -218,7 +218,7 @@ def cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, status_db
         for pid in [d for d in os.listdir(analysis_dir) if re.match(r'^P\d+$', d) and \
                     not os.path.exists(os.path.join(analysis_dir, d, "cleaned"))]:
             proj_abs_path = os.path.join(analysis_dir, pid)
-            proj_info = get_closed_proj_info(pcon.get_entry(pid, use_id_view=True))
+            proj_info = get_closed_proj_info(pid, pcon.get_entry(pid, use_id_view=True))
             if proj_info and proj_info['closed_days'] >= days_analysis:
                 analysis_data, analysis_size = collect_analysis_data_irma(pid, analysis_dir, analysis_data_to_remove)
                 proj_info['analysis_to_remove'] = analysis_data
@@ -249,7 +249,7 @@ def cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, status_db
                         #by default assume all projects are not old enough for delete
                         fastq_data, analysis_data = ("young", "young")
                         fastq_size, analysis_size = (0, 0)
-                        proj_info = get_closed_proj_info(pcon.get_entry(proj))
+                        proj_info = get_closed_proj_info(proj, pcon.get_entry(proj))
                         if proj_info:
                             # if project not old enough for fastq files and only fastq files selected move on to next project
                             if proj_info['closed_days'] >= days_fastq:
@@ -338,10 +338,12 @@ def cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, status_db
 # Class helper methods, not exposed as commands/subcommands #
 #############################################################
 
-def get_closed_proj_info(pdoc):
+def get_closed_proj_info(prj, pdoc):
     """check and return a dict if project is closed"""
     pdict = None
-    if "close_date" in pdoc:
+    if not pdoc:
+        logger.warn("Seems like project {} dont have a proper statudb document, skipping it".format(prj))
+    elif "close_date" in pdoc:
         closed_date = pdoc['close_date']
         closed_days = misc.days_old(closed_date, "%Y-%m-%d")
         if closed_days and isinstance(closed_days, int):
