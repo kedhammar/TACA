@@ -1,4 +1,4 @@
 """ Main TACA module
 """
 
-__version__ = '0.6.1.0'
+__version__ = '0.6.2.0'

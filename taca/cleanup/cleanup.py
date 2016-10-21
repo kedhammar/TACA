@@ -289,7 +289,10 @@ def cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, status_db
                 filtered_project.append(proj)
         # remove projects that were decided not to delete
         map(project_clean_list.pop, filtered_project)
-        logger.info("Removed {} projects from initial list".format(len(filtered_project)))
+        logger.info("Removed {}/{} projects from initial list".format(len(filtered_project), proj_count))
+        if not project_clean_list:
+            logger.info("There are no projects to clean after filtering")
+            return
         logger.info("Final list is created with {} projects {}".format(len(project_clean_list), get_files_size_text(project_clean_list)))
         if not misc.query_yes_no("Proceed with cleanup ?", default="no"):
             logger.info("Aborting cleanup")
@@ -414,23 +417,21 @@ def collect_files_by_ext(path, ext=[]):
     return collected_files
 
 def get_proj_meta_info(info, days_fastq):
-    """From given info collect meta info for a project"""    
-    template = ("\nProject overview - {proj_name}\n"
-                "Project id: {proj_id}\n"
-                "Bioinfo Responsible: {bio_res}\n"
-                "Closed for (days): {closed_days}\n"
-                "Closed from (date): {closed_date}\n")
-    
-    # remove any special characters if the responsible name
-    bioinfo_res = info.get('bioinfo_responsible')
+    """From given info collect meta info for a project"""
+    template = "\n"
+    def _get_template_string(h,v):
+        try:
+            v = "{}: {}\n".format(h,v)
+        except:
+            v = "{}: Problem getting this".format(h)
+        return v
+    template += _get_template_string("Project overview", info.get('name'))
+    template += _get_template_string("Project ID", info.get('pid'))
+    bioinfo_res = info.get('bioinfo_responsible','')
     bioinfo_res = bioinfo_res.encode('ascii', 'ignore')
-    meta_info = {'proj_name' : info.get('name'),
-                 'proj_id' : info.get('pid'),
-                 'bio_res' : info.get('bioinfo_responsible'),
-                 'closed_days' : info.get('closed_days'),
-                 'closed_date' : info.get('closed_date')}
-    
-    template = template.format(**meta_info)
+    template += _get_template_string("Bioinfo Responsible", bioinfo_res)
+    template += _get_template_string("Closed for (days)", info.get('closed_days'))
+    template += _get_template_string("Closed from (date)", info.get('closed_date'))
     
     # set analysis info based upon what we have
     analysis_info = info.get('analysis_to_remove')
