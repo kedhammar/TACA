@@ -349,7 +349,7 @@ def get_closed_proj_info(prj, pdoc):
     elif "close_date" in pdoc:
         closed_date = pdoc['close_date']
         closed_days = misc.days_old(closed_date, "%Y-%m-%d")
-        if closed_days and isinstance(closed_days, int):
+        if closed_days is not None and isinstance(closed_days, int):
             pdict = {'name' : pdoc.get('project_name'),
                      'pid' : pdoc.get('project_id'),
                      'closed_date' : closed_date,
@@ -494,11 +494,17 @@ def _def_get_size_unit(s):
 def _remove_files(files):
     """Remove files from given list"""
     for fl in files:
-        os.remove(fl)
+        try:
+            os.remove(fl)
+        except Exception, e:
+            logger.warn("Couldn't remove file {} due to '{}'".format(fl, e.message))
 
 def _touch_cleaned(path):
     """Touch a 'cleaned' file in a given path"""
-    open(os.path.join(path, "cleaned"), 'w').close()
+    try:
+        open(os.path.join(path, "cleaned"), 'w').close()
+    except Exception, e:
+        logger.warn("Couldn't create 'cleaned' file in path {} due to '{}'".format(path, e.message))
 
 def get_closed_projects(projs, pj_con, seconds):
     """Takes list of project and gives project list that are closed
