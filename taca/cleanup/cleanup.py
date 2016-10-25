@@ -502,7 +502,7 @@ def _remove_files(files):
         except Exception, e:
             logger.warn("Couldn't remove file {} due to '{}'".format(fl, e.message))
             status = False
-        return status
+    return status
 
 def _touch_cleaned(path):
     """Touch a 'cleaned' file in a given path"""
