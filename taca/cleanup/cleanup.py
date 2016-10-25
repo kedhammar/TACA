@@ -309,10 +309,10 @@ def cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, status_db
                 proj_fc_root = fc_info['proj_root']
                 logger.info("Removing fastq files from {}".format(proj_fc_root))
                 if not dry_run:
-                    _remove_files(fc_info['fq_files'])
-                    logger.info("Removed fastq files from FC {} for project {}, marking it as cleaned".format(fc, proj))
-                    _touch_cleaned(proj_fc_root)
-                    removed_fc.append(fc)
+                    if _remove_files(fc_info['fq_files']):
+                        logger.info("Removed fastq files from FC {} for project {}, marking it as cleaned".format(fc, proj))
+                        _touch_cleaned(proj_fc_root)
+                        removed_fc.append(fc)
             if len(fastq_fc) == len(removed_fc):
                 try:
                     proj_data_root = fastq_info['proj_data']['proj_data_root']
@@ -329,8 +329,10 @@ def cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, status_db
             for qc, files in analysis_info['analysis_files'].iteritems():
                 logger.info("Removing files of '{}' from {}".format(qc, proj_analysis_root))
                 if not dry_run:
-                    _remove_files(files)
-                    removed_qc.append(qc)
+                    if _remove_files(files):
+                        removed_qc.append(qc)
+                    else:
+                        logger.warn("Couldn't remove some files in qc directory '{}'".format(qc))
             map(analysis_info['analysis_files'].pop, removed_qc)
             if len(analysis_info['analysis_files']) == 0:
                 logger.info("Removed analysis data for project {}, marking it cleaned".format(proj))
@@ -493,11 +495,14 @@ def _def_get_size_unit(s):
 
 def _remove_files(files):
     """Remove files from given list"""
+    status = True
     for fl in files:
         try:
             os.remove(fl)
         except Exception, e:
             logger.warn("Couldn't remove file {} due to '{}'".format(fl, e.message))
+            status = False
+        return status
 
 def _touch_cleaned(path):
     """Touch a 'cleaned' file in a given path"""
