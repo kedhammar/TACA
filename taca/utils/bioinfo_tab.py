@@ -53,15 +53,7 @@ def collect_runs():
 def update_statusdb(run_dir):
     #fetch individual fields
     project_info=get_ss_projects(run_dir)
-    #DEBUG
-    FCID_samplesheet_origin = os.path.join(run_dir,'SampleSheet.csv')
-    ss_reader=SampleSheetParser(FCID_samplesheet_origin)
-    data=ss_reader.data
-    print data
-    import pdb
-    pdb.set_trace()
-    #
-    run_id = os.path.basename(os.path.abspath(run_dir))
+    os.path.basename(os.path.abspath(run_dir))
     couch=setupServer(CONFIG)
     valueskey=datetime.datetime.now().isoformat()
     db=couch['bioinfo_analysis']
@@ -72,8 +64,7 @@ def update_statusdb(run_dir):
             obj={'run_id':run_id, 'project_id':'ERROR_Samplesheet'}
             logger.info("INVALID SAMPLESHEET, CHECK {} FORMED AT {}".format(run_id, valueskey))
             error_emailer('no_samplesheet', run_id)
-            #DEBUG
-            #db.save(obj)
+            db.save(obj)
         else:
             for lane in project_info[flowcell]:
                 for sample in project_info[flowcell][lane]:
@@ -104,15 +95,13 @@ def update_statusdb(run_dir):
                                 #Update record cluster
                                 obj['_rev'] = db[remote_id].rev
                                 obj['_id'] = remote_id
-                                #DEBUG
-                                #db.save(obj)
+                                db.save(obj)
                         #Creates new entry
                         else:
                             logger.info("Creating {} {} {} {} {} as {}".format(run_id, project, 
                             flowcell, lane, sample, sample_status))
                             #creates record
-                            #DEBUG
-                            #db.save(obj)
+                            db.save(obj)
                         #Sets FC error flag
                         if not project_info[flowcell].value == None:
                             if (("Failed" in project_info[flowcell].value and "Failed" not in sample_status)
@@ -163,19 +152,26 @@ def get_ss_projects(run_dir):
 
     #Miseq case
     if 'miseq' in run_dir:
+        if os.path.exists(os.path.join(run_dir,'Data','Intensities','BaseCalls', 'SampleSheet.csv')):
+            FCID_samplesheet_origin = os.path.join(run_dir,'Data','Intensities','BaseCalls', 'SampleSheet.csv')
+        else:
+            FCID_samplesheet_origin = os.path.join(run_dir,'SampleSheet.csv')
         miseq = True
         lanes = str(1)
         #Pattern is a bit more rigid since we're no longer also checking for lanes
         sample_proj_pattern=re.compile("^((P[0-9]{3,5})_[0-9]{3,5})$")
-        FCID_samplesheet_origin = os.path.join(run_dir,'SampleSheet.csv')
-        data = parse_samplesheet(FCID_samplesheet_origin)
+        data = parse_samplesheet(FCID_samplesheet_origin, run_dir)
     #Hiseq X case
     elif os.path.exists(os.path.join(CONFIG['bioinfo_tab']['xten_samplesheets'],
-                                    current_year,'{}.csv'.format(FCID))):    
-        data = parse_samplesheet(FCID_samplesheet_origin)
+                                    current_year,'{}.csv'.format(FCID))): 
+        FCID_samplesheet_origin = os.path.join(CONFIG['bioinfo_tab']['xten_samplesheets'],
+                                    current_year, '{}.csv'.format(FCID))   
+        data = parse_samplesheet(FCID_samplesheet_origin, run_dir)
     #Hiseq 2.5k case
     elif os.path.exists(os.path.join(CONFIG['bioinfo_tab']['hiseq_samplesheets'],
                                     current_year,'{}.csv'.format(FCID))):
+        FCID_samplesheet_origin = os.path.join(CONFIG['bioinfo_tab']['hiseq_samplesheets'],
+                                    current_year, '{}.csv'.format(FCID)) 
         try:
             csvf=open(FCID_samplesheet_origin, 'rU')
             data=DictReader(csvf)
@@ -186,6 +182,8 @@ def get_ss_projects(run_dir):
         logger.warn("Cannot locate the samplesheet for run {}".format(run_dir))
         return ['UNKNOWN']
         
+    if data == []:
+            return data
             
     proj_n_sample = False
     lane = False
@@ -218,17 +216,20 @@ def get_ss_projects(run_dir):
 """Parses a samplesheet with SampleSheetParser
    :param FCID_samplesheet_origin sample sheet path
 """
-def parse_samplesheet(FCID_samplesheet_origin):
+def parse_samplesheet(FCID_samplesheet_origin, run_dir):
+    data = []
     try:
         ss_reader=SampleSheetParser(FCID_samplesheet_origin)
         data=ss_reader.data
     except:
         logger.warn("Cannot initialize SampleSheetParser for {}. Most likely due to poor comma separation".format(run_dir))
-        return []
-    if 'Description' not in ss_reader.header or not \
-    ('Production' in ss_reader.header['Description'] or 'Application' in ss_reader.header['Description']):
-        logger.warn("Run {} detected as a non platform MiSeq run. Disregarding it.".format(run_dir))
-        return []
+    
+    try:
+        if not 'Description' in ss_reader.header or not \
+        ('Production' in ss_reader.header['Description'] or 'Application' in ss_reader.header['Description']):
+            logger.warn("Run {} detected as a non platform MiSeq run. Disregarding it.".format(run_dir))
+    except Exception:
+        pass
     return data
 
 """Sends a custom error e-mail
