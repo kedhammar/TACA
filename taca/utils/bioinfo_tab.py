@@ -53,7 +53,7 @@ def collect_runs():
 def update_statusdb(run_dir):
     #fetch individual fields
     project_info=get_ss_projects(run_dir)
-    os.path.basename(os.path.abspath(run_dir))
+    run_id = os.path.basename(os.path.abspath(run_dir))
     couch=setupServer(CONFIG)
     valueskey=datetime.datetime.now().isoformat()
     db=couch['bioinfo_analysis']
