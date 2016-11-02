@@ -151,7 +151,7 @@ def get_ss_projects(run_dir):
     miseq = False
 
     #Miseq case
-    if 'miseq' in run_dir:
+    if re.match("\/[0-9]{6}_M[0-9]{5}_[0-9]{4}_000000000-\w{5}", run_dir) is not None:
         if os.path.exists(os.path.join(run_dir,'Data','Intensities','BaseCalls', 'SampleSheet.csv')):
             FCID_samplesheet_origin = os.path.join(run_dir,'Data','Intensities','BaseCalls', 'SampleSheet.csv')
         else:
