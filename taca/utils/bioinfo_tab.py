@@ -47,6 +47,7 @@ def collect_runs():
             if rundir_re.match(os.path.basename(os.path.abspath(run_dir))) and os.path.isdir(run_dir):
                 #update the run status
                 update_statusdb(run_dir)
+                
 """ Gets status for a project
 """
 def update_statusdb(run_dir):
@@ -113,6 +114,7 @@ def update_statusdb(run_dir):
             if not project_info[flowcell].value == None:
                 if 'Ambiguous' in project_info[flowcell].value:    
                     error_emailer('failed_run', run_name) 
+                    
 """ Gets status of a sample run, based on flowcell info (folder structure)
 """
 def get_status(run_dir):    
@@ -147,46 +149,41 @@ def get_ss_projects(run_dir):
     FCID = run_name_components[3][1:]
     newData = False
     miseq = False
-    
-    xten_samplesheets_dir = os.path.join(CONFIG['bioinfo_tab']['xten_samplesheets'],
-                                    current_year)
-    hiseq_samplesheets_dir = os.path.join(CONFIG['bioinfo_tab']['hiseq_samplesheets'],
-                                    current_year)
-    #If it is not hiseq
-    FCID_samplesheet_origin = os.path.join(hiseq_samplesheets_dir, '{}.csv'.format(FCID))
-    if not os.path.exists(FCID_samplesheet_origin):
-        #If it is not xten
-        FCID_samplesheet_origin = os.path.join(xten_samplesheets_dir, '{}.csv'.format(FCID))
-        if not os.path.exists(FCID_samplesheet_origin):
-            #It is miseq
-            miseq = True
-            lanes = str(1)
-            #Pattern is a bit more rigid since we're no longer also checking for lanes
-            sample_proj_pattern=re.compile("^((P[0-9]{3,5})_[0-9]{3,5})$")
-            
-            FCID_samplesheet_origin = os.path.join(run_dir,'Data','Intensities','BaseCalls', 'SampleSheet.csv')
-            if not os.path.exists(FCID_samplesheet_origin):
-                FCID_samplesheet_origin = os.path.join(run_dir,'SampleSheet.csv')
-                if not os.path.exists(FCID_samplesheet_origin):
-                    logger.warn("Cannot locate the samplesheet for run {}".format(run_dir))
-                    return ['UNKNOWN']
 
-        try:
-            ss_reader=SampleSheetParser(FCID_samplesheet_origin)
-            data=ss_reader.data
-        except:
-            logger.warn("Cannot initialize SampleSheetParser for {}. Most likely due to poor comma separation".format(run_dir))
-            return []
-        if 'Description' in ss_reader.header and ss_reader.header['Description'] not in ['Production', 'Applications']:
-            logger.warn("Run {} detected as a non platform MiSeq run. Disregarding it.".format(run_dir))
-            return []
-    else:
+    #Miseq case
+    if re.match("\/[0-9]{6}_M[0-9]{5}_[0-9]{4}_000000000-\w{5}", run_dir) is not None:
+        if os.path.exists(os.path.join(run_dir,'Data','Intensities','BaseCalls', 'SampleSheet.csv')):
+            FCID_samplesheet_origin = os.path.join(run_dir,'Data','Intensities','BaseCalls', 'SampleSheet.csv')
+        else:
+            FCID_samplesheet_origin = os.path.join(run_dir,'SampleSheet.csv')
+        miseq = True
+        lanes = str(1)
+        #Pattern is a bit more rigid since we're no longer also checking for lanes
+        sample_proj_pattern=re.compile("^((P[0-9]{3,5})_[0-9]{3,5})$")
+        data = parse_samplesheet(FCID_samplesheet_origin, run_dir)
+    #Hiseq X case
+    elif os.path.exists(os.path.join(CONFIG['bioinfo_tab']['xten_samplesheets'],
+                                    current_year,'{}.csv'.format(FCID))): 
+        FCID_samplesheet_origin = os.path.join(CONFIG['bioinfo_tab']['xten_samplesheets'],
+                                    current_year, '{}.csv'.format(FCID))   
+        data = parse_samplesheet(FCID_samplesheet_origin, run_dir)
+    #Hiseq 2.5k case
+    elif os.path.exists(os.path.join(CONFIG['bioinfo_tab']['hiseq_samplesheets'],
+                                    current_year,'{}.csv'.format(FCID))):
+        FCID_samplesheet_origin = os.path.join(CONFIG['bioinfo_tab']['hiseq_samplesheets'],
+                                    current_year, '{}.csv'.format(FCID)) 
         try:
             csvf=open(FCID_samplesheet_origin, 'rU')
             data=DictReader(csvf)
         except:
             logger.warn("Cannot initialize DictReader for {}. Most likely due to poor comma separation".format(run_dir))
             return []
+    else: 
+        logger.warn("Cannot locate the samplesheet for run {}".format(run_dir))
+        return ['UNKNOWN']
+        
+    if data == []:
+            return data
             
     proj_n_sample = False
     lane = False
@@ -214,8 +211,26 @@ def get_ss_projects(run_dir):
     if proj_tree.keys() == []:
         logger.info("INCORRECTLY FORMATTED SAMPLESHEET, CHECK {}".format(run_name))
         #error_emailer('weird_samplesheet', run_name)
-    
     return proj_tree
+
+"""Parses a samplesheet with SampleSheetParser
+   :param FCID_samplesheet_origin sample sheet path
+"""
+def parse_samplesheet(FCID_samplesheet_origin, run_dir):
+    data = []
+    try:
+        ss_reader=SampleSheetParser(FCID_samplesheet_origin)
+        data=ss_reader.data
+    except:
+        logger.warn("Cannot initialize SampleSheetParser for {}. Most likely due to poor comma separation".format(run_dir))
+    
+    try:
+        if not 'Description' in ss_reader.header or not \
+        ('Production' in ss_reader.header['Description'] or 'Application' in ss_reader.header['Description']):
+            logger.warn("Run {} detected as a non platform MiSeq run. Disregarding it.".format(run_dir))
+    except Exception:
+        pass
+    return data
 
 """Sends a custom error e-mail
     :param flag e-mail state
@@ -241,7 +256,3 @@ def error_emailer(flag, info):
     hourNow = datetime.datetime.now().hour 
     if hourNow == 7 or hourNow == 12 or hourNow == 16:
         send_mail(subject, body, recipients)
-    
-
-    
-    
