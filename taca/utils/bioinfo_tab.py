@@ -60,12 +60,7 @@ def update_statusdb(run_dir):
     view = db.view('latest_data/sample_id')
     #Construction and sending of individual records, if samplesheet is incorrectly formatted the loop is skipped
     for flowcell in project_info:
-        if flowcell == 'UNKNOWN':
-            obj={'run_id':run_id, 'project_id':'ERROR_Samplesheet'}
-            logger.info("INVALID SAMPLESHEET, CHECK {} FORMED AT {}".format(run_id, valueskey))
-            error_emailer('no_samplesheet', run_id)
-            db.save(obj)
-        else:
+        if not flowcell == 'UNKNOWN':
             for lane in project_info[flowcell]:
                 for sample in project_info[flowcell][lane]:
                     for project in project_info[flowcell][lane][sample]:
