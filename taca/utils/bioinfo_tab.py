@@ -8,7 +8,7 @@ import datetime
 
 from csv import DictReader
 from taca.utils.config import CONFIG
-from flowcell_parser.classes import SampleSheetParser
+from flowcell_parser.classes import SampleSheetParser, RunParametersParser
 from collections import defaultdict, OrderedDict
 from taca.utils.misc import send_mail
 
@@ -30,6 +30,8 @@ class Tree(defaultdict):
 """
 def collect_runs():
     found_runs=[]
+    #Pattern explained:
+    #Digits_(maybe ST-)AnythingLetterornumberNumber_Number_AorbLetterornumberordash
     rundir_re = re.compile("\d{6}_[ST-]*\w+\d+_\d+_[AB]?[A-Z0-9\-]+")
     for data_dir in CONFIG['bioinfo_tab']['data_dirs']:
         if os.path.exists(data_dir):
@@ -59,8 +61,8 @@ def update_statusdb(run_dir):
     db=couch['bioinfo_analysis']
     view = db.view('latest_data/sample_id')
     #Construction and sending of individual records, if samplesheet is incorrectly formatted the loop is skipped
-    for flowcell in project_info:
-        if not flowcell == 'UNKNOWN':
+    if not project_info == []:
+        for flowcell in project_info:
             for lane in project_info[flowcell]:
                 for sample in project_info[flowcell][lane]:
                     for project in project_info[flowcell][lane][sample]:
@@ -90,15 +92,13 @@ def update_statusdb(run_dir):
                                 #Update record cluster
                                 obj['_rev'] = db[remote_id].rev
                                 obj['_id'] = remote_id
-                                #DEBUG
-   			                    #db.save(obj)
+                                db.save(obj)
                         #Creates new entry
                         else:
                             logger.info("Creating {} {} {} {} {} as {}".format(run_id, project, 
                             flowcell, lane, sample, sample_status))
                             #creates record
-                            #DEBUG
- 			    #db.save(obj)
+                            db.save(obj)
                         #Sets FC error flag
                         if not project_info[flowcell].value == None:
                             if (("Failed" in project_info[flowcell].value and "Failed" not in sample_status)
@@ -115,8 +115,6 @@ def update_statusdb(run_dir):
 """ Gets status of a sample run, based on flowcell info (folder structure)
 """
 def get_status(run_dir):    
-    #Use https://github.com/SciLifeLab/TACA/blob/master/taca/illumina/Runs.py#L116 instead
-    
     #default state, should never occur
     status = 'ERROR'
     run_name = os.path.basename(os.path.abspath(run_dir))
@@ -139,7 +137,6 @@ def get_status(run_dir):
 """
 def get_ss_projects(run_dir):
     proj_tree = Tree()
-    #Make miseq well bit more explicit
     lane_pattern=re.compile("^([1-8]{1,2})$")
     sample_proj_pattern=re.compile("^((P[0-9]{3,5})_[0-9]{3,5})")
     run_name = os.path.basename(os.path.abspath(run_dir))
@@ -148,11 +145,24 @@ def get_ss_projects(run_dir):
     FCID = run_name_components[3][1:]
     newData = False
     miseq = False
-
-    # Replace this with 
-    # https://github.com/SciLifeLab/TACA/blob/master/taca/analysis/analysis.py#L229
+    
+    if os.path.exists(os.path.join(run_dir, 'runParameters.xml')):
+        run_parameters_file = "runParameters.xml"
+    elif os.path.exists(os.path.join(run_dir, 'RunParameters.xml')):
+        run_parameters_file = "RunParameters.xml"
+    else:
+        logger.error("Cannot find RunParameters.xml or runParameters.xml in the run folder for run {}".format(run_dir))
+        return []
+    rp = RunParametersParser(os.path.join(run_dir, run_parameters_file))
+    try:
+        runtype = rp.data['RunParameters']["Setup"]["Flowcell"]
+    except KeyError:
+            logger.warn("Parsing runParameters to fetch instrument type, "
+                        "not found Flowcell information in it. Using ApplicationName")
+            runtype = rp.data['RunParameters']["Setup"].get("ApplicationName", "")
+    
     #Miseq case
-    if re.search("\/[0-9]{6}_M[0-9]{5}_[0-9]{4}_000000000-\w{5}", run_dir) is not None:
+    if "MiSeq" in runtype:
         if os.path.exists(os.path.join(run_dir,'Data','Intensities','BaseCalls', 'SampleSheet.csv')):
             FCID_samplesheet_origin = os.path.join(run_dir,'Data','Intensities','BaseCalls', 'SampleSheet.csv')
         elif os.path.exists(os.path.join(run_dir,'SampleSheet.csv')):
@@ -165,14 +175,12 @@ def get_ss_projects(run_dir):
         sample_proj_pattern=re.compile("^((P[0-9]{3,5})_[0-9]{3,5})$")
         data = parse_samplesheet(FCID_samplesheet_origin, run_dir)
     #Hiseq X case
-    elif os.path.exists(os.path.join(CONFIG['bioinfo_tab']['xten_samplesheets'],
-                                    current_year,'{}.csv'.format(FCID))): 
+    elif "Hiseq X" in runtype: 
         FCID_samplesheet_origin = os.path.join(CONFIG['bioinfo_tab']['xten_samplesheets'],
                                     current_year, '{}.csv'.format(FCID))   
         data = parse_samplesheet(FCID_samplesheet_origin, run_dir)
     #Hiseq 2.5k case
-    elif os.path.exists(os.path.join(CONFIG['bioinfo_tab']['hiseq_samplesheets'],
-                                    current_year,'{}.csv'.format(FCID))):
+    elif "Hiseq" or "TruSeq" in runtype:
         FCID_samplesheet_origin = os.path.join(CONFIG['bioinfo_tab']['hiseq_samplesheets'],
                                     current_year, '{}.csv'.format(FCID)) 
         try:
@@ -182,13 +190,10 @@ def get_ss_projects(run_dir):
             logger.warn("Cannot initialize DictReader for {}. Most likely due to poor comma separation".format(run_dir))
             return []
     else:
-	#DEBUG
-	print "PATH MISMATCH {}".format(run_dir) 
-        import pdb
-	pdb.set_trace()
         logger.warn("Cannot locate the samplesheet for run {}".format(run_dir))
-        return ['UNKNOWN']
+        return []
         
+    #If samplesheet is empty, dont bother going through it
     if data == []:
             return data
             
@@ -217,7 +222,6 @@ def get_ss_projects(run_dir):
     
     if proj_tree.keys() == []:
         logger.info("INCORRECTLY FORMATTED SAMPLESHEET, CHECK {}".format(run_name))
-        #error_emailer('weird_samplesheet', run_name)
     return proj_tree
 
 """Parses a samplesheet with SampleSheetParser
@@ -229,21 +233,14 @@ def parse_samplesheet(FCID_samplesheet_origin, run_dir):
         ss_reader=SampleSheetParser(FCID_samplesheet_origin)
         data=ss_reader.data
     except:
-	#debug
-	import pdb
-	print "Cruddy seperation {}".format(run_dir)
         logger.warn("Cannot initialize SampleSheetParser for {}. Most likely due to poor comma separation".format(run_dir))
-        pass
+        return []
     try:
         if not 'Description' in ss_reader.header or not \
         ('Production' in ss_reader.header['Description'] or 'Application' in ss_reader.header['Description']):
             logger.warn("Run {} not labelled as production or application. Disregarding it.".format(run_dir))
     except Exception:
-	#DEBUG
-	import pdb
-	pdb.set_trace()
-	print "No DESCRIPTION {}".format(run_dir)
-        pass
+        return []
     return data
 
 """Sends a custom error e-mail
