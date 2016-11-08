@@ -90,13 +90,15 @@ def update_statusdb(run_dir):
                                 #Update record cluster
                                 obj['_rev'] = db[remote_id].rev
                                 obj['_id'] = remote_id
-                                db.save(obj)
+                                #DEBUG
+   			                    #db.save(obj)
                         #Creates new entry
                         else:
                             logger.info("Creating {} {} {} {} {} as {}".format(run_id, project, 
                             flowcell, lane, sample, sample_status))
                             #creates record
-                            db.save(obj)
+                            #DEBUG
+ 			    #db.save(obj)
                         #Sets FC error flag
                         if not project_info[flowcell].value == None:
                             if (("Failed" in project_info[flowcell].value and "Failed" not in sample_status)
@@ -113,6 +115,8 @@ def update_statusdb(run_dir):
 """ Gets status of a sample run, based on flowcell info (folder structure)
 """
 def get_status(run_dir):    
+    #Use https://github.com/SciLifeLab/TACA/blob/master/taca/illumina/Runs.py#L116 instead
+    
     #default state, should never occur
     status = 'ERROR'
     run_name = os.path.basename(os.path.abspath(run_dir))
@@ -145,12 +149,16 @@ def get_ss_projects(run_dir):
     newData = False
     miseq = False
 
+    # Replace this with 
+    # https://github.com/SciLifeLab/TACA/blob/master/taca/analysis/analysis.py#L229
     #Miseq case
-    if re.match("\/[0-9]{6}_M[0-9]{5}_[0-9]{4}_000000000-\w{5}", run_dir) is not None:
+    if re.search("\/[0-9]{6}_M[0-9]{5}_[0-9]{4}_000000000-\w{5}", run_dir) is not None:
         if os.path.exists(os.path.join(run_dir,'Data','Intensities','BaseCalls', 'SampleSheet.csv')):
             FCID_samplesheet_origin = os.path.join(run_dir,'Data','Intensities','BaseCalls', 'SampleSheet.csv')
-        else:
+        elif os.path.exists(os.path.join(run_dir,'SampleSheet.csv')):
             FCID_samplesheet_origin = os.path.join(run_dir,'SampleSheet.csv')
+        else:
+            logger.warn("No samplesheet found for {}".format(run_dir))
         miseq = True
         lanes = str(1)
         #Pattern is a bit more rigid since we're no longer also checking for lanes
@@ -173,7 +181,11 @@ def get_ss_projects(run_dir):
         except:
             logger.warn("Cannot initialize DictReader for {}. Most likely due to poor comma separation".format(run_dir))
             return []
-    else: 
+    else:
+	#DEBUG
+	print "PATH MISMATCH {}".format(run_dir) 
+        import pdb
+	pdb.set_trace()
         logger.warn("Cannot locate the samplesheet for run {}".format(run_dir))
         return ['UNKNOWN']
         
@@ -217,13 +229,20 @@ def parse_samplesheet(FCID_samplesheet_origin, run_dir):
         ss_reader=SampleSheetParser(FCID_samplesheet_origin)
         data=ss_reader.data
     except:
+	#debug
+	import pdb
+	print "Cruddy seperation {}".format(run_dir)
         logger.warn("Cannot initialize SampleSheetParser for {}. Most likely due to poor comma separation".format(run_dir))
-    
+        pass
     try:
         if not 'Description' in ss_reader.header or not \
         ('Production' in ss_reader.header['Description'] or 'Application' in ss_reader.header['Description']):
-            logger.warn("Run {} detected as a non platform MiSeq run. Disregarding it.".format(run_dir))
+            logger.warn("Run {} not labelled as production or application. Disregarding it.".format(run_dir))
     except Exception:
+	#DEBUG
+	import pdb
+	pdb.set_trace()
+	print "No DESCRIPTION {}".format(run_dir)
         pass
     return data
 
