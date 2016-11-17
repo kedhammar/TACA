@@ -173,22 +173,17 @@ def get_ss_projects(run_dir):
         lanes = str(1)
         #Pattern is a bit more rigid since we're no longer also checking for lanes
         sample_proj_pattern=re.compile("^((P[0-9]{3,5})_[0-9]{3,5})$")
-        data = parse_samplesheet(FCID_samplesheet_origin, run_dir)
-    #Hiseq X case
-    elif "Hiseq X" in runtype: 
+        data = parse_samplesheet(FCID_samplesheet_origin, run_dir, is_miseq=True)
+    #HiSeq X case
+    elif "HiSeq X" in runtype:
         FCID_samplesheet_origin = os.path.join(CONFIG['bioinfo_tab']['xten_samplesheets'],
                                     current_year, '{}.csv'.format(FCID))   
         data = parse_samplesheet(FCID_samplesheet_origin, run_dir)
-    #Hiseq 2.5k case
-    elif "Hiseq" or "TruSeq" in runtype:
+    #HiSeq 2500 case
+    elif "HiSeq" in runtype or "TruSeq" in runtype:
         FCID_samplesheet_origin = os.path.join(CONFIG['bioinfo_tab']['hiseq_samplesheets'],
                                     current_year, '{}.csv'.format(FCID)) 
-        try:
-            csvf=open(FCID_samplesheet_origin, 'rU')
-            data=DictReader(csvf)
-        except:
-            logger.warn("Cannot initialize DictReader for {}. Most likely due to poor comma separation".format(run_dir))
-            return []
+        data = parse_samplesheet(FCID_samplesheet_origin, run_dir)
     else:
         logger.warn("Cannot locate the samplesheet for run {}".format(run_dir))
         return []
@@ -227,7 +222,7 @@ def get_ss_projects(run_dir):
 """Parses a samplesheet with SampleSheetParser
    :param FCID_samplesheet_origin sample sheet path
 """
-def parse_samplesheet(FCID_samplesheet_origin, run_dir):
+def parse_samplesheet(FCID_samplesheet_origin, run_dir, is_miseq=False):
     data = []
     try:
         ss_reader=SampleSheetParser(FCID_samplesheet_origin)
@@ -235,12 +230,13 @@ def parse_samplesheet(FCID_samplesheet_origin, run_dir):
     except:
         logger.warn("Cannot initialize SampleSheetParser for {}. Most likely due to poor comma separation".format(run_dir))
         return []
-    try:
+    
+    if is_miseq:
         if not 'Description' in ss_reader.header or not \
         ('Production' in ss_reader.header['Description'] or 'Application' in ss_reader.header['Description']):
             logger.warn("Run {} not labelled as production or application. Disregarding it.".format(run_dir))
-    except Exception:
-        return []
+            #skip this run
+            return []
     return data
 
 """Sends a custom error e-mail
