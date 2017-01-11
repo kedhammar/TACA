@@ -14,6 +14,7 @@ from multiprocessing import Pool
 from statusdb.db import connections as statusdb
 from taca.utils.config import CONFIG
 from taca.utils import filesystem, misc
+from taca.illumina.MiSeq_Runs import MiSeq_Run
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +40,11 @@ def cleanup_nas(seconds):
                         if misc.run_is_demuxed(run, couch_info):
                             logger.info('Moving run {} to nosync directory'.format(os.path.basename(run)))
                             shutil.move(run, 'nosync')
+                        elif 'miseq' in data_dir:
+                            miseq_run = MiSeq_Run(run)
+                            if miseq_run.get_run_type() == 'NON-NGI-RUN':
+                                logger.info('Run {} is a non-platform run, so moving it to nosync directory'.format(os.path.basename(run)))
+                                shutil.move(run, 'nosync')
                         elif os.stat(rta_file).st_mtime < time.time() - seconds:
                             logger.warn('Run {} is older than given time, but it is not demultiplexed yet'
                                         .format(run))
