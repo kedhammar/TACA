@@ -263,3 +263,43 @@ def error_emailer(flag, info):
     hourNow = datetime.datetime.now().hour 
     if hourNow == 7 or hourNow == 12 or hourNow == 16:
         send_mail(subject, body, recipients)
+
+
+def fail_run(runid, project):
+    """Updates status of specified run or project-run to Failed"""
+    username = CONFIG.get('statusdb', {}).get('username')
+    password = CONFIG.get('statusdb', {}).get('password')
+    url = CONFIG.get('statusdb', {}).get('url')
+    port = CONFIG.get('statusdb', {}).get('port')
+    status_db_url = "http://{username}:{password}@{url}:{port}".format(username=username, password=password, url=url, port=port)
+    logger.info('Connecting to status db: {}:{}'.format(url, port))
+    try:
+        status_db = couchdb.Server(status_db_url)
+    except Exception, e:
+        logger.error("Can't connect to status_db: {}".format(status_db_url))
+        logger.error(e)
+        raise e
+    bioinfo_db = status_db['bioinfo_analysis']
+    if project is not None:
+        view = bioinfo_db.view('full_doc/pj_run_to_doc')
+        rows = view[[project, runid]].rows
+        logger.info('Updating status of {} objects with flowcell_id: {} and project_id {}'.format(len(rows), runid, project))
+    else:
+        view = bioinfo_db.view('full_doc/run_id_to_doc')
+        rows = view[[runid]].rows
+        logger.info('Updating status of {} objects with flowcell_id: {}'.format(len(rows), runid))
+
+    new_timestamp = str(datetime.datetime.now())
+    updated = 0
+    for row in rows:
+        if row.value['status'] != 'Failed':
+            row.value['values'][new_timestamp] = {'sample_status' : 'Failed', 'user': 'taca'}
+            row.value['status'] = 'Failed'
+        try:
+            bioinfo_db.save(row.value)
+            updated += 1
+        except Exception, e:
+            logger.error('Cannot update object project-sample-run-lane: {}-{}-{}-{}'.format(row.value.get('project_id'), row.value.get('sample'), row.value.get('run_id'), row.value.get('lane')))
+            logger.error(e)
+            raise e
+    logger.info("Successfully updated {} objects".format(updated))
