@@ -11,11 +11,13 @@ from taca.illumina.HiSeq_Runs import HiSeq_Run
 from taca.illumina.MiSeq_Runs import MiSeq_Run
 from taca.illumina.NextSeq_Runs import NextSeq_Run
 from taca.utils.config import CONFIG
+from taca.utils.misc import send_mail
 
 import flowcell_parser.db as fcpdb
 from flowcell_parser.classes import RunParametersParser
 
 logger = logging.getLogger(__name__)
+
 
 def get_runObj(run):
     """ Tries to read runParameters.xml to parse the type of sequencer
@@ -127,13 +129,25 @@ def transfer_run(run_dir, analysis):
         :param: string run_dir: the run to tranfer
         :param bool analysis: if trigger or not the analysis
     """
+    import pdb
+    pdb.set_trace()
     runObj = get_runObj(run_dir)
     if runObj is None:
         # Maybe throw an exception if possible?
         logger.error("Trying to force a transfer of run {} but the sequencer was not recognized.".format(run_dir))
     else:
-        runObj.transfer_run("nosync", os.path.join(CONFIG['analysis']['status_dir'], 'transfer.tsv'),
+        runObj.transfer_run(os.path.join("nosync",CONFIG['analysis']['status_dir'], 'transfer.tsv'),
                             analysis) # do not start analsysis automatically if I force the transfer
+        #Send an email after the transfer to Irma 
+        runname =os.path.basename(os.path.normpath(run_dir))
+        shortrun = runname.split('_')[0] + '_' +runname.split('_')[-1]
+        mail_recipients = CONFIG.get('mail', {}).get('recipients')
+        sbt = ("Rsync of data for run {} to Irma has finished".format(runname))
+        msg= """ Rsync of data for run {run} to Irma has finished!
+                 
+                 The run is available at : https://genomics-status.scilifelab.se/flowcells/{shortfc}
+        """.format((run=runname, shortfc=shortrun))
+        send_mail(sbt, msg, mail_recipients)
 
 def run_preprocessing(run, force_trasfer=True, statusdb=True):
     """ Run demultiplexing in all data directories

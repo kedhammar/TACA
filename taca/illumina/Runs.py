@@ -359,9 +359,9 @@ class Run(object):
             
             sj = "{} Demultiplexed".format(runname)
             cnt = """The run {run} has been demultiplexed and automatic QC took place.
-                    The Run will be transferred to Nestor for further analysis.
+                    The Run will be transferred to Irma for further analysis.
                         
-                    Autmatic QC defines the runs as: {QC}
+                    Automatic QC defines the runs as: {QC}
 
                     The run is available at : https://genomics-status.scilifelab.se/flowcells/{shortfc}
 
