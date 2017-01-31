@@ -143,7 +143,7 @@ def transfer_run(run_dir, analysis):
         msg= """ Rsync of data for run {run} to Irma has finished!
                  
                  The run is available at : https://genomics-status.scilifelab.se/flowcells/{run}
-        """.format(run=runname,)
+        """.format(run=runname)
         send_mail(sbt, msg, mail_recipients)
 
 def run_preprocessing(run, force_trasfer=True, statusdb=True):
