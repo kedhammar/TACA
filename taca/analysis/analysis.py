@@ -129,6 +129,9 @@ def transfer_run(run_dir, analysis):
         :param: string run_dir: the run to tranfer
         :param bool analysis: if trigger or not the analysis
     """
+    import pdb
+    pdb.set_trace()
+
     runObj = get_runObj(run_dir)
     if runObj is None:
         # Maybe throw an exception if possible?
@@ -137,14 +140,13 @@ def transfer_run(run_dir, analysis):
         runObj.transfer_run(os.path.join("nosync",CONFIG['analysis']['status_dir'], 'transfer.tsv'),
                             analysis) # do not start analsysis automatically if I force the transfer
         #Send an email after the transfer to Irma 
-        runname =os.path.basename(os.path.normpath(run_dir))
-        shortrun = runname.split('_')[0] + '_' +runname.split('_')[-1]
+        runname =runObj.id
         mail_recipients = CONFIG.get('mail', {}).get('recipients')
         sbt = ("Rsync of data for run {} to Irma has finished".format(runname))
         msg= """ Rsync of data for run {run} to Irma has finished!
                  
-                 The run is available at : https://genomics-status.scilifelab.se/flowcells/{shortfc}
-        """.format(run=runname, shortfc=shortrun)
+                 The run is available at : https://genomics-status.scilifelab.se/flowcells/{run}
+        """.format(run=runname,)
         send_mail(sbt, msg, mail_recipients)
 
 def run_preprocessing(run, force_trasfer=True, statusdb=True):
