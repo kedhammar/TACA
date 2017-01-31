@@ -129,9 +129,6 @@ def transfer_run(run_dir, analysis):
         :param: string run_dir: the run to tranfer
         :param bool analysis: if trigger or not the analysis
     """
-    import pdb
-    pdb.set_trace()
-
     runObj = get_runObj(run_dir)
     if runObj is None:
         # Maybe throw an exception if possible?
