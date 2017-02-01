@@ -20,3 +20,11 @@ def updaterun(rundir):
 def update():
     """saves the bioinfo data of everything that can be found to statusdb"""
     bt.collect_runs()
+
+@bioinfo_deliveries.command()
+@click.argument('runid')
+@click.option('-p','--project', is_flag=False, help='Fail run for the specified project')
+def fail_run(runid, project=None):
+    """updates the status of the specified run to 'Failed'.
+    Example of RUNID: 170113_ST-E00269_0163_BHCVH7ALXX"""
+    bt.fail_run(runid, project)
