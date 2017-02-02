@@ -168,7 +168,7 @@ def cleanup_milou(site, seconds, dry_run=False):
             continue
 
 
-def cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, status_db_config, dry_run=False):
+def cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, status_db_config, exclude_projects, list_only, dry_run=False):
     """Remove fastq/analysis data for projects that have been closed more than given 
     days (as days_fastq/days_analysis) from the given 'irma' cluster
 
@@ -211,10 +211,26 @@ def cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, status_db
     # make a connection for project db #
     pcon = statusdb.ProjectSummaryConnection(conf=status_db_config)
     assert pcon, "Could not connect to project database in StatusDB"
+    
+    # make exclude project list if provided
+    exclude_list = []
+    if exclude_projects:
+        if os.path.isfile(exclude_projects):
+            with open(exclude_projects, 'r') as in_file:
+                exclude_list.extend([p.strip() for p in in_file.readlines()])
+        else:
+            exclude_list.extend(exclude_projects.split(','))
+        # sanity check for mentioned project to exculde or valid
+        invalid_projects = filter(lambda p: p not in pcon.id_view.keys() and p not in pcon.name_view.keys(), exclude_list)
+        if invalid_projects:
+            logger.error("'--exclude_projects' was called with some invalid projects '{}', "
+                         "provide valid project name/id".format(",".join(invalid_projects)))
+            raise SystemExit
 
     #compile list for project to delete
     project_clean_list, project_processed_list = ({}, [])
-    logger.info("Building initial project list for removing data..")
+    if not list_only:
+        logger.info("Building initial project list for removing data..")
     if only_fastq:
         logger.info("Option 'only_fastq' is given, so will not look for analysis data")
     elif only_analysis:
@@ -226,6 +242,9 @@ def cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, status_db
             proj_abs_path = os.path.join(analysis_dir, pid)
             proj_info = get_closed_proj_info(pid, pcon.get_entry(pid, use_id_view=True))
             if proj_info and proj_info['closed_days'] >= days_analysis:
+                # move on if this project has to be excluded
+                if proj_info['name'] in exclude_list or proj_info['pid'] in exclude_list:
+                    continue
                 analysis_data, analysis_size = collect_analysis_data_irma(pid, analysis_dir, analysis_data_to_remove)
                 proj_info['analysis_to_remove'] = analysis_data
                 proj_info['analysis_size'] = analysis_size
@@ -237,6 +256,9 @@ def cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, status_db
             for fc in [d for d in os.listdir(flowcell_dir) if re.match(filesystem.RUN_RE,d)]:
                 fc_abs_path = os.path.join(flowcell_dir, fc)
                 with filesystem.chdir(fc_abs_path):
+                    if not os.path.exists(flowcell_project_source):
+                        logger.warn("Flowcell {} do not contain a '{}' direcotry".format(fc, flowcell_project_source))
+                        continue
                     projects_in_fc = [d for d in os.listdir(flowcell_project_source) \
                                       if re.match(r'^[A-Z]+[_\.]+[A-Za-z]+_\d\d_\d\d$',d) and \
                                       not os.path.exists(os.path.join(flowcell_project_source, d, "cleaned"))]
@@ -257,6 +279,9 @@ def cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, status_db
                         fastq_size, analysis_size = (0, 0)
                         proj_info = get_closed_proj_info(proj, pcon.get_entry(proj))
                         if proj_info:
+                            # move on if this project has to be excluded
+                            if proj_info['name'] in exclude_list or proj_info['pid'] in exclude_list:
+                                continue
                             # if project not old enough for fastq files and only fastq files selected move on to next project
                             if proj_info['closed_days'] >= days_fastq:
                                 fastq_data, fastq_size = collect_fastq_data_irma(fc_abs_path, os.path.join(flowcell_project_source, _proj),
@@ -281,8 +306,17 @@ def cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, status_db
     if not project_clean_list:
         logger.info("There are no projects to clean")
         return
-                    
-    get_files_size_text(project_clean_list)
+    
+    # list only the project and exit if 'list_only' option is selected
+    if list_only:
+        print "Project ID\tProject Name\tBioinfo resp.\tClosed Days\tClosed Date\tFastq size\tAnalysis size"
+        for p_info in sorted(project_clean_list.values(), key=lambda d: d['closed_days'], reverse=True):
+            print "\t".join([p_info['name'], p_info['pid'], p_info['bioinfo_responsible'],
+                             str(p_info['closed_days']), p_info['closed_date'],
+                             _def_get_size_unit(p_info['fastq_size']), _def_get_size_unit(p_info['analysis_size'])])
+        raise SystemExit
+            
+    
     logger.info("Initial list is built with {} projects {}".format(len(project_clean_list), get_files_size_text(project_clean_list)))
     if  misc.query_yes_no("Interactively filter projects for cleanup ?", default="yes"):
         filtered_project, proj_count = ([], 0)
@@ -362,7 +396,7 @@ def get_closed_proj_info(prj, pdoc):
                      'pid' : pdoc.get('project_id'),
                      'closed_date' : closed_date,
                      'closed_days' : closed_days,
-                     'bioinfo_responsible' : pdoc.get('project_summary',{}).get('bioinfo_responsible','')}
+                     'bioinfo_responsible' : pdoc.get('project_summary',{}).get('bioinfo_responsible','').encode('ascii', 'ignore')}
         else:
             logger.warn("Problem calculating closed days for project {} with close data {}. Skipping it".format(
                         pdoc.get('project_name'), closed_date))
@@ -435,9 +469,7 @@ def get_proj_meta_info(info, days_fastq):
         return v
     template += _get_template_string("Project overview", info.get('name'))
     template += _get_template_string("Project ID", info.get('pid'))
-    bioinfo_res = info.get('bioinfo_responsible','')
-    bioinfo_res = bioinfo_res.encode('ascii', 'ignore')
-    template += _get_template_string("Bioinfo Responsible", bioinfo_res)
+    template += _get_template_string("Bioinfo Responsible", info.get('bioinfo_responsible',''))
     template += _get_template_string("Closed for (days)", info.get('closed_days'))
     template += _get_template_string("Closed from (date)", info.get('closed_date'))
     
@@ -497,7 +529,7 @@ def _def_get_size_unit(s):
         s = "~{}kb".format(s/kb)
     elif s > 0:
         s = "~{}b".format(s/b)
-    return s
+    return str(s)
 
 def _remove_files(files):
     """Remove files from given list"""
