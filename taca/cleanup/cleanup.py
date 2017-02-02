@@ -220,6 +220,12 @@ def cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, status_db
                 exclude_list.extend([p.strip() for p in in_file.readlines()])
         else:
             exclude_list.extend(exclude_projects.split(','))
+        # sanity check for mentioned project to exculde or valid
+        invalid_projects = filter(lambda p: p not in pcon.id_view.keys() and p not in pcon.name_view.keys(), exclude_list)
+        if invalid_projects:
+            logger.error("'--exclude_projects' was called with some invalid projects '{}', "
+                         "provide valid project name/id".format(",".join(invalid_projects)))
+            raise SystemExit
 
     #compile list for project to delete
     project_clean_list, project_processed_list = ({}, [])
@@ -250,6 +256,9 @@ def cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, status_db
             for fc in [d for d in os.listdir(flowcell_dir) if re.match(filesystem.RUN_RE,d)]:
                 fc_abs_path = os.path.join(flowcell_dir, fc)
                 with filesystem.chdir(fc_abs_path):
+                    if not os.path.exists(flowcell_project_source):
+                        logger.warn("Flowcell {} do not contain a '{}' direcotry".format(fc, flowcell_project_source))
+                        continue
                     projects_in_fc = [d for d in os.listdir(flowcell_project_source) \
                                       if re.match(r'^[A-Z]+[_\.]+[A-Za-z]+_\d\d_\d\d$',d) and \
                                       not os.path.exists(os.path.join(flowcell_project_source, d, "cleaned"))]

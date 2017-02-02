@@ -54,7 +54,9 @@ def milou(ctx, site, days, dry_run):
 @click.option('--only_fastq', is_flag=True, help="Clean only fastq data in 'irma'")
 @click.option('--only_analysis', is_flag=True, help="Clean only analysis data in 'irma'")
 @click.option('--exclude_projects', type=click.STRING,
-              help="A project or a file with list of project to exclude from deleting, Both name or id can be given")
+              help="A project or a file with list of project to exclude from deleting, Both name or id \
+              can be given. Examples: --exclude_projects P1234 or --exclude_projects P1234,P5678 or \
+              --exclude_projects file_with_projects_id.txt")
 @click.option('-l', '--list_only', is_flag=True, help="Only build the project list that will be cleaned")
 @click.option('-n', '--dry_run', is_flag=True, help='Perform dry run i.e. Executes nothing but log')
 @click.pass_context
