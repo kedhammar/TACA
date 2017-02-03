@@ -11,7 +11,6 @@ from taca.illumina.HiSeq_Runs import HiSeq_Run
 from taca.illumina.MiSeq_Runs import MiSeq_Run
 from taca.illumina.NextSeq_Runs import NextSeq_Run
 from taca.utils.config import CONFIG
-from taca.utils.misc import send_mail
 
 import flowcell_parser.db as fcpdb
 from flowcell_parser.classes import RunParametersParser
@@ -136,15 +135,6 @@ def transfer_run(run_dir, analysis):
     else:
         runObj.transfer_run(os.path.join("nosync",CONFIG['analysis']['status_dir'], 'transfer.tsv'),
                             analysis) # do not start analsysis automatically if I force the transfer
-        #Send an email after the transfer to Irma 
-        runname =runObj.id
-        mail_recipients = CONFIG.get('mail', {}).get('recipients')
-        sbt = ("Rsync of data for run {} to Irma has finished".format(runname))
-        msg= """ Rsync of data for run {run} to Irma has finished!
-                 
-                 The run is available at : https://genomics-status.scilifelab.se/flowcells/{run}
-        """.format(run=runname)
-        send_mail(sbt, msg, mail_recipients)
 
 def run_preprocessing(run, force_trasfer=True, statusdb=True):
     """ Run demultiplexing in all data directories

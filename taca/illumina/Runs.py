@@ -8,6 +8,7 @@ import requests
 from datetime import datetime
 
 from taca.utils import misc
+from taca.utils.misc import send_mail
 
 from flowcell_parser.classes import RunParser
 
@@ -276,6 +277,15 @@ class Run(object):
                                        prefix="", log_dir=self.run_dir)
         except subprocess.CalledProcessError as exception:
             os.remove(os.path.join(self.run_dir, 'transferring'))
+            #Send an email notifying that the transfer failed
+            runname =runObj.id
+            mail_recipients = CONFIG.get('mail', {}).get('recipients')
+            sbt = ("Rsync of run {} failed".format(runname))
+            msg= """ Rsync of data for run {run} has failed!
+                Raised the following exception{e}
+            """.format(run=runname, e=exception)
+            send_mail(sbt, msg, mail_recipients)
+
             raise exception
 
         logger.info('Adding run {} to {}'.format(self.id, t_file))
@@ -283,6 +293,17 @@ class Run(object):
             tsv_writer = csv.writer(tranfer_file, delimiter='\t')
             tsv_writer.writerow([self.id, str(datetime.now())])
         os.remove(os.path.join(self.run_dir, 'transferring'))
+
+        #Send an email notifying that the transfer was successful 
+        runname =runObj.id
+        mail_recipients = CONFIG.get('mail', {}).get('recipients')
+        sbt = ("Rsync of data for run {} to Irma has finished".format(runname))
+        msg= """ Rsync of data for run {run} to Irma has finished!
+                          
+        The run is available at : https://genomics-status.scilifelab.se/flowcells/{run}
+        """.format(run=runname)
+        send_mail(sbt, msg, mail_recipients)
+
 
         if analysis:
             # This needs to pass the runtype (i.e., Xten or HiSeq) and start the correct pipeline
