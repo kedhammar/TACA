@@ -282,7 +282,7 @@ class Run(object):
             mail_recipients = CONFIG.get('mail', {}).get('recipients')
             sbt = ("Rsync of run {} failed".format(runname))
             msg= """ Rsync of data for run {run} has failed!
-                Raised the following exception{e}
+                Raised the following exception:     {e}
             """.format(run=runname, e=exception)
             send_mail(sbt, msg, mail_recipients)
 
