@@ -10,6 +10,9 @@ from datetime import datetime
 from taca.utils import misc
 from taca.utils.misc import send_mail
 
+###
+from taca.utils.config import CONFIG
+
 from flowcell_parser.classes import RunParser
 
 logger = logging.getLogger(__name__)
@@ -278,7 +281,7 @@ class Run(object):
         except subprocess.CalledProcessError as exception:
             os.remove(os.path.join(self.run_dir, 'transferring'))
             #Send an email notifying that the transfer failed
-            runname =runObj.id
+            runname =os.path.basename(os.path.normpath(self.run_dir))
             mail_recipients = CONFIG.get('mail', {}).get('recipients')
             sbt = ("Rsync of run {} failed".format(runname))
             msg= """ Rsync of data for run {run} has failed!
@@ -295,7 +298,7 @@ class Run(object):
         os.remove(os.path.join(self.run_dir, 'transferring'))
 
         #Send an email notifying that the transfer was successful 
-        runname =runObj.id
+        runname =os.path.basename(os.path.normpath(self.run_dir))
         mail_recipients = CONFIG.get('mail', {}).get('recipients')
         sbt = ("Rsync of data for run {} to Irma has finished".format(runname))
         msg= """ Rsync of data for run {run} to Irma has finished!
