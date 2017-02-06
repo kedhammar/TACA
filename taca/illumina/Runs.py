@@ -281,7 +281,7 @@ class Run(object):
         except subprocess.CalledProcessError as exception:
             os.remove(os.path.join(self.run_dir, 'transferring'))
             #Send an email notifying that the transfer failed
-            runname =os.path.basename(os.path.normpath(self.run_dir))
+            runname = self.id
             mail_recipients = CONFIG.get('mail', {}).get('recipients')
             sbt = ("Rsync of run {} failed".format(runname))
             msg= """ Rsync of data for run {run} has failed!
@@ -298,7 +298,7 @@ class Run(object):
         os.remove(os.path.join(self.run_dir, 'transferring'))
 
         #Send an email notifying that the transfer was successful 
-        runname =os.path.basename(os.path.normpath(self.run_dir))
+        runname = self.id
         mail_recipients = CONFIG.get('mail', {}).get('recipients')
         sbt = ("Rsync of data for run {} to Irma has finished".format(runname))
         msg= """ Rsync of data for run {run} to Irma has finished!
