@@ -285,7 +285,8 @@ class Run(object):
             msg= """ Rsync of data for run {run} has failed!
                 Raised the following exception:     {e}
             """.format(run=runname, e=exception)
-            send_mail(sbt, msg, mail_recipients)
+            if mail_recipients:
+                send_mail(sbt, msg, mail_recipients)
 
             raise exception
 
@@ -302,7 +303,8 @@ class Run(object):
                           
         The run is available at : https://genomics-status.scilifelab.se/flowcells/{run}
         """.format(run=runname)
-        send_mail(sbt, msg, mail_recipients)
+        if mail_recipients:
+            send_mail(sbt, msg, mail_recipients)
 
 
         if analysis:
