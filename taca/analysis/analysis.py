@@ -51,7 +51,7 @@ def get_runObj(run):
         except KeyError:
             # Use this as second resource but print a warning in the logs
             logger.warn("Parsing runParameters to fecth instrument type, "
-                        "not found Flowcell information in it. Using ApplicaiotnName")
+                        "not found Flowcell information in it. Using ApplicationName")
             # here makes sense to use get with default value "" ->
             # so that it doesn't raise an exception in the next lines
             # (in case ApplicationName is not found, get returns None)
