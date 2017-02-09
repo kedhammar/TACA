@@ -130,11 +130,12 @@ def transfer_run(run_dir, analysis):
     """
     runObj = get_runObj(run_dir)
     if runObj is None:
+        mail_recipients = CONFIG.get('mail', {}).get('recipients')
         # Maybe throw an exception if possible?
         logger.error("Trying to force a transfer of run {} but the sequencer was not recognized.".format(run_dir))
     else:
         runObj.transfer_run(os.path.join("nosync",CONFIG['analysis']['status_dir'], 'transfer.tsv'),
-                            analysis) # do not start analsysis automatically if I force the transfer
+                            analysis, mail_recipients) # do not start analsysis automatically if I force the transfer
 
 def run_preprocessing(run, force_trasfer=True, statusdb=True):
     """ Run demultiplexing in all data directories
