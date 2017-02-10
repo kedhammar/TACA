@@ -8,6 +8,7 @@ import requests
 from datetime import datetime
 
 from taca.utils import misc
+from taca.utils.misc import send_mail
 
 from flowcell_parser.classes import RunParser
 
@@ -236,7 +237,7 @@ class Run(object):
                         bm.append('N' + str(cycles))
         return bm
 
-    def transfer_run(self, t_file, analysis):
+    def transfer_run(self, t_file, analysis, mail_recipients=None):
         """ Transfer a run to the analysis server. Will add group R/W permissions to
             the run directory in the destination server so that the run can be processed
             by any user/account in that group (i.e a functional account...). 
@@ -276,6 +277,15 @@ class Run(object):
                                        prefix="", log_dir=self.run_dir)
         except subprocess.CalledProcessError as exception:
             os.remove(os.path.join(self.run_dir, 'transferring'))
+            #Send an email notifying that the transfer failed
+            runname = self.id
+            sbt = ("Rsync of run {} failed".format(runname))
+            msg= """ Rsync of data for run {run} has failed!
+                Raised the following exception:     {e}
+            """.format(run=runname, e=exception)
+            if mail_recipients:
+                send_mail(sbt, msg, mail_recipients)
+
             raise exception
 
         logger.info('Adding run {} to {}'.format(self.id, t_file))
@@ -283,6 +293,17 @@ class Run(object):
             tsv_writer = csv.writer(tranfer_file, delimiter='\t')
             tsv_writer.writerow([self.id, str(datetime.now())])
         os.remove(os.path.join(self.run_dir, 'transferring'))
+
+        #Send an email notifying that the transfer was successful 
+        runname = self.id
+        sbt = ("Rsync of data for run {} to Irma has finished".format(runname))
+        msg= """ Rsync of data for run {run} to Irma has finished!
+                          
+        The run is available at : https://genomics-status.scilifelab.se/flowcells/{run}
+        """.format(run=runname)
+        if mail_recipients:
+            send_mail(sbt, msg, mail_recipients)
+
 
         if analysis:
             # This needs to pass the runtype (i.e., Xten or HiSeq) and start the correct pipeline
