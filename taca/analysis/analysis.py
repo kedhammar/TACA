@@ -129,6 +129,7 @@ def transfer_run(run_dir, analysis):
         :param bool analysis: if trigger or not the analysis
     """
     runObj = get_runObj(run_dir)
+    mail_recipients = CONFIG.get('mail', {}).get('recipients')
     if runObj is None:
         mail_recipients = CONFIG.get('mail', {}).get('recipients')
         # Maybe throw an exception if possible?
