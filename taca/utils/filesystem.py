@@ -53,6 +53,11 @@ def do_link(src_file, dst_file, link_type='soft'):
     if not os.path.isfile(dst_file):
         link_f(os.path.realpath(src_file), dst_file)
 
+def do_copy(src_path, dst_path):
+    # copies folder structure and files (recursively)
+    # if symlinks, will copy content, not the links
+    # dst_path will be created, it must NOT exist
+    shutil.copytree(src_path, dst_path)
 
 def is_in_swestore(f):
     """ Checks if a file exists in Swestore
