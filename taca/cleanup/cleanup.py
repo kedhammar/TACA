@@ -41,7 +41,7 @@ def cleanup_nas(seconds):
                             logger.info('Moving run {} to nosync directory'.format(os.path.basename(run)))
                             shutil.move(run, 'nosync')
                         elif 'miseq' in data_dir:
-                            miseq_run = MiSeq_Run(run)
+                            miseq_run = MiSeq_Run(run, CONFIG)
                             if miseq_run.get_run_type() == 'NON-NGI-RUN':
                                 logger.info('Run {} is a non-platform run, so moving it to nosync directory'.format(os.path.basename(run)))
                                 shutil.move(run, 'nosync')
