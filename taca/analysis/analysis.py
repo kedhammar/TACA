@@ -89,6 +89,9 @@ def _upload_to_statusdb(run):
     """ Triggers the upload to statusdb using the dependency flowcell_parser
         :param Run run: the object run
     """
+    return
+    import pdb
+    pdb.set_trace()
     couch = fcpdb.setupServer(CONFIG)
     db = couch[CONFIG['statusdb']['xten_db']]
     parser = run.runParserObj
@@ -217,11 +220,12 @@ def run_preprocessing(run, force_trasfer=True, statusdb=True):
 
             # Transfer to analysis server if flag is True
             if run.transfer_to_analysis_server:
+                mail_recipients = CONFIG.get('mail', {}).get('recipients')
                 logger.info('Transferring run {} to {} into {}'
                             .format(run.id,
                                     run.CONFIG['analysis_server']['host'],
                                     run.CONFIG['analysis_server']['sync']['data_archive']))
-                run.transfer_run(t_file,  False) # Do not trigger analysis
+                run.transfer_run(t_file,  False, mail_recipients) # Do not trigger analysis
 
             # Archive the run if indicated in the config file
             if 'storage' in CONFIG:
