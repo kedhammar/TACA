@@ -89,9 +89,6 @@ def _upload_to_statusdb(run):
     """ Triggers the upload to statusdb using the dependency flowcell_parser
         :param Run run: the object run
     """
-    return
-    import pdb
-    pdb.set_trace()
     couch = fcpdb.setupServer(CONFIG)
     db = couch[CONFIG['statusdb']['xten_db']]
     parser = run.runParserObj
