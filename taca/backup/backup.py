@@ -66,7 +66,7 @@ class backup_utils(object):
                         continue
                     elif item.endswith(ext):
                         item = item.replace(ext, '')
-                    elif not os.path.isdir(item):
+                    elif not os.path.isdir(os.path.join(adir, item)):
                         continue
                     if re.match(filesystem.RUN_RE, item) and item not in self.runs:
                         self.runs.append(run_vars(os.path.join(adir, item)))
@@ -308,20 +308,19 @@ class backup_utils(object):
             if not os.path.exists(run.dst_key_encrypted):
                 logger.error("Encrypted key file {} is not found for file {}, skipping it".format(run.dst_key_encrypted, run.zip_encrypted))
                 continue
-            #skip run if being encrypted
-            if os.path.exists("{}.encrypting".format(run.name)):
-                logger.warn("Run {} is currently being encrypted, so skipping now".format(run.name))
-                continue
-            # skip run if already ongoing
-            if os.path.exists(run.flag):
-                logger.warn("Run {} is already being archived, so skipping now".format(run.name))
-                continue
-            flag = open(run.flag, 'w').close()
             with filesystem.chdir(run.path):
+                #skip run if being encrypted
+                if os.path.exists("{}.encrypting".format(run.name)):
+                    logger.warn("Run {} is currently being encrypted, so skipping now".format(run.name))
+                    continue
+                # skip run if already ongoing
+                if os.path.exists(run.flag):
+                    logger.warn("Run {} is already being archived, so skipping now".format(run.name))
+                    continue
                 if bk.file_in_pdc(run.zip_encrypted, silent=False) or bk.file_in_pdc(run.dst_key_encrypted, silent=False):
                     logger.warn("Seems like files realted to run {} already exist in PDC, check and cleanup".format(run.name))
-                    bk._clean_tmp_files([run.flag])
                     continue
+                flag = open(run.flag, 'w').close()
                 logger.info("Sending file {} to PDC".format(run.zip_encrypted))
                 if bk._call_commands(cmd1="dsmc archive {}".format(run.zip_encrypted), tmp_files=[run.flag]):
                     time.sleep(15) # give some time just in case 'dsmc' needs to settle
