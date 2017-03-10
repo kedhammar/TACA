@@ -168,7 +168,7 @@ def cleanup_milou(site, seconds, dry_run=False):
             continue
 
 
-def cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, status_db_config, exclude_projects, list_only, dry_run=False):
+def cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, status_db_config, exclude_projects, list_only, date, dry_run=False):
     """Remove fastq/analysis data for projects that have been closed more than given 
     days (as days_fastq/days_analysis) from the given 'irma' cluster
 
@@ -204,10 +204,15 @@ def cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, status_db
         data_dir = config['data_dir']
         analysis_dir = config['analysis']['root']
         analysis_data_to_remove = config['analysis']['files_to_remove']
+        if date:
+            date = datetime.strptime(date, '%Y-%m-%d')
     except KeyError as e:
         logger.error("Config file is missing the key {}, make sure it have all required information".format(str(e)))
         raise SystemExit
-    
+    except ValueError as e:
+        logger.error("Date given with '--date' option is not in required format, see help for more info")
+        raise SystemExit
+
     # make a connection for project db #
     pcon = statusdb.ProjectSummaryConnection(conf=status_db_config)
     assert pcon, "Could not connect to project database in StatusDB"
@@ -240,7 +245,7 @@ def cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, status_db
         for pid in [d for d in os.listdir(analysis_dir) if re.match(r'^P\d+$', d) and \
                     not os.path.exists(os.path.join(analysis_dir, d, "cleaned"))]:
             proj_abs_path = os.path.join(analysis_dir, pid)
-            proj_info = get_closed_proj_info(pid, pcon.get_entry(pid, use_id_view=True))
+            proj_info = get_closed_proj_info(pid, pcon.get_entry(pid, use_id_view=True), date)
             if proj_info and proj_info['closed_days'] >= days_analysis:
                 # move on if this project has to be excluded
                 if proj_info['name'] in exclude_list or proj_info['pid'] in exclude_list:
@@ -277,7 +282,7 @@ def cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, status_db
                         #by default assume all projects are not old enough for delete
                         fastq_data, analysis_data = ("young", "young")
                         fastq_size, analysis_size = (0, 0)
-                        proj_info = get_closed_proj_info(proj, pcon.get_entry(proj))
+                        proj_info = get_closed_proj_info(proj, pcon.get_entry(proj), date)
                         if proj_info:
                             # move on if this project has to be excluded
                             if proj_info['name'] in exclude_list or proj_info['pid'] in exclude_list:
@@ -383,24 +388,25 @@ def cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, status_db
 # Class helper methods, not exposed as commands/subcommands #
 #############################################################
 
-def get_closed_proj_info(prj, pdoc):
+def get_closed_proj_info(prj, pdoc, tdate=None):
     """check and return a dict if project is closed"""
     pdict = None
+    if not tdate:
+        tdate = datetime.today()
     if not pdoc:
         logger.warn("Seems like project {} dont have a proper statudb document, skipping it".format(prj))
     elif "close_date" in pdoc:
         closed_date = pdoc['close_date']
-        closed_days = misc.days_old(closed_date, "%Y-%m-%d")
-        if closed_days is not None and isinstance(closed_days, int):
+        try:
+            closed_days = tdate - datetime.strptime(closed_date, "%Y-%m-%d")
             pdict = {'name' : pdoc.get('project_name'),
                      'pid' : pdoc.get('project_id'),
                      'closed_date' : closed_date,
-                     'closed_days' : closed_days,
+                     'closed_days' : closed_days.days,
                      'bioinfo_responsible' : pdoc.get('project_summary',{}).get('bioinfo_responsible','').encode('ascii', 'ignore')}
-        else:
-            logger.warn("Problem calculating closed days for project {} with close data {}. Skipping it".format(
-                        pdoc.get('project_name'), closed_date))
-                     
+        except:
+            logger.warn("Problem calculating closed days for project {} with close date {}. Skipping it".format(
+                        pdoc.get('project_name'), closed_date))                     
     return pdict
 
 def collect_analysis_data_irma(pid, analysis_root, files_ext_to_remove={}):
