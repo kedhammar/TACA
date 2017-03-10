@@ -53,6 +53,8 @@ def milou(ctx, site, days, dry_run):
               help="Days to consider as thershold for removing analysis data")
 @click.option('--only_fastq', is_flag=True, help="Clean only fastq data in 'irma'")
 @click.option('--only_analysis', is_flag=True, help="Clean only analysis data in 'irma'")
+@click.option('--date', type=click.STRING, help="Consider the given date instead of today while collecting closed projects. \
+              Date format should be 'YYYY-MM-DD', ex: '2016-01-31'")
 @click.option('--exclude_projects', type=click.STRING,
               help="A project or a file with list of project to exclude from deleting, Both name or id \
               can be given. Examples: --exclude_projects P1234 or --exclude_projects P1234,P5678 or \
@@ -60,7 +62,7 @@ def milou(ctx, site, days, dry_run):
 @click.option('-l', '--list_only', is_flag=True, help="Only build the project list that will be cleaned")
 @click.option('-n', '--dry_run', is_flag=True, help='Perform dry run i.e. Executes nothing but log')
 @click.pass_context
-def irma(ctx, days_fastq, days_analysis, only_fastq, only_analysis, exclude_projects, list_only, dry_run):
+def irma(ctx, days_fastq, days_analysis, only_fastq, only_analysis, date, exclude_projects, list_only, dry_run):
     """ Do appropriate cleanup on IRMA"""
     status_db_config = ctx.parent.params['status_db_config']
     if only_fastq and only_analysis:
@@ -70,4 +72,4 @@ def irma(ctx, days_fastq, days_analysis, only_fastq, only_analysis, exclude_proj
     if not days_analysis and not only_fastq:
         raise SystemExit("ERROR: 'days_analysis' is not given while not selecting 'only_fastq' option")
     cln.cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, status_db_config,
-                    exclude_projects, list_only, dry_run)
+                    exclude_projects, list_only, date, dry_run)
