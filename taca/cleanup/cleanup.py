@@ -168,7 +168,7 @@ def cleanup_milou(site, seconds, dry_run=False):
             continue
 
 
-def cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, status_db_config, exclude_projects, list_only, date, dry_run=False):
+def cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, clean_undetermined, status_db_config, exclude_projects, list_only, date, dry_run=False):
     """Remove fastq/analysis data for projects that have been closed more than given 
     days (as days_fastq/days_analysis) from the given 'irma' cluster
 
@@ -186,6 +186,7 @@ def cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, status_db
                 root: 
                     - path/to/flowcells_dir
                 relative_project_source: Demultiplexing
+                undet_file_pattern: "Undetermined_*.fastq.gz"
     
             ##this is path where projects are organized
             data_dir: path/to/data_dir
@@ -201,6 +202,7 @@ def cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, status_db
         config = CONFIG['cleanup']['irma']
         flowcell_dir_root = config['flowcell']['root']
         flowcell_project_source = config['flowcell']['relative_project_source']
+        flowcell_undet_files = config['flowcell']['undet_file_pattern']
         data_dir = config['data_dir']
         analysis_dir = config['analysis']['root']
         analysis_data_to_remove = config['analysis']['files_to_remove']
@@ -234,14 +236,41 @@ def cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, status_db
 
     #compile list for project to delete
     project_clean_list, project_processed_list = ({}, [])
-    if not list_only:
+    if not list_only and not clean_undetermined:
         logger.info("Building initial project list for removing data..")
     if only_fastq:
         logger.info("Option 'only_fastq' is given, so will not look for analysis data")
     elif only_analysis:
         logger.info("Option 'only_analysis' is given, so will not look for fastq data")
-     
-    if only_analysis:
+    
+    if clean_undetermined:
+        all_undet_files = []
+        for flowcell_dir in flowcell_dir_root:
+            for fc in [d for d in os.listdir(flowcell_dir) if re.match(filesystem.RUN_RE,d)]:
+                fc_abs_path = os.path.join(flowcell_dir, fc)
+                with filesystem.chdir(fc_abs_path):
+                    if not os.path.exists(flowcell_project_source):
+                        logger.warn("Flowcell {} do not contain a '{}' direcotry".format(fc, flowcell_project_source))
+                        continue
+                    projects_in_fc = [d for d in os.listdir(flowcell_project_source) \
+                                      if re.match(r'^[A-Z]+[_\.]+[A-Za-z]+_\d\d_\d\d$',d) and \
+                                      not os.path.exists(os.path.join(flowcell_project_source, d, "cleaned"))]
+                    # the above check looked for project directories and also that are not cleaned
+                    # so if it could not find any project, means there is no project diretory at all
+                    # or all the project directory is already cleaned. Then we can remove the undet  
+                    if len(projects_in_fc) > 0:
+                        continue
+                    fc_undet_files = glob(os.path.join(flowcell_project_source,flowcell_undet_files))
+                    if fc_undet_files:
+                        logger.info("All projects was cleaned for FC {}, found {} undeterminded files".format(fc,len(fc_undet_files)))
+                        all_undet_files.extend(map(os.path.abspath, fc_undet_files))
+        if all_undet_files:
+            undet_size = _def_get_size_unit(sum(map(os.path.getsize, all_undet_files)))
+            if misc.query_yes_no("In total found {} undetermined files which are {} in size, delete now ?".format(len(all_undet_files),
+                                 undet_size), default="no"):
+                    removed = _remove_files(all_undet_files)
+        return
+    elif only_analysis:
         for pid in [d for d in os.listdir(analysis_dir) if re.match(r'^P\d+$', d) and \
                     not os.path.exists(os.path.join(analysis_dir, d, "cleaned"))]:
             proj_abs_path = os.path.join(analysis_dir, pid)

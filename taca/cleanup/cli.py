@@ -59,17 +59,19 @@ def milou(ctx, site, days, dry_run):
               help="A project or a file with list of project to exclude from deleting, Both name or id \
               can be given. Examples: --exclude_projects P1234 or --exclude_projects P1234,P5678 or \
               --exclude_projects file_with_projects_id.txt")
+@click.option('--clean_undetermined', is_flag=True, help="Remove only the undetermined reads for a \
+              flowcell that have all project cleaned. All other parameters are ignored if this flag is called.")
 @click.option('-l', '--list_only', is_flag=True, help="Only build the project list that will be cleaned")
 @click.option('-n', '--dry_run', is_flag=True, help='Perform dry run i.e. Executes nothing but log')
 @click.pass_context
-def irma(ctx, days_fastq, days_analysis, only_fastq, only_analysis, date, exclude_projects, list_only, dry_run):
+def irma(ctx, days_fastq, days_analysis, only_fastq, only_analysis, clean_undetermined, date, exclude_projects, list_only, dry_run):
     """ Do appropriate cleanup on IRMA"""
     status_db_config = ctx.parent.params['status_db_config']
     if only_fastq and only_analysis:
         raise SystemExit("ERROR: Both option 'only_fastq' and 'only_analysis' is given, should only give either one")
-    if not days_fastq and not only_analysis:
+    if not days_fastq and not only_analysis and not clean_undetermined:
         raise SystemExit("ERROR: 'days_fastq' is not given while not selecting 'only_analysis' option")
-    if not days_analysis and not only_fastq:
+    if not days_analysis and not only_fastq and not clean_undetermined:
         raise SystemExit("ERROR: 'days_analysis' is not given while not selecting 'only_fastq' option")
-    cln.cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, status_db_config,
+    cln.cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, clean_undetermined, status_db_config,
                     exclude_projects, list_only, date, dry_run)
