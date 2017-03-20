@@ -181,10 +181,10 @@ class HiSeqX_Run(Run):
                 if self.check_maximum_undertemined_freq(lane, max_frequency_most_represented_und):
                     lane_status= lane_status and True
                 else:
-                    logger.warn("lane {} did not pass the check for most represented undet index. Most occurint undet index occurs too ofetn.".format(lane))
+                    logger.warn("lane {} did not pass the check for most represented undet index. Most occuring undetermined index occurs too often.".format(lane))
                     lane_status= lane_status and False
             else:
-                logger.warn("lane {} did not pass the undetermiend qc checks. Fraction of undetermined too large.".format(lane))
+                logger.warn("lane {} did not pass the undetermined qc checks. Fraction of undetermined too large.".format(lane))
                 lane_status= lane_status and False
             if lane_status:
                 logger.info("lane {} passed all qc checks".format(lane))
