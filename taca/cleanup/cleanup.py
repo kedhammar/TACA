@@ -294,7 +294,7 @@ def cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, clean_und
                         logger.warn("Flowcell {} do not contain a '{}' direcotry".format(fc, flowcell_project_source))
                         continue
                     projects_in_fc = [d for d in os.listdir(flowcell_project_source) \
-                                      if re.match(r'^[A-Z]+[_\.]+[A-Za-z]+_\d\d_\d\d$',d) and \
+                                      if re.match(r'^[A-Z]+[_\.]+[A-Za-z0-9]+_\d\d_\d\d$',d) and \
                                       not os.path.exists(os.path.join(flowcell_project_source, d, "cleaned"))]
                     for _proj in projects_in_fc:
                         proj = re.sub(r'_+', '.', _proj, 1)
