@@ -34,3 +34,4 @@ def init_logger_file(log_file, log_level='INFO'):
     file_handle.setLevel(log_level)
     file_handle.setFormatter(formatter)
     ROOT_LOG.addHandler(file_handle)
+    ROOT_LOG.addHandler(stream_handler)

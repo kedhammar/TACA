@@ -651,9 +651,9 @@ class HiSeq_Run(Run):
                     entry['Sample_Name'] = value
                 elif "Index" in field:
                     #in this case we need to distinguish between single and dual index
-                    entry[_data_filed_conversion(field)] = value.split("-")[0]
+                    entry[_data_filed_conversion(field)] = value.split("-")[0].upper()
                     if len(value.split("-")) == 2:
-                        entry['index2'] = value.split("-")[1]
+                        entry['index2'] = value.split("-")[1].upper()
                     else:
                         entry['index2'] = ""
                 else:
