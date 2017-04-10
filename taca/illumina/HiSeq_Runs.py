@@ -91,7 +91,7 @@ class HiSeq_Run(Run):
         for complex lanes: no check is done everything needs to be in place
         for simple lanes and NoIndex: check if demux counts have been computed, if not compute or return waiting for thir completion
         """
-        NoIndexLanes = [lane["Lane"] for lane in self.runParserObj.samplesheet.data if "NoIndex" in lane["index"]]
+        NoIndexLanes = [lane["Lane"] for lane in self.runParserObj.samplesheet.data if "NOINDEX" in lane["index"]]
         if len(NoIndexLanes) == 0:
             return True # everything is fine I can proceed to QC
         #otherwise proceed
@@ -164,7 +164,7 @@ class HiSeq_Run(Run):
                 for lane_id in NoIndexLanes:
                     #count the index occurences, each lane corresponds to one project, a project might have multiple lanes
                     current_lane = [lane for lane in self.runParserObj.samplesheet.data if lane_id == lane["Lane"]][0]
-                    if current_lane["index"] != "NoIndex":
+                    if current_lane["index"] != "NOINDEX":
                         logger.error("while processing run {} NoIndex lane {}, index {} found in SampleSheet".format(self.id,
                                                                                                         lane_id,
                                                                                                         current_lane["index"]))
@@ -275,7 +275,7 @@ class HiSeq_Run(Run):
                 #in this case it means I generated No_CLUSTER (it might happen, fail the lane and transfer
                 logger.warn("Lane {}  generated 0 clusters, check manually what is happening here. FC will be failed".format(lane))
                 pass_QC = pass_QC and False
-            elif sample_0['index'] == "NoIndex":
+            elif sample_0['index'] == "NOINDEX":
                 #IMPORTANT: this works only in the case of NoIndex because the DemuxSummary stats contain all undetermined
                 most_frequent_undet_index = undeterminedStats.result[lane].items()[1][1] # the 0 should be my Index
                 total_und_indexes = undeterminedStats.TOTAL[lane] - undeterminedStats.result[lane].items()[0][1] # take away the most occuring index
@@ -426,7 +426,7 @@ class HiSeq_Run(Run):
                 samples   = [base_masks[lane][bm]['data'] for bm in base_masks[lane]][0]
                 for sample in samples:
                     for field in self.runParserObj.samplesheet.datafields:
-                        if field == "index" and "NoIndex" in sample[field]:
+                        if field == "index" and "NOINDEX" in sample[field]:
                             ssms.write(",") # this is emtpy due to NoIndex issue
                         else:
                             ssms.write("{},".format(sample[field]))
@@ -504,7 +504,7 @@ class HiSeq_Run(Run):
                     os.symlink(source, dest)
             os.makedirs(os.path.join(self.run_dir, "Demultiplexing", "Stats"))
             #now fetch the lanes that have NoIndex
-            noIndexLanes = [Sample["Lane"] for Sample in  self.runParserObj.samplesheet.data if "NoIndex" in Sample["index"]]
+            noIndexLanes = [Sample["Lane"] for Sample in  self.runParserObj.samplesheet.data if "NOINDEX" in Sample["index"]]
             statsFiles = glob.glob(os.path.join(demux_folder_tmp, "Stats", "*" ))
             for source in statsFiles:
                 source_name = os.path.split(source)[1]
