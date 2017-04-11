@@ -55,12 +55,16 @@ class HiSeqX_Run(Run):
             - define if necessary the bcl2fastq commands (if indexes are not of size 8, i.e. neoprep)
             - run bcl2fastq conversion
         """
-
+        
         ssname   = self._get_samplesheet()
         ssparser = SampleSheetParser(ssname)
         #samplesheet need to be positioned in the FC directory with name SampleSheet.csv (Illumina default)
         #if this is not the case then create it and take special care of modification to be done on the SampleSheet
         samplesheet_dest = os.path.join(self.run_dir, "SampleSheet.csv")
+        #Function that returns a list of which lanes contains 10X samples. 
+        lanes_10X = look_for_lanes_with_10X_indicies(ssparser)
+        import pdb
+        pdb.set_trace()
         #check that the samplesheet is not already present. In this case go the next step
         if not os.path.exists(samplesheet_dest):
             try:
@@ -355,7 +359,19 @@ def _generate_clean_samplesheet(ssparser, fields_to_remove=None, rename_samples=
         Will generate a 'clean' samplesheet, the given fields will be removed. 
         if rename_samples is True, samples prepended with 'Sample_'  are renamed to match the sample name
     """
+    import pdb
+    pdb.set_trace()
     output=""
+    ##expand the ssparser if there are 10X lanes
+    index_dict=parse_10X_indexes() #read the 10X indeces
+    for sample in ssparser.data:
+        if sample['index'] in index_dict.keys():
+
+            sample['index'] =index_dict[sample['index']][0]
+            ssparser.data.append(sample)
+    import pdb
+    pdb.set_trace()            
+    
     if not fields_to_remove:
         fields_to_remove=[]
     #Header
@@ -396,4 +412,28 @@ def _generate_clean_samplesheet(ssparser, fields_to_remove=None, rename_samples=
 
     return output
 
-    
+def look_for_lanes_with_10X_indicies(ssparser):
+    """
+    Given an ssparser object
+    returns a list of lanes with 10X indicies
+    """
+    index_dict=parse_10X_indexes()
+    tenX_lanes = set()
+    #ssparse is a list od dicts!! Use indexes to acces the inner dicts.
+    for sample in ssparser.data:
+        if sample['index'] in index_dict.keys():
+            tenX_lanes.add(sample['Lane'])
+    return list(tenX_lanes)
+
+        ### return ssparser with 10X fixed. ssparser can already be printed. genereate new ssparser. new object instead of changing it. 
+
+
+def parse_10X_indexes():
+    index_dict={}
+    indexfile="Chromium_10X_indexes.txt"
+    with open(indexfile , 'r') as f:
+        for line in f:
+            line_=line.rstrip().split(',')
+            index_dict[line_[0]]=line_[1:5]
+    return index_dict
+
