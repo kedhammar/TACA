@@ -75,6 +75,8 @@ class HiSeqX_Run(Run):
                 return False
             logger.info(("Created SampleSheet.csv for Flowcell {} in {} ".format(self.id, samplesheet_dest)))
         ##SampleSheet.csv generated
+        import pdb
+        pdb.set_trace()
         ##when demultiplexing SampleSheet.csv is the one I need to use
         self.runParserObj.samplesheet  = SampleSheetParser(os.path.join(self.run_dir, "SampleSheet.csv"))
 
@@ -359,16 +361,27 @@ def _generate_clean_samplesheet(ssparser, fields_to_remove=None, rename_samples=
         Will generate a 'clean' samplesheet, the given fields will be removed. 
         if rename_samples is True, samples prepended with 'Sample_'  are renamed to match the sample name
     """
-    import pdb
-    pdb.set_trace()
     output=""
     ##expand the ssparser if there are 10X lanes
-    index_dict=parse_10X_indexes() #read the 10X indeces
+    index_dict=parse_10X_indexes() #read the 10X indices
+    import pdb
+    pdb.set_trace()
+    # Replace 10X index with the 4 actual indicies.
     for sample in ssparser.data:
         if sample['index'] in index_dict.keys():
-
-            sample['index'] =index_dict[sample['index']][0]
-            ssparser.data.append(sample)
+            print sample['index'] 
+            x=0
+            while x<3:
+                print x
+                new_sample=dict(sample)
+                new_sample['index']=index_dict[sample['index']][x]
+                ssparser.data.append(new_sample)
+                x+=1
+            sample['index']=index_dict[sample['index']][x]            
+            #Everything added properly now remove the original 
+            #ssparser.data.remove(sample) 
+    #Sort on lane to get the added indicies from 10x in the right place
+    ssparser.data.sort()
     import pdb
     pdb.set_trace()            
     
@@ -425,10 +438,12 @@ def look_for_lanes_with_10X_indicies(ssparser):
             tenX_lanes.add(sample['Lane'])
     return list(tenX_lanes)
 
-        ### return ssparser with 10X fixed. ssparser can already be printed. genereate new ssparser. new object instead of changing it. 
-
 
 def parse_10X_indexes():
+    """
+    Takes a file of 10X indexes and returns them as a dict.
+    Todo: Set it up to take the file from config instead
+    """
     index_dict={}
     indexfile="Chromium_10X_indexes.txt"
     with open(indexfile , 'r') as f:
