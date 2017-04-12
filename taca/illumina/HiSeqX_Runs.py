@@ -77,8 +77,25 @@ class HiSeqX_Run(Run):
         ##SampleSheet.csv generated
         import pdb
         pdb.set_trace()
+        ################ TODO: make 2 new sample sheets, 1 with 10X lanes and one without. _0 _1.cs
+        
         ##when demultiplexing SampleSheet.csv is the one I need to use
-        self.runParserObj.samplesheet  = SampleSheetParser(os.path.join(self.run_dir, "SampleSheet.csv"))
+        self.runParserObj.samplesheet1  = SampleSheetParser(os.path.join(self.run_dir, "SampleSheet.csv"))
+        #we have 10x lane - need to split the  samples sheet and build a 10x command for bcl2fastq
+        if lanes_10X:
+
+            Complex_run = False
+            for sample in ssparser.data:
+                if sample['Lane'] not in lanes_10X:
+                    Complex_run = True 
+                    with open(samplesheet_dest, 'wb') as fcd:
+                         fcd.write() 
+
+            if not Complex_run: #Only 10X samples in the run, 1 csv and 1 cmd.
+
+        if Complex_run: # need to make 2 samplesheets and two commands.
+
+            
 
         per_lane_base_masks = self._generate_per_lane_base_mask()
         max_different_base_masks =  max([len(per_lane_base_masks[base_masks]) for base_masks in per_lane_base_masks])
@@ -360,12 +377,11 @@ def _generate_clean_samplesheet(ssparser, fields_to_remove=None, rename_samples=
     """
         Will generate a 'clean' samplesheet, the given fields will be removed. 
         if rename_samples is True, samples prepended with 'Sample_'  are renamed to match the sample name
+        Will also replace 10X idicies like SI-GA-A3 with proper indicies like TGTGCGGG
     """
     output=""
     ##expand the ssparser if there are 10X lanes
     index_dict=parse_10X_indexes() #read the 10X indices
-    import pdb
-    pdb.set_trace()
     # Replace 10X index with the 4 actual indicies.
     for sample in ssparser.data:
         if sample['index'] in index_dict.keys():
@@ -377,14 +393,12 @@ def _generate_clean_samplesheet(ssparser, fields_to_remove=None, rename_samples=
                 new_sample['index']=index_dict[sample['index']][x]
                 ssparser.data.append(new_sample)
                 x+=1
+            #Set the original 10X index to the 4th correct index    
             sample['index']=index_dict[sample['index']][x]            
-            #Everything added properly now remove the original 
-            #ssparser.data.remove(sample) 
-    #Sort on lane to get the added indicies from 10x in the right place
+                      
+    #Sort to get the added indicies from 10x in the right place
     ssparser.data.sort()
-    import pdb
-    pdb.set_trace()            
-    
+
     if not fields_to_remove:
         fields_to_remove=[]
     #Header
@@ -431,8 +445,7 @@ def look_for_lanes_with_10X_indicies(ssparser):
     returns a list of lanes with 10X indicies
     """
     index_dict=parse_10X_indexes()
-    tenX_lanes = set()
-    #ssparse is a list od dicts!! Use indexes to acces the inner dicts.
+    tenX_lanes = set() #Set to only get each lane once    
     for sample in ssparser.data:
         if sample['index'] in index_dict.keys():
             tenX_lanes.add(sample['Lane'])
