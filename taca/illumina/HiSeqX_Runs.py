@@ -14,7 +14,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 class HiSeqX_Run(Run):
-    
+
     def __init__(self,  run_dir, samplesheet_folders):
         super(HiSeqX_Run, self).__init__( run_dir, samplesheet_folders)
         self._set_sequencer_type()
@@ -55,16 +55,14 @@ class HiSeqX_Run(Run):
             - define if necessary the bcl2fastq commands (if indexes are not of size 8, i.e. neoprep)
             - run bcl2fastq conversion
         """
-        
+
         ssname   = self._get_samplesheet()
         ssparser = SampleSheetParser(ssname)
         #samplesheet need to be positioned in the FC directory with name SampleSheet.csv (Illumina default)
         #if this is not the case then create it and take special care of modification to be done on the SampleSheet
         samplesheet_dest = os.path.join(self.run_dir, "SampleSheet.csv")
-        #Function that returns a list of which lanes contains 10X samples. 
-        lanes_10X = look_for_lanes_with_10X_indicies(ssparser)
-        import pdb
-        pdb.set_trace()
+        #Function that returns a list of which lanes contains 10X samples.
+        (lanes_10X,lanes_not_10X) = look_for_lanes_with_10X_indicies(ssparser)
         #check that the samplesheet is not already present. In this case go the next step
         if not os.path.exists(samplesheet_dest):
             try:
@@ -77,25 +75,25 @@ class HiSeqX_Run(Run):
         ##SampleSheet.csv generated
         import pdb
         pdb.set_trace()
-        ################ TODO: make 2 new sample sheets, 1 with 10X lanes and one without. _0 _1.cs
-        
+
+
         ##when demultiplexing SampleSheet.csv is the one I need to use
-        self.runParserObj.samplesheet1  = SampleSheetParser(os.path.join(self.run_dir, "SampleSheet.csv"))
+        ## Need to rewrite so that SampleSheet_0.csv is always used.
+        self.runParserObj.samplesheet  = SampleSheetParser(os.path.join(self.run_dir, "SampleSheet.csv"))
         #we have 10x lane - need to split the  samples sheet and build a 10x command for bcl2fastq
-        if lanes_10X:
+        Complex_run = False
+        if len(lanes_10X) and len(lanes_not_10X):
+            Complex_run = True
 
-            Complex_run = False
-            for sample in ssparser.data:
-                if sample['Lane'] not in lanes_10X:
-                    Complex_run = True 
-                    with open(samplesheet_dest, 'wb') as fcd:
-                         fcd.write() 
-
-            if not Complex_run: #Only 10X samples in the run, 1 csv and 1 cmd.
-
-        if Complex_run: # need to make 2 samplesheets and two commands.
-
-            
+        if Complex_run:
+            samplesheet_dest_not_10X="SampleSheet_0.csv"
+            with open(samplesheet_dest_not_10X, 'wb') as fcd:
+                fcd.write(_generate_samplesheet_subset(self.runParserObj.samplesheet, lanes_not_10X))
+            samplesheet_dest_10X="SampleSheet_1.csv"
+            with open(samplesheet_dest_10X, 'wb') as fcd:
+                fcd.write(_generate_samplesheet_subset(self.runParserObj.samplesheet, lanes_10X))
+        else:
+            shutil.copyfile("SampleSheet.csv", "SampleSheet_0.csv")
 
         per_lane_base_masks = self._generate_per_lane_base_mask()
         max_different_base_masks =  max([len(per_lane_base_masks[base_masks]) for base_masks in per_lane_base_masks])
@@ -104,31 +102,20 @@ class HiSeqX_Run(Run):
             logger.error("In FC {} found one or more lane with more than one base mask (i.e., different index sizes in \
                          in the same lane".format(self.id))
             return False
-        #I have everything to run demultiplexing now.
-        logger.info('Building bcl2fastq command')
 
-        with chdir(self.run_dir):
-            cl = [self.CONFIG.get('bcl2fastq')['bin']]
-            if self.CONFIG.get('bcl2fastq').has_key('options'):
-                cl_options = self.CONFIG['bcl2fastq']['options']
-                # Append all options that appear in the configuration file to the main command.
-                for option in cl_options:
-                    if isinstance(option, dict):
-                        opt, val = option.items()[0]
-                        cl.extend(['--{}'.format(opt), str(val)])
-                    else:
-                        cl.append('--{}'.format(option))
-            #now add the base_mask for each lane
-            for lane in sorted(per_lane_base_masks):
-                #iterate thorugh each lane and add the correct --use-bases-mask for that lane
-                #there is a single basemask for each lane, I checked it a couple of lines above
-                base_mask = [per_lane_base_masks[lane][bm]['base_mask'] for bm in per_lane_base_masks[lane]][0] # get the base_mask
-                base_mask_expr = "{}:".format(lane) + ",".join(base_mask)
-                cl.extend(["--use-bases-mask", base_mask_expr])
+        cmd_10X = generate_bcl_command_10X(self,(self.runParserObj.samplesheet, lanes_not_10X)))
+        cmd_not_10X = generate_bcl_command_not_10X(self, self.runParserObj.samplesheet, lanes_10X))
 
+        if cmd_10X:
+            misc.call_external_command_detached(cmd_10X,with_log_files=True )
             logger.info(("BCL to FASTQ conversion and demultiplexing started for "
-                 " run {} on {}".format(os.path.basename(self.id), datetime.now())))
-            misc.call_external_command_detached(cl, with_log_files=True)
+                " 10X run {} on {}".format(os.path.basename(self.id), datetime.now())))
+
+        if cmd_not_10X:
+            misc.call_external_command_detached(cmd_not_10X,with_log_files=True )
+            logger.info(("BCL to FASTQ conversion and demultiplexing started for "
+                "none-10X run {} on {}".format(os.path.basename(self.id), datetime.now())))
+
         return True
 
 
@@ -147,7 +134,7 @@ class HiSeqX_Run(Run):
             for now nothign done, TODO: check all undetermined files are present as sanity check
         """
         return True
-    
+
 
 
     def check_QC(self):
@@ -198,8 +185,8 @@ class HiSeqX_Run(Run):
                 #misc.link_undet_to_sample(run_dir, dmux_folder, lane, path_per_lane)
                 max_percentage_undetermined_indexes = max_percentage_undetermined_indexes_unpooled_lane
                 max_frequency_most_represented_und  = max_frequency_most_represented_und_index_unpooled_lane
-            
-            
+
+
             if self.check_undetermined_reads(lane, max_percentage_undetermined_indexes):
                 if self.check_maximum_undertemined_freq(lane, max_frequency_most_represented_und):
                     lane_status= lane_status and True
@@ -223,7 +210,7 @@ class HiSeqX_Run(Run):
         """checks that the number of undetermined reads does not exceed a given threshold
         returns true if the percentage is lower then freq_tresh
         Does this by considering undetermined all reads marked as unknown
-        
+
         :param lane: lane identifier
         :type lane: string
         :param freq_tresh: maximal allowed percentage of undetermined indexes in a lane
@@ -240,7 +227,7 @@ class HiSeqX_Run(Run):
                 if lane_yield > 0:
                     logger.warn("lane_yeld must be 0, somehting wrong is going on here")
                 lane_yield = int(entry['PF Clusters'].replace(',',''))
-    
+
         #I do not need to parse undetermined here, I can use the the lanes object to fetch unknown
         sample_lanes = self.runParserObj.lanebarcodes
         undetermined_lane_stats = [item for item in sample_lanes.sample_data if item["Lane"]==lane and item["Sample"]=="Undetermined"]
@@ -257,7 +244,7 @@ class HiSeqX_Run(Run):
             #normal case
             undetermined_total = int(undetermined_lane_stats[0]['PF Clusters'].replace(',',''))
             percentage_und = (undetermined_total/float(lane_yield))*100
-        
+
         if  percentage_und > freq_tresh:
             logger.warn("The undetermined indexes account for {}% of lane {}, "
                         "which is over the threshold of {}%".format(percentage_und, lane, freq_tresh))
@@ -269,7 +256,7 @@ class HiSeqX_Run(Run):
     def check_maximum_undertemined_freq(self, lane, freq_tresh):
         """returns true if the most represented index accounts for less than freq_tresh
             of the total amount of undetermiend
-            
+
             :param lane: lane identifier
             :type lane: string
             :param freq_tresh: maximal allowed frequency of the most frequent undetermined index
@@ -277,12 +264,12 @@ class HiSeqX_Run(Run):
             :rtype: boolean
             :returns: True if the checks passes, False otherwise
             """
-        
+
         #check the most reptresented index
         undeterminedStats = DemuxSummaryParser(os.path.join(self.run_dir,self.demux_dir, "Stats"))
         most_frequent_undet_index_count = int(undeterminedStats.result[lane].items()[0][1])
         most_frequent_undet_index       = undeterminedStats.result[lane].items()[0][0]
-        
+
         #compute the total amount of undetermined reads
         sample_lanes = self.runParserObj.lanebarcodes
         undetermined_lane_stats = [item for item in sample_lanes.sample_data if item["Lane"]==lane and item["Sample"]=="Undetermined"]
@@ -296,7 +283,7 @@ class HiSeqX_Run(Run):
         else:
             undetermined_total = int(undetermined_lane_stats[0]['PF Clusters'].replace(',',''))
             freq_most_occuring_undet_index = (most_frequent_undet_index_count/float(undetermined_total))*100
-        
+
         if freq_most_occuring_undet_index > freq_tresh:
             logger.warn("The most frequent barcode of lane {} ({}) represents {}%, "
                         "which is over the threshold of {}%".format(lane, most_frequent_undet_index, freq_most_occuring_undet_index , freq_tresh))
@@ -365,17 +352,62 @@ class HiSeqX_Run(Run):
             for index, comp in enumerate(old_name_comps):
                 if comp.startswith('L00'):
                     old_name_comps[index]=comp.replace('L00','L01')#adds a 1 as the second lane number in order to differentiate undetermined from normal in piper
-                    
+
             new_name="_".join(old_name_comps)
             logger.info("Renaming {} to {}".format(file, os.path.join(os.path.dirname(file), new_name)))
             os.rename(file, os.path.join(os.path.dirname(file), new_name))
 
+    def generate_bcl_command_not_10X(self, SS_not_10X):
+        #I have everything to run demultiplexing now.
+        logger.info('Building bcl2fastq command for normal lanes')
+        per_lane_base_masks = SS_not_10X._generate_per_lane_base_mask()
+        with chdir(self.run_dir):
+            cl = [self.CONFIG.get('bcl2fastq')['bin']]
+            if self.CONFIG.get('bcl2fastq').has_key('options'):
+                cl_options = self.CONFIG['bcl2fastq']['options']
+                # Append all options that appear in the configuration file to the main command.
+                for option in cl_options:
+                    if isinstance(option, dict):
+                        opt, val = option.items()[0]
+                        cl.extend(['--{}'.format(opt), str(val)])
+                    else:
+                        cl.append('--{}'.format(option))
+            #now add the base_mask for each lane
+            for lane in sorted(per_lane_base_masks):
+                #iterate thorugh each lane and add the correct --use-bases-mask for that lane
+                #there is a single basemask for each lane, I checked it a couple of lines above
+                base_mask = [per_lane_base_masks[lane][bm]['base_mask'] for bm in per_lane_base_masks[lane]][0] # get the base_mask
+                base_mask_expr = "{}:".format(lane) + ",".join(base_mask)
+                cl.extend(["--use-bases-mask", base_mask_expr])
+        return cl
 
-
-
+    def generate_bcl_command_10X(self, SS_10X):
+        """ todo: look at NoIndex case
+        """
+        logger.info('Building bcl2fastq command for 10X lanes')
+        per_lane_base_masks = SS_10X._generate_per_lane_base_mask()
+        with chdir(self.run_dir):
+            cl = [self.CONFIG.get('bcl2fastq')['bin']]
+            if self.CONFIG.get('bcl2fastq').has_key('options'):
+                cl_options = self.CONFIG['bcl2fastq_10X']['options']
+                # Append all options that appear in the configuration file to the main command.
+                for option in cl_options:
+                    if isinstance(option, dict):
+                        opt, val = option.items()[0]
+                        cl.extend(['--{}'.format(opt), str(val)])
+                    else:
+                        cl.append('--{}'.format(option))
+                        #now add the base_mask for each lane
+                        for lane in sorted(per_lane_base_masks):
+                            #iterate thorugh each lane and add the correct --use-bases-mask for that lane
+                            #there is a single basemask for each lane, I checked it a couple of lines above
+                            base_mask = [per_lane_base_masks[lane][bm]['base_mask'] for bm in per_lane_base_masks[lane]][0] # get the base_mask
+                            base_mask_expr = "{}:".format(lane) + ",".join(base_mask)
+                            cl.extend(["--use-bases-mask", base_mask_expr])
+        return cl
 def _generate_clean_samplesheet(ssparser, fields_to_remove=None, rename_samples=True, rename_qPCR_suffix = False, fields_qPCR= None):
     """
-        Will generate a 'clean' samplesheet, the given fields will be removed. 
+        Will generate a 'clean' samplesheet, the given fields will be removed.
         if rename_samples is True, samples prepended with 'Sample_'  are renamed to match the sample name
         Will also replace 10X idicies like SI-GA-A3 with proper indicies like TGTGCGGG
     """
@@ -385,17 +417,15 @@ def _generate_clean_samplesheet(ssparser, fields_to_remove=None, rename_samples=
     # Replace 10X index with the 4 actual indicies.
     for sample in ssparser.data:
         if sample['index'] in index_dict.keys():
-            print sample['index'] 
             x=0
             while x<3:
-                print x
                 new_sample=dict(sample)
                 new_sample['index']=index_dict[sample['index']][x]
                 ssparser.data.append(new_sample)
                 x+=1
-            #Set the original 10X index to the 4th correct index    
-            sample['index']=index_dict[sample['index']][x]            
-                      
+            #Set the original 10X index to the 4th correct index
+            sample['index']=index_dict[sample['index']][x]
+
     #Sort to get the added indicies from 10x in the right place
     ssparser.data.sort()
 
@@ -431,9 +461,9 @@ def _generate_clean_samplesheet(ssparser, fields_to_remove=None, rename_samples=
                         value = 'Sample_{}'.format(line[ssparser.dfield_sid])
             elif rename_qPCR_suffix and field in fields_qPCR:
                 value = re.sub('__qPCR_$', '', line[field])
-                                                                                                                            
+
             line_ar.append(value)
-                                                                                                                                
+
         output+=",".join(line_ar)
         output+=os.linesep
 
@@ -445,11 +475,15 @@ def look_for_lanes_with_10X_indicies(ssparser):
     returns a list of lanes with 10X indicies
     """
     index_dict=parse_10X_indexes()
-    tenX_lanes = set() #Set to only get each lane once    
+    tenX_lanes = set() #Set to only get each lane once
+    not_tenX_lanes = set()
     for sample in ssparser.data:
         if sample['index'] in index_dict.keys():
             tenX_lanes.add(sample['Lane'])
-    return list(tenX_lanes)
+        else:
+            not_tenX_lanes.add(sample['Lane'])
+
+    return (list(tenX_lanes),list(not_tenX_lanes))
 
 
 def parse_10X_indexes():
@@ -464,4 +498,27 @@ def parse_10X_indexes():
             line_=line.rstrip().split(',')
             index_dict[line_[0]]=line_[1:5]
     return index_dict
+def _generate_samplesheet_subset(ssparser, lanes):
+    output=""
 
+    #Header
+    output+="[Header]{}".format(os.linesep)
+    for field in ssparser.header:
+        output+="{},{}".format(field.rstrip(), ssparser.header[field].rstrip())
+        output+=os.linesep
+    #Data
+    output+="[Data]{}".format(os.linesep)
+    datafields=[]
+    for field in ssparser.datafields:
+        datafields.append(field)
+    output+=",".join(datafields)
+    output+=os.linesep
+    for line in ssparser.data:
+        if line['Lane'] in lanes:
+            line_ar=[]
+            for field in datafields:
+                line_ar.append(line[field])
+            output+=",".join(line_ar)
+            output+=os.linesep
+
+    return output
