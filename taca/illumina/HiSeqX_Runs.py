@@ -103,15 +103,14 @@ class HiSeqX_Run(Run):
                          in the same lane".format(self.id))
             return False
 
-        cmd_10X = generate_bcl_command_10X(self,(self.runParserObj.samplesheet, lanes_not_10X)))
-        cmd_not_10X = generate_bcl_command_not_10X(self, self.runParserObj.samplesheet, lanes_10X))
-
         if cmd_10X:
+            cmd_10X = generate_bcl_command_10X(self,(self.runParserObj.samplesheet, lanes_not_10X)))
             misc.call_external_command_detached(cmd_10X,with_log_files=True )
             logger.info(("BCL to FASTQ conversion and demultiplexing started for "
                 " 10X run {} on {}".format(os.path.basename(self.id), datetime.now())))
 
         if cmd_not_10X:
+            cmd_not_10X = generate_bcl_command_not_10X(self, self.runParserObj.samplesheet, lanes_10X))
             misc.call_external_command_detached(cmd_not_10X,with_log_files=True )
             logger.info(("BCL to FASTQ conversion and demultiplexing started for "
                 "none-10X run {} on {}".format(os.path.basename(self.id), datetime.now())))
