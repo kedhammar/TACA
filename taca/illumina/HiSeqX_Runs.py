@@ -73,14 +73,13 @@ class HiSeqX_Run(Run):
                 return False
             logger.info(("Created SampleSheet.csv for Flowcell {} in {} ".format(self.id, samplesheet_dest)))
         ##SampleSheet.csv generated
-        import pdb
-        pdb.set_trace()
 
 
         ##when demultiplexing SampleSheet.csv is the one I need to use
         ## Need to rewrite so that SampleSheet_0.csv is always used.
         self.runParserObj.samplesheet  = SampleSheetParser(os.path.join(self.run_dir, "SampleSheet.csv"))
         #we have 10x lane - need to split the  samples sheet and build a 10x command for bcl2fastq
+        import pdb; pdb.set_trace()
         Complex_run = False
         if len(lanes_10X) and len(lanes_not_10X):
             Complex_run = True
@@ -103,17 +102,22 @@ class HiSeqX_Run(Run):
                          in the same lane".format(self.id))
             return False
 
-        if cmd_10X:
-            cmd_10X = generate_bcl_command_10X(self,(self.runParserObj.samplesheet, lanes_not_10X)))
-            misc.call_external_command_detached(cmd_10X,with_log_files=True )
+        bcl2fastq_cmd_counter = 0
+
+        if lanes_not_10X:
+            cmd_normal = self.generate_bcl_command(lanes_not_10X, bcl2fastq_cmd_counter)
+
+            misc.call_external_command_detached(cmd_normal, with_log_files = True )
+            logger.info(("BCL to FASTQ conversion and demultiplexing started for "
+                "normal run {} on {}".format(os.path.basename(self.id), datetime.now())))
+            bcl2fastq_cmd_counter += 1
+
+        if lanes_10X:
+            cmd_10X = self.generate_bcl_command(lanes_10X, bcl2fastq_cmd_counter, is_10X = True)
+            misc.call_external_command_detached(cmd_10X, with_log_files = True )
             logger.info(("BCL to FASTQ conversion and demultiplexing started for "
                 " 10X run {} on {}".format(os.path.basename(self.id), datetime.now())))
-
-        if cmd_not_10X:
-            cmd_not_10X = generate_bcl_command_not_10X(self, self.runParserObj.samplesheet, lanes_10X))
-            misc.call_external_command_detached(cmd_not_10X,with_log_files=True )
-            logger.info(("BCL to FASTQ conversion and demultiplexing started for "
-                "none-10X run {} on {}".format(os.path.basename(self.id), datetime.now())))
+            bcl2fastq_cmd_counter += 1
 
         return True
 
@@ -356,14 +360,17 @@ class HiSeqX_Run(Run):
             logger.info("Renaming {} to {}".format(file, os.path.join(os.path.dirname(file), new_name)))
             os.rename(file, os.path.join(os.path.dirname(file), new_name))
 
-    def generate_bcl_command_not_10X(self, SS_not_10X):
+    def generate_bcl_command(self, lanes, bcl2fastq_cmd_counter, is_10X=False):
         #I have everything to run demultiplexing now.
         logger.info('Building bcl2fastq command for normal lanes')
-        per_lane_base_masks = SS_not_10X._generate_per_lane_base_mask()
+        per_lane_base_masks = self._generate_per_lane_base_mask()
         with chdir(self.run_dir):
             cl = [self.CONFIG.get('bcl2fastq')['bin']]
             if self.CONFIG.get('bcl2fastq').has_key('options'):
                 cl_options = self.CONFIG['bcl2fastq']['options']
+                # Add the extra 10X command options if we have a 10X run
+                if is_10X:
+                    cl_options.append(self.CONFIG['bcl2fastq']['options_10X'])
                 # Append all options that appear in the configuration file to the main command.
                 for option in cl_options:
                     if isinstance(option, dict):
@@ -371,8 +378,9 @@ class HiSeqX_Run(Run):
                         cl.extend(['--{}'.format(opt), str(val)])
                     else:
                         cl.append('--{}'.format(option))
+
             #now add the base_mask for each lane
-            for lane in sorted(per_lane_base_masks):
+            for lane in sorted(lanes):
                 #iterate thorugh each lane and add the correct --use-bases-mask for that lane
                 #there is a single basemask for each lane, I checked it a couple of lines above
                 base_mask = [per_lane_base_masks[lane][bm]['base_mask'] for bm in per_lane_base_masks[lane]][0] # get the base_mask
@@ -380,30 +388,6 @@ class HiSeqX_Run(Run):
                 cl.extend(["--use-bases-mask", base_mask_expr])
         return cl
 
-    def generate_bcl_command_10X(self, SS_10X):
-        """ todo: look at NoIndex case
-        """
-        logger.info('Building bcl2fastq command for 10X lanes')
-        per_lane_base_masks = SS_10X._generate_per_lane_base_mask()
-        with chdir(self.run_dir):
-            cl = [self.CONFIG.get('bcl2fastq')['bin']]
-            if self.CONFIG.get('bcl2fastq').has_key('options'):
-                cl_options = self.CONFIG['bcl2fastq_10X']['options']
-                # Append all options that appear in the configuration file to the main command.
-                for option in cl_options:
-                    if isinstance(option, dict):
-                        opt, val = option.items()[0]
-                        cl.extend(['--{}'.format(opt), str(val)])
-                    else:
-                        cl.append('--{}'.format(option))
-                        #now add the base_mask for each lane
-                        for lane in sorted(per_lane_base_masks):
-                            #iterate thorugh each lane and add the correct --use-bases-mask for that lane
-                            #there is a single basemask for each lane, I checked it a couple of lines above
-                            base_mask = [per_lane_base_masks[lane][bm]['base_mask'] for bm in per_lane_base_masks[lane]][0] # get the base_mask
-                            base_mask_expr = "{}:".format(lane) + ",".join(base_mask)
-                            cl.extend(["--use-bases-mask", base_mask_expr])
-        return cl
 def _generate_clean_samplesheet(ssparser, fields_to_remove=None, rename_samples=True, rename_qPCR_suffix = False, fields_qPCR= None):
     """
         Will generate a 'clean' samplesheet, the given fields will be removed.
