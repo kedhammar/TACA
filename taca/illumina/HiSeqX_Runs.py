@@ -79,7 +79,6 @@ class HiSeqX_Run(Run):
         ## Need to rewrite so that SampleSheet_0.csv is always used.
         self.runParserObj.samplesheet  = SampleSheetParser(os.path.join(self.run_dir, "SampleSheet.csv"))
         #we have 10x lane - need to split the  samples sheet and build a 10x command for bcl2fastq
-        import pdb; pdb.set_trace()
         Complex_run = False
         if len(lanes_10X) and len(lanes_not_10X):
             Complex_run = True
@@ -103,10 +102,12 @@ class HiSeqX_Run(Run):
             return False
 
         bcl2fastq_cmd_counter = 0
-
+        with chdir(self.run_dir):
+            # create Demultiplexing dir, this changes the status to IN_PROGRESS
+            if not os.path.exists("Demultiplexing"):
+                os.makedirs("Demultiplexing")
         if lanes_not_10X:
             cmd_normal = self.generate_bcl_command(lanes_not_10X, bcl2fastq_cmd_counter)
-
             misc.call_external_command_detached(cmd_normal, with_log_files = True )
             logger.info(("BCL to FASTQ conversion and demultiplexing started for "
                 "normal run {} on {}".format(os.path.basename(self.id), datetime.now())))
@@ -365,6 +366,8 @@ class HiSeqX_Run(Run):
         logger.info('Building bcl2fastq command for normal lanes')
         per_lane_base_masks = self._generate_per_lane_base_mask()
         with chdir(self.run_dir):
+            if not os.path.exists("Demultiplexing_{}".format(bcl2fastq_cmd_counter)):
+                os.makedirs("Demultiplexing_{}".format(bcl2fastq_cmd_counter))
             cl = [self.CONFIG.get('bcl2fastq')['bin']]
             if self.CONFIG.get('bcl2fastq').has_key('options'):
                 cl_options = self.CONFIG['bcl2fastq']['options']
