@@ -390,7 +390,39 @@ class HiSeqX_Run(Run):
                 base_mask_expr = "{}:".format(lane) + ",".join(base_mask)
                 cl.extend(["--use-bases-mask", base_mask_expr])
         return cl
+        
 
+    def _aggregate_demux_results(self):
+        """
+        Aggregates the results from normal and 10X runs. 
+        """
+        run_dir      =  self.run_dir
+        demux_folder =  os.path.join(self.run_dir , self.demux_dir)
+        dirs =  os.listdir(demux_folder)
+        Demux_dirs=[]
+        for dir_ in dirs:
+            if dir_.startswith("Demultiplexing_")
+            Demux_dirs.append(dir_)
+        
+        if len(Demux_dirs) = 1  # Simple run
+            complex_lane=False
+        elif len(Demux_dirs) = 2:
+            complex_lane=True   # Complex run i.e mix of 10X and normal lanes
+        else:
+            logger.error("Discrepancy found regarding number of Demultiplexing_ dirs.")
+            raise RuntimeError
+
+        ## If we have a simple case then we only need to link the Demultiplexing_0 dir into Demultiplexing.
+        ## In case of a complex run the two dirs needs to be merged. Fortunately it's allways different lanes. 
+        if not complex_lane:
+            os.symlink(os.path.basemane(dir[0]), "Demultiplexing" )  
+        if complex_lane:
+            ##DO a lot of stuff!
+
+
+
+
+         
 def _generate_clean_samplesheet(ssparser, fields_to_remove=None, rename_samples=True, rename_qPCR_suffix = False, fields_qPCR= None):
     """
         Will generate a 'clean' samplesheet, the given fields will be removed.
