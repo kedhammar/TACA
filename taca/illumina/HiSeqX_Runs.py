@@ -117,7 +117,7 @@ class HiSeqX_Run(Run):
             cmd_10X = self.generate_bcl_command(lanes_10X, bcl2fastq_cmd_counter, is_10X = True)
             misc.call_external_command_detached(cmd_10X, with_log_files = True )
             logger.info(("BCL to FASTQ conversion and demultiplexing started for "
-                " 10X run {} on {}".format(os.path.basename(self.id), datetime.now())))
+                "10X run {} on {}".format(os.path.basename(self.id), datetime.now())))
             bcl2fastq_cmd_counter += 1
 
         return True
@@ -384,8 +384,7 @@ class HiSeqX_Run(Run):
 
             #now add the base_mask for each lane
             for lane in sorted(lanes):
-                #iterate thorugh each lane and add the correct --use-bases-mask for that lane
-                #there is a single basemask for each lane, I checked it a couple of lines above
+                #Iterate thorugh each lane and add the correct --use-bases-mask for that lane
                 base_mask = [per_lane_base_masks[lane][bm]['base_mask'] for bm in per_lane_base_masks[lane]][0] # get the base_mask
                 base_mask_expr = "{}:".format(lane) + ",".join(base_mask)
                 cl.extend(["--use-bases-mask", base_mask_expr])
@@ -394,6 +393,7 @@ class HiSeqX_Run(Run):
 
     def _aggregate_demux_results(self):
         """
+        NOt Written yet!!
         Aggregates the results from normal and 10X runs. 
         """
         run_dir      =  self.run_dir
