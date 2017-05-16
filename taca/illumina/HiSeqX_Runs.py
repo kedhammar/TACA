@@ -2,6 +2,7 @@ import os
 import re
 import csv
 import glob
+import shutil
 from datetime import datetime
 from taca.utils.filesystem import chdir, control_fastq_filename
 from taca.illumina.Runs import Run
@@ -91,8 +92,9 @@ class HiSeqX_Run(Run):
             with open(samplesheet_dest_10X, 'wb') as fcd:
                 fcd.write(_generate_samplesheet_subset(self.runParserObj.samplesheet, lanes_10X))
         else:
-            shutil.copyfile("SampleSheet.csv", "SampleSheet_0.csv")
-
+            with chdir(self.run_dir):
+                shutil.copy("SampleSheet.csv", "SampleSheet_0.csv")
+        
         per_lane_base_masks = self._generate_per_lane_base_mask()
         max_different_base_masks =  max([len(per_lane_base_masks[base_masks]) for base_masks in per_lane_base_masks])
         if max_different_base_masks > 1:
@@ -112,14 +114,17 @@ class HiSeqX_Run(Run):
             logger.info(("BCL to FASTQ conversion and demultiplexing started for "
                 "normal run {} on {}".format(os.path.basename(self.id), datetime.now())))
             bcl2fastq_cmd_counter += 1
-
+            #for p in cmd_normal:
+            #    print p,
         if lanes_10X:
+            print "got here" 
             cmd_10X = self.generate_bcl_command(lanes_10X, bcl2fastq_cmd_counter, is_10X = True)
             misc.call_external_command_detached(cmd_10X, with_log_files = True )
             logger.info(("BCL to FASTQ conversion and demultiplexing started for "
                 "10X run {} on {}".format(os.path.basename(self.id), datetime.now())))
             bcl2fastq_cmd_counter += 1
-
+            #for p in cmd_10X:
+            #    print p,
         return True
 
 
@@ -373,7 +378,7 @@ class HiSeqX_Run(Run):
                 cl_options = self.CONFIG['bcl2fastq']['options']
                 # Add the extra 10X command options if we have a 10X run
                 if is_10X:
-                    cl_options.append(self.CONFIG['bcl2fastq']['options_10X'])
+                    cl_options.extend(self.CONFIG['bcl2fastq']['options_10X'])
                 # Append all options that appear in the configuration file to the main command.
                 for option in cl_options:
                     if isinstance(option, dict):
@@ -401,12 +406,12 @@ class HiSeqX_Run(Run):
         dirs =  os.listdir(demux_folder)
         Demux_dirs=[]
         for dir_ in dirs:
-            if dir_.startswith("Demultiplexing_")
-            Demux_dirs.append(dir_)
+            if dir_.startswith("Demultiplexing_"):
+                Demux_dirs.append(dir_)
         
-        if len(Demux_dirs) = 1  # Simple run
+        if len(Demux_dirs) == 1:  # Simple run
             complex_lane=False
-        elif len(Demux_dirs) = 2:
+        elif len(Demux_dirs) == 2:
             complex_lane=True   # Complex run i.e mix of 10X and normal lanes
         else:
             logger.error("Discrepancy found regarding number of Demultiplexing_ dirs.")
@@ -418,6 +423,8 @@ class HiSeqX_Run(Run):
             os.symlink(os.path.basemane(dir[0]), "Demultiplexing" )  
         if complex_lane:
             ##DO a lot of stuff!
+            return
+        return 
 
 
 
@@ -516,6 +523,8 @@ def parse_10X_indexes():
             line_=line.rstrip().split(',')
             index_dict[line_[0]]=line_[1:5]
     return index_dict
+
+
 def _generate_samplesheet_subset(ssparser, lanes):
     output=""
 
