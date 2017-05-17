@@ -3,6 +3,7 @@ import re
 import csv
 import glob
 import shutil
+import copy
 from datetime import datetime
 from taca.utils.filesystem import chdir, control_fastq_filename
 from taca.illumina.Runs import Run
@@ -108,23 +109,19 @@ class HiSeqX_Run(Run):
             # create Demultiplexing dir, this changes the status to IN_PROGRESS
             if not os.path.exists("Demultiplexing"):
                 os.makedirs("Demultiplexing")
-        if lanes_not_10X:
-            cmd_normal = self.generate_bcl_command(lanes_not_10X, bcl2fastq_cmd_counter)
-            misc.call_external_command_detached(cmd_normal, with_log_files = True )
-            logger.info(("BCL to FASTQ conversion and demultiplexing started for "
-                "normal run {} on {}".format(os.path.basename(self.id), datetime.now())))
-            bcl2fastq_cmd_counter += 1
-            #for p in cmd_normal:
-            #    print p,
-        if lanes_10X:
-            print "got here" 
-            cmd_10X = self.generate_bcl_command(lanes_10X, bcl2fastq_cmd_counter, is_10X = True)
-            misc.call_external_command_detached(cmd_10X, with_log_files = True )
-            logger.info(("BCL to FASTQ conversion and demultiplexing started for "
-                "10X run {} on {}".format(os.path.basename(self.id), datetime.now())))
-            bcl2fastq_cmd_counter += 1
-            #for p in cmd_10X:
-            #    print p,
+        with chdir(self.run_dir):
+            if lanes_not_10X:
+               cmd_normal = self.generate_bcl_command(lanes_not_10X, bcl2fastq_cmd_counter)
+               misc.call_external_command_detached(cmd_normal, with_log_files = True, prefix="demux_{}".format(bcl2fastq_cmd_counter))
+               logger.info(("BCL to FASTQ conversion and demultiplexing started for "
+                   "normal run {} on {}".format(os.path.basename(self.id), datetime.now())))
+               bcl2fastq_cmd_counter += 1
+            if lanes_10X:
+               cmd_10X = self.generate_bcl_command(lanes_10X, bcl2fastq_cmd_counter, is_10X = True)
+               misc.call_external_command_detached(cmd_10X, with_log_files = True, prefix="demux_{}".format(bcl2fastq_cmd_counter))
+               logger.info(("BCL to FASTQ conversion and demultiplexing started for "
+                   "10X run {} on {}".format(os.path.basename(self.id), datetime.now())))
+               bcl2fastq_cmd_counter += 1
         return True
 
 
@@ -368,14 +365,17 @@ class HiSeqX_Run(Run):
 
     def generate_bcl_command(self, lanes, bcl2fastq_cmd_counter, is_10X=False):
         #I have everything to run demultiplexing now.
-        logger.info('Building bcl2fastq command for normal lanes')
+        logger.info('Building a bcl2fastq command')
         per_lane_base_masks = self._generate_per_lane_base_mask()
         with chdir(self.run_dir):
-            if not os.path.exists("Demultiplexing_{}".format(bcl2fastq_cmd_counter)):
-                os.makedirs("Demultiplexing_{}".format(bcl2fastq_cmd_counter))
             cl = [self.CONFIG.get('bcl2fastq')['bin']]
+            output_dir = "Demultiplexing_{}".format(bcl2fastq_cmd_counter)
+            cl.extend(["--output-dir", output_dir])
+            if not os.path.exists(output_dir):
+                os.makedirs(output_dir)
             if self.CONFIG.get('bcl2fastq').has_key('options'):
                 cl_options = self.CONFIG['bcl2fastq']['options']
+            
                 # Add the extra 10X command options if we have a 10X run
                 if is_10X:
                     cl_options.extend(self.CONFIG['bcl2fastq']['options_10X'])
@@ -383,7 +383,8 @@ class HiSeqX_Run(Run):
                 for option in cl_options:
                     if isinstance(option, dict):
                         opt, val = option.items()[0]
-                        cl.extend(['--{}'.format(opt), str(val)])
+                        if "output-dir" not in opt:
+                            cl.extend(['--{}'.format(opt), str(val)])
                     else:
                         cl.append('--{}'.format(option))
 
