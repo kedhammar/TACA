@@ -60,11 +60,12 @@ class HiSeqX_Run(Run):
 
         ssname   = self._get_samplesheet()
         ssparser = SampleSheetParser(ssname)
+        indexfile = self.CONFIG['bcl2fastq']['index_path']
         #samplesheet need to be positioned in the FC directory with name SampleSheet.csv (Illumina default)
         #if this is not the case then create it and take special care of modification to be done on the SampleSheet
         samplesheet_dest = os.path.join(self.run_dir, "SampleSheet.csv")
         #Function that returns a list of which lanes contains 10X samples.
-        (lanes_10X,lanes_not_10X) = look_for_lanes_with_10X_indicies(ssparser)
+        (lanes_10X,lanes_not_10X) = look_for_lanes_with_10X_indicies(indexfile, ssparser)
         #check that the samplesheet is not already present. In this case go the next step
         if not os.path.exists(samplesheet_dest):
             try:
@@ -439,7 +440,7 @@ def _generate_clean_samplesheet(ssparser, fields_to_remove=None, rename_samples=
     """
     output=""
     ##expand the ssparser if there are 10X lanes
-    index_dict=parse_10X_indexes() #read the 10X indices
+    index_dict=parse_10X_indexes(self) #read the 10X indices
     # Replace 10X index with the 4 actual indicies.
     for sample in ssparser.data:
         if sample['index'] in index_dict.keys():
@@ -495,12 +496,12 @@ def _generate_clean_samplesheet(ssparser, fields_to_remove=None, rename_samples=
 
     return output
 
-def look_for_lanes_with_10X_indicies(ssparser):
+def look_for_lanes_with_10X_indicies(indexfile, ssparser):
     """
     Given an ssparser object
     returns a list of lanes with 10X indicies
     """
-    index_dict=parse_10X_indexes()
+    index_dict=parse_10X_indexes(indexfile)
     tenX_lanes = set() #Set to only get each lane once
     not_tenX_lanes = set()
     for sample in ssparser.data:
@@ -512,13 +513,12 @@ def look_for_lanes_with_10X_indicies(ssparser):
     return (list(tenX_lanes),list(not_tenX_lanes))
 
 
-def parse_10X_indexes():
+def parse_10X_indexes(indexfile):
     """
     Takes a file of 10X indexes and returns them as a dict.
     Todo: Set it up to take the file from config instead
     """
     index_dict={}
-    indexfile="Chromium_10X_indexes.txt"
     with open(indexfile , 'r') as f:
         for line in f:
             line_=line.rstrip().split(',')
