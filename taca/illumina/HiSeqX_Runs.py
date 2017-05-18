@@ -60,7 +60,11 @@ class HiSeqX_Run(Run):
 
         ssname   = self._get_samplesheet()
         ssparser = SampleSheetParser(ssname)
-        indexfile = self.CONFIG['bcl2fastq']['index_path']
+        try:
+            indexfile = self.CONFIG['bcl2fastq']['index_path']
+        except KeyError:
+            logger.error("Path to ndex file (10X) not found in the config file")
+            raise RuntimeError
         #samplesheet need to be positioned in the FC directory with name SampleSheet.csv (Illumina default)
         #if this is not the case then create it and take special care of modification to be done on the SampleSheet
         samplesheet_dest = os.path.join(self.run_dir, "SampleSheet.csv")
@@ -76,7 +80,6 @@ class HiSeqX_Run(Run):
                 return False
             logger.info(("Created SampleSheet.csv for Flowcell {} in {} ".format(self.id, samplesheet_dest)))
         ##SampleSheet.csv generated
-
 
         ##when demultiplexing SampleSheet.csv is the one I need to use
         ## Need to rewrite so that SampleSheet_0.csv is always used.
