@@ -4,6 +4,7 @@ import csv
 import glob
 import shutil
 import copy
+import json
 from datetime import datetime
 from taca.utils.filesystem import chdir, control_fastq_filename
 from taca.illumina.Runs import Run
@@ -57,13 +58,16 @@ class HiSeqX_Run(Run):
             - define if necessary the bcl2fastq commands (if indexes are not of size 8, i.e. neoprep)
             - run bcl2fastq conversion
         """
-
+        ##DEBUING - ReMOVE
+        self.aggregate_results()
+        
+        ##END of DEBUGGING
         ssname   = self._get_samplesheet()
         ssparser = SampleSheetParser(ssname)
         try:
             indexfile = self.CONFIG['bcl2fastq']['index_path']
         except KeyError:
-            logger.error("Path to ndex file (10X) not found in the config file")
+            logger.error("Path to index file (10X) not found in the config file")
             raise RuntimeError
         #samplesheet need to be positioned in the FC directory with name SampleSheet.csv (Illumina default)
         #if this is not the case then create it and take special care of modification to be done on the SampleSheet
@@ -74,9 +78,9 @@ class HiSeqX_Run(Run):
         if not os.path.exists(samplesheet_dest):
             try:
                 with open(samplesheet_dest, 'wb') as fcd:
-                    fcd.write(_generate_clean_samplesheet(ssparser, fields_to_remove=['index2'], rename_samples=True, rename_qPCR_suffix = True, fields_qPCR=[ssparser.dfield_snm]))
+                    fcd.write(_generate_clean_samplesheet(ssparser,indexfile, fields_to_remove=['index2'], rename_samples=True, rename_qPCR_suffix = True, fields_qPCR=[ssparser.dfield_snm]))
             except Exception as e:
-                logger.error(e.text)
+                logger.error("encountered the following exception '{}'".format(e))
                 return False
             logger.info(("Created SampleSheet.csv for Flowcell {} in {} ".format(self.id, samplesheet_dest)))
         ##SampleSheet.csv generated
@@ -128,14 +132,75 @@ class HiSeqX_Run(Run):
                bcl2fastq_cmd_counter += 1
         return True
 
-
+    
+    def aggregate_results(self):
+        """
+        Take the Stats.json files from the different demultiplexing folders and merges them into one
+        """
+        import pdb
+        pdb.set_trace()
+        complex_run = False 
+        os.chdir(self.run_dir)
+        if os.path.exists("Demultiplexing_1") and os.path.exists("Demultiplexing_0"):
+            complex_run = True 
+            # Results needs to be aggregated 
+        elif os.path.exists("Demultiplexing_0"):
+            #Simple run, no need to aggregate results.
+            #But Demultiplexing_0 needs to be symlinked into just Demultiplexing
+            os.rmdir("Demultiplexing")
+            os.symlink("Demultiplexing_0", "Demultiplexing") 
+        else:
+            logger.error("Could not open Demultiplexing directory")
+            return
+        if complex_run:
+            stats_list=[] #List with the dicts of the two 
+            dir_num=0
+           
+            while dir_num < 3:
+                chdir("Demultiplexing_{}/Stats".format(dir_num))
+                with open('Stats.json') as json_data:
+                     data = json.load(json_data)
+                     stats_list.append(data)
+                dir_num +=1
+      
+        else:
+            return 
+             
+        
+        
     def check_run_status(self):
         """
-           This function checks the status of a run while in progress. In the future will print the status
+           This function checks the status of a run while in progress.
+            When the run is completed kick of the results aggregation step.
         """
         run_dir    =  self.run_dir
         dex_status =  self.get_run_status()
         return None
+        
+        ##Copied from Hiseq class
+        if  dex_status == 'COMPLETED':
+            return None
+        #otherwise check the status of running demux
+        #collect all samplesheets generated before
+        samplesheets =  glob.glob(os.path.join(run_dir, "*_[0-9].csv")) # a single digit... this hipotesis should hold for a while
+        allDemuxDone = True
+        for samplesheet in samplesheets:
+            #fetch the id of this demux job
+            demux_id = os.path.splitext(os.path.split(samplesheet)[1])[0].split("_")[1]
+            #demux folder is
+            demux_folder = os.path.join(run_dir, "Demultiplexing_{}".format(demux_id))
+            #check if this job is done
+            if os.path.exists(os.path.join(run_dir, demux_folder, 'Stats', 'DemultiplexingStats.xml')):
+                allDemuxDone = allDemuxDone and True
+                logger.info("Sub-Demultiplexing in {} completed.".format(demux_folder))
+            else:
+                allDemuxDone = allDemuxDone and False
+                logger.info("Sub-Demultiplexing in {} not completed yet.".format(demux_folder))
+        #in this case, I need to aggreate in the Demultiplexing folder all the results
+        if allDemuxDone:
+            self.aggregate_results()
+            #now I can initialise the RunParser
+            self.runParserObj = RunParser(self.run_dir)
 
 
     def compute_undetermined(self):
@@ -401,41 +466,7 @@ class HiSeqX_Run(Run):
         return cl
         
 
-    def _aggregate_demux_results(self):
-        """
-        NOt Written yet!!
-        Aggregates the results from normal and 10X runs. 
-        """
-        run_dir      =  self.run_dir
-        demux_folder =  os.path.join(self.run_dir , self.demux_dir)
-        dirs =  os.listdir(demux_folder)
-        Demux_dirs=[]
-        for dir_ in dirs:
-            if dir_.startswith("Demultiplexing_"):
-                Demux_dirs.append(dir_)
-        
-        if len(Demux_dirs) == 1:  # Simple run
-            complex_lane=False
-        elif len(Demux_dirs) == 2:
-            complex_lane=True   # Complex run i.e mix of 10X and normal lanes
-        else:
-            logger.error("Discrepancy found regarding number of Demultiplexing_ dirs.")
-            raise RuntimeError
-
-        ## If we have a simple case then we only need to link the Demultiplexing_0 dir into Demultiplexing.
-        ## In case of a complex run the two dirs needs to be merged. Fortunately it's allways different lanes. 
-        if not complex_lane:
-            os.symlink(os.path.basemane(dir[0]), "Demultiplexing" )  
-        if complex_lane:
-            ##DO a lot of stuff!
-            return
-        return 
-
-
-
-
-         
-def _generate_clean_samplesheet(ssparser, fields_to_remove=None, rename_samples=True, rename_qPCR_suffix = False, fields_qPCR= None):
+def _generate_clean_samplesheet(ssparser, indexfile, fields_to_remove=None, rename_samples=True, rename_qPCR_suffix = False, fields_qPCR= None):
     """
         Will generate a 'clean' samplesheet, the given fields will be removed.
         if rename_samples is True, samples prepended with 'Sample_'  are renamed to match the sample name
@@ -443,7 +474,7 @@ def _generate_clean_samplesheet(ssparser, fields_to_remove=None, rename_samples=
     """
     output=""
     ##expand the ssparser if there are 10X lanes
-    index_dict=parse_10X_indexes(self) #read the 10X indices
+    index_dict=parse_10X_indexes(indexfile) #read the 10X indices
     # Replace 10X index with the 4 actual indicies.
     for sample in ssparser.data:
         if sample['index'] in index_dict.keys():
