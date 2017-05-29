@@ -60,7 +60,7 @@ class HiSeqX_Run(Run):
         """
         ##DEBUING - ReMOVE
         self.aggregate_results()
-        
+        return 
         ##END of DEBUGGING
         ssname   = self._get_samplesheet()
         ssparser = SampleSheetParser(ssname)
@@ -137,8 +137,6 @@ class HiSeqX_Run(Run):
         """
         Take the Stats.json files from the different demultiplexing folders and merges them into one
         """
-        import pdb
-        pdb.set_trace()
         complex_run = False 
         os.chdir(self.run_dir)
         if os.path.exists("Demultiplexing_1") and os.path.exists("Demultiplexing_0"):
@@ -153,16 +151,40 @@ class HiSeqX_Run(Run):
             logger.error("Could not open Demultiplexing directory")
             return
         if complex_run:
+            ## We need to merge the Stats.json files and the Demltiplexing directories 
             stats_list=[] #List with the dicts of the two 
             dir_num=0
-           
-            while dir_num < 3:
-                chdir("Demultiplexing_{}/Stats".format(dir_num))
+            while dir_num < 2:
+                os.chdir("Demultiplexing_{}/Stats".format(dir_num))
                 with open('Stats.json') as json_data:
                      data = json.load(json_data)
                      stats_list.append(data)
                 dir_num +=1
-      
+                os.chdir(self.run_dir)
+            #Update the info in Demux_0 (Normal) with the info in Demux_1 (10X)
+            import pdb 
+            pdb.set_trace()
+            stats_list[0]['ReadInfosForLanes'].extend(stats_list[1]['ReadInfosForLanes'])
+            stats_list[0]['ConversionResults'].extend(stats_list[1]['ConversionResults'])
+            stats_list[0]['UnknownBarcodes'].extend(stats_list[1]['UnknownBarcodes'])
+            stats_list.sort()
+            #Now we need to merge the Demultiplexing_ dirs into Demultiplexing. 
+            demux_dirs = glob.glob(os.path.join(self.run_dir,"Demultiplexing_*")) 
+            dest = os.path.join(self.run_dir, "Demultiplexing")
+            src_files=[]
+            for sub_dir in demux_dirs:
+                 src_files.extend(glob.glob(os.path.join(demux_dirs[0],"*")))
+            for file_name in src_files:
+                if 'Reports' in file_name  or 'Stats' in file_name:        ## The reports are specific to each run and would overwrite each other.            
+                    continue 
+                if (os.path.isdir(file_name)) or os.path.isfile(file_name):
+                    os.symlink(os.path.join(dest, os.path.basename(file_name)))
+            
+            Statsdir = (os.path.join(dest, "Stats"))
+            os.mkdir(Statsdir)
+            with open (os.path.join(Statsdir, "Stats.json"), w) as json_out:
+                 json.dump(stats_list[0], json_out)
+        
         else:
             return 
              
@@ -210,77 +232,7 @@ class HiSeqX_Run(Run):
         """
         return True
 
-
-
-    def check_QC(self):
-        run_dir = self.run_dir
-        dmux_folder = self.demux_dir
-
-        max_percentage_undetermined_indexes_pooled_lane   = self.CONFIG['QC']['max_percentage_undetermined_indexes_pooled_lane']
-        max_percentage_undetermined_indexes_unpooled_lane = self.CONFIG['QC']['max_percentage_undetermined_indexes_unpooled_lane']
-        minimum_percentage_Q30_bases_per_lane             = self.CONFIG['QC']['minimum_percentage_Q30_bases_per_lane']
-        minimum_yield_per_lane                            = self.CONFIG['QC']['minimum_yield_per_lane']
-        max_frequency_most_represented_und_index_pooled_lane   = self.CONFIG['QC']['max_frequency_most_represented_und_index_pooled_lane']
-        max_frequency_most_represented_und_index_unpooled_lane = self.CONFIG['QC']['max_frequency_most_represented_und_index_unpooled_lane']
-
-        if not self.runParserObj.samplesheet or not self.runParserObj.lanebarcodes or not self.runParserObj.lanes:
-            logger.error("Something went wrong while parsing demultiplex results. QC cannot be performed.")
-            return False
-
-        status = True #initialise status as passed
-        #read the samplesheet and fetch all lanes
-        lanes_to_qc       = misc.return_unique([lanes['Lane'] for lanes in  self.runParserObj.samplesheet.data])
-        path_per_lane    =  self.get_path_per_lane()
-        samples_per_lane =  self.get_samples_per_lane()
-        #now for each lane
-        for lane in lanes_to_qc:
-            lane_status = True
-            #QC lane yield
-            if self.lane_check_yield(lane, minimum_yield_per_lane):
-                lane_status = lane_status and True
-            else:
-                logger.warn("lane {} did not pass yield qc check. This FC will not be transferred.".format(lane))
-                lane_status = lane_status and False
-            #QC on the total %>Q30 of the all lane
-            if self.lane_check_Q30(lane, minimum_percentage_Q30_bases_per_lane):
-                lane_status = lane_status and True
-            else:
-                logger.warn("lane {} did not pass Q30 qc check. This FC will not be transferred.".format(lane))
-                lane_status = lane_status and False
-            #QC for undetermined
-            max_percentage_undetermined_indexes = max_percentage_undetermined_indexes_pooled_lane
-            max_frequency_most_represented_und  = max_frequency_most_represented_und_index_pooled_lane
-            #distinguish the case between Pooled and Unpooled lanes, for unpooled lanes rename the Undetemriend file
-            if self.is_unpooled_lane(lane):
-                ##DO NOT ADD UNDET BY DEFAULT TO SAMPLES
-                #rename undetermiend, in this way PIPER will be able to use them
-                self._rename_undet(lane, samples_per_lane)
-                ##logger.info("linking undetermined lane {} to sample".format(lane))
-                ##but do not soft link them
-                #misc.link_undet_to_sample(run_dir, dmux_folder, lane, path_per_lane)
-                max_percentage_undetermined_indexes = max_percentage_undetermined_indexes_unpooled_lane
-                max_frequency_most_represented_und  = max_frequency_most_represented_und_index_unpooled_lane
-
-
-            if self.check_undetermined_reads(lane, max_percentage_undetermined_indexes):
-                if self.check_maximum_undertemined_freq(lane, max_frequency_most_represented_und):
-                    lane_status= lane_status and True
-                else:
-                    logger.warn("lane {} did not pass the check for most represented undet index. Most occuring undetermined index occurs too often.".format(lane))
-                    lane_status= lane_status and False
-            else:
-                logger.warn("lane {} did not pass the undetermined qc checks. Fraction of undetermined too large.".format(lane))
-                lane_status= lane_status and False
-            if lane_status:
-                logger.info("lane {} passed all qc checks".format(lane))
-            #store the status for the all FC
-            status = status and lane_status
-
-        return status
-
-
-
-
+    
     def check_undetermined_reads(self, lane, freq_tresh):
         """checks that the number of undetermined reads does not exceed a given threshold
         returns true if the percentage is lower then freq_tresh
@@ -457,6 +409,7 @@ class HiSeqX_Run(Run):
                     else:
                         cl.append('--{}'.format(option))
 
+            cl.extend(["--sample-sheet",  os.path.join(os.path.join(self.run_dir, "SampleSheet_{}.csv".format(bcl2fastq_cmd_counter)))])
             #now add the base_mask for each lane
             for lane in sorted(lanes):
                 #Iterate thorugh each lane and add the correct --use-bases-mask for that lane

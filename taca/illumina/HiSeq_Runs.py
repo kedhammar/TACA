@@ -246,66 +246,6 @@ class HiSeq_Run(Run):
                 
 
 
-    def check_QC(self):
-        if not self._is_demultiplexing_done():
-            raise RuntimeError("Trying to QC a run but the run is not compelted yet")
-        #QC an HiSeq run --> complex lane are not subject to any QC
-        per_lane_base_masks = self._generate_per_lane_base_mask()
-        simple_lanes  = {}
-        complex_lanes = {}
-        for lane in per_lane_base_masks:
-            if len(per_lane_base_masks[lane]) == 1:
-                simple_lanes[lane] = per_lane_base_masks[lane]
-            else:
-                complex_lanes[lane] = per_lane_base_masks[lane]
-        #complex lanes contains the lanes such that there is more than one base mask
-        #I will compute QC only for NON-complex lanes. Complex lanes will be judge via GenomicStatus
-        pass_QC = True
-        #fetch the DemuxSummary files, that at this point must be available for all simple and NoIndex lanes
-        undeterminedStats = DemuxSummaryParser(os.path.join(self.run_dir,self.demux_dir, "Stats"))
-        for lane in simple_lanes:
-            #now check if this is a NoIndex lane
-            #fetch the basemask, there will be only one by definition
-            base_mask = simple_lanes[lane].keys()[0]
-            #there must be at least one sample
-            sample_0  = simple_lanes[lane][base_mask]['data'][0]
-            #now fetch total amount of reads generated for this lane
-            lane_clusters = float([lane_info['PF Clusters'] for lane_info in self.runParserObj.lanes.sample_data if lane_info['Lane'] == lane][0].replace(",",""))
-            if lane_clusters == 0:
-                #in this case it means I generated No_CLUSTER (it might happen, fail the lane and transfer
-                logger.warn("Lane {}  generated 0 clusters, check manually what is happening here. FC will be failed".format(lane))
-                pass_QC = pass_QC and False
-            elif sample_0['index'] == "NOINDEX":
-                #IMPORTANT: this works only in the case of NoIndex because the DemuxSummary stats contain all undetermined
-                most_frequent_undet_index = undeterminedStats.result[lane].items()[1][1] # the 0 should be my Index
-                total_und_indexes = undeterminedStats.TOTAL[lane] - undeterminedStats.result[lane].items()[0][1] # take away the most occuring index
-                max_percentage_undetermined_indexes_NoIndex_lane = int(self.CONFIG['QC']['max_percentage_undetermined_indexes_NoIndex_lane'])
-                if (total_und_indexes/lane_clusters)*100 > max_percentage_undetermined_indexes_NoIndex_lane:
-                    logger.warn("Lane {} found with a large percentage of undetermined indexes. This FC will not be transferred".format(lane))
-                    pass_QC = pass_QC and False
-                max_frequency_most_represented_und_index_NoIndex_lane = int(self.CONFIG['QC']['max_frequency_most_represented_und_index_NoIndex_lane'])
-                if (most_frequent_undet_index/float(total_und_indexes))*100 > max_frequency_most_represented_und_index_NoIndex_lane:
-                    logger.warn("Lane {} most frequent undetermined index accounts for more than {}% of all undetermined indexes. This FC will not be transferred".format(lane, max_frequency_most_represented_und_index_NoIndex_lane))
-                    pass_QC = pass_QC and False
-            else:
-                max_percentage_undetermined_indexes_simple_lane = self.CONFIG['QC']['max_percentage_undetermined_indexes_simple_lane']
-                sample_lanes = self.runParserObj.lanebarcodes
-                undetermined_lane_stats = [item for item in sample_lanes.sample_data if item["Lane"]==lane and item["Sample"]=="Undetermined"]
-                if len(undetermined_lane_stats) > 1:
-                    logger.error("Something wrong in check_undetermined_reads, found more than one undetermined sample in one lane")
-                    return False
-                undetermined_total = int(undetermined_lane_stats[0]['PF Clusters'].replace(',',''))
-                if (undetermined_total/float(lane_clusters))*100 > max_percentage_undetermined_indexes_simple_lane:
-                    logger.warn("Lane {} found with a large percentage of undetermined indexes. This FC will not be transferred".format(lane))
-                    pass_QC = pass_QC and False
-                max_number_undetermined_reads_simple_lane = self.CONFIG['QC']['max_number_undetermined_reads_simple_lane']
-                if undetermined_total > max_number_undetermined_reads_simple_lane:
-                    logger.warn("Lane {} found with a large percentage of undetermined indexes. This FC will not be transferred".format(lane))
-                    pass_QC = pass_QC and False
-        return pass_QC
-                
-
-
     def demultiplex_run(self):
         """
         Demultiplex a HiSeq run:
