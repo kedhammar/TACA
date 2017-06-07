@@ -58,10 +58,6 @@ class HiSeqX_Run(Run):
             - define if necessary the bcl2fastq commands (if indexes are not of size 8, i.e. neoprep)
             - run bcl2fastq conversion
         """
-        ##DEBUING - ReMOVE
-        self.aggregate_results()
-        return 
-        ##END of DEBUGGING
         ssname   = self._get_samplesheet()
         ssparser = SampleSheetParser(ssname)
         try:
