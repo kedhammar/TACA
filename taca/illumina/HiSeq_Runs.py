@@ -347,8 +347,6 @@ class HiSeq_Run(Run):
         tiles = []
         samplesheetMaskSpecific = os.path.join(os.path.join(self.run_dir, "SampleSheet_{}.csv".format(suffix)))
         output_dir = "Demultiplexing_{}".format(suffix)
-        import pdb
-        pdb.set_trace()
         cl.extend(["--output-dir", output_dir])
         
         with open(samplesheetMaskSpecific, 'wb') as ssms:
