@@ -87,15 +87,16 @@ class HiSeqX_Run(Run):
         #we have 10x lane - need to split the  samples sheet and build a 10x command for bcl2fastq
         Complex_run = False
         if len(lanes_10X) and len(lanes_not_10X):
-            Complex_run = True
+             Complex_run = True
 
         if Complex_run:
-            samplesheet_dest_not_10X="SampleSheet_0.csv"
-            with open(samplesheet_dest_not_10X, 'wb') as fcd:
-                fcd.write(_generate_samplesheet_subset(self.runParserObj.samplesheet, lanes_not_10X))
-            samplesheet_dest_10X="SampleSheet_1.csv"
-            with open(samplesheet_dest_10X, 'wb') as fcd:
-                fcd.write(_generate_samplesheet_subset(self.runParserObj.samplesheet, lanes_10X))
+            with chdir(self.run_dir):
+                samplesheet_dest_not_10X="SampleSheet_0.csv"
+                with open(samplesheet_dest_not_10X, 'wb') as fcd:
+                    fcd.write(_generate_samplesheet_subset(self.runParserObj.samplesheet, lanes_not_10X))
+                samplesheet_dest_10X="SampleSheet_1.csv"
+                with open(samplesheet_dest_10X, 'wb') as fcd:
+                    fcd.write(_generate_samplesheet_subset(self.runParserObj.samplesheet, lanes_10X))
         else:
             with chdir(self.run_dir):
                 shutil.copy("SampleSheet.csv", "SampleSheet_0.csv")
