@@ -54,8 +54,39 @@ class Run(object):
     def demultiplex_run(self):
         raise NotImplementedError("Please Implement this method")
 
+
     def check_run_status(self):
-        raise NotImplementedError("Please Implement this method")
+        """
+        This function checks the status of a run while in progress.
+        In the case of HiSeq check that all demux have been done and in that case perform aggregation
+        """
+        run_dir    =  self.run_dir
+        dex_status =  self.get_run_status()
+        #in this case I have already finished all demux jobs and I have aggregate all stasts unded Demultiplexing
+        if  dex_status == 'COMPLETED':
+            return None
+        #otherwise check the status of running demux
+        #collect all samplesheets generated before
+        samplesheets =  glob.glob(os.path.join(run_dir, "*_[0-9].csv")) # a single digit... this hipotesis should hold for a while
+        allDemuxDone = True
+        for samplesheet in samplesheets:
+            #fetch the id of this demux job
+            demux_id = os.path.splitext(os.path.split(samplesheet)[1])[0].split("_")[1]
+            #demux folder is
+            demux_folder = os.path.join(run_dir, "Demultiplexing_{}".format(demux_id))
+            #check if this job is done
+            if os.path.exists(os.path.join(run_dir, demux_folder, 'Stats', 'DemultiplexingStats.xml')):
+                allDemuxDone = allDemuxDone and True
+                logger.info("Sub-Demultiplexing in {} completed.".format(demux_folder))
+            else:
+                allDemuxDone = allDemuxDone and False
+                logger.info("Sub-Demultiplexing in {} not completed yet.".format(demux_folder))
+        #in this case, I need to aggreate in the Demultiplexing folder all the results
+        if allDemuxDone:
+            self._aggregate_demux_results()
+            #now I can initialise the RunParser
+            self.runParserObj = RunParser(self.run_dir)
+
 
     def post_demux(self):
         raise NotImplementedError("Please Implement this method")
@@ -100,7 +131,19 @@ class Run(object):
             raise RuntimeError("demux_folder not yet available!!")
 
     def _get_samplesheet(self):
-        raise NotImplementedError("Please Implement this method")
+        """
+            Locate and parse the samplesheet for a run. The idea is that there is a folder in
+            samplesheet_folders that contains a samplesheet named flowecell_id.csv.
+        """
+        current_year = '20' + self.id[0:2]
+        samplesheets_dir = os.path.join(self.CONFIG['samplesheets_dir'],
+                                                current_year)
+        ssname = os.path.join(samplesheets_dir, '{}.csv'.format(self.flowcell_id))
+        if os.path.exists(ssname):
+            return ssname
+        else:
+            raise RuntimeError("not able to find samplesheet {}.csv in {}".format(self.flowcell_id, self.CONFIG['samplesheets_dir']))
+
 
     def _is_demultiplexing_done(self):
         return os.path.exists(os.path.join(self.run_dir,

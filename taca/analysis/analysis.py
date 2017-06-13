@@ -178,18 +178,13 @@ def run_preprocessing(run, force_trasfer=True, statusdb=True):
         elif run.get_run_status() == 'IN_PROGRESS':
             logger.info(("BCL conversion and demultiplexing process in "
                          "progress for run {}, skipping it".format(run.id)))
-            # In the case of Xten returns, in future have a look to Cycles.txt
-            # in the case of HiSeq check that partial demux are done and performs aggregation if this is the case
+            #this function checks if demux is done
             run.check_run_status()
 
-        # previous elif might change the status to COMPLETED (in HiSeq), therefore to avoid skipping
+        # previous elif might change the status to COMPLETED, therefore to avoid skipping
         # a cycle take the last if out of the elif
         if run.get_run_status() == 'COMPLETED':
             logger.info(("Preprocessing of run {} is finished, transferring it".format(run.id)))
-            # In the case of of HiSeq this function computes undetermined indexes for NoIndex lanes
-            if not run.compute_undetermined():
-                return
-            
             # Upload to statusDB if applies
             if 'statusdb' in CONFIG:
                 _upload_to_statusdb(run)

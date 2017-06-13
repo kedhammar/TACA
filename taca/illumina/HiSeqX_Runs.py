@@ -23,32 +23,11 @@ class HiSeqX_Run(Run):
         self._set_sequencer_type()
         self._set_run_type()
 
-
-
     def _set_sequencer_type(self):
         self.sequencer_type = "HiSeqX"
 
     def _set_run_type(self):
         self.run_type = "NGI-RUN"
-
-
-    def _get_samplesheet(self):
-        """
-            Locate and parse the samplesheet for a run. The idea is that there is a folder in
-            samplesheet_folders that contains a samplesheet named flowecell_id.csv.
-        """
-        current_year = '20' + self.id[0:2]
-        samplesheets_dir = os.path.join(self.CONFIG['samplesheets_dir'],
-                                                current_year)
-        ssname = os.path.join(samplesheets_dir, '{}.csv'.format(self.flowcell_id))
-        if os.path.exists(ssname):
-            return ssname
-        else:
-            raise RuntimeError("not able to find samplesheet {}.csv in {}".format(self.flowcell_id, self.CONFIG['samplesheets_dir']))
-
-
-
-
 
     def demultiplex_run(self):
         """
@@ -130,7 +109,7 @@ class HiSeqX_Run(Run):
         return True
 
     
-    def aggregate_results(self):
+    def _aggregate_demux_results(self):
         """
         Take the Stats.json files from the different demultiplexing folders and merges them into one
         """
@@ -201,138 +180,6 @@ class HiSeqX_Run(Run):
         
         else:
             return 
-             
-        
-        
-    def check_run_status(self):
-        """
-           This function checks the status of a run while in progress.
-            When the run is completed kick of the results aggregation step.
-        """
-        run_dir    =  self.run_dir
-        dex_status =  self.get_run_status()
-        return None
-        
-        ##Copied from Hiseq class
-        if  dex_status == 'COMPLETED':
-            return None
-        #otherwise check the status of running demux
-        #collect all samplesheets generated before
-        samplesheets =  glob.glob(os.path.join(run_dir, "*_[0-9].csv")) # a single digit... this hipotesis should hold for a while
-        allDemuxDone = True
-        for samplesheet in samplesheets:
-            #fetch the id of this demux job
-            demux_id = os.path.splitext(os.path.split(samplesheet)[1])[0].split("_")[1]
-            #demux folder is
-            demux_folder = os.path.join(run_dir, "Demultiplexing_{}".format(demux_id))
-            #check if this job is done
-            if os.path.exists(os.path.join(run_dir, demux_folder, 'Stats', 'DemultiplexingStats.xml')):
-                allDemuxDone = allDemuxDone and True
-                logger.info("Sub-Demultiplexing in {} completed.".format(demux_folder))
-            else:
-                allDemuxDone = allDemuxDone and False
-                logger.info("Sub-Demultiplexing in {} not completed yet.".format(demux_folder))
-        #in this case, I need to aggreate in the Demultiplexing folder all the results
-        if allDemuxDone:
-            self.aggregate_results()
-            #now I can initialise the RunParser
-            self.runParserObj = RunParser(self.run_dir)
-
-
-    def compute_undetermined(self):
-        """
-            This function parses the Undetermined files per lane produced by illumina
-            for now nothign done, TODO: check all undetermined files are present as sanity check
-        """
-        return True
-
-    
-    def check_undetermined_reads(self, lane, freq_tresh):
-        """checks that the number of undetermined reads does not exceed a given threshold
-        returns true if the percentage is lower then freq_tresh
-        Does this by considering undetermined all reads marked as unknown
-
-        :param lane: lane identifier
-        :type lane: string
-        :param freq_tresh: maximal allowed percentage of undetermined indexes in a lane
-        :type frew_tresh: float
-        :rtype: boolean
-        :returns: True if the checks passes, False otherwise
-        """
-        #compute lane yield
-        run = self.run_dir
-        lanes = self.runParserObj.lanes
-        lane_yield = 0;
-        for entry in lanes.sample_data:
-            if lane == entry['Lane']:
-                if lane_yield > 0:
-                    logger.warn("lane_yeld must be 0, somehting wrong is going on here")
-                lane_yield = int(entry['PF Clusters'].replace(',',''))
-
-        #I do not need to parse undetermined here, I can use the the lanes object to fetch unknown
-        sample_lanes = self.runParserObj.lanebarcodes
-        undetermined_lane_stats = [item for item in sample_lanes.sample_data if item["Lane"]==lane and item["Sample"]=="Undetermined"]
-        undetermined_total = 0
-        percentage_und     = 0
-        if len(undetermined_lane_stats) > 1:
-            logger.error("Something wrong in check_undetermined_reads, found more than one undetermined sample in one lane")
-            return False
-        elif len(undetermined_lane_stats) == 0:
-            #NoIndex case
-            undetermined_total = 0
-            percentage_und     = 0
-        else:
-            #normal case
-            undetermined_total = int(undetermined_lane_stats[0]['PF Clusters'].replace(',',''))
-            percentage_und = (undetermined_total/float(lane_yield))*100
-
-        if  percentage_und > freq_tresh:
-            logger.warn("The undetermined indexes account for {}% of lane {}, "
-                        "which is over the threshold of {}%".format(percentage_und, lane, freq_tresh))
-            return False
-        else:
-            return True
-
-
-    def check_maximum_undertemined_freq(self, lane, freq_tresh):
-        """returns true if the most represented index accounts for less than freq_tresh
-            of the total amount of undetermiend
-
-            :param lane: lane identifier
-            :type lane: string
-            :param freq_tresh: maximal allowed frequency of the most frequent undetermined index
-            :type frew_tresh: float
-            :rtype: boolean
-            :returns: True if the checks passes, False otherwise
-            """
-
-        #check the most reptresented index
-        undeterminedStats = DemuxSummaryParser(os.path.join(self.run_dir,self.demux_dir, "Stats"))
-        most_frequent_undet_index_count = int(undeterminedStats.result[lane].items()[0][1])
-        most_frequent_undet_index       = undeterminedStats.result[lane].items()[0][0]
-
-        #compute the total amount of undetermined reads
-        sample_lanes = self.runParserObj.lanebarcodes
-        undetermined_lane_stats = [item for item in sample_lanes.sample_data if item["Lane"]==lane and item["Sample"]=="Undetermined"]
-        freq_most_occuring_undet_index = 0
-        if len(undetermined_lane_stats) > 1:
-            logger.error("Something wrong in check_undetermined_reads, found more than one undetermined sample in one lane")
-            return False
-        elif len(undetermined_lane_stats) == 0:
-            #NoIndex case
-            freq_most_occuring_undet_index = 0
-        else:
-            undetermined_total = int(undetermined_lane_stats[0]['PF Clusters'].replace(',',''))
-            freq_most_occuring_undet_index = (most_frequent_undet_index_count/float(undetermined_total))*100
-
-        if freq_most_occuring_undet_index > freq_tresh:
-            logger.warn("The most frequent barcode of lane {} ({}) represents {}%, "
-                        "which is over the threshold of {}%".format(lane, most_frequent_undet_index, freq_most_occuring_undet_index , freq_tresh))
-            return False
-        else:
-            return True
-
-
 
 
 
