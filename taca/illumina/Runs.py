@@ -273,8 +273,11 @@ class Run(object):
         # In this particular case we want to capture the exception because we want
         # to delete the transfer file
         try:
-            misc.call_external_command(command_line, with_log_files=True, 
-                                       prefix="", log_dir=self.run_dir)
+           msge_text="I was about to transfer with this command \n{}".format(command_line)
+           logger.info(msge_text)
+           print msge_text
+           # misc.call_external_command(command_line, with_log_files=True, 
+           #                            prefix="", log_dir=self.run_dir)
         except subprocess.CalledProcessError as exception:
             os.remove(os.path.join(self.run_dir, 'transferring'))
             #Send an email notifying that the transfer failed
