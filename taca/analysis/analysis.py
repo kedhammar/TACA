@@ -188,6 +188,14 @@ def run_preprocessing(run, force_trasfer=True, statusdb=True):
             # Upload to statusDB if applies
             if 'statusdb' in CONFIG:
                 _upload_to_statusdb(run)
+                #notify with a mail run completion and stats uploaded
+                msg = """The run {run} has been demultiplexed.
+                The Run will be transferred to Irma for further analysis.
+                
+                The run is available at : https://genomics-status.scilifelab.se/flowcells/{run}
+
+                """.format(run=run.id)
+                self.send_mail(msg, rcp=CONFIG['mail']['recipients'])
 
             # Copy demultiplex stats file to shared file system for LIMS purpose
             if 'mfs_path' in CONFIG['analysis']:
@@ -210,6 +218,7 @@ def run_preprocessing(run, force_trasfer=True, statusdb=True):
                                     run.CONFIG['analysis_server']['host'],
                                     run.CONFIG['analysis_server']['sync']['data_archive']))
                 run.transfer_run(t_file,  False, mail_recipients) # Do not trigger analysis
+            
 
             # Archive the run if indicated in the config file
             if 'storage' in CONFIG:

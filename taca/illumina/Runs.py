@@ -88,12 +88,6 @@ class Run(object):
             self.runParserObj = RunParser(self.run_dir)
 
 
-    def post_demux(self):
-        raise NotImplementedError("Please Implement this method")
-
-    def check_QC(self):
-        raise NotImplementedError("Please Implement this method")
-
     def _set_run_type(self):
         raise NotImplementedError("Please Implement this method")
 
@@ -288,7 +282,7 @@ class Run(object):
             :param bool analysis: Trigger analysis on remote server
         """
         # TODO: check the run type and build the correct rsync command
-	# The option -a implies -o and -g which is not the desired behaviour
+        # The option -a implies -o and -g which is not the desired behaviour
         command_line = ['rsync', '-Lav', '--no-o', '--no-g']
         # Add R/W permissions to the group
         command_line.append('--chmod=g+rw')
@@ -399,44 +393,13 @@ class Run(object):
                             "of {}. Please check the logfile and make sure to "
                             "start the analysis!".format(os.path.basename(self.run_id))))
 
-    def post_qc(self, qc_file, status, log_file, rcp):
-        """ Checks wether a run has passed the final qc.
-            :param str run: Run directory
-            :param str qc_file: Path to file with information about transferred runs
-            :param str log_file: Path to the log file
-            :param str rcp: destinatary
+    def send_mail(self, msg, rcp):
+        """ Sends mail about run completion
         """
         already_seen = False
         runname = self.id
-        shortrun = runname.split('_')[0] + '_' +runname.split('_')[-1]
-        QC_result = ""
-        with open(qc_file, 'ab+') as f:
-            f.seek(0)
-            for row in f:
-                # Rows have two columns: run and transfer date
-                if row.split('\t')[0] == runname:
-                    already_seen=True
-            if status:
-                QC_result = "PASSED"
-            else:
-                QC_result = "FAILED"
-            
-            if not already_seen:
-                f.write("{}\t{}\n".format(runname,QC_result))
-            
-            sj = "{} Demultiplexed".format(runname)
-            cnt = """The run {run} has been demultiplexed and automatic QC took place.
-                    The Run will be transferred to Irma for further analysis.
-                        
-                    Automatic QC defines the runs as: {QC}
-
-                    The run is available at : https://genomics-status.scilifelab.se/flowcells/{shortfc}
-
-                    To read the logs, run the following command on {server}
-                    grep -A30 "Checking run {run}" {log}
-
-                    """.format(run=runname, QC=QC_result, shortfc=shortrun, log=log_file, server=os.uname()[1])
-            misc.send_mail(sj, cnt, rcp)
+        sj = "{}".format(runname)
+        misc.send_mail(sj, msg, rcp)
 
     def is_transferred(self, transfer_file):
         """ Checks wether a run has been transferred to the analysis server or not.
