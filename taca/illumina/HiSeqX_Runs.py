@@ -183,68 +183,6 @@ class HiSeqX_Run(Run):
 
 
 
-    def get_path_per_lane(self):
-        """
-        :param run: the path to the flowcell
-        :type run: str
-        :param ss: SampleSheet reader
-        :type ss: flowcell_parser.XTenSampleSheet
-        """
-        run          = self.run_dir
-        dmux_folder  = self.demux_dir
-        ss           = self.runParserObj.samplesheet
-        d={}
-        for l in ss.data:
-            try:
-                d[l['Lane']]=os.path.join(run, dmux_folder, l[ss.dfield_proj], l[ss.dfield_sid])
-            except KeyError:
-                logger.error("Can't find the path to the sample, is 'Project' in the samplesheet ?")
-                d[l['Lane']]=os.path.join(run, dmux_folder)
-
-        return d
-
-    def get_samples_per_lane(self):
-        """
-        :param ss: SampleSheet reader
-        :type ss: flowcell_parser.XTenSampleSheet
-        :rtype: dict
-        :returns: dictionnary of lane:samplename
-        """
-        ss = self.runParserObj.samplesheet
-        d={}
-        for l in ss.data:
-            s=l[ss.dfield_snm].replace("Sample_", "").replace("-", "_")
-            d[l['Lane']]=l[ss.dfield_snm]
-
-        return d
-
-
-
-    def _rename_undet(self, lane, samples_per_lane):
-        """Renames the Undetermined fastq file by prepending the sample name in front of it
-
-        :param run: the path to the run folder
-        :type run: str
-        :param status: the demultiplexing status
-        :type status: str
-        :param samples_per_lane: lane:sample dict
-        :type status: dict
-        """
-        run = self.run_dir
-        dmux_folder = self.demux_dir
-        for file in glob.glob(os.path.join(run, dmux_folder, "Undetermined*L0?{}*".format(lane))):
-            old_name=os.path.basename(file)
-            old_name_comps=old_name.split("_")
-            old_name_comps[1]=old_name_comps[0]# replace S0 with Undetermined
-            old_name_comps[0]=samples_per_lane[lane]#replace Undetermined with samplename
-            for index, comp in enumerate(old_name_comps):
-                if comp.startswith('L00'):
-                    old_name_comps[index]=comp.replace('L00','L01')#adds a 1 as the second lane number in order to differentiate undetermined from normal in piper
-
-            new_name="_".join(old_name_comps)
-            logger.info("Renaming {} to {}".format(file, os.path.join(os.path.dirname(file), new_name)))
-            os.rename(file, os.path.join(os.path.dirname(file), new_name))
-
     def generate_bcl_command(self, lanes, bcl2fastq_cmd_counter, is_10X=False):
         #I have everything to run demultiplexing now.
         logger.info('Building a bcl2fastq command')

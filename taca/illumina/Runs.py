@@ -86,6 +86,12 @@ class Run(object):
             self._aggregate_demux_results()
             #now I can initialise the RunParser
             self.runParserObj = RunParser(self.run_dir)
+            #and now I can rename undetermined if needed
+            lanes = misc.return_unique([lanes['Lane'] for lanes in  self.runParserObj.samplesheet.data])
+            samples_per_lane =  self.get_samples_per_lane()
+            for lane in lanes:
+                if self.is_unpooled_lane(lane):
+                    self._rename_undet(lane, samples_per_lane)
 
 
     def _set_run_type(self):
@@ -420,42 +426,6 @@ class Run(object):
         except IOError:
             return False
 
-    def lane_check_yield(self, lane, minimum_yield):
-        """ Checks that the total yield lane (P/F reads) is higher than the minimum
-            :param lane: lane currenlty being worked
-            :type lane: string
-            :param minimum_yield: minimum yield as specified by documentation
-            :type minimum_yield: float
-            :rtype: boolean
-            :returns: True if the lane has an yield above the specified minimum
-        """
-        if not self.runParserObj.lanes:
-            logger.error("Something wrong in lane_check_yield, lanes not available, called to early....")
-
-        for entry in self.runParserObj.lanes.sample_data:
-            if lane == entry['Lane']:
-                lane_clusters = int(entry['PF Clusters'].replace(',',''))
-                if lane_clusters >= minimum_yield:
-                    return True
-        return False
-
-    def lane_check_Q30(self, lane, q30_tresh):
-        """ Checks that the total Q30 of the lane  is higher than the minimum
-            :param lane: lane currenlty being worked
-            :type lane: string
-            :param q30_tresh: Q30 threshold
-            :type q30_tresh: float
-            :rtype: boolean
-            :returns: True if the lane has a Q30 above the specified minimum
-        """
-        if not self.runParserObj.lanes:
-            logger.error("Something wrong in lane_check_Q30, lanes not available, called to early....")
-
-        for entry in self.runParserObj.lanes.sample_data:
-            if lane == entry['Lane']:
-                if float(entry['% >= Q30bases']) >= q30_tresh:
-                    return True
-        return False
 
     def is_unpooled_lane(self, lane):
         """
@@ -481,3 +451,48 @@ class Run(object):
         for l in self.runParserObj.samplesheet.data:
             ar.append(l['Lane'])
         return len(ar)==len(set(ar))
+
+    def get_samples_per_lane(self):
+        """
+        :param ss: SampleSheet reader
+        :type ss: flowcell_parser.XTenSampleSheet
+        :rtype: dict
+        :returns: dictionnary of lane:samplename
+        """
+        ss = self.runParserObj.samplesheet
+        d={}
+        for l in ss.data:
+            s=l[ss.dfield_snm].replace("Sample_", "").replace("-", "_")
+            d[l['Lane']]=l[ss.dfield_snm]
+
+        return d
+
+
+
+    def _rename_undet(self, lane, samples_per_lane):
+        """Renames the Undetermined fastq file by prepending the sample name in front of it
+
+        :param run: the path to the run folder
+        :type run: str
+        :param status: the demultiplexing status
+        :type status: str
+        :param samples_per_lane: lane:sample dict
+        :type status: dict
+        """
+        run = self.run_dir
+        dmux_folder = self.demux_dir
+        for file in glob.glob(os.path.join(run, dmux_folder, "Undetermined*L0?{}*".format(lane))):
+            old_name=os.path.basename(file)
+            old_name_comps=old_name.split("_")
+            old_name_comps[1]=old_name_comps[0]# replace S0 with Undetermined
+            old_name_comps[0]=samples_per_lane[lane]#replace Undetermined with samplename
+            for index, comp in enumerate(old_name_comps):
+                if comp.startswith('L00'):
+                    old_name_comps[index]=comp.replace('L00','L01')#adds a 1 as the second lane number in order to differentiate undetermined from normal in piper
+
+            new_name="_".join(old_name_comps)
+            logger.info("Renaming {} to {}".format(file, os.path.join(os.path.dirname(file), new_name)))
+            os.rename(file, os.path.join(os.path.dirname(file), new_name))
+
+
+
