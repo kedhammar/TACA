@@ -180,7 +180,7 @@ def run_preprocessing(run, force_trasfer=True, statusdb=True):
                          "progress for run {}, skipping it".format(run.id)))
             #this function checks if demux is done
             run.check_run_status()
-
+        
         # previous elif might change the status to COMPLETED, therefore to avoid skipping
         # a cycle take the last if out of the elif
         if run.get_run_status() == 'COMPLETED':
@@ -195,7 +195,7 @@ def run_preprocessing(run, force_trasfer=True, statusdb=True):
                 The run is available at : https://genomics-status.scilifelab.se/flowcells/{run}
 
                 """.format(run=run.id)
-                self.send_mail(msg, rcp=CONFIG['mail']['recipients'])
+                run.send_mail(msg, rcp=CONFIG['mail']['recipients'])
 
             # Copy demultiplex stats file to shared file system for LIMS purpose
             if 'mfs_path' in CONFIG['analysis']:

@@ -5,12 +5,15 @@ import logging
 import subprocess
 import shutil
 import requests
+import glob
+
 from datetime import datetime
 
 from taca.utils import misc
 from taca.utils.misc import send_mail
 
-from flowcell_parser.classes import RunParser
+from flowcell_parser.classes import RunParser, LaneBarcodeParser
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -149,7 +152,7 @@ class Run(object):
         return os.path.exists(os.path.join(self.run_dir,
                                            self._get_demux_folder(), 
                                            'Stats',
-                                           'DemultiplexingStats.xml'))
+                                           'Stats.json'))
 
     def _is_demultiplexing_started(self):
         return os.path.exists(os.path.join(self.run_dir, self._get_demux_folder()))
@@ -316,11 +319,10 @@ class Run(object):
         # In this particular case we want to capture the exception because we want
         # to delete the transfer file
         try:
-           msge_text="I was about to transfer with this command \n{}".format(command_line)
+           msge_text="I am about to transfer with this command \n{}".format(command_line)
            logger.info(msge_text)
-           print msge_text
-           # misc.call_external_command(command_line, with_log_files=True, 
-           #                            prefix="", log_dir=self.run_dir)
+           misc.call_external_command(command_line, with_log_files=True,
+                                       prefix="", log_dir=self.run_dir)
         except subprocess.CalledProcessError as exception:
             os.remove(os.path.join(self.run_dir, 'transferring'))
             #Send an email notifying that the transfer failed
@@ -493,6 +495,232 @@ class Run(object):
             new_name="_".join(old_name_comps)
             logger.info("Renaming {} to {}".format(file, os.path.join(os.path.dirname(file), new_name)))
             os.rename(file, os.path.join(os.path.dirname(file), new_name))
+
+
+
+       
+    def _aggregate_demux_results_simple_complex(self, simple_lanes, complex_lanes):
+        run_dir      =  self.run_dir
+        demux_folder =  os.path.join(self.run_dir , self.demux_dir)
+        samplesheets =  glob.glob(os.path.join(run_dir, "*_[0-9].csv")) # a single digit... this hipotesis should hold for a while
+        if len(complex_lanes) == 0:
+            #it means that each lane had only one type of index size, so no need to do super tricky stuff
+            demux_folder_tmp_name = "Demultiplexing_0" # in this case this is the only demux dir
+            demux_folder_tmp     = os.path.join(run_dir, demux_folder_tmp_name)
+            elements = [element for element  in  os.listdir(demux_folder_tmp) ]
+            for element in elements:
+                if "Stats" not in element: #skip this folder and treat it differently to take into account the NoIndex case
+                    source  = os.path.join(demux_folder_tmp, element)
+                    dest    = os.path.join(self.run_dir, self.demux_dir, element)
+                    os.symlink(source, dest)
+            os.makedirs(os.path.join(self.run_dir, "Demultiplexing", "Stats"))
+            #now fetch the lanes that have NoIndex
+            noIndexLanes = [Sample["Lane"] for Sample in  self.runParserObj.samplesheet.data if "NOINDEX" in Sample["index"]]
+            statsFiles = glob.glob(os.path.join(demux_folder_tmp, "Stats", "*" ))
+            for source in statsFiles:
+                source_name = os.path.split(source)[1]
+                if source_name not in ["DemultiplexingStats.xml", "AdapterTrimming.txt", "ConversionStats.xml", "Stats.json"]:
+                    lane = os.path.splitext(os.path.split(source)[1])[0][-1] #lane
+                    if lane not in noIndexLanes:
+                        #in this case I can soflink the file here
+                        dest    = os.path.join(self.run_dir, self.demux_dir, "Stats", source_name)
+                        os.symlink(source, dest)
+            #now copy the three last files
+            for file in ["DemultiplexingStats.xml", "AdapterTrimming.txt", "ConversionStats.xml", "Stats.json"]:
+                source = os.path.join(self.run_dir, "Demultiplexing_0", "Stats", file)
+                dest   = os.path.join(self.run_dir, "Demultiplexing", "Stats", file)
+                os.symlink(source, dest)
+            #this is the simple case, Demultiplexing dir is simply a symlink to the only sub-demultiplexing dir
+            return True
+        html_reports_lane        = []
+        html_reports_laneBarcode = []
+        stats_json               = []
+        for samplesheet in samplesheets:
+            demux_id = os.path.splitext(os.path.split(samplesheet)[1])[0].split("_")[1]
+            #demux folder is
+            demux_id_folder  = os.path.join(run_dir, "Demultiplexing_{}".format(demux_id))
+            html_report_lane = os.path.join(run_dir, "Demultiplexing_{}".format(demux_id), "Reports", "html",self.flowcell_id, "all", "all", "all", "lane.html")
+            if os.path.exists(html_report_lane):
+                html_reports_lane.append(html_report_lane)
+            else:
+                raise RuntimeError("Not able to find html report {}: possible cause is problem in demultiplexing".format(html_report_lane))
+            
+            html_report_laneBarcode = os.path.join(run_dir, "Demultiplexing_{}".format(demux_id), "Reports", "html",self.flowcell_id, "all", "all", "all", "laneBarcode.html")
+            if os.path.exists(html_report_laneBarcode):
+                html_reports_laneBarcode.append(html_report_laneBarcode)
+            else:
+                raise RuntimeError("Not able to find html report {}: possible cause is problem in demultiplexing".format(html_report_laneBarcode))
+            #now stats.json
+            stat_json = os.path.join(run_dir, "Demultiplexing_{}".format(demux_id), "Stats", "Stats.json")
+            if os.path.exists(stat_json):
+                stats_json.append(stat_json)
+            else:
+                raise RuntimeError("Not able to find Stats.json report {}: possible cause is problem in demultiplexing".format(stat_json))
+
+            #aggregate fastq
+            projects = [project for project in  os.listdir(demux_id_folder) if os.path.isdir(os.path.join(demux_id_folder,project))]
+            for project in projects:
+                if project in "Reports" or project in "Stats":
+                    continue
+                project_source = os.path.join(demux_id_folder, project)
+                project_dest   = os.path.join(demux_folder, project)
+                if not os.path.exists(project_dest):
+                    #there might be project seqeunced with multiple index lengths
+                    os.makedirs(project_dest)
+                samples = [sample for sample in  os.listdir(project_source) if os.path.isdir(os.path.join(project_source,sample))]
+                for sample in samples:
+                    sample_source = os.path.join(project_source,sample)
+                    sample_dest   = os.path.join(project_dest,sample)
+                    if not os.path.exists(sample_dest):
+                        #there should beven be the same sample sequenced with different index length, however a sample might be pooled in several lanes and therefore sequenced using different samplesheets.
+                        os.makedirs(sample_dest)
+                    #now soflink the fastq.gz
+                    fastqfiles =  glob.glob(os.path.join(sample_source, "*.fastq*"))
+                    for fastqfile in fastqfiles:
+                        os.symlink(fastqfile, os.path.join(sample_dest,os.path.split(fastqfile)[1]))
+
+        #now copy fastq files for undetermined (for simple lanes only)
+        for lane in simple_lanes.keys():
+            undetermined_fastq_files = glob.glob(os.path.join(run_dir, "Demultiplexing_0", "Undetermined_S0_L00{}*.fastq*".format(lane))) #contains only simple lanes undetermined
+            for fastqfile in undetermined_fastq_files:
+                os.symlink(fastqfile, os.path.join(demux_folder,os.path.split(fastqfile)[1]))
+        #now create the html reports
+        #start with the lane
+
+        html_report_lane_parser = None
+        for next_html_report_lane in html_reports_lane:
+            if html_report_lane_parser is None:
+                html_report_lane_parser = LaneBarcodeParser(next_html_report_lane)
+            else:
+                lanesInReport = [Lane['Lane'] for Lane in html_report_lane_parser.sample_data]
+                next_html_report_lane_parser = LaneBarcodeParser(next_html_report_lane)
+                for entry in next_html_report_lane_parser.sample_data:
+                    if not entry["Lane"] in lanesInReport:
+                        #if this is a new lane not included before
+                        html_report_lane_parser.sample_data.append(entry)
+        # now all lanes have been inserted
+        for entry in html_report_lane_parser.sample_data:
+            if entry['Lane'] in complex_lanes.keys():
+                entry['% Perfectbarcode']      = None
+                entry['% One mismatchbarcode'] = None
+        #now add lanes not present in this demux
+        #now I can create the new lane.html
+        new_html_report_lane_dir = _create_folder_structure(demux_folder, ["Reports", "html", self.flowcell_id, "all", "all", "all"])
+        new_html_report_lane = os.path.join(new_html_report_lane_dir, "lane.html")
+        _generate_lane_html(new_html_report_lane, html_report_lane_parser)
+
+        #now generate the laneBarcode
+        html_report_laneBarcode_parser = None
+        for next_html_report_laneBarcode in html_reports_laneBarcode:
+            if html_report_laneBarcode_parser is None:
+                html_report_laneBarcode_parser = LaneBarcodeParser(next_html_report_laneBarcode)
+            else:
+                #no need to check samples occuring in more than one file has I would have spot it while softlinking
+                next_html_report_laneBarcode_parser = LaneBarcodeParser(next_html_report_laneBarcode)
+                for entry in next_html_report_laneBarcode_parser.sample_data:
+                    html_report_laneBarcode_parser.sample_data.append(entry)
+        positions_to_delete = [] #find all position that contain default as poriject nameand do not belong to a simple lane
+        current_pos = 0
+        for entry in html_report_laneBarcode_parser.sample_data:
+            if  entry['Lane'] in complex_lanes.keys() and entry['Project'] in "default":
+                positions_to_delete = [current_pos] +  positions_to_delete # build the array in this way so that I can delete the elements without messing with the offsets
+            current_pos += 1
+        for position in positions_to_delete:
+            del html_report_laneBarcode_parser.sample_data[position]
+        #now generate the new report for laneBarcode.html
+        new_html_report_laneBarcode = os.path.join(new_html_report_lane_dir, "laneBarcode.html")
+        _generate_lane_html(new_html_report_laneBarcode, html_report_laneBarcode_parser)
+        #now create the DemultiplexingStats.xml (empty it is here only to say thay demux is done)
+        DemultiplexingStats_xml_dir = _create_folder_structure(demux_folder, ["Stats"])
+        #now generate the Stats.json
+        with open(os.path.join(DemultiplexingStats_xml_dir, "Stats.json"), 'w') as json_data_cumulative:
+            stats_list = {}
+            for stat_json in stats_json:
+                with open(stat_json) as json_data_partial:
+                    data = json.load(json_data_partial)
+                    if len(stats_list) == 0:
+                        #first time I do this
+                        stats_list = data
+                    else:
+                        #I update only the importat fields
+                        stats_list['ReadInfosForLanes'].extend(data['ReadInfosForLanes'])
+                        stats_list['ConversionResults'].extend(data['ConversionResults'])
+                        stats_list['ReadInfosForLanes'].extend(data['ReadInfosForLanes'])
+            json.dump(stats_list, json_data_cumulative)
+        #copy the Undetermined stats for simple lanes
+        for lane in simple_lanes.keys():
+            DemuxSummaryFiles = glob.glob(os.path.join(run_dir, "Demultiplexing_0", "Stats", "*L{}*txt".format(lane)))
+            for DemuxSummaryFile in DemuxSummaryFiles:
+                os.symlink(DemuxSummaryFile, os.path.join(demux_folder, "Stats", os.path.split(DemuxSummaryFile)[1]))
+        #now the run is formally COMPLETED
+        open(os.path.join(DemultiplexingStats_xml_dir, "DemultiplexingStats.xml"), 'a').close()
+        return True
+
+
+
+def _create_folder_structure(root, dirs):
+    """
+    creates a fodler stucture rooted in root usinf all dirs listed in dirs (a list)
+    returns the path to the deepest directory
+    """
+    path=root
+    for dir in dirs:
+        path = os.path.join(path, dir)
+        if not os.path.exists(path):
+            os.makedirs(path)
+    return path
+
+
+
+
+def _generate_lane_html(html_file, html_report_lane_parser):
+    with open(html_file, "w") as html:
+        #HEADER
+        html.write("<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\">\n")
+        html.write("<html xmlns:bcl2fastq>\n")
+        html.write("<link rel=\"stylesheet\" href=\"../../../../Report.css\" type=\"text/css\">\n")
+        html.write("<body>\n")
+        html.write("<table width=\"100%\"><tr>\n")
+        html.write("<td><p><p>C6L1WANXX /\n")
+        html.write("        [all projects] /\n")
+        html.write("        [all samples] /\n")
+        html.write("        [all barcodes]</p></p></td>\n")
+        html.write("<td><p align=\"right\"><a href=\"../../../../FAKE/all/all/all/laneBarcode.html\">show barcodes</a></p></td>\n")
+        html.write("</tr></table>\n")
+        #FLOWCELL SUMMARY TABLE
+        html.write("<h2>Flowcell Summary</h2>\n")
+        html.write("<table border=\"1\" ID=\"ReportTable\">\n")
+        html.write("<tr>\n")
+        keys = html_report_lane_parser.flowcell_data.keys()
+        for key in keys:
+            html.write("<th>{}</th>\n".format(key))
+        html.write("</tr>\n")
+        html.write("<tr>\n")
+        for key in keys:
+            html.write("<td>{}</td>\n".format(html_report_lane_parser.flowcell_data[key]))
+        html.write("</tr>\n")
+        html.write("</table>\n")
+        #LANE SUMMARY TABLE
+        html.write("<h2>Lane Summary</h2>\n")
+        html.write("<table border=\"1\" ID=\"ReportTable\">\n")
+        html.write("<tr>\n")
+        keys = html_report_lane_parser.sample_data[0].keys()
+        for key in keys:
+            html.write("<th>{}</th>\n".format(key))
+        html.write("</tr>\n")
+        
+        for sample in html_report_lane_parser.sample_data:
+            html.write("<tr>\n")
+            for key in keys:
+                html.write("<td>{}</td>\n".format(sample[key]))
+            html.write("</tr>\n")
+        html.write("</table>\n")
+        #FOOTER
+        html.write("<p></p>\n")
+        html.write("</body>\n")
+        html.write("</html>\n")
+
+
 
 
 

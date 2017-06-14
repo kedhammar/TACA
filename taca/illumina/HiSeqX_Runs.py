@@ -113,73 +113,23 @@ class HiSeqX_Run(Run):
         """
         Take the Stats.json files from the different demultiplexing folders and merges them into one
         """
-        complex_run = False 
-        os.chdir(self.run_dir)
-        if os.path.exists("Demultiplexing_1") and os.path.exists("Demultiplexing_0"):
-            complex_run = True 
-            # Results needs to be aggregated 
-        elif os.path.exists("Demultiplexing_0"):
-            #Simple run, no need to aggregate results.
-            #But Demultiplexing_0 needs to be symlinked into just Demultiplexing
-            os.rmdir("Demultiplexing")
-            os.symlink("Demultiplexing_0", "Demultiplexing") 
-        else:
-            logger.error("Could not open Demultiplexing directory")
-            return
-        if complex_run:
-            if not os.path.exists("Demultiplexing"):
-                os.makedirs("Demultiplexing")  ##Making it if it was removed, only useful while debugging
-
-            ## We need to merge the Stats.json files and the Demltiplexing directories 
-            stats_list=[] #List with the dicts of the two 
-            dir_num=0
-            while dir_num < 2:
-                os.chdir("Demultiplexing_{}/Stats".format(dir_num))
-                with open('Stats.json') as json_data:
-                     data = json.load(json_data)
-                     stats_list.append(data)
-                dir_num +=1
-                os.chdir(self.run_dir)
-            #Update the info in Demux_0 (Normal) with the info in Demux_1 (10X)
-            stats_list[0]['ReadInfosForLanes'].extend(stats_list[1]['ReadInfosForLanes'])
-            stats_list[0]['ConversionResults'].extend(stats_list[1]['ConversionResults'])
-            stats_list[0]['UnknownBarcodes'].extend(stats_list[1]['UnknownBarcodes'])
-            stats_list.sort()
-            #Now we need to merge the Demultiplexing_ dirs into Demultiplexing. 
-            demux_dirs = glob.glob(os.path.join(self.run_dir,"Demultiplexing_*")) 
-            dest = os.path.join(self.run_dir, "Demultiplexing")
-            src_files=[]
-            for sub_dir in demux_dirs:
-                 src_files.extend(glob.glob(os.path.join(demux_dirs[0],"*")))
-            for file_name in src_files:
-                if 'Reports' in file_name  or 'Stats' in file_name:        ## The reports are specific to each run and would overwrite each other.            
-                    continue 
-                if (os.path.isdir(file_name)) or os.path.isfile(file_name):
-                    if  os.path.basename(os.path.dirname(file_name)).startswith("Demultiplexing"):
-                        try:
-                            os.symlink(file_name, os.path.join(dest, os.path.basename(file_name)))
-                        except Exception as e:
-                             if e.errno == 17:
-                                 continue  #Don't want an error is file exists, otherwise this will fire for all undetrmined files every time
-                             else:
-                                 logger.info("While trying to create a symlink for {}, TACA encountered error: '{}'".format(file_name,e))
-                    elif os.path.isfile(file_name):   
-                         ## add the subdir of the file to the new path name. i.e Stats to Stats.json. 
-                         try:
-                            os.symlink(file_name, os.path.join(os.path.join(dest, os.path.basename(os.path.normpath(os.path.dirname(file_name))), os.path.basename(file_name))))
-                         except Exception as e:
-                             if e.errno == 17:
-                                 continue  #Don't want an error is file exists, otherwise this will fire for all undetrmined files every time
-                             else:
-                                     logger.info("While trying to create a symlink for {}, TACA encountered error: '{}'".format(file_name,e))
-            Statsdir = (os.path.join(dest, "Stats"))
-            if not os.path.isdir(Statsdir):
-                os.mkdir(Statsdir)
-            with open (os.path.join(Statsdir, "Stats.json"), 'w') as json_out:
-                 json.dump(stats_list[0], json_out)
-        
-        else:
-            return 
+        ssname   = self._get_samplesheet()
+        ssparser = SampleSheetParser(ssname)
+        try:
+            indexfile = self.CONFIG['bcl2fastq']['index_path']
+        except KeyError:
+            logger.error("Path to index file (10X) not found in the config file")
+            raise RuntimeError
+        #Function that returns a list of which lanes contains 10X samples.
+        (lanes_10X,lanes_not_10X) = look_for_lanes_with_10X_indicies(indexfile, ssparser)
+        lanes_10X_dict = {}
+        for lane in lanes_10X:
+            lanes_10X_dict[lane] = 0
+        lanes_not_10X_dict = {}
+        for lane in lanes_not_10X:
+            lanes_not_10X_dict[lane] = 0
+        self._aggregate_demux_results_simple_complex(lanes_not_10X_dict, lanes_10X_dict)
+    
 
 
 
