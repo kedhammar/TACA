@@ -23,32 +23,11 @@ class HiSeqX_Run(Run):
         self._set_sequencer_type()
         self._set_run_type()
 
-
-
     def _set_sequencer_type(self):
         self.sequencer_type = "HiSeqX"
 
     def _set_run_type(self):
         self.run_type = "NGI-RUN"
-
-
-    def _get_samplesheet(self):
-        """
-            Locate and parse the samplesheet for a run. The idea is that there is a folder in
-            samplesheet_folders that contains a samplesheet named flowecell_id.csv.
-        """
-        current_year = '20' + self.id[0:2]
-        samplesheets_dir = os.path.join(self.CONFIG['samplesheets_dir'],
-                                                current_year)
-        ssname = os.path.join(samplesheets_dir, '{}.csv'.format(self.flowcell_id))
-        if os.path.exists(ssname):
-            return ssname
-        else:
-            raise RuntimeError("not able to find samplesheet {}.csv in {}".format(self.flowcell_id, self.CONFIG['samplesheets_dir']))
-
-
-
-
 
     def demultiplex_run(self):
         """
@@ -130,273 +109,29 @@ class HiSeqX_Run(Run):
         return True
 
     
-    def aggregate_results(self):
+    def _aggregate_demux_results(self):
         """
         Take the Stats.json files from the different demultiplexing folders and merges them into one
         """
-        complex_run = False 
-        os.chdir(self.run_dir)
-        if os.path.exists("Demultiplexing_1") and os.path.exists("Demultiplexing_0"):
-            complex_run = True 
-            # Results needs to be aggregated 
-        elif os.path.exists("Demultiplexing_0"):
-            #Simple run, no need to aggregate results.
-            #But Demultiplexing_0 needs to be symlinked into just Demultiplexing
-            os.rmdir("Demultiplexing")
-            os.symlink("Demultiplexing_0", "Demultiplexing") 
-        else:
-            logger.error("Could not open Demultiplexing directory")
-            return
-        if complex_run:
-            if not os.path.exists("Demultiplexing"):
-                os.makedirs("Demultiplexing")  ##Making it if it was removed, only useful while debugging
-
-            ## We need to merge the Stats.json files and the Demltiplexing directories 
-            stats_list=[] #List with the dicts of the two 
-            dir_num=0
-            while dir_num < 2:
-                os.chdir("Demultiplexing_{}/Stats".format(dir_num))
-                with open('Stats.json') as json_data:
-                     data = json.load(json_data)
-                     stats_list.append(data)
-                dir_num +=1
-                os.chdir(self.run_dir)
-            #Update the info in Demux_0 (Normal) with the info in Demux_1 (10X)
-            stats_list[0]['ReadInfosForLanes'].extend(stats_list[1]['ReadInfosForLanes'])
-            stats_list[0]['ConversionResults'].extend(stats_list[1]['ConversionResults'])
-            stats_list[0]['UnknownBarcodes'].extend(stats_list[1]['UnknownBarcodes'])
-            stats_list.sort()
-            #Now we need to merge the Demultiplexing_ dirs into Demultiplexing. 
-            demux_dirs = glob.glob(os.path.join(self.run_dir,"Demultiplexing_*")) 
-            dest = os.path.join(self.run_dir, "Demultiplexing")
-            src_files=[]
-            for sub_dir in demux_dirs:
-                 src_files.extend(glob.glob(os.path.join(demux_dirs[0],"*")))
-            for file_name in src_files:
-                if 'Reports' in file_name  or 'Stats' in file_name:        ## The reports are specific to each run and would overwrite each other.            
-                    continue 
-                if (os.path.isdir(file_name)) or os.path.isfile(file_name):
-                    if  os.path.basename(os.path.dirname(file_name)).startswith("Demultiplexing"):
-                        try:
-                            os.symlink(file_name, os.path.join(dest, os.path.basename(file_name)))
-                        except Exception as e:
-                             if e.errno == 17:
-                                 continue  #Don't want an error is file exists, otherwise this will fire for all undetrmined files every time
-                             else:
-                                 logger.info("While trying to create a symlink for {}, TACA encountered error: '{}'".format(file_name,e))
-                    elif os.path.isfile(file_name):   
-                         ## add the subdir of the file to the new path name. i.e Stats to Stats.json. 
-                         try:
-                            os.symlink(file_name, os.path.join(os.path.join(dest, os.path.basename(os.path.normpath(os.path.dirname(file_name))), os.path.basename(file_name))))
-                         except Exception as e:
-                             if e.errno == 17:
-                                 continue  #Don't want an error is file exists, otherwise this will fire for all undetrmined files every time
-                             else:
-                                     logger.info("While trying to create a symlink for {}, TACA encountered error: '{}'".format(file_name,e))
-            Statsdir = (os.path.join(dest, "Stats"))
-            if not os.path.isdir(Statsdir):
-                os.mkdir(Statsdir)
-            with open (os.path.join(Statsdir, "Stats.json"), 'w') as json_out:
-                 json.dump(stats_list[0], json_out)
-        
-        else:
-            return 
-             
-        
-        
-    def check_run_status(self):
-        """
-           This function checks the status of a run while in progress.
-            When the run is completed kick of the results aggregation step.
-        """
-        run_dir    =  self.run_dir
-        dex_status =  self.get_run_status()
-        return None
-        
-        ##Copied from Hiseq class
-        if  dex_status == 'COMPLETED':
-            return None
-        #otherwise check the status of running demux
-        #collect all samplesheets generated before
-        samplesheets =  glob.glob(os.path.join(run_dir, "*_[0-9].csv")) # a single digit... this hipotesis should hold for a while
-        allDemuxDone = True
-        for samplesheet in samplesheets:
-            #fetch the id of this demux job
-            demux_id = os.path.splitext(os.path.split(samplesheet)[1])[0].split("_")[1]
-            #demux folder is
-            demux_folder = os.path.join(run_dir, "Demultiplexing_{}".format(demux_id))
-            #check if this job is done
-            if os.path.exists(os.path.join(run_dir, demux_folder, 'Stats', 'DemultiplexingStats.xml')):
-                allDemuxDone = allDemuxDone and True
-                logger.info("Sub-Demultiplexing in {} completed.".format(demux_folder))
-            else:
-                allDemuxDone = allDemuxDone and False
-                logger.info("Sub-Demultiplexing in {} not completed yet.".format(demux_folder))
-        #in this case, I need to aggreate in the Demultiplexing folder all the results
-        if allDemuxDone:
-            self.aggregate_results()
-            #now I can initialise the RunParser
-            self.runParserObj = RunParser(self.run_dir)
-
-
-    def compute_undetermined(self):
-        """
-            This function parses the Undetermined files per lane produced by illumina
-            for now nothign done, TODO: check all undetermined files are present as sanity check
-        """
-        return True
-
+        ssname   = self._get_samplesheet()
+        ssparser = SampleSheetParser(ssname)
+        try:
+            indexfile = self.CONFIG['bcl2fastq']['index_path']
+        except KeyError:
+            logger.error("Path to index file (10X) not found in the config file")
+            raise RuntimeError
+        #Function that returns a list of which lanes contains 10X samples.
+        (lanes_10X,lanes_not_10X) = look_for_lanes_with_10X_indicies(indexfile, ssparser)
+        lanes_10X_dict = {}
+        for lane in lanes_10X:
+            lanes_10X_dict[lane] = 0
+        lanes_not_10X_dict = {}
+        for lane in lanes_not_10X:
+            lanes_not_10X_dict[lane] = 0
+        self._aggregate_demux_results_simple_complex(lanes_not_10X_dict, lanes_10X_dict)
     
-    def check_undetermined_reads(self, lane, freq_tresh):
-        """checks that the number of undetermined reads does not exceed a given threshold
-        returns true if the percentage is lower then freq_tresh
-        Does this by considering undetermined all reads marked as unknown
-
-        :param lane: lane identifier
-        :type lane: string
-        :param freq_tresh: maximal allowed percentage of undetermined indexes in a lane
-        :type frew_tresh: float
-        :rtype: boolean
-        :returns: True if the checks passes, False otherwise
-        """
-        #compute lane yield
-        run = self.run_dir
-        lanes = self.runParserObj.lanes
-        lane_yield = 0;
-        for entry in lanes.sample_data:
-            if lane == entry['Lane']:
-                if lane_yield > 0:
-                    logger.warn("lane_yeld must be 0, somehting wrong is going on here")
-                lane_yield = int(entry['PF Clusters'].replace(',',''))
-
-        #I do not need to parse undetermined here, I can use the the lanes object to fetch unknown
-        sample_lanes = self.runParserObj.lanebarcodes
-        undetermined_lane_stats = [item for item in sample_lanes.sample_data if item["Lane"]==lane and item["Sample"]=="Undetermined"]
-        undetermined_total = 0
-        percentage_und     = 0
-        if len(undetermined_lane_stats) > 1:
-            logger.error("Something wrong in check_undetermined_reads, found more than one undetermined sample in one lane")
-            return False
-        elif len(undetermined_lane_stats) == 0:
-            #NoIndex case
-            undetermined_total = 0
-            percentage_und     = 0
-        else:
-            #normal case
-            undetermined_total = int(undetermined_lane_stats[0]['PF Clusters'].replace(',',''))
-            percentage_und = (undetermined_total/float(lane_yield))*100
-
-        if  percentage_und > freq_tresh:
-            logger.warn("The undetermined indexes account for {}% of lane {}, "
-                        "which is over the threshold of {}%".format(percentage_und, lane, freq_tresh))
-            return False
-        else:
-            return True
 
 
-    def check_maximum_undertemined_freq(self, lane, freq_tresh):
-        """returns true if the most represented index accounts for less than freq_tresh
-            of the total amount of undetermiend
-
-            :param lane: lane identifier
-            :type lane: string
-            :param freq_tresh: maximal allowed frequency of the most frequent undetermined index
-            :type frew_tresh: float
-            :rtype: boolean
-            :returns: True if the checks passes, False otherwise
-            """
-
-        #check the most reptresented index
-        undeterminedStats = DemuxSummaryParser(os.path.join(self.run_dir,self.demux_dir, "Stats"))
-        most_frequent_undet_index_count = int(undeterminedStats.result[lane].items()[0][1])
-        most_frequent_undet_index       = undeterminedStats.result[lane].items()[0][0]
-
-        #compute the total amount of undetermined reads
-        sample_lanes = self.runParserObj.lanebarcodes
-        undetermined_lane_stats = [item for item in sample_lanes.sample_data if item["Lane"]==lane and item["Sample"]=="Undetermined"]
-        freq_most_occuring_undet_index = 0
-        if len(undetermined_lane_stats) > 1:
-            logger.error("Something wrong in check_undetermined_reads, found more than one undetermined sample in one lane")
-            return False
-        elif len(undetermined_lane_stats) == 0:
-            #NoIndex case
-            freq_most_occuring_undet_index = 0
-        else:
-            undetermined_total = int(undetermined_lane_stats[0]['PF Clusters'].replace(',',''))
-            freq_most_occuring_undet_index = (most_frequent_undet_index_count/float(undetermined_total))*100
-
-        if freq_most_occuring_undet_index > freq_tresh:
-            logger.warn("The most frequent barcode of lane {} ({}) represents {}%, "
-                        "which is over the threshold of {}%".format(lane, most_frequent_undet_index, freq_most_occuring_undet_index , freq_tresh))
-            return False
-        else:
-            return True
-
-
-
-
-
-    def get_path_per_lane(self):
-        """
-        :param run: the path to the flowcell
-        :type run: str
-        :param ss: SampleSheet reader
-        :type ss: flowcell_parser.XTenSampleSheet
-        """
-        run          = self.run_dir
-        dmux_folder  = self.demux_dir
-        ss           = self.runParserObj.samplesheet
-        d={}
-        for l in ss.data:
-            try:
-                d[l['Lane']]=os.path.join(run, dmux_folder, l[ss.dfield_proj], l[ss.dfield_sid])
-            except KeyError:
-                logger.error("Can't find the path to the sample, is 'Project' in the samplesheet ?")
-                d[l['Lane']]=os.path.join(run, dmux_folder)
-
-        return d
-
-    def get_samples_per_lane(self):
-        """
-        :param ss: SampleSheet reader
-        :type ss: flowcell_parser.XTenSampleSheet
-        :rtype: dict
-        :returns: dictionnary of lane:samplename
-        """
-        ss = self.runParserObj.samplesheet
-        d={}
-        for l in ss.data:
-            s=l[ss.dfield_snm].replace("Sample_", "").replace("-", "_")
-            d[l['Lane']]=l[ss.dfield_snm]
-
-        return d
-
-
-
-    def _rename_undet(self, lane, samples_per_lane):
-        """Renames the Undetermined fastq file by prepending the sample name in front of it
-
-        :param run: the path to the run folder
-        :type run: str
-        :param status: the demultiplexing status
-        :type status: str
-        :param samples_per_lane: lane:sample dict
-        :type status: dict
-        """
-        run = self.run_dir
-        dmux_folder = self.demux_dir
-        for file in glob.glob(os.path.join(run, dmux_folder, "Undetermined*L0?{}*".format(lane))):
-            old_name=os.path.basename(file)
-            old_name_comps=old_name.split("_")
-            old_name_comps[1]=old_name_comps[0]# replace S0 with Undetermined
-            old_name_comps[0]=samples_per_lane[lane]#replace Undetermined with samplename
-            for index, comp in enumerate(old_name_comps):
-                if comp.startswith('L00'):
-                    old_name_comps[index]=comp.replace('L00','L01')#adds a 1 as the second lane number in order to differentiate undetermined from normal in piper
-
-            new_name="_".join(old_name_comps)
-            logger.info("Renaming {} to {}".format(file, os.path.join(os.path.dirname(file), new_name)))
-            os.rename(file, os.path.join(os.path.dirname(file), new_name))
 
     def generate_bcl_command(self, lanes, bcl2fastq_cmd_counter, is_10X=False):
         #I have everything to run demultiplexing now.
