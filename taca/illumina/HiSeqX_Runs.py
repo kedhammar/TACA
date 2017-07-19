@@ -87,7 +87,6 @@ class HiSeqX_Run(Run):
             logger.error("In FC {} found one or more lane with more than one base mask (i.e., different index sizes in \
                          in the same lane".format(self.id))
             return False
-
         bcl2fastq_cmd_counter = 0
         with chdir(self.run_dir):
             # create Demultiplexing dir, this changes the status to IN_PROGRESS
@@ -143,9 +142,10 @@ class HiSeqX_Run(Run):
             cl.extend(["--output-dir", output_dir])
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
+            cl_options = []
             if self.CONFIG.get('bcl2fastq').has_key('options'):
-                cl_options = self.CONFIG['bcl2fastq']['options']
-            
+                for option in self.CONFIG['bcl2fastq']['options']:
+                    cl_options.extend([option])
                 # Add the extra 10X command options if we have a 10X run
                 if is_10X:
                     cl_options.extend(self.CONFIG['bcl2fastq']['options_10X'])
