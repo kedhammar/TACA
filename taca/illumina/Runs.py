@@ -645,7 +645,7 @@ class Run(object):
                         #I update only the importat fields
                         stats_list['ReadInfosForLanes'].extend(data['ReadInfosForLanes'])
                         stats_list['ConversionResults'].extend(data['ConversionResults'])
-                        stats_list['ReadInfosForLanes'].extend(data['ReadInfosForLanes'])
+                        stats_list['UnknownBarcodes'].extend(data['UnknownBarcodes'])
             json.dump(stats_list, json_data_cumulative)
         #copy the Undetermined stats for simple lanes
         for lane in simple_lanes.keys():
