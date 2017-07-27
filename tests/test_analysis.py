@@ -73,7 +73,8 @@ class TestTracker(unittest.TestCase):
 
         # Create files indicating that the preprocessing is done
         open(os.path.join(completed, 'Demultiplexing', 'Stats', 'DemultiplexingStats.xml'), 'w').close()
-
+        open(os.path.join(completed, 'Demultiplexing', 'Stats', 'Stats.json'), 'w').close()
+        
         # Create transfer file and add the completed run
         with open(self.transfer_file, 'w') as f:
             tsv_writer = csv.writer(f, delimiter='\t')
