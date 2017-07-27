@@ -127,7 +127,11 @@ class HiSeqX_Run(Run):
         lanes_not_10X_dict = {}
         for lane in lanes_not_10X:
             lanes_not_10X_dict[lane] = 0
-        self._aggregate_demux_results_simple_complex(lanes_not_10X_dict, lanes_10X_dict)
+        if len(lanes_not_10X_dict) == 0:
+            #in this case I have only 10X lanes, so I can treat it 10X lanes as the easy ones
+            self._aggregate_demux_results_simple_complex(lanes_10X_dict, {})
+        else:
+            self._aggregate_demux_results_simple_complex(lanes_not_10X_dict, lanes_10X_dict)
     
 
 

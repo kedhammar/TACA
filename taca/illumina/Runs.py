@@ -650,51 +650,43 @@ class Run(object):
                         
                         stats_list['UnknownBarcodes']   = []
                         for unknown_barcode_lane in data['UnknownBarcodes']:
-                            if '{}'.format(unknown_barcode_lane["Lane"]) not in complex_lanes.keys():
-                                stats_list['UnknownBarcodes'].extend([unknown_barcode_lane])
-                            else:
-                                complex_lane_entry = {'Lane': unknown_barcode_lane["Lane"],
-                                                    'Barcodes': {"unknown": 0}}
-                                stats_list['UnknownBarcodes'].extend([complex_lane_entry])
+                            stats_list['UnknownBarcodes'].extend([unknown_barcode_lane])
                     else:
                         #I update only the importat fields
-                        #import pdb
-                        #pdb.set_trace()
                         lanes_present_in_stats_json = [entry["LaneNumber"] for entry in stats_list['ConversionResults']]
                         for ReadInfosForLanes_lane in data['ReadInfosForLanes']:
                             if ReadInfosForLanes_lane['LaneNumber'] not in lanes_present_in_stats_json:
                                 stats_list['ReadInfosForLanes'].extend([ReadInfosForLanes_lane])
-                        
                         for ConversionResults_lane  in data['ConversionResults']:
-                            if ConversionResults_lane['LaneNumber'] not in lanes_present_in_stats_json:
-                                #the rigth way to do this is via a specialization of the object.. but lets us do it this way
-                                if self._get_sequencer_type() == "HiSeq":
-                                    ConversionResults_lane['Undetermined']['NumberReads'] = 0
-                                    ConversionResults_lane['Undetermined']['Yield'] = 0
-                                    ConversionResults_lane['Undetermined']['ReadMetrics'][0]['QualityScoreSum'] = 0
-                                    ConversionResults_lane['Undetermined']['ReadMetrics'][0]['TrimmedBases'] = 0
-                                    ConversionResults_lane['Undetermined']['ReadMetrics'][0]['Yield'] = 0
-                                    ConversionResults_lane['Undetermined']['ReadMetrics'][0]['YieldQ30'] = 0
-                                    ConversionResults_lane['Undetermined']['ReadMetrics'][1]['QualityScoreSum'] = 0
-                                    ConversionResults_lane['Undetermined']['ReadMetrics'][1]['TrimmedBases'] = 0
-                                    ConversionResults_lane['Undetermined']['ReadMetrics'][1]['Yield'] = 0
-                                    ConversionResults_lane['Undetermined']['ReadMetrics'][1]['YieldQ30'] = 0
-                                stats_list['ConversionResults'].extend([ConversionResults_lane])
-                            else:
+                            if ConversionResults_lane['LaneNumber'] in lanes_present_in_stats_json:
+                                #i have found the same lane, all these things do not make sense because I have demuxed the lane twice
+                                ConversionResults_lane['Undetermined']['NumberReads'] = 0
+                                ConversionResults_lane['Undetermined']['Yield'] = 0
+                                ConversionResults_lane['Undetermined']['ReadMetrics'][0]['QualityScoreSum'] = 0
+                                ConversionResults_lane['Undetermined']['ReadMetrics'][0]['TrimmedBases'] = 0
+                                ConversionResults_lane['Undetermined']['ReadMetrics'][0]['Yield'] = 0
+                                ConversionResults_lane['Undetermined']['ReadMetrics'][0]['YieldQ30'] = 0
+                                ConversionResults_lane['Undetermined']['ReadMetrics'][1]['QualityScoreSum'] = 0
+                                ConversionResults_lane['Undetermined']['ReadMetrics'][1]['TrimmedBases'] = 0
+                                ConversionResults_lane['Undetermined']['ReadMetrics'][1]['Yield'] = 0
+                                ConversionResults_lane['Undetermined']['ReadMetrics'][1]['YieldQ30'] = 0
                                 #find the list containing info for this lane
                                 lane_to_update = [entry for entry in stats_list['ConversionResults'] if entry["LaneNumber"] == ConversionResults_lane['LaneNumber']][0]
                                 lane_to_update['DemuxResults'].extend(ConversionResults_lane['DemuxResults'])
+                                lane_to_update['Undetermined'] = ConversionResults_lane['Undetermined']
+                            else:
+                                stats_list['ConversionResults'].extend([ConversionResults_lane])
                         
-                        #stats_list['ConversionResults'].extend(data['ConversionResults'])
                         lanes_present_in_stats_json = [entry["Lane"] for entry in stats_list['UnknownBarcodes']]
                         for unknown_barcode_lane in data['UnknownBarcodes']:
-                            if '{}'.format(unknown_barcode_lane["Lane"]) not in complex_lanes.keys():
-                                stats_list['UnknownBarcodes'].extend([unknown_barcode_lane])
                             if unknown_barcode_lane["Lane"] not in lanes_present_in_stats_json:
-                                #I enter it the firt time
+                                stats_list['UnknownBarcodes'].extend([unknown_barcode_lane])
+                            else:
+                                #find the index containing info for this lane
+                                index = [i for i,  entry in enumerate(stats_list['UnknownBarcodes']) if entry["Lane"] == unknown_barcode_lane["Lane"]][0]
                                 complex_lane_entry = {'Lane': unknown_barcode_lane["Lane"],
                                                     'Barcodes': {"unknown": 1}}
-                                stats_list['UnknownBarcodes'].extend([complex_lane_entry])
+                                stats_list['UnknownBarcodes'][index] = complex_lane_entry
 #                        stats_list['UnknownBarcodes'].extend(data['UnknownBarcodes'])
             json.dump(stats_list, json_data_cumulative)
         #copy the Undetermined stats for simple lanes
