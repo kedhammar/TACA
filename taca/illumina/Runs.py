@@ -634,18 +634,60 @@ class Run(object):
         DemultiplexingStats_xml_dir = _create_folder_structure(demux_folder, ["Stats"])
         #now generate the Stats.json
         with open(os.path.join(DemultiplexingStats_xml_dir, "Stats.json"), 'w') as json_data_cumulative:
+            #import pdb
+            #pdb.set_trace()
             stats_list = {}
             for stat_json in stats_json:
                 with open(stat_json) as json_data_partial:
                     data = json.load(json_data_partial)
                     if len(stats_list) == 0:
                         #first time I do this
-                        stats_list = data
+                        stats_list['RunNumber']         = data['RunNumber']
+                        stats_list['Flowcell']          = data['Flowcell']
+                        stats_list['RunId']             = data['RunId']
+                        stats_list['ConversionResults'] = data['ConversionResults']
+                        stats_list['ReadInfosForLanes'] = data['ReadInfosForLanes']
+                        
+                        stats_list['UnknownBarcodes']   = []
+                        for unknown_barcode_lane in data['UnknownBarcodes']:
+                            stats_list['UnknownBarcodes'].extend([unknown_barcode_lane])
                     else:
                         #I update only the importat fields
-                        stats_list['ReadInfosForLanes'].extend(data['ReadInfosForLanes'])
-                        stats_list['ConversionResults'].extend(data['ConversionResults'])
-                        stats_list['ReadInfosForLanes'].extend(data['ReadInfosForLanes'])
+                        lanes_present_in_stats_json = [entry["LaneNumber"] for entry in stats_list['ConversionResults']]
+                        for ReadInfosForLanes_lane in data['ReadInfosForLanes']:
+                            if ReadInfosForLanes_lane['LaneNumber'] not in lanes_present_in_stats_json:
+                                stats_list['ReadInfosForLanes'].extend([ReadInfosForLanes_lane])
+                        for ConversionResults_lane  in data['ConversionResults']:
+                            if ConversionResults_lane['LaneNumber'] in lanes_present_in_stats_json:
+                                #i have found the same lane, all these things do not make sense because I have demuxed the lane twice
+                                ConversionResults_lane['Undetermined']['NumberReads'] = 0
+                                ConversionResults_lane['Undetermined']['Yield'] = 0
+                                ConversionResults_lane['Undetermined']['ReadMetrics'][0]['QualityScoreSum'] = 0
+                                ConversionResults_lane['Undetermined']['ReadMetrics'][0]['TrimmedBases'] = 0
+                                ConversionResults_lane['Undetermined']['ReadMetrics'][0]['Yield'] = 0
+                                ConversionResults_lane['Undetermined']['ReadMetrics'][0]['YieldQ30'] = 0
+                                ConversionResults_lane['Undetermined']['ReadMetrics'][1]['QualityScoreSum'] = 0
+                                ConversionResults_lane['Undetermined']['ReadMetrics'][1]['TrimmedBases'] = 0
+                                ConversionResults_lane['Undetermined']['ReadMetrics'][1]['Yield'] = 0
+                                ConversionResults_lane['Undetermined']['ReadMetrics'][1]['YieldQ30'] = 0
+                                #find the list containing info for this lane
+                                lane_to_update = [entry for entry in stats_list['ConversionResults'] if entry["LaneNumber"] == ConversionResults_lane['LaneNumber']][0]
+                                lane_to_update['DemuxResults'].extend(ConversionResults_lane['DemuxResults'])
+                                lane_to_update['Undetermined'] = ConversionResults_lane['Undetermined']
+                            else:
+                                stats_list['ConversionResults'].extend([ConversionResults_lane])
+                        
+                        lanes_present_in_stats_json = [entry["Lane"] for entry in stats_list['UnknownBarcodes']]
+                        for unknown_barcode_lane in data['UnknownBarcodes']:
+                            if unknown_barcode_lane["Lane"] not in lanes_present_in_stats_json:
+                                stats_list['UnknownBarcodes'].extend([unknown_barcode_lane])
+                            else:
+                                #find the index containing info for this lane
+                                index = [i for i,  entry in enumerate(stats_list['UnknownBarcodes']) if entry["Lane"] == unknown_barcode_lane["Lane"]][0]
+                                complex_lane_entry = {'Lane': unknown_barcode_lane["Lane"],
+                                                    'Barcodes': {"unknown": 1}}
+                                stats_list['UnknownBarcodes'][index] = complex_lane_entry
+#                        stats_list['UnknownBarcodes'].extend(data['UnknownBarcodes'])
             json.dump(stats_list, json_data_cumulative)
         #copy the Undetermined stats for simple lanes
         for lane in simple_lanes.keys():

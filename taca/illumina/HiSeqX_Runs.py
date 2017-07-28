@@ -87,7 +87,6 @@ class HiSeqX_Run(Run):
             logger.error("In FC {} found one or more lane with more than one base mask (i.e., different index sizes in \
                          in the same lane".format(self.id))
             return False
-
         bcl2fastq_cmd_counter = 0
         with chdir(self.run_dir):
             # create Demultiplexing dir, this changes the status to IN_PROGRESS
@@ -128,7 +127,11 @@ class HiSeqX_Run(Run):
         lanes_not_10X_dict = {}
         for lane in lanes_not_10X:
             lanes_not_10X_dict[lane] = 0
-        self._aggregate_demux_results_simple_complex(lanes_not_10X_dict, lanes_10X_dict)
+        if len(lanes_not_10X_dict) == 0:
+            #in this case I have only 10X lanes, so I can treat it 10X lanes as the easy ones
+            self._aggregate_demux_results_simple_complex(lanes_10X_dict, {})
+        else:
+            self._aggregate_demux_results_simple_complex(lanes_not_10X_dict, lanes_10X_dict)
     
 
 
@@ -143,9 +146,10 @@ class HiSeqX_Run(Run):
             cl.extend(["--output-dir", output_dir])
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
+            cl_options = []
             if self.CONFIG.get('bcl2fastq').has_key('options'):
-                cl_options = self.CONFIG['bcl2fastq']['options']
-            
+                for option in self.CONFIG['bcl2fastq']['options']:
+                    cl_options.extend([option])
                 # Add the extra 10X command options if we have a 10X run
                 if is_10X:
                     cl_options.extend(self.CONFIG['bcl2fastq']['options_10X'])
