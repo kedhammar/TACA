@@ -10,6 +10,7 @@ from taca.illumina.HiSeqX_Runs import HiSeqX_Run
 from taca.illumina.HiSeq_Runs import HiSeq_Run
 from taca.illumina.MiSeq_Runs import MiSeq_Run
 from taca.illumina.NextSeq_Runs import NextSeq_Run
+from taca.illumina.NovaSeq_Runs import NovaSeq_Run
 from taca.utils.config import CONFIG
 
 import flowcell_parser.db as fcpdb
@@ -43,21 +44,25 @@ def get_runObj(run):
         logger.warn("Problems parsing the runParameters.xml file at {}. "
                     "This is quite unexpected. please archive the run {} manually".format(rppath, run))
     else:
-        # This information about the run type (with HiSeq2.5 applicationaName does not work anymore,
-        # but as for a long time we will have instruments not updated I need to find out something that works
-        try:
-            # Works for recent control software
-            runtype = rp.data['RunParameters']["Setup"]["Flowcell"]
-        except KeyError:
-            # Use this as second resource but print a warning in the logs
-            logger.warn("Parsing runParameters to fecth instrument type, "
-                        "not found Flowcell information in it. Using ApplicationName")
-            # here makes sense to use get with default value "" ->
-            # so that it doesn't raise an exception in the next lines
-            # (in case ApplicationName is not found, get returns None)
-            runtype = rp.data['RunParameters']["Setup"].get("ApplicationName", "")
+        #do a case by case test becasue there are so many version of RunParameters that there is no real other way
+        if "Setup" in rp.data['RunParameters']:
+            #this is the HiSeq2500, MiSeq, and HiSeqX case
+            try:
+                # Works for recent control software
+                runtype = rp.data['RunParameters']["Setup"]["Flowcell"]
+            except KeyError:
+                # Use this as second resource but print a warning in the logs
+                logger.warn("Parsing runParameters to fecth instrument type, "
+                            "not found Flowcell information in it. Using ApplicationName")
+                # here makes sense to use get with default value "" ->
+                # so that it doesn't raise an exception in the next lines
+                # (in case ApplicationName is not found, get returns None)
+                runtype = rp.data['RunParameters']["Setup"].get("ApplicationName", "")
+        elif "Application" in rp.data['RunParameters']:
+            runtype = rp.data['RunParameters'].get("Application", "")
 
-        if "HiSeq X" in runtype:
+
+        if "HiSeq X" in runtype in runtype:
             return HiSeqX_Run(run, CONFIG["analysis"]["HiSeqX"])
         elif "HiSeq" in runtype or "TruSeq" in runtype:
             return HiSeq_Run(run, CONFIG["analysis"]["HiSeq"])
@@ -65,6 +70,8 @@ def get_runObj(run):
             return MiSeq_Run(run, CONFIG["analysis"]["MiSeq"])
         elif "NextSeq" in runtype:
             return NextSeq_Run(run, CONFIG["analysis"]["NextSeq"])
+        elif "NovaSeq" in runtype:
+            return NovaSeq_Run(run, CONFIG["analysis"]["NovaSeq"])
         else:
             logger.warn("Unrecognized run type {}, cannot archive the run {}. "
                         "Someone as likely bought a new sequencer without telling "
