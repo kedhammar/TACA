@@ -72,7 +72,7 @@ class HiSeq_Run(Run):
             with open(samplesheet_dest, 'wb') as fcd:
                 fcd.write(self._generate_clean_samplesheet(ssparser))
         except Exception as e:
-            logger.error(e.text)
+            logger.error(e)
             return False
         logger.info(("Created SampleSheet.csv for Flowcell {} in {} ".format(self.id, samplesheet_dest)))
         ##SampleSheet.csv generated
@@ -200,7 +200,7 @@ class HiSeq_Run(Run):
 
     def _generate_clean_samplesheet(self, ssparser):
         """
-        Will generate a 'clean' samplesheet, for bcl2fastq2.17
+        Will generate a 'clean' samplesheet, for bcl2fastq2.19
         """
 
         output=""

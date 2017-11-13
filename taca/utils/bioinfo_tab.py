@@ -157,9 +157,15 @@ def get_ss_projects(run_dir):
     try:
         runtype = rp.data['RunParameters']["Setup"]["Flowcell"]
     except KeyError:
-            logger.warn("Parsing runParameters to fetch instrument type, "
-                        "not found Flowcell information in it. Using ApplicationName")
+        logger.warn("Parsing runParameters to fetch instrument type, "
+                "not found Flowcell information in it. Using ApplicationName")
+        try:
             runtype = rp.data['RunParameters']["Setup"].get("ApplicationName", "")
+        except KeyError:
+            logger.warn("Couldn't find 'Setup' or 'ApplicationName' could be Novaseq. Trying 'Application'")
+            runtype = rp.data['RunParameters']['Application']
+
+    
 
     #Miseq case
     if "MiSeq" in runtype:
@@ -183,6 +189,11 @@ def get_ss_projects(run_dir):
     elif "HiSeq" in runtype or "TruSeq" in runtype:
         FCID_samplesheet_origin = os.path.join(CONFIG['bioinfo_tab']['hiseq_samplesheets'],
                                     current_year, '{}.csv'.format(FCID))
+        data = parse_samplesheet(FCID_samplesheet_origin, run_dir)
+    #NovaSeq 600 case
+    elif "NovaSeq" in runtype:
+        FCID_samplesheet_origin = os.path.join(CONFIG['bioinfo_tab']['novaseq_samplesheets'],
+                                    current_year, '{}.csv'.format(FCID)) 
         data = parse_samplesheet(FCID_samplesheet_origin, run_dir)
     else:
         logger.warn("Cannot locate the samplesheet for run {}".format(run_dir))
