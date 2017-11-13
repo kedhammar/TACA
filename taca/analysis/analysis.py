@@ -45,6 +45,7 @@ def get_runObj(run):
                     "This is quite unexpected. please archive the run {} manually".format(rppath, run))
     else:
         #do a case by case test becasue there are so many version of RunParameters that there is no real other way
+        runtype = rp.data['RunParameters'].get("Application", "")
         if "Setup" in rp.data['RunParameters']:
             #this is the HiSeq2500, MiSeq, and HiSeqX case
             try:
@@ -58,8 +59,6 @@ def get_runObj(run):
                 # so that it doesn't raise an exception in the next lines
                 # (in case ApplicationName is not found, get returns None)
                 runtype = rp.data['RunParameters']["Setup"].get("ApplicationName", "")
-        elif "Application" in rp.data['RunParameters']:
-            runtype = rp.data['RunParameters'].get("Application", "")
 
 
         if "HiSeq X" in runtype in runtype:
