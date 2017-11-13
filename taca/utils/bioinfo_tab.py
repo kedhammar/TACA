@@ -156,8 +156,6 @@ def get_ss_projects(run_dir):
     rp = RunParametersParser(os.path.join(run_dir, run_parameters_file))
     try:
         runtype = rp.data['RunParameters']["Setup"]["Flowcell"]
-        import pdb
-        pdb.set_trace()
     except KeyError:
         logger.warn("Parsing runParameters to fetch instrument type, "
                 "not found Flowcell information in it. Using ApplicationName")

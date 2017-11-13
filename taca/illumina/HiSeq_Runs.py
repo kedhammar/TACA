@@ -74,8 +74,6 @@ class HiSeq_Run(Run):
         except Exception as e:
             logger.error(e)
             return False
-        import pdb
-        pdb.set_trace()
         logger.info(("Created SampleSheet.csv for Flowcell {} in {} ".format(self.id, samplesheet_dest)))
         ##SampleSheet.csv generated
         ##when demultiplexing SampleSheet.csv is the one I need to use
