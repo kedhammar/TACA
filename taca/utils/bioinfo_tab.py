@@ -156,11 +156,17 @@ def get_ss_projects(run_dir):
     rp = RunParametersParser(os.path.join(run_dir, run_parameters_file))
     try:
         runtype = rp.data['RunParameters']["Setup"]["Flowcell"]
+        import pdb
+        pdb.set_trace()
     except KeyError:
-            logger.warn("Parsing runParameters to fetch instrument type, "
-                        "not found Flowcell information in it. Using ApplicationName")
+        logger.warn("Parsing runParameters to fetch instrument type, "
+                "not found Flowcell information in it. Using ApplicationName")
+        try:
             runtype = rp.data['RunParameters']["Setup"].get("ApplicationName", "")
-    
+        except KeyError:
+            logger.warn("Couldn't find 'Setup' or 'ApplicationName' could be Novaseq. Trying 'Application'")
+            runtype = rp.data['RunParameters']['Application']
+
     #Miseq case
     if "MiSeq" in runtype:
         if os.path.exists(os.path.join(run_dir,'Data','Intensities','BaseCalls', 'SampleSheet.csv')):
@@ -182,6 +188,11 @@ def get_ss_projects(run_dir):
     #HiSeq 2500 case
     elif "HiSeq" in runtype or "TruSeq" in runtype:
         FCID_samplesheet_origin = os.path.join(CONFIG['bioinfo_tab']['hiseq_samplesheets'],
+                                    current_year, '{}.csv'.format(FCID)) 
+        data = parse_samplesheet(FCID_samplesheet_origin, run_dir)
+    #NovaSeq 600 case
+    elif "NovaSeq" in runtype:
+        FCID_samplesheet_origin = os.path.join(CONFIG['bioinfo_tab']['novaseq_samplesheets'],
                                     current_year, '{}.csv'.format(FCID)) 
         data = parse_samplesheet(FCID_samplesheet_origin, run_dir)
     else:
