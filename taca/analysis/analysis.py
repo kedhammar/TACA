@@ -127,6 +127,9 @@ def _upload_to_statusdb(run):
             # else to accomodate the wired things we do
             # someone told me that in such cases it is better to put a place holder for this
             parser.obj['illumina']['Demultiplex_Stats']['NotOriginal'] = "True"
+    # Update info about bcl2fastq tool
+    if not parser.obj.get('DemultiplexConfig'):
+        parser.obj['DemultiplexConfig'] = {'Setup': {'Software': run.CONFIG.get('bcl2fastq',{})}}
     fcpdb.update_doc( db , parser.obj, over_write_db_entry=True)
 
 def transfer_run(run_dir, analysis):
@@ -186,7 +189,7 @@ def run_preprocessing(run, force_trasfer=True, statusdb=True):
                          "progress for run {}, skipping it".format(run.id)))
             #this function checks if demux is done
             run.check_run_status()
-        
+
         # previous elif might change the status to COMPLETED, therefore to avoid skipping
         # a cycle take the last if out of the elif
         if run.get_run_status() == 'COMPLETED':
@@ -197,7 +200,7 @@ def run_preprocessing(run, force_trasfer=True, statusdb=True):
                 #notify with a mail run completion and stats uploaded
                 msg = """The run {run} has been demultiplexed.
                 The Run will be transferred to Irma for further analysis.
-                
+
                 The run is available at : https://genomics-status.scilifelab.se/flowcells/{run}
 
                 """.format(run=run.id)
@@ -224,7 +227,7 @@ def run_preprocessing(run, force_trasfer=True, statusdb=True):
                                     run.CONFIG['analysis_server']['host'],
                                     run.CONFIG['analysis_server']['sync']['data_archive']))
                 run.transfer_run(t_file,  False, mail_recipients) # Do not trigger analysis
-            
+
 
             # Archive the run if indicated in the config file
             if 'storage' in CONFIG:
