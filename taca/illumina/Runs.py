@@ -20,17 +20,17 @@ logger = logging.getLogger(__name__)
 class Run(object):
     """ Defines an Illumina run
     """
-    
+
     def __init__(self, run_dir, configuration):
         if not os.path.exists(run_dir):
             raise RuntimeError('Could not locate run directory {}'.format(run_dir))
-        
+
         if 'analysis_server' not in configuration or \
             'bcl2fastq' not in configuration or \
             'samplesheets_dir' not in configuration:
             raise RuntimeError("configuration missing required entries "
                                "(analysis_server, bcl2fastq, samplesheets_dir)")
-        
+
         if not os.path.exists(os.path.join(run_dir, 'runParameters.xml')) \
         and os.path.exists(os.path.join(run_dir, 'RunParameters.xml')):
             # In NextSeq runParameters is named RunParameters
@@ -38,7 +38,7 @@ class Run(object):
             os.rename(os.path.join(run_dir, 'RunParameters.xml'), os.path.join(run_dir, 'runParameters.xml'))
         elif not os.path.exists(os.path.join(run_dir, 'runParameters.xml')):
             raise RuntimeError('Could not locate runParameters.xml in run directory {}'.format(run_dir))
-              
+
         self.run_dir = os.path.abspath(run_dir)
         self.id = os.path.basename(os.path.normpath(run_dir))
         pattern = r'(\d{6})_([ST-]*\w+\d+)_\d+_([AB]?)([A-Z0-9\-]+)'
@@ -53,7 +53,7 @@ class Run(object):
         # This flag tells TACA to move demultiplexed files to the analysis server
         self.transfer_to_analysis_server = True
         # Probably worth to add the samplesheet name as a variable too
-        
+
     def demultiplex_run(self):
         raise NotImplementedError("Please Implement this method")
 
@@ -114,7 +114,7 @@ class Run(object):
             return self.sequencer_type
         else:
             raise RuntimeError("sequencer_type not yet available!!")
-    
+
     def _set_run_parser_obj(self, configuration):
         self.runParserObj = RunParser(self.run_dir)
         if self.runParserObj.obj:
@@ -150,7 +150,7 @@ class Run(object):
 
     def _is_demultiplexing_done(self):
         return os.path.exists(os.path.join(self.run_dir,
-                                           self._get_demux_folder(), 
+                                           self._get_demux_folder(),
                                            'Stats',
                                            'Stats.json'))
 
@@ -254,9 +254,9 @@ class Run(object):
                 bm.append('Y' + str(cycles))
             else:
                 if index_size > cycles:
-                    # the size of the index of the sample sheet is larger than the 
+                    # the size of the index of the sample sheet is larger than the
                     # one specified by RunInfo.xml, somethig must be wrong
-                    raise RuntimeError("when generating base_masks found index in"  
+                    raise RuntimeError("when generating base_masks found index in"
                                        "samplesheet larger than the index specifed in RunInfo.xml")
                 is_first_index_read = int(read['Number']) == 2
                 # now prepare the base mask for this index read
@@ -281,7 +281,7 @@ class Run(object):
                         else:
                             bm.append('I' + str(cycles))
                     else:
-                    # if this sample is not dual index but the run is, 
+                    # if this sample is not dual index but the run is,
                     # then I need to ignore the second index completely
                         bm.append('N' + str(cycles))
         return bm
@@ -289,7 +289,7 @@ class Run(object):
     def transfer_run(self, t_file, analysis, mail_recipients=None):
         """ Transfer a run to the analysis server. Will add group R/W permissions to
             the run directory in the destination server so that the run can be processed
-            by any user/account in that group (i.e a functional account...). 
+            by any user/account in that group (i.e a functional account...).
             :param str t_file: File where to put the transfer information
             :param bool analysis: Trigger analysis on remote server
         """
@@ -299,7 +299,7 @@ class Run(object):
         # Add R/W permissions to the group
         command_line.append('--chmod=g+rw')
         # This horrible thing here avoids data dup when we use multiple indexes in a lane/FC
-        command_line.append("--exclude=Demultiplexing_*/*_*") 
+        command_line.append("--exclude=Demultiplexing_*/*_*")
         command_line.append("--include=*/")
         for to_include in self.CONFIG['analysis_server']['sync']['include']:
             command_line.append("--include={}".format(to_include))
@@ -345,11 +345,11 @@ class Run(object):
             tsv_writer.writerow([self.id, str(datetime.now())])
         os.remove(os.path.join(self.run_dir, 'transferring'))
 
-        #Send an email notifying that the transfer was successful 
+        #Send an email notifying that the transfer was successful
         runname = self.id
         sbt = ("Rsync of data for run {} to Irma has finished".format(runname))
         msg= """ Rsync of data for run {run} to Irma has finished!
-                          
+
         The run is available at : https://genomics-status.scilifelab.se/flowcells/{run}
         """.format(run=runname)
         if mail_recipients:
@@ -359,7 +359,7 @@ class Run(object):
         if analysis:
             # This needs to pass the runtype (i.e., Xten or HiSeq) and start the correct pipeline
             self.trigger_analysis()
-        
+
     def archive_run(self, destination):
         """ Move run to the archive folder
             :param str destination: the destination folder
@@ -501,7 +501,7 @@ class Run(object):
 
 
 
-       
+
     def _aggregate_demux_results_simple_complex(self, simple_lanes, complex_lanes):
         run_dir      =  self.run_dir
         demux_folder =  os.path.join(self.run_dir , self.demux_dir)
@@ -547,7 +547,7 @@ class Run(object):
                 html_reports_lane.append(html_report_lane)
             else:
                 raise RuntimeError("Not able to find html report {}: possible cause is problem in demultiplexing".format(html_report_lane))
-            
+
             html_report_laneBarcode = os.path.join(run_dir, "Demultiplexing_{}".format(demux_id), "Reports", "html",self.flowcell_id, "all", "all", "all", "laneBarcode.html")
             if os.path.exists(html_report_laneBarcode):
                 html_reports_laneBarcode.append(html_report_laneBarcode)
@@ -650,7 +650,7 @@ class Run(object):
                         stats_list['RunId']             = data['RunId']
                         stats_list['ConversionResults'] = data['ConversionResults']
                         stats_list['ReadInfosForLanes'] = data['ReadInfosForLanes']
-                        
+
                         stats_list['UnknownBarcodes']   = []
                         for unknown_barcode_lane in data['UnknownBarcodes']:
                             stats_list['UnknownBarcodes'].extend([unknown_barcode_lane])
@@ -669,17 +669,18 @@ class Run(object):
                                 ConversionResults_lane['Undetermined']['ReadMetrics'][0]['TrimmedBases'] = 0
                                 ConversionResults_lane['Undetermined']['ReadMetrics'][0]['Yield'] = 0
                                 ConversionResults_lane['Undetermined']['ReadMetrics'][0]['YieldQ30'] = 0
-                                ConversionResults_lane['Undetermined']['ReadMetrics'][1]['QualityScoreSum'] = 0
-                                ConversionResults_lane['Undetermined']['ReadMetrics'][1]['TrimmedBases'] = 0
-                                ConversionResults_lane['Undetermined']['ReadMetrics'][1]['Yield'] = 0
-                                ConversionResults_lane['Undetermined']['ReadMetrics'][1]['YieldQ30'] = 0
+                                if len(filter(lambda r: r['IsIndexedRead'] == 'N', self.runParserObj.runinfo.data["Reads"])) == 2:
+                                    ConversionResults_lane['Undetermined']['ReadMetrics'][1]['QualityScoreSum'] = 0
+                                    ConversionResults_lane['Undetermined']['ReadMetrics'][1]['TrimmedBases'] = 0
+                                    ConversionResults_lane['Undetermined']['ReadMetrics'][1]['Yield'] = 0
+                                    ConversionResults_lane['Undetermined']['ReadMetrics'][1]['YieldQ30'] = 0
                                 #find the list containing info for this lane
                                 lane_to_update = [entry for entry in stats_list['ConversionResults'] if entry["LaneNumber"] == ConversionResults_lane['LaneNumber']][0]
                                 lane_to_update['DemuxResults'].extend(ConversionResults_lane['DemuxResults'])
                                 lane_to_update['Undetermined'] = ConversionResults_lane['Undetermined']
                             else:
                                 stats_list['ConversionResults'].extend([ConversionResults_lane])
-                        
+
                         lanes_present_in_stats_json = [entry["Lane"] for entry in stats_list['UnknownBarcodes']]
                         for unknown_barcode_lane in data['UnknownBarcodes']:
                             if unknown_barcode_lane["Lane"] not in lanes_present_in_stats_json:
@@ -753,7 +754,7 @@ def _generate_lane_html(html_file, html_report_lane_parser):
         for key in keys:
             html.write("<th>{}</th>\n".format(key))
         html.write("</tr>\n")
-        
+
         for sample in html_report_lane_parser.sample_data:
             html.write("<tr>\n")
             for key in keys:
