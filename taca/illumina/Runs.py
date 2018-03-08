@@ -117,9 +117,6 @@ class Run(object):
 
     def _set_run_parser_obj(self, configuration):
         self.runParserObj = RunParser(self.run_dir)
-        if self.runParserObj.obj:
-            self.runParserObj.obj['DemultiplexConfig'] = \
-            {'Setup': {'Software': configuration.get('bcl2fastq',{})}}
 
     def _set_demux_folder(self, configuration):
         self.demux_dir = "Demultiplexing"
