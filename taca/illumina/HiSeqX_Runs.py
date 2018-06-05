@@ -78,9 +78,9 @@ class HiSeqX_Run(Run):
                     fcd.write(_generate_samplesheet_subset(self.runParserObj.samplesheet, lanes_10X))
         else:
             with chdir(self.run_dir):
-                samplesheet_dest_not_10X="SampleSheet_0.csv"
-                with open(samplesheet_dest_not_10X, 'wb') as fcd:
-                    fcd.write(_generate_samplesheet_subset(self.runParserObj.samplesheet, lanes_not_10X))
+                samplesheet_dest="SampleSheet_0.csv"
+                with open(samplesheet_dest, 'wb') as fcd:
+                    fcd.write(_generate_samplesheet_subset(self.runParserObj.samplesheet, list(set(lanes_10X + lanes_not_10X))))
 
         per_lane_base_masks = self._generate_per_lane_base_mask()
         max_different_base_masks =  max([len(per_lane_base_masks[base_masks]) for base_masks in per_lane_base_masks])
