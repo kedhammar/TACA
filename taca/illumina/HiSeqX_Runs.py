@@ -78,8 +78,10 @@ class HiSeqX_Run(Run):
                     fcd.write(_generate_samplesheet_subset(self.runParserObj.samplesheet, lanes_10X))
         else:
             with chdir(self.run_dir):
-                shutil.copy("SampleSheet.csv", "SampleSheet_0.csv")
-        
+                samplesheet_dest="SampleSheet_0.csv"
+                with open(samplesheet_dest, 'wb') as fcd:
+                    fcd.write(_generate_samplesheet_subset(self.runParserObj.samplesheet, (lanes_10X or lanes_not_10X)))
+
         per_lane_base_masks = self._generate_per_lane_base_mask()
         max_different_base_masks =  max([len(per_lane_base_masks[base_masks]) for base_masks in per_lane_base_masks])
         if max_different_base_masks > 1:
@@ -107,7 +109,7 @@ class HiSeqX_Run(Run):
                bcl2fastq_cmd_counter += 1
         return True
 
-    
+
     def _aggregate_demux_results(self):
         """
         Take the Stats.json files from the different demultiplexing folders and merges them into one
@@ -132,7 +134,7 @@ class HiSeqX_Run(Run):
             self._aggregate_demux_results_simple_complex(lanes_10X_dict, {})
         else:
             self._aggregate_demux_results_simple_complex(lanes_not_10X_dict, lanes_10X_dict)
-    
+
 
 
 
@@ -170,7 +172,7 @@ class HiSeqX_Run(Run):
                 base_mask_expr = "{}:".format(lane) + ",".join(base_mask)
                 cl.extend(["--use-bases-mask", base_mask_expr])
         return cl
-        
+
 
 def _generate_clean_samplesheet(ssparser, indexfile, fields_to_remove=None, rename_samples=True, rename_qPCR_suffix = False, fields_qPCR= None):
     """
@@ -285,6 +287,8 @@ def _generate_samplesheet_subset(ssparser, lanes):
         if line['Lane'] in lanes:
             line_ar=[]
             for field in datafields:
+                if field == "index" and "NOINDEX" in line[field]:
+                    line[field] = ""
                 line_ar.append(line[field])
             output+=",".join(line_ar)
             output+=os.linesep
