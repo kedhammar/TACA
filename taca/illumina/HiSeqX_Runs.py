@@ -287,7 +287,7 @@ def _generate_samplesheet_subset(ssparser, lanes):
         if line['Lane'] in lanes:
             line_ar=[]
             for field in datafields:
-                if field == "index" and "NOINDEX" in line[field]:
+                if field == "index" and "NOINDEX" in line[field].upper():
                     line[field] = ""
                 line_ar.append(line[field])
             output+=",".join(line_ar)
