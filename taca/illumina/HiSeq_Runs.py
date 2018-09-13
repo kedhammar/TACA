@@ -70,7 +70,7 @@ class HiSeq_Run(Run):
         logger.info(("Created SampleSheet.csv for Flowcell {} in {} ".format(self.id, samplesheet_dest)))
         ##SampleSheet.csv generated
         ##when demultiplexing SampleSheet.csv is the one I need to use
-        self.runParserObj.samplesheet  = SampleSheetParser(os.path.join(self.run_dir, "SampleSheet.csv"))
+        self.runParserObj = RunParser(self.run_dir)
 
     def demultiplex_run(self):
         """
@@ -80,7 +80,6 @@ class HiSeq_Run(Run):
             - create multiple SampleSheets in case at least one lane have multiple indexes lengths
             - run bcl2fastq conversion
         """
-        self._copy_samplesheet()
         #now geenrate the base masks per lane and decide how to demultiplex
         per_lane_base_masks = self._generate_per_lane_base_mask()
         max_different_base_masks =  max([len(per_lane_base_masks[base_masks]) for base_masks in per_lane_base_masks])
