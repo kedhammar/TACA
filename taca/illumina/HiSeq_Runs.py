@@ -23,10 +23,11 @@ class HiSeq_Run(Run):
         super(HiSeq_Run, self).__init__( path_to_run, samplesheet_folders)
         self._set_sequencer_type()
         self._set_run_type()
+        self._copy_samplesheet()
 
     def _set_sequencer_type(self):
         self.sequencer_type = "HiSeq"
-    
+
     def _set_run_type(self):
         self.run_type = "NGI-RUN"
 
@@ -41,15 +42,7 @@ class HiSeq_Run(Run):
         else:
             raise RuntimeError("runParseObj not available")
 
-    def demultiplex_run(self):
-        """
-        Demultiplex a HiSeq run:
-            - find the samplesheet
-            - make a local copy of the samplesheet and name it SampleSheet.csv
-            - create multiple SampleSheets in case at least one lane have multiple indexes lengths
-            - run bcl2fastq conversion
-        """
-
+    def _copy_samplesheet(self):
         ssname   = self._get_samplesheet()
         if ssname is None:
             return None
@@ -60,7 +53,7 @@ class HiSeq_Run(Run):
             ssname = os.path.join(self.run_dir, os.path.split(ssname)[1])
         except:
             raise RuntimeError("unable to copy file {} to destination {}".format(ssname, self.run_dir))
-        
+
         #this sample sheet has been created by the LIMS and copied by a sequencing operator. It is not ready
         #to be used it needs some editing
         #this will contain the samplesheet with all the renaiming to be used with bcl2fastq-2.17
@@ -78,6 +71,16 @@ class HiSeq_Run(Run):
         ##SampleSheet.csv generated
         ##when demultiplexing SampleSheet.csv is the one I need to use
         self.runParserObj.samplesheet  = SampleSheetParser(os.path.join(self.run_dir, "SampleSheet.csv"))
+
+    def demultiplex_run(self):
+        """
+        Demultiplex a HiSeq run:
+            - find the samplesheet
+            - make a local copy of the samplesheet and name it SampleSheet.csv
+            - create multiple SampleSheets in case at least one lane have multiple indexes lengths
+            - run bcl2fastq conversion
+        """
+        self._copy_samplesheet()
         #now geenrate the base masks per lane and decide how to demultiplex
         per_lane_base_masks = self._generate_per_lane_base_mask()
         max_different_base_masks =  max([len(per_lane_base_masks[base_masks]) for base_masks in per_lane_base_masks])
@@ -122,7 +125,7 @@ class HiSeq_Run(Run):
 
     def _generate_bcl2fastq_command(self, base_masks, strict=True, suffix=0, mask_short_adapter_reads=False):
         """
-        Generates the command to demultiplex with the given base_masks. 
+        Generates the command to demultiplex with the given base_masks.
         if strict is set to true demultiplex only lanes in base_masks
         """
         logger.info('Building bcl2fastq command')
@@ -143,7 +146,7 @@ class HiSeq_Run(Run):
         samplesheetMaskSpecific = os.path.join(os.path.join(self.run_dir, "SampleSheet_{}.csv".format(suffix)))
         output_dir = "Demultiplexing_{}".format(suffix)
         cl.extend(["--output-dir", output_dir])
-        
+
         with open(samplesheetMaskSpecific, 'wb') as ssms:
             ssms.write("[Header]\n")
             ssms.write("[Data]\n")
@@ -171,7 +174,7 @@ class HiSeq_Run(Run):
         cl.extend(["--sample-sheet", samplesheetMaskSpecific])
         if mask_short_adapter_reads:
             cl.extend(["--mask-short-adapter-reads", "0"])
-        
+
         logger.info(("BCL to FASTQ command built {} ".format(" ".join(cl))))
         return cl
 
@@ -192,8 +195,8 @@ class HiSeq_Run(Run):
                 complex_lanes[lane] = per_lane_base_masks[lane]
         #complex lanes contains the lanes such that there is more than one base mask
         self._aggregate_demux_results_simple_complex(simple_lanes, complex_lanes)
-        
- 
+
+
 
 
 
@@ -209,8 +212,8 @@ class HiSeq_Run(Run):
         for field in ssparser.header:
             output+="{},{}".format(field.rstrip(), ssparser.header[field].rstrip())
             output+=os.linesep
-        
-        
+
+
         #now parse the data section
         data = []
         for line in ssparser.data:
@@ -273,10 +276,3 @@ def _data_filed_conversion(field):
         return datafieldsConversion[field]
     else:
         raise RuntimeError("field {} not expected in SampleSheet".format(field))
-
-
-
-
-
-
-

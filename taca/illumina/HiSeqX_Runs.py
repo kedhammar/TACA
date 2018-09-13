@@ -22,6 +22,7 @@ class HiSeqX_Run(Run):
         super(HiSeqX_Run, self).__init__( run_dir, samplesheet_folders)
         self._set_sequencer_type()
         self._set_run_type()
+        self._copy_samplesheet()
 
     def _set_sequencer_type(self):
         self.sequencer_type = "HiSeqX"
@@ -29,14 +30,7 @@ class HiSeqX_Run(Run):
     def _set_run_type(self):
         self.run_type = "NGI-RUN"
 
-    def demultiplex_run(self):
-        """
-           Demultiplex a Xten run:
-            - find the samplesheet
-            - make a local copy of the samplesheet and name it SampleSheet.csv
-            - define if necessary the bcl2fastq commands (if indexes are not of size 8, i.e. neoprep)
-            - run bcl2fastq conversion
-        """
+    def _copy_samplesheet(self):
         ssname   = self._get_samplesheet()
         ssparser = SampleSheetParser(ssname)
         try:
@@ -63,6 +57,18 @@ class HiSeqX_Run(Run):
         ##when demultiplexing SampleSheet.csv is the one I need to use
         ## Need to rewrite so that SampleSheet_0.csv is always used.
         self.runParserObj.samplesheet  = SampleSheetParser(os.path.join(self.run_dir, "SampleSheet.csv"))
+        return lanes_10X, lanes_not_10X
+
+    def demultiplex_run(self):
+        """
+           Demultiplex a Xten run:
+            - find the samplesheet
+            - make a local copy of the samplesheet and name it SampleSheet.csv
+            - define if necessary the bcl2fastq commands (if indexes are not of size 8, i.e. neoprep)
+            - run bcl2fastq conversion
+        """
+        lanes_10X,lanes_not_10X = self._copy_samplesheet()
+
         #we have 10x lane - need to split the  samples sheet and build a 10x command for bcl2fastq
         Complex_run = False
         if len(lanes_10X) and len(lanes_not_10X):

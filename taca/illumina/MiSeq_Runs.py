@@ -25,7 +25,7 @@ class MiSeq_Run(HiSeq_Run):
         super(MiSeq_Run, self).__init__( path_to_run, configuration)
         self._set_sequencer_type()
         self._set_run_type()
-
+        self._copy_samplesheet()
 
     def _set_sequencer_type(self):
         self.sequencer_type = "MiSeq"
@@ -59,7 +59,7 @@ class MiSeq_Run(HiSeq_Run):
             #not real clean solution but what else can be done if no samplesheet is provided?
             return None
 
-                                
+
 
 
     def _generate_clean_samplesheet(self, ssparser):
@@ -104,9 +104,3 @@ class MiSeq_Run(HiSeq_Run):
             output+=",".join(line)
             output+=os.linesep
         return output
-
-
-
-
-
-
