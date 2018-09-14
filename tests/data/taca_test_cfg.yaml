@@ -14,7 +14,7 @@ analysis:
             bin: path_to_bcl_to_fastq
             options:
                 - output-dir: Demultiplexing
-        samplesheets_dir:
+        samplesheets_dir: "data"
         analysis_server:
             host:
             port:
@@ -33,7 +33,7 @@ analysis:
             bin: path_to_bcl_to_fastq
             options:
                 - output-dir: Demultiplexing
-        samplesheets_dir:
+        samplesheets_dir: "data"
         analysis_server:
             host:
             port:
