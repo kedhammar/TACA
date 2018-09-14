@@ -70,7 +70,9 @@ class HiSeq_Run(Run):
         logger.info(("Created SampleSheet.csv for Flowcell {} in {} ".format(self.id, samplesheet_dest)))
         ##SampleSheet.csv generated
         ##when demultiplexing SampleSheet.csv is the one I need to use
-        self.runParserObj = RunParser(self.run_dir)
+        self.runParserObj.samplesheet  = SampleSheetParser(os.path.join(self.run_dir, "SampleSheet.csv"))
+        if not self.runParserObj.obj.get("samplesheet_csv"):
+            self.runParserObj.obj["samplesheet_csv"] = self.runParserObj.samplesheet.data
 
     def demultiplex_run(self):
         """

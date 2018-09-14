@@ -56,7 +56,9 @@ class HiSeqX_Run(Run):
 
         ##when demultiplexing SampleSheet.csv is the one I need to use
         ## Need to rewrite so that SampleSheet_0.csv is always used.
-        self.runParserObj = RunParser(self.run_dir)
+        self.runParserObj.samplesheet  = SampleSheetParser(os.path.join(self.run_dir, "SampleSheet.csv"))
+        if not self.runParserObj.obj.get("samplesheet_csv"):
+            self.runParserObj.obj["samplesheet_csv"] = self.runParserObj.samplesheet.data
 
     def demultiplex_run(self):
         """
