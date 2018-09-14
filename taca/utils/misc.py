@@ -230,13 +230,15 @@ def run_is_demuxed(run, couch_info=None):
     run_name = "{}_{}".format(run_date, run_fc)
     # connect to statusdb using info fectched from config file
     try:
-        server = "http://{username}:{password}@{url}:{port}".format(url=couch_info['url'],username=couch_info['username'],
-                                                                    password=couch_info['password'],port=couch_info['port'])
+        server = "http://{username}:{password}@{url}:{port}".format(**couch_info)
         couch = couchdb.Server(server)
         fc_db = couch[couch_info['db']]
-        fc_names = [entry.key for entry in fc_db.view("names/name", reduce=False)]
+        for fc in fc_db.view("names/name", reduce=False, descending=True):
+            if fc.key != run_name:
+                continue
+            fc_doc = fc_db.get(fc.id)
+            if not fc_doc or not fc_doc.get('illumina', {}).get('Demultiplex_Stats', {}):
+                return False
+            return True
     except Exception, e:
         raise e
-    if run_name in fc_names:
-        return True
-    return False
