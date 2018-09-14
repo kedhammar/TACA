@@ -12,9 +12,10 @@ analysis:
             max_frequency_most_represented_und_index_unpooled_lane: 40
         bcl2fastq:
             bin: path_to_bcl_to_fastq
+            index_path: "data/test_10X_indexes"
             options:
                 - output-dir: Demultiplexing
-        samplesheets_dir:
+        samplesheets_dir: "data"
         analysis_server:
             host:
             port:
@@ -33,7 +34,7 @@ analysis:
             bin: path_to_bcl_to_fastq
             options:
                 - output-dir: Demultiplexing
-        samplesheets_dir:
+        samplesheets_dir: "data"
         analysis_server:
             host:
             port:

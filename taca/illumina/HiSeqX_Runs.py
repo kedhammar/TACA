@@ -22,6 +22,7 @@ class HiSeqX_Run(Run):
         super(HiSeqX_Run, self).__init__( run_dir, samplesheet_folders)
         self._set_sequencer_type()
         self._set_run_type()
+        self._copy_samplesheet()
 
     def _set_sequencer_type(self):
         self.sequencer_type = "HiSeqX"
@@ -29,14 +30,7 @@ class HiSeqX_Run(Run):
     def _set_run_type(self):
         self.run_type = "NGI-RUN"
 
-    def demultiplex_run(self):
-        """
-           Demultiplex a Xten run:
-            - find the samplesheet
-            - make a local copy of the samplesheet and name it SampleSheet.csv
-            - define if necessary the bcl2fastq commands (if indexes are not of size 8, i.e. neoprep)
-            - run bcl2fastq conversion
-        """
+    def _copy_samplesheet(self):
         ssname   = self._get_samplesheet()
         ssparser = SampleSheetParser(ssname)
         try:
@@ -48,7 +42,7 @@ class HiSeqX_Run(Run):
         #if this is not the case then create it and take special care of modification to be done on the SampleSheet
         samplesheet_dest = os.path.join(self.run_dir, "SampleSheet.csv")
         #Function that returns a list of which lanes contains 10X samples.
-        (lanes_10X,lanes_not_10X) = look_for_lanes_with_10X_indicies(indexfile, ssparser)
+        (self.lanes_10X,self.lanes_not_10X) = look_for_lanes_with_10X_indicies(indexfile, ssparser)
         #check that the samplesheet is not already present. In this case go the next step
         if not os.path.exists(samplesheet_dest):
             try:
@@ -63,24 +57,35 @@ class HiSeqX_Run(Run):
         ##when demultiplexing SampleSheet.csv is the one I need to use
         ## Need to rewrite so that SampleSheet_0.csv is always used.
         self.runParserObj.samplesheet  = SampleSheetParser(os.path.join(self.run_dir, "SampleSheet.csv"))
+        if not self.runParserObj.obj.get("samplesheet_csv"):
+            self.runParserObj.obj["samplesheet_csv"] = self.runParserObj.samplesheet.data
+
+    def demultiplex_run(self):
+        """
+           Demultiplex a Xten run:
+            - find the samplesheet
+            - make a local copy of the samplesheet and name it SampleSheet.csv
+            - define if necessary the bcl2fastq commands (if indexes are not of size 8, i.e. neoprep)
+            - run bcl2fastq conversion
+        """
         #we have 10x lane - need to split the  samples sheet and build a 10x command for bcl2fastq
         Complex_run = False
-        if len(lanes_10X) and len(lanes_not_10X):
+        if len(self.lanes_10X) and len(self.lanes_not_10X):
              Complex_run = True
 
         if Complex_run:
             with chdir(self.run_dir):
                 samplesheet_dest_not_10X="SampleSheet_0.csv"
                 with open(samplesheet_dest_not_10X, 'wb') as fcd:
-                    fcd.write(_generate_samplesheet_subset(self.runParserObj.samplesheet, lanes_not_10X))
+                    fcd.write(_generate_samplesheet_subset(self.runParserObj.samplesheet, self.lanes_not_10X))
                 samplesheet_dest_10X="SampleSheet_1.csv"
                 with open(samplesheet_dest_10X, 'wb') as fcd:
-                    fcd.write(_generate_samplesheet_subset(self.runParserObj.samplesheet, lanes_10X))
+                    fcd.write(_generate_samplesheet_subset(self.runParserObj.samplesheet, self.lanes_10X))
         else:
             with chdir(self.run_dir):
                 samplesheet_dest="SampleSheet_0.csv"
                 with open(samplesheet_dest, 'wb') as fcd:
-                    fcd.write(_generate_samplesheet_subset(self.runParserObj.samplesheet, (lanes_10X or lanes_not_10X)))
+                    fcd.write(_generate_samplesheet_subset(self.runParserObj.samplesheet, (self.lanes_10X or self.lanes_not_10X)))
 
         per_lane_base_masks = self._generate_per_lane_base_mask()
         max_different_base_masks =  max([len(per_lane_base_masks[base_masks]) for base_masks in per_lane_base_masks])
@@ -95,14 +100,14 @@ class HiSeqX_Run(Run):
             if not os.path.exists("Demultiplexing"):
                 os.makedirs("Demultiplexing")
         with chdir(self.run_dir):
-            if lanes_not_10X:
-               cmd_normal = self.generate_bcl_command(lanes_not_10X, bcl2fastq_cmd_counter)
+            if self.lanes_not_10X:
+               cmd_normal = self.generate_bcl_command(self.lanes_not_10X, bcl2fastq_cmd_counter)
                misc.call_external_command_detached(cmd_normal, with_log_files = True, prefix="demux_{}".format(bcl2fastq_cmd_counter))
                logger.info(("BCL to FASTQ conversion and demultiplexing started for "
                    "normal run {} on {}".format(os.path.basename(self.id), datetime.now())))
                bcl2fastq_cmd_counter += 1
-            if lanes_10X:
-               cmd_10X = self.generate_bcl_command(lanes_10X, bcl2fastq_cmd_counter, is_10X = True)
+            if self.lanes_10X:
+               cmd_10X = self.generate_bcl_command(self.lanes_10X, bcl2fastq_cmd_counter, is_10X = True)
                misc.call_external_command_detached(cmd_10X, with_log_files = True, prefix="demux_{}".format(bcl2fastq_cmd_counter))
                logger.info(("BCL to FASTQ conversion and demultiplexing started for "
                    "10X run {} on {}".format(os.path.basename(self.id), datetime.now())))

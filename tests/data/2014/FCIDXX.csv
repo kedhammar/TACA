@@ -1,0 +1,15 @@
+[Header]
+Investigator Name,Test
+Date,None
+Experiment Name,CIDXX
+[Reads]
+151
+151
+[Data]
+Lane,SampleID,SampleName,SamplePlate,SampleWell,index,index2,Project,Description
+1,Sample_P10000_1001,P10000_1001,CIDXX,1:1,CGCGCAG,,A_Test_18_01,
+1,Sample_P10000_1002,P10000_1002,CIDXX,1:1,CAATATG,,A_Test_18_01,
+1,Sample_P10000_1003,P10000_1003,CIDXX,1:1,ATGGAGA,,A_Test_18_01,
+2,Sample_P10000_1005,P10000_1005,CIDXX,2:1,AGGTACC,,A_Test_18_01,
+2,Sample_P10000_1006,P10000_1006,CIDXX,2:1,CTCGATG,,A_Test_18_01,
+2,Sample_P10000_1007,P10000_1007,CIDXX,2:1,CAGTACT,,A_Test_18_01,
