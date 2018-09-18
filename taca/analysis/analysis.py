@@ -171,6 +171,9 @@ def run_preprocessing(run, force_trasfer=True, statusdb=True):
             # Check status files and say i.e Run in second read, maybe something
             # even more specific like cycle or something
             logger.info('Run {} is not finished yet'.format(run.id))
+            # Upload to statusDB if applies
+            if 'statusdb' in CONFIG:
+                _upload_to_statusdb(run)
         elif run.get_run_status() == 'TO_START':
             if run.get_run_type() == 'NON-NGI-RUN':
                 # For now MiSeq specific case. Process only NGI-run, skip all the others (PhD student runs)
@@ -183,10 +186,16 @@ def run_preprocessing(run, force_trasfer=True, statusdb=True):
                 return
             # Otherwise it is fine, process it
             logger.info(("Starting BCL to FASTQ conversion and demultiplexing for run {}".format(run.id)))
+            # Upload to statusDB if applies
+            if 'statusdb' in CONFIG:
+                _upload_to_statusdb(run)
             run.demultiplex_run()
         elif run.get_run_status() == 'IN_PROGRESS':
             logger.info(("BCL conversion and demultiplexing process in "
                          "progress for run {}, skipping it".format(run.id)))
+            # Upload to statusDB if applies
+            if 'statusdb' in CONFIG:
+                _upload_to_statusdb(run)
             #this function checks if demux is done
             run.check_run_status()
 
@@ -257,7 +266,3 @@ def run_preprocessing(run, force_trasfer=True, statusdb=True):
                         # it is better to continue processing other runs
                         logger.warning("There was an error processing the run {}".format(run))
                         pass
-
-
-
-
