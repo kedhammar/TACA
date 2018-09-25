@@ -74,7 +74,7 @@ class backup_utils(object):
     def avail_disk_space(self, path, run):
         """Check the space on file system based on parent directory of the run"""
         # not able to fetch runtype use the max size as precaution, size units in GB
-        illumina_run_sizes = {'hiseq' : 500, 'hiseqx' : 900, 'miseq' : 20}
+        illumina_run_sizes = {'hiseq' : 500, 'hiseqx' : 900, 'novaseq': 1800, 'miseq' : 20}
         required_size = illumina_run_sizes.get(self._get_run_type(run), 900) * 2
         # check for any ongoing runs and add up the required size accrdingly
         for ddir in self.data_dirs.values():
@@ -119,6 +119,8 @@ class backup_utils(object):
         try:
             if "ST-" in run:
                 run_type = "hiseqx"
+            elif "_A":
+                run_type = "novaseq"
             elif "-" in run.split('_')[-1]:
                 run_type = "miseq"
             else:
