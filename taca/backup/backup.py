@@ -119,10 +119,10 @@ class backup_utils(object):
         try:
             if "ST-" in run:
                 run_type = "hiseqx"
-            elif "_A":
-                run_type = "novaseq"
             elif "-" in run.split('_')[-1]:
                 run_type = "miseq"
+            elif "_A0" in run:
+                run_type = "novaseq"
             else:
                 run_type = "hiseq"
         except:
