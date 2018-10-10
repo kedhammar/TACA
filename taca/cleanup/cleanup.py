@@ -31,6 +31,9 @@ def cleanup_nas(seconds):
     check_demux = CONFIG.get('storage', {}).get('check_demux', False)
     host_name = os.getenv('HOSTNAME', os.uname()[1]).split('.', 1)[0]
     for data_dir in CONFIG.get('storage').get('data_dirs'):
+        if not os.path.exists(data_dir) or not os.path.isdir(data_dir):
+            logger.warn("Data directory '{}' does not exist or not a directory".format(data_dir))
+            continue
         logger.info('Moving old runs in {}'.format(data_dir))
         with filesystem.chdir(data_dir):
             for run in [r for r in os.listdir(data_dir) if re.match(filesystem.RUN_RE, r)]:
