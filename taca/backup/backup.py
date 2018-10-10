@@ -78,6 +78,8 @@ class backup_utils(object):
         required_size = illumina_run_sizes.get(self._get_run_type(run), 900) * 2
         # check for any ongoing runs and add up the required size accrdingly
         for ddir in self.data_dirs.values():
+            if not os.path.isdir(ddir):
+                continue
             for item in os.listdir(ddir):
                 if not re.match(filesystem.RUN_RE, item):
                     continue
