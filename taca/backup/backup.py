@@ -60,7 +60,7 @@ class backup_utils(object):
             for adir in self.archive_dirs.values():
                 if not os.path.isdir(adir):
                     logger.warn("Path {} does not exist or it is not a directory".format(adir))
-                    return self.runs
+                    continue
                 for item in os.listdir(adir):
                     if filter_by_ext and not item.endswith(ext):
                         continue
