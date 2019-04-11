@@ -60,7 +60,7 @@ class backup_utils(object):
             for adir in self.archive_dirs.values():
                 if not os.path.isdir(adir):
                     logger.warn("Path {} does not exist or it is not a directory".format(adir))
-                    return self.runs
+                    continue
                 for item in os.listdir(adir):
                     if filter_by_ext and not item.endswith(ext):
                         continue
@@ -74,10 +74,12 @@ class backup_utils(object):
     def avail_disk_space(self, path, run):
         """Check the space on file system based on parent directory of the run"""
         # not able to fetch runtype use the max size as precaution, size units in GB
-        illumina_run_sizes = {'hiseq' : 500, 'hiseqx' : 900, 'miseq' : 20}
+        illumina_run_sizes = {'hiseq' : 500, 'hiseqx' : 900, 'novaseq': 1800, 'miseq' : 20}
         required_size = illumina_run_sizes.get(self._get_run_type(run), 900) * 2
         # check for any ongoing runs and add up the required size accrdingly
         for ddir in self.data_dirs.values():
+            if not os.path.isdir(ddir):
+                continue
             for item in os.listdir(ddir):
                 if not re.match(filesystem.RUN_RE, item):
                     continue
@@ -121,6 +123,8 @@ class backup_utils(object):
                 run_type = "hiseqx"
             elif "-" in run.split('_')[-1]:
                 run_type = "miseq"
+            elif "_A0" in run:
+                run_type = "novaseq"
             else:
                 run_type = "hiseq"
         except:
