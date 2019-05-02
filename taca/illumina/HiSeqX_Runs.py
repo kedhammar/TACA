@@ -264,8 +264,11 @@ def look_for_lanes_with_10X_indicies(indexfile, ssparser):
     for sample in ssparser.data:
         if sample['index'] in index_dict.keys():
             tenX_lanes.add(sample['Lane'])
-            sample_name = sample['Sample_Name'] or sample['SampleName']
-            tenX_samples.update({sample['Lane']:sample_name})
+            sample_name = sample.get('Sample_Name') or sample.get('SampleName')
+            if tenX_samples.get(sample['Lane']):
+                tenX_samples[sample['Lane']].append(sample_name)
+            else:
+                tenX_samples.update({sample['Lane']:[sample_name]})
         else:
             not_tenX_lanes.add(sample['Lane'])
 
@@ -301,22 +304,22 @@ def _generate_samplesheet_subset(ssparser, lanes, tenX_samples, is_10X = False):
     output+=",".join(datafields)
     output+=os.linesep
     for line in ssparser.data:
-        sample_name = line['Sample_Name'] or line['SampleName']
+        sample_name = line.get('Sample_Name') or line.get('SampleName')
         if line['Lane'] in lanes and is_10X:
             if sample_name in tenX_samples[line['Lane']]:
                 line_ar=[]
                 for field in datafields:
                     line_ar.append(line[field])
-            output+=",".join(line_ar)
-            output+=",".join(line_ar)
+                output+=",".join(line_ar)
+                output+=os.linesep
         elif line['Lane'] in lanes and not is_10X:
-            if sample_name not in tenX_samples[line['Lane']]:
+            if tenX_samples.get(line['Lane'],'') == '' or sample_name not in tenX_samples.get(line['Lane']):
                 line_ar=[]
                 for field in datafields:
                     if field == "index" and "NOINDEX" in line[field].upper():
                         line[field] = ""
                     line_ar.append(line[field])
-            output+=",".join(line_ar)
-            output+=os.linesep
+                output+=",".join(line_ar)
+                output+=os.linesep
 
     return output
