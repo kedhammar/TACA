@@ -16,6 +16,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 class HiSeqX_Run(Run):
 
     def __init__(self,  run_dir, samplesheet_folders):
@@ -42,7 +43,7 @@ class HiSeqX_Run(Run):
         #if this is not the case then create it and take special care of modification to be done on the SampleSheet
         samplesheet_dest = os.path.join(self.run_dir, "SampleSheet.csv")
         #Function that returns a list of which lanes contains 10X samples.
-        (self.lanes_10X,self.lanes_not_10X) = look_for_lanes_with_10X_indicies(indexfile, ssparser)
+        (self.lanes_10X,self.lanes_not_10X,self.tenX_samples) = look_for_lanes_with_10X_indicies(indexfile, ssparser)
         #check that the samplesheet is not already present. In this case go the next step
         if not os.path.exists(samplesheet_dest):
             try:
@@ -77,15 +78,15 @@ class HiSeqX_Run(Run):
             with chdir(self.run_dir):
                 samplesheet_dest_not_10X="SampleSheet_0.csv"
                 with open(samplesheet_dest_not_10X, 'wb') as fcd:
-                    fcd.write(_generate_samplesheet_subset(self.runParserObj.samplesheet, self.lanes_not_10X))
+                    fcd.write(_generate_samplesheet_subset(self.runParserObj.samplesheet, self.lanes_not_10X, self.tenX_samples, is_10X = False))
                 samplesheet_dest_10X="SampleSheet_1.csv"
                 with open(samplesheet_dest_10X, 'wb') as fcd:
-                    fcd.write(_generate_samplesheet_subset(self.runParserObj.samplesheet, self.lanes_10X))
+                    fcd.write(_generate_samplesheet_subset(self.runParserObj.samplesheet, self.lanes_10X, self.tenX_samples, is_10X = True))
         else:
             with chdir(self.run_dir):
                 samplesheet_dest="SampleSheet_0.csv"
                 with open(samplesheet_dest, 'wb') as fcd:
-                    fcd.write(_generate_samplesheet_subset(self.runParserObj.samplesheet, (self.lanes_10X or self.lanes_not_10X)))
+                    fcd.write(_generate_samplesheet_subset(self.runParserObj.samplesheet, (self.lanes_10X or self.lanes_not_10X), self.tenX_samples))
 
         per_lane_base_masks = self._generate_per_lane_base_mask()
         max_different_base_masks =  max([len(per_lane_base_masks[base_masks]) for base_masks in per_lane_base_masks])
@@ -126,21 +127,29 @@ class HiSeqX_Run(Run):
         except KeyError:
             logger.error("Path to index file (10X) not found in the config file")
             raise RuntimeError
-        #Function that returns a list of which lanes contains 10X samples.
-        (lanes_10X,lanes_not_10X) = look_for_lanes_with_10X_indicies(indexfile, ssparser)
+        # Function that returns a list of which lanes contains 10X samples.
+        (lanes_10X,lanes_not_10X,tenX_samples) = look_for_lanes_with_10X_indicies(indexfile, ssparser)
+        # Get pure 10X or ordinary lanes plus mixed lanes
+        lanes_mixed = list(set(lanes_10X).intersection(set(lanes_not_10X)))
+
         lanes_10X_dict = {}
+        lanes_not_10X_dict = {}
+
         for lane in lanes_10X:
             lanes_10X_dict[lane] = 0
-        lanes_not_10X_dict = {}
         for lane in lanes_not_10X:
             lanes_not_10X_dict[lane] = 0
-        if len(lanes_not_10X_dict) == 0:
-            #in this case I have only 10X lanes, so I can treat it 10X lanes as the easy ones
-            self._aggregate_demux_results_simple_complex(lanes_10X_dict, {})
+
+        # When there is no mixed lanes
+        if len(lanes_mixed) == 0:
+            if len(lanes_not_10X_dict) == 0:
+                #in this case I have only 10X lanes, so I can treat it 10X lanes as the easy ones
+                self._aggregate_demux_results_simple_complex(lanes_10X_dict, {})
+            else:
+                self._aggregate_demux_results_simple_complex(lanes_not_10X_dict, lanes_10X_dict)
+        # When there is mixed lanes. TACA will deal with lanes
         else:
             self._aggregate_demux_results_simple_complex(lanes_not_10X_dict, lanes_10X_dict)
-
-
 
 
     def generate_bcl_command(self, lanes, bcl2fastq_cmd_counter, is_10X=False):
@@ -251,13 +260,20 @@ def look_for_lanes_with_10X_indicies(indexfile, ssparser):
     index_dict=parse_10X_indexes(indexfile)
     tenX_lanes = set() #Set to only get each lane once
     not_tenX_lanes = set()
+    tenX_samples = dict()
     for sample in ssparser.data:
+        lane = sample['Lane']
         if sample['index'] in index_dict.keys():
-            tenX_lanes.add(sample['Lane'])
+            tenX_lanes.add(lane)
+            sample_name = sample.get('Sample_Name') or sample.get('SampleName')
+            if tenX_samples.get(lane):
+                tenX_samples[lane].append(sample_name)
+            else:
+                tenX_samples.update({lane:[sample_name]})
         else:
-            not_tenX_lanes.add(sample['Lane'])
+            not_tenX_lanes.add(lane)
 
-    return (list(tenX_lanes),list(not_tenX_lanes))
+    return (list(tenX_lanes), list(not_tenX_lanes), tenX_samples)
 
 
 def parse_10X_indexes(indexfile):
@@ -273,7 +289,7 @@ def parse_10X_indexes(indexfile):
     return index_dict
 
 
-def _generate_samplesheet_subset(ssparser, lanes):
+def _generate_samplesheet_subset(ssparser, lanes, tenX_samples, is_10X = False):
     output=""
 
     #Header
@@ -289,13 +305,26 @@ def _generate_samplesheet_subset(ssparser, lanes):
     output+=",".join(datafields)
     output+=os.linesep
     for line in ssparser.data:
-        if line['Lane'] in lanes:
-            line_ar=[]
-            for field in datafields:
-                if field == "index" and "NOINDEX" in line[field].upper():
-                    line[field] = ""
-                line_ar.append(line[field])
-            output+=",".join(line_ar)
-            output+=os.linesep
+        sample_name = line.get('Sample_Name') or line.get('SampleName')
+        lane = line['Lane']
+        if lane in lanes:
+            if is_10X:
+                if sample_name in tenX_samples[lane]:
+                    line_ar=[]
+                    for field in datafields:
+                        line_ar.append(line[field])
+                    output+=",".join(line_ar)
+                    output+=os.linesep
+            else: # not 10X:
+                # A sample should only be demultiplexed once so skip
+                # if included in tenX samples
+                if tenX_samples.get(lane, '') == '' or sample_name not in tenX_samples.get(lane):
+                    line_ar=[]
+                    for field in datafields:
+                        if field == "index" and "NOINDEX" in line[field].upper():
+                            line[field] = ""
+                        line_ar.append(line[field])
+                    output+=",".join(line_ar)
+                    output+=os.linesep
 
     return output
