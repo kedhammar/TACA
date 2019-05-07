@@ -17,13 +17,13 @@ def backup(ctx):
 def encrypt(ctx, run, force):
     bkut.encrypt_runs(run, force)
 
-@backup.command()
+@backup.command(name='put_data')
 @click.option('-r', '--run', type=click.Path(exists=True), help="A run name (without extension) to be sent to PDC")
 @click.pass_context
 def put_data(ctx, run):
     bkut.pdc_put(run)
 
-@backup.command()
+@backup.command(name='get_data')
 @click.option('-r', '--run', required=True, help="A run name (without extension) to download from PDC")
 @click.option('-o', '--outdir', type=click.Path(exists=True, file_okay=False, writable=True),
               help="Optional directory name to save the downloaded file. Directory should exist")
