@@ -5,11 +5,11 @@ import os
 import click
 import taca.testing.create_uppmax_like_env as createupp
 
-@click.group()
+@click.group(name='uppmax_env')
 def uppmax_env():
-    """ Create a local set of folders that resembles the uppmax-ngi env. Creates config file for ngi_pipeline, taca, and taca ngi-pipeline. Only a minimal taca config is needed (statusdb and log) 
+    """ Create a local set of folders that resembles the uppmax-ngi env. Creates config file for ngi_pipeline, taca, and taca ngi-pipeline. Only a minimal taca config is needed (statusdb and log)
         The condig file (in general saved in variable NGI_CONFIG needs to looks something similar to:
-        
+
         \b
         environment:
             project_id: ngi1234 #CAN BE ANYTHING
@@ -23,18 +23,18 @@ def uppmax_env():
                     analysis_engine: ngi_pipeline.engines.piper_ngi
                 IGN:
                     analysis_engine: ngi_pipeline.engines.piper_ngi
-                    
+
                 qc:
-                
+
                     analysis_engine: ngi_pipeline.engines.qc_ngi
-                    
+
             base_root: /Users/vezzi/opt/  #NEEDS TO EXISTS
             sthlm_root: uppmax_env        #NEEDS TO EXISTS
             top_dir: nobackup/NGI         #NEEDS TO EXISTS
             upps_root: nothing            #CAN BE ANYTHING
         logging:
             log_file: "/Users/vezzi/opt/log/ngi_pipeline.log" #NEEDS TO BE REAL
-  
+
         \b
         The requested project will be divided into the following sets:
           - 2/3 will be selected among the projects with application equeal to 'WG re-seq'. These will be divided up in:
@@ -47,7 +47,7 @@ def uppmax_env():
             - 1/4: closed more than 1 month ago, less than 3 months
             - 1/4: closed less than 1 month ago
             - 1/4: open
-   
+
      """
     pass
 
@@ -58,7 +58,7 @@ def uppmax_env():
 @click.option('-fq2', '--fastq_2', type=click.Path(exists=True, dir_okay=False),  default=None , help='Path to fastq file for read 2')
 
 def create(projects, ngi_config, fastq_1, fastq_2):
-    """creates a uppmax like env 
+    """creates a uppmax like env
     """
     if (fastq_1 is None and fastq_2 is not None) or (fastq_1 is not None and fastq_2 is None):
         print "ERROR: either both fastq_1 and fastq_2 are specified or none of them"

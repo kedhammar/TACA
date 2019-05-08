@@ -8,7 +8,7 @@ from taca.utils.config import CONFIG
 from taca.server_status import cronjobs as cj # to avoid similar names with command, otherwise exception
 
 
-@click.group()
+@click.group(name='server_status')
 def server_status():
     """ Monitor server status """
     if not CONFIG.get('server_status', ''):
@@ -53,6 +53,3 @@ def cronjobs():
     """ Monitors cronjobs and updates statusdb
     """
     cj.update_cronjob_db()
-
-
-
