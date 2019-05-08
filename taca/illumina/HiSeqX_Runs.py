@@ -86,7 +86,10 @@ class HiSeqX_Run(Run):
             with chdir(self.run_dir):
                 samplesheet_dest="SampleSheet_0.csv"
                 with open(samplesheet_dest, 'wb') as fcd:
-                    fcd.write(_generate_samplesheet_subset(self.runParserObj.samplesheet, (self.lanes_10X or self.lanes_not_10X), self.tenX_samples))
+                    if len(self.lanes_10X):
+                        fcd.write(_generate_samplesheet_subset(self.runParserObj.samplesheet, self.lanes_10X, self.tenX_samples, is_10X = True))
+                    else:
+                        fcd.write(_generate_samplesheet_subset(self.runParserObj.samplesheet, self.lanes_not_10X, self.tenX_samples, is_10X = False))
 
         per_lane_base_masks = self._generate_per_lane_base_mask()
         max_different_base_masks =  max([len(per_lane_base_masks[base_masks]) for base_masks in per_lane_base_masks])
