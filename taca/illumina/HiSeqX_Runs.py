@@ -42,8 +42,15 @@ class HiSeqX_Run(Run):
         #samplesheet need to be positioned in the FC directory with name SampleSheet.csv (Illumina default)
         #if this is not the case then create it and take special care of modification to be done on the SampleSheet
         samplesheet_dest = os.path.join(self.run_dir, "SampleSheet.csv")
-        #Function that returns a list of which lanes contains 10X samples.
-        (self.lanes_10X,self.lanes_not_10X,self.tenX_samples) = look_for_lanes_with_10X_indicies(indexfile, ssparser)
+        #Function that goes through the original sample sheet and check for sample types
+        self.sample_table = classify_samples(indexfile, ssparser)
+
+
+                        ################### This part should be removed###############
+                        #Function that returns a list of which lanes contains 10X samples.
+                        (self.lanes_10X,self.lanes_not_10X,self.tenX_samples) = look_for_lanes_with_10X_indicies(indexfile, ssparser)
+                        ##############################################################
+
         #check that the samplesheet is not already present. In this case go the next step
         if not os.path.exists(samplesheet_dest):
             try:
@@ -64,11 +71,90 @@ class HiSeqX_Run(Run):
     def demultiplex_run(self):
         """
            Demultiplex a Xten run:
-            - find the samplesheet
-            - make a local copy of the samplesheet and name it SampleSheet.csv
-            - define if necessary the bcl2fastq commands (if indexes are not of size 8, i.e. neoprep)
+            - Make sub-samplesheet based on sample classes
+            - Decide correct bcl2fastq command parameters based on sample classes
             - run bcl2fastq conversion
         """
+
+########################
+# Test sample_table
+sample_table = {
+    '1':[{'101':{'type':'ordinary','length':[8,0]}},{'102':{'type':'ordinary','length':[8,8]}},{'103':{'type':'ordinary','length':[8,8]}},{'104':{'type':'ordinary','length':[8,0]}}],
+    '2':[{'105':{'type':'ordinary','length':[8,0]}},{'106':{'type':'ordinary','length':[6,0]}},{'107':{'type':'ordinary','length':[8,0]}},{'108':{'type':'ordinary','length':[8,0]}}],
+    '3':[{'105':{'type':'10X','length':[8,0]}},{'106':{'type':'10X','length':[8,0]}},{'107':{'type':'ordinary','length':[8,0]}},{'108':{'type':'ordinary','length':[8,8]}}],
+    '4':[{'105':{'type':'10X','length':[8,0]}},{'106':{'type':'ordinary','length':[8,0]}},{'107':{'type':'ordinary','length':[8,0]}},{'108':{'type':'ordinary','length':[8,0]}}]
+}
+lane_table = {
+    '1': [[8,0]],
+    '2': [[8,0],[8,8]],
+    '3': [[8,0],[8,8],[6,0]],
+    '4': [[6,0]],
+    '5': [[8,0],[8,8],[6,0],[6,6],[7,0]],
+    '6': [[6,0]]
+}
+########################
+        # Check sample types
+        sample_type_list = []
+        for lane, lane_contents in self.sample_table.items():
+            for sample in lane_contents:
+                if sample[sample.keys()[0]]['type'] not in sample_type_list:
+                    sample_type_list.append(sample[sample.keys()[0]]['type'])
+
+        # Go through sample_table for demultiplexing
+        bcl2fastq_cmd_counter = 0
+        for type in sample_type_list:
+            # Looking for lanes with multiple masks under the same sample type
+            lane_table = dict()
+            for lane, lane_contents in self.sample_table.items():
+                for sample in lane_contents:
+                    if sample[sample.keys()[0]]['type'] == type:
+                        if lane_table.get(lane):
+                            if sample[sample.keys()[0]]['index_length'] not in lane_table[lane]:
+                                lane_table[lane].append(sample[sample.keys()[0]]['index_length'])
+                        else:
+                            lane_table.update({lane:[sample[sample.keys()[0]]['index_length']]})
+            # Determine the number of demux needed for the same sample type
+            demux_number_with_the_same_sample_type = len(max([v for k, v in lane_table.items()],key=len))
+            # Prepare sub-samplesheets, masks and commands
+            for i in range(0,demux_number_with_the_same_sample_type):
+                bcl2fastq_cmd_counter += i
+                # Prepare sub-samplesheet
+                # A dictionary with lane and sample IDs to include
+                samples_to_include = dict()
+                for lane, lane_contents in self.sample_table.items():
+                    try:
+                        index_length = lane_table[lane][i]
+                        for sample in lane_contents:
+                            if sample[sample.keys()[0]]['type'] == type and sample[sample.keys()[0]]['index_length'] == index_length:
+                                if samples_to_include.get(lane):
+                                    samples_to_include[lane].append(sample.keys()[0])
+                                else:
+                                    samples_to_include.update({lane:[sample.keys()[0]]})
+                    except IndexError:
+                        continue
+
+                # Make sub-samplesheet
+                with chdir(self.run_dir):
+                    samplesheet_dest="SampleSheet_{}.csv".format(bcl2fastq_cmd_counter)
+                    with open(samplesheet_dest, 'wb') as fcd:
+                        fcd.write(_generate_samplesheet_subset(self.runParserObj.samplesheet, samples_to_include))
+
+                # Make base masks
+                per_lane_base_masks = self._generate_per_lane_base_mask(type, samples_to_include)
+
+                ###### Need to contiue from here!!  _generate_per_lane_base_mask needs to be modified!!#####
+
+
+
+
+
+
+
+
+
+
+
+
         #we have 10x lane - need to split the  samples sheet and build a 10x command for bcl2fastq
         Complex_run = False
         if len(self.lanes_10X) and len(self.lanes_not_10X):
@@ -255,6 +341,51 @@ def _generate_clean_samplesheet(ssparser, indexfile, fields_to_remove=None, rena
 
     return output
 
+
+def classify_samples(indexfile, ssparser):
+    """
+    Given an ssparser object
+    goes through all samples and decide sample types
+    """
+    TENX_GENO_PAT = re.compile("SI-GA-[A-H][1-9][0-2]?")
+    TENX_ATAC_PAT = re.compile("SI-NA-[A-H][1-9][0-2]?")
+    UMI_IDX = re.compile("([ATCG]{4,}N+$)")
+    sample_table = dict()
+    index_dict = parse_10X_indexes(indexfile)
+    for sample in ssparser.data:
+        lane = sample['Lane']
+        sample_name = sample.get('Sample_Name') or sample.get('SampleName')
+        # 10X Genomic DNA & RNA
+        if TENX_GENO_PAT.findall(sample['index']):
+            index_length = [len(index_dict[sample['index']][0]),0]
+            sample_type = '10X_GENO'
+        # 10X scATAC
+        elif TENX_ATAC_PAT.findall(sample['index']):
+            index_length = [len(index_dict[sample['index']][0]),16]
+            sample_type = '10X_ATAC'
+        # UMI samples
+        elif UMI_IDX.findall(sample['index']) or UMI_IDX.findall(sample['index2']):
+            # Index length after removing "N" part
+            index_length = [len(sample['index'].replace('N','')),len(sample['index2'].replace('N',''))]
+            sample_type = 'UMI'
+        # No Index case. Note that if both index 1 and 2 are empty, it will be the same index type but will be handled in the next case
+        elif sample['index'].upper() == 'NOINDEX':
+            index_length = [0,0]
+            sample_type = 'ordinary'
+        # Ordinary samples
+        else:
+            index_length = [len(sample['index']),len(sample['index2'])]
+            sample_type = 'ordinary'
+
+        # Write in sample table
+        if sample_table.get(lane):
+            sample_table[lane].append({sample_name:{'type':sample_type,'index_length':index_length}})
+        else:
+            sample_table.update({lane:[{sample_name:{'type':sample_type,'index_length':index_length}}]})
+
+        return sample_table
+
+
 def look_for_lanes_with_10X_indicies(indexfile, ssparser):
     """
     Given an ssparser object
@@ -292,7 +423,7 @@ def parse_10X_indexes(indexfile):
     return index_dict
 
 
-def _generate_samplesheet_subset(ssparser, lanes, tenX_samples, is_10X = False):
+def _generate_samplesheet_subset(ssparser, samples_to_include):
     output=""
 
     #Header
@@ -310,24 +441,122 @@ def _generate_samplesheet_subset(ssparser, lanes, tenX_samples, is_10X = False):
     for line in ssparser.data:
         sample_name = line.get('Sample_Name') or line.get('SampleName')
         lane = line['Lane']
-        if lane in lanes:
-            if is_10X:
-                if sample_name in tenX_samples[lane]:
-                    line_ar=[]
-                    for field in datafields:
-                        line_ar.append(line[field])
-                    output+=",".join(line_ar)
-                    output+=os.linesep
-            else: # not 10X:
-                # A sample should only be demultiplexed once so skip
-                # if included in tenX samples
-                if tenX_samples.get(lane, '') == '' or sample_name not in tenX_samples.get(lane):
-                    line_ar=[]
-                    for field in datafields:
-                        if field == "index" and "NOINDEX" in line[field].upper():
-                            line[field] = ""
-                        line_ar.append(line[field])
-                    output+=",".join(line_ar)
-                    output+=os.linesep
+        if lane in samples_to_include.keys():
+            if sample_name in samples_to_include.get(lane):
+                line_ar=[]
+                for field in datafields:
+                    # Case of no index
+                    if field == "index" and "NOINDEX" in line[field].upper():
+                        line[field] = ""
+                    # Case of UMI
+                    if (field == "index" or field == "index2") and UMI_IDX.findall(line[field]):
+                        line[field] = line[field].replace('N','')
+                    line_ar.append(line[field])
+                output+=",".join(line_ar)
+                output+=os.linesep
 
     return output
+
+
+def _generate_per_lane_base_mask(self):
+    """
+    This functions generate the base mask for each lane.
+    Hypotesis:
+        - RunInfo.xml contains the configuration
+        - this object contains a properly parsed samplesheet
+    It returns an dict with a key for each lane:
+    {lane1:
+        {base_mask_string (e.g., Y150I6N2N8Y150):
+            [ base_mask , [SampleSheetEntries]]
+        }
+     lane2:
+    }
+    """
+    # generate new ssparser (from the renamed smaplesheet)
+    runSetup = self.runParserObj.runinfo.get_read_configuration()
+    base_masks = {}
+    if not self.runParserObj.samplesheet:
+        raise RuntimeError("samplesheet not yet initialised")
+
+    for data_entry in self.runParserObj.samplesheet.data:
+        ## for each data_entry in my samplesheet (i.e., for each sample)
+        lane  = data_entry['Lane']
+        if lane not in base_masks:
+            base_masks[lane] = {}
+        index = ""
+        index2 = ""
+        is_dual_index = False
+        if data_entry.get('index'):
+            index = data_entry['index']
+            if index in "NoIndex": #special case for HiSeq when one sample is alone in a lane
+                index = ""
+            is_dual_index = False # default for Xten
+            if data_entry.get('index2'):
+                index2 = data_entry['index2']
+                is_dual_index = True
+            #specific for HiSeq, will disapper once we will use bcl2fastq_2.17
+            #index = data_entry['Index'].replace('-', '').replace('NoIndex', '')
+        index_size  = len(index)
+        index2_size = len(index2)
+        # compute the basemask
+        base_mask = self._compute_base_mask(runSetup, index_size, is_dual_index, index2_size)
+        base_mask_string = "".join(base_mask)
+        # prepare the dictionary
+        if base_mask_string not in base_masks[lane]:
+            # first time I find such base mask in this lane,
+            base_masks[lane][base_mask_string] = {'base_mask':base_mask,
+                                                  'data' : []}
+        base_masks[lane][base_mask_string]['data'].append(data_entry)
+
+    return base_masks
+
+
+def _compute_base_mask(self, runSetup, index_size, dual_index_sample, index2_size):
+    """
+        Assumptions:
+            - if runSetup is of size 3, then single index run
+            - if runSetup is of size 4, then dual index run
+    """
+    bm = []
+    dual_index_run = False
+    if len(runSetup) > 4:
+        raise RuntimeError("when generating base_masks looks like there are"
+                           " more than 4 reads in the RunSetup.xml")
+
+    for read in runSetup:
+        cycles = int(read['NumCycles'])
+        if read['IsIndexedRead'] == 'N':
+            bm.append('Y' + str(cycles))
+        else:
+            if index_size > cycles:
+                # the size of the index of the sample sheet is larger than the
+                # one specified by RunInfo.xml, somethig must be wrong
+                raise RuntimeError("when generating base_masks found index in"
+                                   "samplesheet larger than the index specifed in RunInfo.xml")
+            is_first_index_read = int(read['Number']) == 2
+            # now prepare the base mask for this index read
+            if is_first_index_read:
+                i_remainder = cycles - index_size
+                if i_remainder > 0:
+                    if index_size == 0:
+                        bm.append('N' + str(cycles)) #special case (NoIndex)
+                    else:
+                        bm.append('I' + str(index_size) + 'N' + str(i_remainder))
+                else:
+                    bm.append('I' + str(cycles))
+            else:
+            # when working on the second read index I need to know if the sample is dual index or not
+                if dual_index_sample:
+                    i_remainder = cycles - index2_size
+                    if i_remainder > 0:
+                        if index2_size == 0:
+                            bm.append('N' + str(cycles)) #possible if same lane has single and dual index samples
+                        else:
+                            bm.append('I' + str(index2_size) + 'N' + str(i_remainder))
+                    else:
+                        bm.append('I' + str(cycles))
+                else:
+                # if this sample is not dual index but the run is,
+                # then I need to ignore the second index completely
+                    bm.append('N' + str(cycles))
+    return bm
