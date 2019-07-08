@@ -16,34 +16,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-"""
-# Example format of variables for testing
-
-sample_table = {
-    '1':[{'101':{'type':'ordinary','index_length':[8,0]}},{'102':{'type':'ordinary','index_length':[8,8]}},{'103':{'type':'ordinary','index_length':[8,8]}},{'104':{'type':'ordinary','index_length':[8,0]}}],
-    '2':[{'105':{'type':'ordinary','index_length':[8,0]}},{'106':{'type':'ordinary','index_length':[6,0]}},{'107':{'type':'ordinary','index_length':[8,0]}},{'108':{'type':'ordinary','index_length':[8,0]}}],
-    '3':[{'105':{'type':'10X','index_length':[8,0]}},{'106':{'type':'10X','index_length':[8,0]}},{'107':{'type':'ordinary','index_length':[8,0]}},{'108':{'type':'ordinary','index_length':[8,8]}}],
-    '4':[{'105':{'type':'10X','index_length':[8,0]}},{'106':{'type':'ordinary','index_length':[8,0]}},{'107':{'type':'ordinary','index_length':[8,0]}},{'108':{'type':'ordinary','index_length':[8,0]}}]
-}
-
-lane_table = {
-    '1': [[8,0]],
-    '2': [[8,0],[8,8]],
-    '3': [[8,0],[8,8],[6,0]],
-    '4': [[6,0]],
-    '5': [[8,0],[8,8],[6,0],[6,6],[7,0]],
-    '6': [[6,0]]
-}
-
-lane_table = {'1': [[8, 0], [8, 8]], '3': [[8, 0], [8, 8]], '2': [[8, 0], [6, 0]], '4': [[8, 0]]}
-
-samples_to_include = {'1': ['101', '104'], '3': ['107'], '2': ['105', '107', '108'], '4': ['106', '107', '108']}
-
-mask_table = {'1': [8, 0], '3': [8, 0], '2': [8, 0], '4': [8, 0]}
-
-base_masks = {'1': {'Y50I8I8Y50': {'base_mask': ['Y50', 'I8', 'I8', 'Y50']}}, '3': {'Y50N8N8Y50': {'base_mask': ['Y50', 'N8', 'N8', 'Y50']}}, '2': {'Y50I8N8Y50': {'base_mask': ['Y50', 'I8', 'N8', 'Y50']}}}
-"""
-
 TENX_GENO_PAT = re.compile("SI-GA-[A-H][1-9][0-2]?")
 TENX_ATAC_PAT = re.compile("SI-NA-[A-H][1-9][0-2]?")
 UMI_IDX = re.compile("([ATCG]{4,}N+$)")
