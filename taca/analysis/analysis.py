@@ -4,6 +4,7 @@ Analysis methods for TACA
 import glob
 import logging
 import os
+import subprocess
 
 from shutil import copyfile
 from taca.illumina.HiSeqX_Runs import HiSeqX_Run
@@ -149,12 +150,33 @@ def transfer_run(run_dir, analysis):
 
 
 def transfer_runfolder(run_dir, pid):
-    """ Transfer the entire run folder for a specified project
+    """ Transfer the entire run folder for a specified project and run
     :param: string run_dir: the run to transfer
     :param: string pid: the project to include in the SampleSheet
     """
-    print "Transferring run folder for project " + pid
+    original_sample_sheet = os.path.join(run_dir, 'SampleSheet.csv')
+    new_sample_sheet = os.path.join(run_dir, 'SampleSheet.txt')
+
+    # Write new sample sheet including only rows for the specified project
+    with open(new_sample_sheet, 'w') as nss:
+        nss.write(extract_project_samplesheet(original_sample_sheet, pid))
+
+    # Create a tar archive of the runfolder
+    archive = run_dir + ".tar.gz" 
+    subprocess.call(['tar', '--exclude', 'Demultiplexing*', '--exclude', 'demux_*', '--exclude', 'rsync*', '--exclude', '*.csv', '-cvzf', archive, run_dir])
+
+    # Generate the md5sum
+    # rsync the archive and md5sum files to Irma
+    # clean up the generated files
     return
+
+def extract_project_samplesheet(sample_sheet, pid):
+    project_entries = ''
+    with open(sample_sheet) as f:
+        for line in f:
+            if pid in line:
+                project_entries += line
+    return project_entries
 
 def run_preprocessing(run, force_trasfer=True, statusdb=True):
     """ Run demultiplexing in all data directories
