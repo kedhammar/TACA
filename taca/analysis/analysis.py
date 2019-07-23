@@ -147,6 +147,15 @@ def transfer_run(run_dir, analysis):
         runObj.transfer_run(os.path.join("nosync",CONFIG['analysis']['status_dir'], 'transfer.tsv'),
                             analysis, mail_recipients) # do not start analsysis automatically if I force the transfer
 
+
+def transfer_runfolder(run_dir, pid):
+    """ Transfer the entire run folder for a specified project
+    :param: string run_dir: the run to transfer
+    :param: string pid: the project to include in the SampleSheet
+    """
+    print "Transferring run folder for project " + pid
+    return
+
 def run_preprocessing(run, force_trasfer=True, statusdb=True):
     """ Run demultiplexing in all data directories
         :param str run: Process a particular run instead of looking for runs
