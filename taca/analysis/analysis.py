@@ -13,6 +13,8 @@ from taca.illumina.MiSeq_Runs import MiSeq_Run
 from taca.illumina.NextSeq_Runs import NextSeq_Run
 from taca.illumina.NovaSeq_Runs import NovaSeq_Run
 from taca.utils.config import CONFIG
+from taca.utils.misc import call_external_command_detached
+from taca.utils.transfer import RsyncAgent
 
 import flowcell_parser.db as fcpdb
 from flowcell_parser.classes import RunParametersParser
@@ -154,24 +156,63 @@ def transfer_runfolder(run_dir, pid):
     :param: string run_dir: the run to transfer
     :param: string pid: the project to include in the SampleSheet
     """
-    original_sample_sheet = os.path.join(run_dir, 'SampleSheet.csv')
-    new_sample_sheet = os.path.join(run_dir, 'SampleSheet.txt')
+    original_sample_sheet = os.path.join(run_dir, "SampleSheet.csv")
+    new_sample_sheet = os.path.join(run_dir, pid + "_SampleSheet.txt")
 
     # Write new sample sheet including only rows for the specified project
-    with open(new_sample_sheet, 'w') as nss:
-        nss.write(extract_project_samplesheet(original_sample_sheet, pid))
+    try:
+        with open(new_sample_sheet, 'w') as nss:
+            nss.write(extract_project_samplesheet(original_sample_sheet, pid))
+    except:
+        logger.warn("Error parsing the samplesheet")
+        return
 
     # Create a tar archive of the runfolder
-    archive = run_dir + ".tar.gz" 
-    subprocess.call(['tar', '--exclude', 'Demultiplexing*', '--exclude', 'demux_*', '--exclude', 'rsync*', '--exclude', '*.csv', '-cvzf', archive, run_dir])
+    archive = os.path.basename(run_dir) + ".tar.gz"
+    try:
+        subprocess.call(["tar", "--exclude", "Demultiplexing*", "--exclude", "demux_*", "--exclude", "rsync*", "--exclude", "*.csv", "-cvzf", archive, run_dir])
+    except:
+        logger.warn("Error creating tar archive")
+        return
 
     # Generate the md5sum
-    # rsync the archive and md5sum files to Irma
+    md5file = archive + ".md5"
+    try:
+        f = open(md5file, 'w')
+        subprocess.call(["md5sum", archive], stdout=f)
+        f.close()
+    except:
+        logger.warn("Error creating md5 file")
+        return
+
+    # Rsync the files to irma
+    destination = "test"
+    #destination = "/proj/ngi2016003/incoming"
+    rsync_opts = {"--no-o" : None, "--no-g" : None, "--chmod" : "g+rw"}
+    archive_transfer = RsyncAgent(archive, dest_path=destination, remote_host="b5.biotech.kth.se", remote_user="sara.sjunnebo", validate=False, opts=rsync_opts)
+    md5_transfer = RsyncAgent(md5file, dest_path=destination, remote_host="b5.biotech.kth.se", remote_user="sara.sjunnebo", validate=False, opts=rsync_opts)
+    #archive_transfer = RsyncAgent(archive, dest_path=destination, remote_host="irma1.uppmax.uu.se", remote_user="funk_903", validate=False, opts=rsync_opts)
+    #md5_transfer = RsyncAgent(md5file, dest_path=destination, remote_host="irma1.uppmax.uu.se", remote_user="funk_903", validate=False, opts=rsync_opts)
+
+    try:
+        archive_transfer.transfer()
+        md5_transfer.transfer()
+    except:
+        logger.warn("Error transferring files to Irma")
+        return
+
     # clean up the generated files
+    try:
+        os.remove(new_sample_sheet)
+        os.remove(archive)
+        os.remove(md5file)
+    except:
+        logger.warn("Was not able to delete all temporary files")
+
     return
 
 def extract_project_samplesheet(sample_sheet, pid):
-    project_entries = ''
+    project_entries = ""
     with open(sample_sheet) as f:
         for line in f:
             if pid in line:
