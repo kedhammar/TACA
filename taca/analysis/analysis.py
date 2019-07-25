@@ -186,13 +186,11 @@ def transfer_runfolder(run_dir, pid):
         return
 
     # Rsync the files to irma
-    destination = "test"
-    #destination = "/proj/ngi2016003/incoming"
+    destination = CONFIG["analysis"]["deliver_runfolder"].get("destination")
     rsync_opts = {"--no-o" : None, "--no-g" : None, "--chmod" : "g+rw"}
-    archive_transfer = RsyncAgent(archive, dest_path=destination, remote_host="b5.biotech.kth.se", remote_user="sara.sjunnebo", validate=False, opts=rsync_opts)
-    md5_transfer = RsyncAgent(md5file, dest_path=destination, remote_host="b5.biotech.kth.se", remote_user="sara.sjunnebo", validate=False, opts=rsync_opts)
-    #archive_transfer = RsyncAgent(archive, dest_path=destination, remote_host="irma1.uppmax.uu.se", remote_user="funk_903", validate=False, opts=rsync_opts)
-    #md5_transfer = RsyncAgent(md5file, dest_path=destination, remote_host="irma1.uppmax.uu.se", remote_user="funk_903", validate=False, opts=rsync_opts)
+    connection_details = CONFIG["analysis"]["deliver_runfolder"].get("analysis_server")
+    archive_transfer = RsyncAgent(archive, dest_path=destination, remote_host=connection_details["host"], remote_user=connection_details["user"], validate=False, opts=rsync_opts)
+    md5_transfer = RsyncAgent(md5file, dest_path=destination, remote_host=connection_details["host"], remote_user=connection_details["user"], validate=False, opts=rsync_opts)
 
     try:
         archive_transfer.transfer()
