@@ -168,9 +168,12 @@ def transfer_runfolder(run_dir, pid):
         return
 
     # Create a tar archive of the runfolder
-    archive = os.path.basename(run_dir) + ".tar.gz"
+    dir_name = os.path.basename(run_dir)
+    archive = dir_name + ".tar.gz"
+    run_dir_path = os.path.dirname(run_dir)
+
     try:
-        subprocess.call(["tar", "--exclude", "Demultiplexing*", "--exclude", "demux_*", "--exclude", "rsync*", "--exclude", "*.csv", "-cvzf", archive, run_dir])
+        subprocess.call(["tar", "--exclude", "Demultiplexing*", "--exclude", "demux_*", "--exclude", "rsync*", "--exclude", "*.csv", "-cvzf", archive, "-C", run_dir_path, dir_name])
     except:
         logger.warn("Error creating tar archive")
         return
