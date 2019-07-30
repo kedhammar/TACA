@@ -75,17 +75,17 @@ class HiSeqX_Run(Run):
         sample_type_list = []
         for lane, lane_contents in self.sample_table.items():
             for sample in lane_contents:
-                if sample[sample.keys()[0]]['type'] not in sample_type_list:
-                    sample_type_list.append(sample[sample.keys()[0]]['type'])
+                if sample[sample.keys()[0]]['sample_type'] not in sample_type_list:
+                    sample_type_list.append(sample[sample.keys()[0]]['sample_type'])
 
         # Go through sample_table for demultiplexing
         bcl2fastq_cmd_counter = 0
-        for type in sample_type_list:
+        for sample_type in sample_type_list:
             # Looking for lanes with multiple masks under the same sample type
             lane_table = dict()
             for lane, lane_contents in self.sample_table.items():
                 for sample in lane_contents:
-                    if sample[sample.keys()[0]]['type'] == type:
+                    if sample[sample.keys()[0]]['sample_type'] == sample_type:
                         if lane_table.get(lane):
                             if sample[sample.keys()[0]]['index_length'] not in lane_table[lane]:
                                 lane_table[lane].append(sample[sample.keys()[0]]['index_length'])
@@ -109,7 +109,7 @@ class HiSeqX_Run(Run):
                         else:
                             mask_table.update({lane:index_length})
                         for sample in lane_contents:
-                            if sample[sample.keys()[0]]['type'] == type and sample[sample.keys()[0]]['index_length'] == index_length:
+                            if sample[sample.keys()[0]]['sample_type'] == sample_type and sample[sample.keys()[0]]['index_length'] == index_length:
                                 if samples_to_include.get(lane):
                                     samples_to_include[lane].append(sample.keys()[0])
                                 else:
@@ -131,7 +131,7 @@ class HiSeqX_Run(Run):
 
                 # Prepare demultiplexing command
                 with chdir(self.run_dir):
-                    cmd = self.generate_bcl_command(type, mask_table, bcl2fastq_cmd_counter)
+                    cmd = self.generate_bcl_command(sample_type, mask_table, bcl2fastq_cmd_counter)
                     misc.call_external_command_detached(cmd, with_log_files = True, prefix="demux_{}".format(bcl2fastq_cmd_counter))
                     logger.info(("BCL to FASTQ conversion and demultiplexing started for run {} on {}".format(os.path.basename(self.id), datetime.now())))
 
@@ -151,8 +151,8 @@ class HiSeqX_Run(Run):
         for lane, lane_contents in self.sample_table.items():
             sample_type_list_per_lane = []
             for sample in lane_contents:
-                if sample[sample.keys()[0]]['type'] not in sample_type_list_per_lane:
-                    sample_type_list_per_lane.append(sample[sample.keys()[0]]['type'])
+                if sample[sample.keys()[0]]['sample_type'] not in sample_type_list_per_lane:
+                    sample_type_list_per_lane.append(sample[sample.keys()[0]]['sample_type'])
             if len(sample_type_list_per_lane) > 1:
                 complex_lanes[lane] = 0
             else:
@@ -167,10 +167,10 @@ class HiSeqX_Run(Run):
 
         self._aggregate_demux_results_simple_complex(simple_lanes, complex_lanes)
 
-    def generate_bcl_command(self, type, mask_table, bcl2fastq_cmd_counter):
+    def generate_bcl_command(self, sample_type, mask_table, bcl2fastq_cmd_counter):
         #I have everything to run demultiplexing now.
         logger.info('Building a bcl2fastq command')
-        per_lane_base_masks = self._generate_per_lane_base_mask(type, mask_table)
+        per_lane_base_masks = self._generate_per_lane_base_mask(sample_type, mask_table)
         with chdir(self.run_dir):
             cl = [self.CONFIG.get('bcl2fastq')['bin']]
             output_dir = "Demultiplexing_{}".format(bcl2fastq_cmd_counter)
@@ -182,10 +182,10 @@ class HiSeqX_Run(Run):
                 for option in self.CONFIG['bcl2fastq']['options']:
                     cl_options.extend([option])
                 # Add the extra 10X command options if we have a 10X run
-                if type == '10X_GENO' or type == '10X_ATAC':
+                if sample_type == '10X_GENO' or sample_type == '10X_ATAC':
                     cl_options.extend(self.CONFIG['bcl2fastq']['options_10X'])
                 # Add the extra command option if we have samples with IDT UMI
-                if type == 'UMI':
+                if sample_type == 'UMI':
                     cl_options.extend(self.CONFIG['bcl2fastq']['options_UMI'])
                 # Append all options that appear in the configuration file to the main command.
                 for option in cl_options:
@@ -206,7 +206,7 @@ class HiSeqX_Run(Run):
                 cl.extend(["--use-bases-mask", base_mask_expr])
         return cl
 
-    def _generate_per_lane_base_mask(self, type, mask_table):
+    def _generate_per_lane_base_mask(self, sample_type, mask_table):
         """
         This functions generate the base mask for each lane included in mask_table.
         Hypotesis:
@@ -235,7 +235,7 @@ class HiSeqX_Run(Run):
             if index1_size != 0 and index2_size != 0:
                 is_dual_index = True
             # compute the basemask
-            base_mask = self._compute_base_mask(runSetup, type, index1_size, is_dual_index, index2_size)
+            base_mask = self._compute_base_mask(runSetup, sample_type, index1_size, is_dual_index, index2_size)
             base_mask_string = "".join(base_mask)
 
             base_masks[lane][base_mask_string] = {'base_mask':base_mask}
@@ -243,7 +243,7 @@ class HiSeqX_Run(Run):
         return base_masks
 
 
-    def _compute_base_mask(self, runSetup, type, index1_size, is_dual_index, index2_size):
+    def _compute_base_mask(self, runSetup, sample_type, index1_size, is_dual_index, index2_size):
         """
             Assumptions:
                 - if runSetup is of size 3, then single index run
@@ -270,7 +270,7 @@ class HiSeqX_Run(Run):
                 if is_first_index_read:
                     i_remainder = cycles - index1_size
                     if i_remainder > 0:
-                        if type == 'UMI': #case of UMI
+                        if sample_type == 'UMI': #case of UMI
                             bm.append('I' + str(index1_size) + 'y*')
                         elif index1_size == 0:
                             bm.append('N' + str(cycles)) #case of NoIndex
@@ -281,12 +281,12 @@ class HiSeqX_Run(Run):
                 else:
                 # when working on the second read index I need to know if the sample is dual index or not
                     if is_dual_index:
-                        if type == '10X_ATAC': #case of 10X scATACseq
+                        if sample_type == '10X_ATAC': #case of 10X scATACseq
                             bm.append('Y' + str(index2_size))
                         else:
                             i_remainder = cycles - index2_size
                             if i_remainder > 0:
-                                if type == 'UMI': #case of UMI
+                                if sample_type == 'UMI': #case of UMI
                                     bm.append('I' + str(index2_size) + 'y*')
                                 elif index2_size == 0:
                                     bm.append('N' + str(cycles))
@@ -399,9 +399,9 @@ def _classify_samples(indexfile, ssparser):
 
         # Write in sample table
         if sample_table.get(lane):
-            sample_table[lane].append({sample_name:{'type':sample_type,'index_length':index_length}})
+            sample_table[lane].append({sample_name:{'sample_type':sample_type,'index_length':index_length}})
         else:
-            sample_table.update({lane:[{sample_name:{'type':sample_type,'index_length':index_length}}]})
+            sample_table.update({lane:[{sample_name:{'sample_type':sample_type,'index_length':index_length}}]})
 
     return sample_table
 
