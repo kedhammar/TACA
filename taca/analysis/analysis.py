@@ -213,12 +213,16 @@ def transfer_runfolder(run_dir, pid):
     return
 
 def extract_project_samplesheet(sample_sheet, pid):
+    header_lines = ""
     project_entries = ""
     with open(sample_sheet) as f:
         for line in f:
-            if pid in line:
+            if not line[0].isdigit():
+                header_lines += line
+            elif pid in line:
                 project_entries += line
-    return project_entries
+    new_samplesheet_content = header_lines + project_entries
+    return new_samplesheet_content
 
 def run_preprocessing(run, force_trasfer=True, statusdb=True):
     """ Run demultiplexing in all data directories
