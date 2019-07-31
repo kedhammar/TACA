@@ -212,15 +212,15 @@ def transfer_runfolder(run_dir, pid):
     return
 
 def extract_project_samplesheet(sample_sheet, pid):
-    header_lines = ""
+    header_line = ""
     project_entries = ""
     with open(sample_sheet) as f:
         for line in f:
-            if not line[0].isdigit():  # include the header
-                header_lines += line
+            if line.split(",")[0] == 'Lane':  # include the header
+                header_line += line
             elif pid in line:
                 project_entries += line  # include only lines related to the specified project
-    new_samplesheet_content = header_lines + project_entries
+    new_samplesheet_content = header_line + project_entries
     return new_samplesheet_content
 
 def run_preprocessing(run, force_trasfer=True, statusdb=True):
