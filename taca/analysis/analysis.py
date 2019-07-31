@@ -13,7 +13,6 @@ from taca.illumina.MiSeq_Runs import MiSeq_Run
 from taca.illumina.NextSeq_Runs import NextSeq_Run
 from taca.illumina.NovaSeq_Runs import NovaSeq_Run
 from taca.utils.config import CONFIG
-from taca.utils.misc import call_external_command_detached
 from taca.utils.transfer import RsyncAgent
 
 import flowcell_parser.db as fcpdb
@@ -152,7 +151,7 @@ def transfer_run(run_dir, analysis):
 
 
 def transfer_runfolder(run_dir, pid):
-    """ Transfer the entire run folder for a specified project and run
+    """ Transfer the entire run folder for a specified project and run to uppmax
     :param: string run_dir: the run to transfer
     :param: string pid: the project to include in the SampleSheet
     """
@@ -217,10 +216,10 @@ def extract_project_samplesheet(sample_sheet, pid):
     project_entries = ""
     with open(sample_sheet) as f:
         for line in f:
-            if not line[0].isdigit():
+            if not line[0].isdigit():  # include the header
                 header_lines += line
             elif pid in line:
-                project_entries += line
+                project_entries += line  # include only lines related to the specified project
     new_samplesheet_content = header_lines + project_entries
     return new_samplesheet_content
 
