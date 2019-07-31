@@ -216,7 +216,7 @@ def extract_project_samplesheet(sample_sheet, pid):
     project_entries = ""
     with open(sample_sheet) as f:
         for line in f:
-            if line.split(",")[0] == 'Lane':  # include the header
+            if line.split(",")[0] is 'Lane' or 'FCID':  # include the header
                 header_line += line
             elif pid in line:
                 project_entries += line  # include only lines related to the specified project
