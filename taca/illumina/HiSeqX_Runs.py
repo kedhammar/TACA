@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 TENX_GENO_PAT = re.compile("SI-GA-[A-H][1-9][0-2]?")
 TENX_ATAC_PAT = re.compile("SI-NA-[A-H][1-9][0-2]?")
-UMI_IDX = re.compile("([ATCG]{4,}N+$)")
+IDT_UMI_PAT = re.compile("([ATCG]{4,}N+$)")
 
 class HiSeqX_Run(Run):
 
@@ -75,8 +75,10 @@ class HiSeqX_Run(Run):
         sample_type_list = []
         for lane, lane_contents in self.sample_table.items():
             for sample in lane_contents:
-                if sample[sample.keys()[0]]['sample_type'] not in sample_type_list:
-                    sample_type_list.append(sample[sample.keys()[0]]['sample_type'])
+                sample_detail = sample[1]
+                sample_type = sample_detail['sample_type']
+                if sample_type not in sample_type_list:
+                    sample_type_list.append(sample_type)
 
         # Go through sample_table for demultiplexing
         bcl2fastq_cmd_counter = 0
@@ -85,12 +87,15 @@ class HiSeqX_Run(Run):
             lane_table = dict()
             for lane, lane_contents in self.sample_table.items():
                 for sample in lane_contents:
-                    if sample[sample.keys()[0]]['sample_type'] == sample_type:
+                    sample_detail = sample[1]
+                    sample_type_t = sample_detail['sample_type']
+                    sample_index_length = sample_detail['index_length']
+                    if sample_type_t == sample_type:
                         if lane_table.get(lane):
-                            if sample[sample.keys()[0]]['index_length'] not in lane_table[lane]:
-                                lane_table[lane].append(sample[sample.keys()[0]]['index_length'])
+                            if sample_index_length not in lane_table[lane]:
+                                lane_table[lane].append(sample_index_length)
                         else:
-                            lane_table.update({lane:[sample[sample.keys()[0]]['index_length']]})
+                            lane_table.update({lane:[sample_index_length]})
             # Determine the number of demux needed for the same sample type
             demux_number_with_the_same_sample_type = len(max([v for k, v in lane_table.items()],key=len))
             # Prepare sub-samplesheets, masks and commands
@@ -104,17 +109,19 @@ class HiSeqX_Run(Run):
                 for lane, lane_contents in self.sample_table.items():
                     try:
                         index_length = lane_table[lane][i]
-                        if mask_table.get(lane):
-                            mask_table[lane] = index_length
-                        else:
-                            mask_table.update({lane:index_length})
+                        mask_table.update({lane:index_length})
                         for sample in lane_contents:
-                            if sample[sample.keys()[0]]['sample_type'] == sample_type and sample[sample.keys()[0]]['index_length'] == index_length:
+                            sample_name = sample[0]
+                            sample_detail = sample[1]
+                            sample_type_t = sample_detail['sample_type']
+                            sample_index_length = sample_detail['index_length']
+                            if sample_type_t == sample_type and sample_index_length == index_length:
                                 if samples_to_include.get(lane):
-                                    samples_to_include[lane].append(sample.keys()[0])
+                                    samples_to_include[lane].append(sample_name)
                                 else:
-                                    samples_to_include.update({lane:[sample.keys()[0]]})
+                                    samples_to_include.update({lane:[sample_name]})
                     except (KeyError, IndexError) as err:
+                        logger.info(("No corresponding mask in lane {}. Skip it.".format(lane)))
                         continue
 
                 # Make sub-samplesheet
@@ -151,15 +158,19 @@ class HiSeqX_Run(Run):
         for lane, lane_contents in self.sample_table.items():
             sample_type_list_per_lane = []
             for sample in lane_contents:
-                if sample[sample.keys()[0]]['sample_type'] not in sample_type_list_per_lane:
-                    sample_type_list_per_lane.append(sample[sample.keys()[0]]['sample_type'])
+                sample_detail = sample[1]
+                sample_type = sample_detail['sample_type']
+                if sample_type not in sample_type_list_per_lane:
+                    sample_type_list_per_lane.append(sample_type)
             if len(sample_type_list_per_lane) > 1:
                 complex_lanes[lane] = 0
             else:
                 sample_index_length_list_per_lane = [] # Note that there is only one sample type in this case
                 for sample in lane_contents:
-                    if sample[sample.keys()[0]]['index_length'] not in sample_index_length_list_per_lane:
-                        sample_index_length_list_per_lane.append(sample[sample.keys()[0]]['index_length'])
+                    sample_detail = sample[1]
+                    sample_index_length = sample_detail['index_length']
+                    if sample_index_length not in sample_index_length_list_per_lane:
+                        sample_index_length_list_per_lane.append(sample_index_length)
                 if len(sample_index_length_list_per_lane) > 1:
                     complex_lanes[lane] = 0
                 else:
@@ -185,8 +196,8 @@ class HiSeqX_Run(Run):
                 if sample_type == '10X_GENO' or sample_type == '10X_ATAC':
                     cl_options.extend(self.CONFIG['bcl2fastq']['options_10X'])
                 # Add the extra command option if we have samples with IDT UMI
-                if sample_type == 'UMI':
-                    cl_options.extend(self.CONFIG['bcl2fastq']['options_UMI'])
+                if sample_type == 'IDT_UMI':
+                    cl_options.extend(self.CONFIG['bcl2fastq']['options_IDT_UMI'])
                 # Append all options that appear in the configuration file to the main command.
                 for option in cl_options:
                     if isinstance(option, dict):
@@ -270,7 +281,7 @@ class HiSeqX_Run(Run):
                 if is_first_index_read:
                     i_remainder = cycles - index1_size
                     if i_remainder > 0:
-                        if sample_type == 'UMI': #case of UMI
+                        if sample_type == 'IDT_UMI': #case of IDT UMI
                             bm.append('I' + str(index1_size) + 'y*')
                         elif index1_size == 0:
                             bm.append('N' + str(cycles)) #case of NoIndex
@@ -286,7 +297,7 @@ class HiSeqX_Run(Run):
                         else:
                             i_remainder = cycles - index2_size
                             if i_remainder > 0:
-                                if sample_type == 'UMI': #case of UMI
+                                if sample_type == 'IDT_UMI': #case of IDT UMI
                                     bm.append('I' + str(index2_size) + 'y*')
                                 elif index2_size == 0:
                                     bm.append('N' + str(cycles))
@@ -383,11 +394,11 @@ def _classify_samples(indexfile, ssparser):
         elif TENX_ATAC_PAT.findall(sample['index']):
             index_length = [len(index_dict[sample['index']][0]),16]
             sample_type = '10X_ATAC'
-        # UMI samples
-        elif UMI_IDX.findall(sample['index']) or UMI_IDX.findall(sample['index2']):
+        # IDT UMI samples
+        elif IDT_UMI_PAT.findall(sample['index']) or IDT_UMI_PAT.findall(sample['index2']):
             # Index length after removing "N" part
             index_length = [len(sample['index'].replace('N','')),len(sample['index2'].replace('N',''))]
-            sample_type = 'UMI'
+            sample_type = 'IDT_UMI'
         # No Index case. Note that if both index 1 and 2 are empty, it will be the same index type but will be handled in the next case
         elif sample['index'].upper() == 'NOINDEX':
             index_length = [0,0]
@@ -398,10 +409,11 @@ def _classify_samples(indexfile, ssparser):
             sample_type = 'ordinary'
 
         # Write in sample table
+        # {'1': [('101', {'sample_type': 'ordinary', 'index_length': [8, 8]}), ('102', {'sample_type': 'ordinary', 'index_length': [8, 8]})]}
         if sample_table.get(lane):
-            sample_table[lane].append({sample_name:{'sample_type':sample_type,'index_length':index_length}})
+            sample_table[lane].append((sample_name,{'sample_type':sample_type,'index_length':index_length}))
         else:
-            sample_table.update({lane:[{sample_name:{'sample_type':sample_type,'index_length':index_length}}]})
+            sample_table.update({lane:[(sample_name,{'sample_type':sample_type,'index_length':index_length})]})
 
     return sample_table
 
@@ -444,8 +456,8 @@ def _generate_samplesheet_subset(ssparser, samples_to_include):
                     # Case of no index
                     if field == "index" and "NOINDEX" in line[field].upper():
                         line[field] = ""
-                    # Case of UMI
-                    if (field == "index" or field == "index2") and UMI_IDX.findall(line[field]):
+                    # Case of IDT UMI
+                    if (field == "index" or field == "index2") and IDT_UMI_PAT.findall(line[field]):
                         line[field] = line[field].replace('N','')
                     line_ar.append(line[field])
                 output+=",".join(line_ar)
