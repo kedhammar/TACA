@@ -162,9 +162,9 @@ def transfer_runfolder(run_dir, pid):
     try:
         with open(new_sample_sheet, 'w') as nss:
             nss.write(extract_project_samplesheet(original_sample_sheet, pid))
-    except:
-        logger.warn("Error parsing the samplesheet")
-        return
+    except IOError as e:
+        logger.error("An error occured while parsing the samplesheet. Please check the sample sheet and try again.")
+        raise e
 
     # Create a tar archive of the runfolder
     dir_name = os.path.basename(run_dir)
@@ -173,9 +173,9 @@ def transfer_runfolder(run_dir, pid):
 
     try:
         subprocess.call(["tar", "--exclude", "Demultiplexing*", "--exclude", "demux_*", "--exclude", "rsync*", "--exclude", "*.csv", "-cvzf", archive, "-C", run_dir_path, dir_name])
-    except:
-        logger.warn("Error creating tar archive")
-        return
+    except subprocess.CalledProcessError as e:
+        logger.error("Error creating tar archive")
+        raise e
 
     # Generate the md5sum
     md5file = archive + ".md5"
@@ -183,9 +183,9 @@ def transfer_runfolder(run_dir, pid):
         f = open(md5file, 'w')
         subprocess.call(["md5sum", archive], stdout=f)
         f.close()
-    except:
-        logger.warn("Error creating md5 file")
-        return
+    except subprocess.CalledProcessError as e:
+        logger.error("Error creating md5 file")
+        raise e
 
     # Rsync the files to irma
     destination = CONFIG["analysis"]["deliver_runfolder"].get("destination")
@@ -194,20 +194,17 @@ def transfer_runfolder(run_dir, pid):
     archive_transfer = RsyncAgent(archive, dest_path=destination, remote_host=connection_details["host"], remote_user=connection_details["user"], validate=False, opts=rsync_opts)
     md5_transfer = RsyncAgent(md5file, dest_path=destination, remote_host=connection_details["host"], remote_user=connection_details["user"], validate=False, opts=rsync_opts)
 
-    try:
-        archive_transfer.transfer()
-        md5_transfer.transfer()
-    except:
-        logger.warn("Error transferring files to Irma")
-        return
+    archive_transfer.transfer()
+    md5_transfer.transfer()
 
     # clean up the generated files
     try:
         os.remove(new_sample_sheet)
         os.remove(archive)
         os.remove(md5file)
-    except:
-        logger.warn("Was not able to delete all temporary files")
+    except IOError as e:
+        logger.error("Was not able to delete all temporary files")
+        raise e
 
     return
 

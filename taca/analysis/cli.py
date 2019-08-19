@@ -28,9 +28,9 @@ def demultiplex(run, force):
 def transfer(rundir, analysis, runfolder_project):
     """Transfers the run without qc"""
     if not runfolder_project:
-            an.transfer_run(rundir, analysis=analysis)
+        an.transfer_run(rundir, analysis=analysis)
     else:
-            an.transfer_runfolder(rundir, pid=runfolder_project)
+        an.transfer_runfolder(rundir, pid=runfolder_project)
 
 @analysis.command()
 @click.argument('rundir')
