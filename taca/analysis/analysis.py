@@ -4,6 +4,7 @@ Analysis methods for TACA
 import glob
 import logging
 import os
+import subprocess
 
 from shutil import copyfile
 from taca.illumina.HiSeqX_Runs import HiSeqX_Run
@@ -12,6 +13,7 @@ from taca.illumina.MiSeq_Runs import MiSeq_Run
 from taca.illumina.NextSeq_Runs import NextSeq_Run
 from taca.illumina.NovaSeq_Runs import NovaSeq_Run
 from taca.utils.config import CONFIG
+from taca.utils.transfer import RsyncAgent
 
 import flowcell_parser.db as fcpdb
 from flowcell_parser.classes import RunParametersParser
@@ -146,6 +148,77 @@ def transfer_run(run_dir, analysis):
     else:
         runObj.transfer_run(os.path.join("nosync",CONFIG['analysis']['status_dir'], 'transfer.tsv'),
                             analysis, mail_recipients) # do not start analsysis automatically if I force the transfer
+
+
+def transfer_runfolder(run_dir, pid):
+    """ Transfer the entire run folder for a specified project and run to uppmax
+    :param: string run_dir: the run to transfer
+    :param: string pid: the project to include in the SampleSheet
+    """
+    original_sample_sheet = os.path.join(run_dir, "SampleSheet.csv")
+    new_sample_sheet = os.path.join(run_dir, pid + "_SampleSheet.txt")
+
+    # Write new sample sheet including only rows for the specified project
+    try:
+        with open(new_sample_sheet, 'w') as nss:
+            nss.write(extract_project_samplesheet(original_sample_sheet, pid))
+    except IOError as e:
+        logger.error("An error occured while parsing the samplesheet. Please check the sample sheet and try again.")
+        raise e
+
+    # Create a tar archive of the runfolder
+    dir_name = os.path.basename(run_dir)
+    archive = dir_name + ".tar.gz"
+    run_dir_path = os.path.dirname(run_dir)
+
+    try:
+        subprocess.call(["tar", "--exclude", "Demultiplexing*", "--exclude", "demux_*", "--exclude", "rsync*", "--exclude", "*.csv", "-cvzf", archive, "-C", run_dir_path, dir_name])
+    except subprocess.CalledProcessError as e:
+        logger.error("Error creating tar archive")
+        raise e
+
+    # Generate the md5sum
+    md5file = archive + ".md5"
+    try:
+        f = open(md5file, 'w')
+        subprocess.call(["md5sum", archive], stdout=f)
+        f.close()
+    except subprocess.CalledProcessError as e:
+        logger.error("Error creating md5 file")
+        raise e
+
+    # Rsync the files to irma
+    destination = CONFIG["analysis"]["deliver_runfolder"].get("destination")
+    rsync_opts = {"--no-o" : None, "--no-g" : None, "--chmod" : "g+rw"}
+    connection_details = CONFIG["analysis"]["deliver_runfolder"].get("analysis_server")
+    archive_transfer = RsyncAgent(archive, dest_path=destination, remote_host=connection_details["host"], remote_user=connection_details["user"], validate=False, opts=rsync_opts)
+    md5_transfer = RsyncAgent(md5file, dest_path=destination, remote_host=connection_details["host"], remote_user=connection_details["user"], validate=False, opts=rsync_opts)
+
+    archive_transfer.transfer()
+    md5_transfer.transfer()
+
+    # clean up the generated files
+    try:
+        os.remove(new_sample_sheet)
+        os.remove(archive)
+        os.remove(md5file)
+    except IOError as e:
+        logger.error("Was not able to delete all temporary files")
+        raise e
+
+    return
+
+def extract_project_samplesheet(sample_sheet, pid):
+    header_line = ""
+    project_entries = ""
+    with open(sample_sheet) as f:
+        for line in f:
+            if line.split(",")[0] in ('Lane', 'FCID'):  # include the header
+                header_line += line
+            elif pid in line:
+                project_entries += line  # include only lines related to the specified project
+    new_samplesheet_content = header_line + project_entries
+    return new_samplesheet_content
 
 def run_preprocessing(run, force_trasfer=True, statusdb=True):
     """ Run demultiplexing in all data directories
