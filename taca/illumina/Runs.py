@@ -503,7 +503,7 @@ class Run(object):
         run_dir      =  self.run_dir
         demux_folder =  os.path.join(self.run_dir , self.demux_dir)
         samplesheets =  glob.glob(os.path.join(run_dir, "*_[0-9].csv")) # a single digit... this hipotesis should hold for a while
-        if len(complex_lanes) == 0:
+        if len(complex_lanes) == 0 and len(samplesheets) == 1:
             #it means that each lane had only one type of index size, so no need to do super tricky stuff
             demux_folder_tmp_name = "Demultiplexing_0" # in this case this is the only demux dir
             demux_folder_tmp     = os.path.join(run_dir, demux_folder_tmp_name)
@@ -579,11 +579,26 @@ class Run(object):
                     for fastqfile in fastqfiles:
                         os.symlink(fastqfile, os.path.join(sample_dest,os.path.split(fastqfile)[1]))
 
-        #now copy fastq files for undetermined (for simple lanes only)
-        for lane in simple_lanes.keys():
-            undetermined_fastq_files = glob.glob(os.path.join(run_dir, "Demultiplexing_0", "Undetermined_S0_L00{}*.fastq*".format(lane))) #contains only simple lanes undetermined
-            for fastqfile in undetermined_fastq_files:
-                os.symlink(fastqfile, os.path.join(demux_folder,os.path.split(fastqfile)[1]))
+            #now copy fastq files for undetermined and the undetermined stats for simple lanes only
+            lanes_in_sub_samplesheet = []
+            header = ['[Header]','[Data]','FCID','Lane', 'Sample_ID', 'Sample_Name', 'Sample_Ref', 'index', 'index2', 'Description', 'Control', 'Recipe', 'Operator', 'Sample_Project']
+            with open(samplesheet, mode='r') as sub_samplesheet_file:
+                sub_samplesheet_reader = csv.reader(sub_samplesheet_file)
+                for row in sub_samplesheet_reader:
+                    if row[0] not in header:
+                        lanes_in_sub_samplesheet.append(row[1])
+            lanes_in_sub_samplesheet = list(set(lanes_in_sub_samplesheet))
+            for lane in lanes_in_sub_samplesheet:
+                if lane in simple_lanes.keys():
+                    undetermined_fastq_files = glob.glob(os.path.join(run_dir, "Demultiplexing_{}".format(demux_id), "Undetermined_S0_L00{}*.fastq*".format(lane))) #contains only simple lanes undetermined
+                    for fastqfile in undetermined_fastq_files:
+                        os.symlink(fastqfile, os.path.join(demux_folder,os.path.split(fastqfile)[1]))
+                    DemuxSummaryFiles = glob.glob(os.path.join(run_dir, "Demultiplexing_{}".format(demux_id), "Stats", "*L{}*txt".format(lane)))
+                    if not os.path.exists(os.path.join(demux_folder, "Stats")):
+                        os.makedirs(os.path.join(demux_folder, "Stats"))
+                    for DemuxSummaryFile in DemuxSummaryFiles:
+                        os.symlink(DemuxSummaryFile, os.path.join(demux_folder, "Stats", os.path.split(DemuxSummaryFile)[1]))
+
         #now create the html reports
         #start with the lane
 
@@ -690,11 +705,7 @@ class Run(object):
                                 stats_list['UnknownBarcodes'][index] = complex_lane_entry
 #                        stats_list['UnknownBarcodes'].extend(data['UnknownBarcodes'])
             json.dump(stats_list, json_data_cumulative)
-        #copy the Undetermined stats for simple lanes
-        for lane in simple_lanes.keys():
-            DemuxSummaryFiles = glob.glob(os.path.join(run_dir, "Demultiplexing_0", "Stats", "*L{}*txt".format(lane)))
-            for DemuxSummaryFile in DemuxSummaryFiles:
-                os.symlink(DemuxSummaryFile, os.path.join(demux_folder, "Stats", os.path.split(DemuxSummaryFile)[1]))
+
         #now the run is formally COMPLETED
         open(os.path.join(DemultiplexingStats_xml_dir, "DemultiplexingStats.xml"), 'a').close()
         return True
@@ -762,8 +773,3 @@ def _generate_lane_html(html_file, html_report_lane_parser):
         html.write("<p></p>\n")
         html.write("</body>\n")
         html.write("</html>\n")
-
-
-
-
-
