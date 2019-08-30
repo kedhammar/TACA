@@ -11,12 +11,12 @@ def load_config(config_file):
     """
     config = {}
     if type(config_file) is file:
-        config.update(yaml.load(config_file) or {})
+        config.update(yaml.load(config_file, Loader=yaml.FullLoader) or {})
         return config
     else:
         try:
             with open(config_file, 'r') as f:
-                content = yaml.load(f)
+                content = yaml.load(f, Loader=yaml.FullLoader)
                 config.update(content)
                 return content
         except IOError as e:
@@ -35,12 +35,12 @@ def load_yaml_config(config_file):
     :raises IOError: If the config file cannot be opened.
     """
     if type(config_file) is file:
-        CONFIG.update(yaml.load(config_file) or {})
+        CONFIG.update(yaml.load(config_file, Loader=yaml.FullLoader) or {})
         return CONFIG
     else:
         try:
             with open(config_file, 'r') as f:
-                content = yaml.load(f)
+                content = yaml.load(f, Loader=yaml.FullLoader)
                 CONFIG.update(content)
                 return content
         except IOError as e:
