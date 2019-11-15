@@ -619,16 +619,16 @@ class Run(object):
         Clusters_PF = 0
         Yield_Mbases = 0
         for entry in html_report_lane_parser.sample_data:
-            Clusters_Raw += int(entry['PF Clusters']/entry['% PFClusters'])
-            Clusters_PF += entry['PF Clusters']
-            Yield_Mbases += entry['Yield (Mbases)']
+            Clusters_Raw += int(int(entry['PF Clusters'].replace(',',''))/float(entry['% PFClusters'])*100)
+            Clusters_PF += int(entry['PF Clusters'].replace(',',''))
+            Yield_Mbases += int(entry['Yield (Mbases)'].replace(',',''))
             if entry['Lane'] in complex_lanes.keys():
                 entry['% Perfectbarcode']      = None
                 entry['% One mismatchbarcode'] = None
         # Now update the values in Flowcell Summary
-        html_report_lane_parser.flowcell_data['Clusters (Raw)'] = Clusters_Raw
-        html_report_lane_parser.flowcell_data['Clusters(PF)'] = Clusters_PF
-        html_report_lane_parser.flowcell_data['Yield (MBases)'] = Yield_Mbases
+        html_report_lane_parser.flowcell_data['Clusters (Raw)'] = '{:,}'.format(Clusters_Raw)
+        html_report_lane_parser.flowcell_data['Clusters(PF)'] = '{:,}'.format(Clusters_PF)
+        html_report_lane_parser.flowcell_data['Yield (MBases)'] = '{:,}'.format(Yield_Mbases)
         #now add lanes not present in this demux
         #now I can create the new lane.html
         new_html_report_lane_dir = _create_folder_structure(demux_folder, ["Reports", "html", self.flowcell_id, "all", "all", "all"])
@@ -654,9 +654,9 @@ class Run(object):
         for position in positions_to_delete:
             del html_report_laneBarcode_parser.sample_data[position]
         # Now update the values in Flowcell Summary
-        html_report_laneBarcode_parser.flowcell_data['Clusters (Raw)'] = Clusters_Raw
-        html_report_laneBarcode_parser.flowcell_data['Clusters(PF)'] = Clusters_PF
-        html_report_laneBarcode_parser.flowcell_data['Yield (MBases)'] = Yield_Mbases
+        html_report_laneBarcode_parser.flowcell_data['Clusters (Raw)'] = '{:,}'.format(Clusters_Raw)
+        html_report_laneBarcode_parser.flowcell_data['Clusters(PF)'] = '{:,}'.format(Clusters_PF)
+        html_report_laneBarcode_parser.flowcell_data['Yield (MBases)'] = '{:,}'.format(Yield_Mbases)
         #now generate the new report for laneBarcode.html
         new_html_report_laneBarcode = os.path.join(new_html_report_lane_dir, "laneBarcode.html")
         _generate_lane_html(new_html_report_laneBarcode, html_report_laneBarcode_parser)
