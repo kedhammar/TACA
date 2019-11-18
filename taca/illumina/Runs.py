@@ -614,10 +614,21 @@ class Run(object):
                         #if this is a new lane not included before
                         html_report_lane_parser.sample_data.append(entry)
         # now all lanes have been inserted
+        # The numbers in Flowcell Summary also need to be aggregated if multiple demultiplexing is done
+        Clusters_Raw = 0
+        Clusters_PF = 0
+        Yield_Mbases = 0
         for entry in html_report_lane_parser.sample_data:
+            Clusters_Raw += int(int(entry['PF Clusters'].replace(',',''))/float(entry['% PFClusters'])*100)
+            Clusters_PF += int(entry['PF Clusters'].replace(',',''))
+            Yield_Mbases += int(entry['Yield (Mbases)'].replace(',',''))
             if entry['Lane'] in complex_lanes.keys():
                 entry['% Perfectbarcode']      = None
                 entry['% One mismatchbarcode'] = None
+        # Now update the values in Flowcell Summary
+        html_report_lane_parser.flowcell_data['Clusters (Raw)'] = '{:,}'.format(Clusters_Raw)
+        html_report_lane_parser.flowcell_data['Clusters(PF)'] = '{:,}'.format(Clusters_PF)
+        html_report_lane_parser.flowcell_data['Yield (MBases)'] = '{:,}'.format(Yield_Mbases)
         #now add lanes not present in this demux
         #now I can create the new lane.html
         new_html_report_lane_dir = _create_folder_structure(demux_folder, ["Reports", "html", self.flowcell_id, "all", "all", "all"])
@@ -642,6 +653,10 @@ class Run(object):
             current_pos += 1
         for position in positions_to_delete:
             del html_report_laneBarcode_parser.sample_data[position]
+        # Now update the values in Flowcell Summary
+        html_report_laneBarcode_parser.flowcell_data['Clusters (Raw)'] = '{:,}'.format(Clusters_Raw)
+        html_report_laneBarcode_parser.flowcell_data['Clusters(PF)'] = '{:,}'.format(Clusters_PF)
+        html_report_laneBarcode_parser.flowcell_data['Yield (MBases)'] = '{:,}'.format(Yield_Mbases)
         #now generate the new report for laneBarcode.html
         new_html_report_laneBarcode = os.path.join(new_html_report_lane_dir, "laneBarcode.html")
         _generate_lane_html(new_html_report_laneBarcode, html_report_laneBarcode_parser)
