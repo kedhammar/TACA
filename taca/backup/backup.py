@@ -74,7 +74,7 @@ class backup_utils(object):
     def avail_disk_space(self, path, run):
         """Check the space on file system based on parent directory of the run"""
         # not able to fetch runtype use the max size as precaution, size units in GB
-        illumina_run_sizes = {'hiseq' : 500, 'hiseqx' : 900, 'novaseq': 1800, 'miseq' : 20}
+        illumina_run_sizes = {'hiseq' : 500, 'hiseqx' : 900, 'novaseq': 1800, 'miseq' : 20, 'nextseq' : 30}
         required_size = illumina_run_sizes.get(self._get_run_type(run), 900) * 2
         # check for any ongoing runs and add up the required size accrdingly
         for ddir in self.data_dirs.values():
@@ -99,7 +99,7 @@ class backup_utils(object):
             logger.error(e_msg)
             misc.send_mail(subjt, e_msg, self.mail_recipients)
             raise SystemExit
-    
+
     def file_in_pdc(self, src_file, silent=True):
         """Check if the given files exist in PDC"""
         # dsmc will return zero/True only when file exists, it returns
@@ -125,6 +125,8 @@ class backup_utils(object):
                 run_type = "miseq"
             elif "_A0" in run:
                 run_type = "novaseq"
+            elif "_NS" in run:
+                run_type = "nextseq"
             else:
                 run_type = "hiseq"
         except:
@@ -188,12 +190,12 @@ class backup_utils(object):
         for fl in files:
             if os.path.exists(fl):
                 os.remove(fl)
-    
+
     def _log_pdc_statusdb(self, run):
         """Log the time stamp in statusDB if a file is succussfully sent to PDC"""
         try:
             run_vals = run.split('_')
-            run_fc = "{}_{}".format(run_vals[0],run_vals[-1]) 
+            run_fc = "{}_{}".format(run_vals[0],run_vals[-1])
             server = "http://{username}:{password}@{url}:{port}".format(url=self.couch_info['url'],username=self.couch_info['username'],
                                                                         password=self.couch_info['password'],port=self.couch_info['port'])
             couch = couchdb.Server(server)
@@ -206,7 +208,7 @@ class backup_utils(object):
             logger.info("Logged 'pdc_archived' timestamp for fc {} in statusdb doc '{}'".format(run, d_id))
         except:
             logger.warn("Not able to log 'pdc_archived' timestamp for run {}".format(run))
-            
+
     @classmethod
     def encrypt_runs(cls, run, force):
         """Encrypt the runs that have been collected"""
@@ -337,4 +339,3 @@ class backup_utils(object):
                             bk._clean_tmp_files([run.zip_encrypted, run.dst_key_encrypted, run.flag])
                         continue
                 logger.warn("Sending file {} to PDC failed".format(run.zip_encrypted))
-

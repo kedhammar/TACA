@@ -165,7 +165,7 @@ def get_ss_projects(run_dir):
             logger.warn("Couldn't find 'Setup' or 'ApplicationName' could be Novaseq. Trying 'Application'")
             runtype = rp.data['RunParameters']['Application']
 
-    
+
 
     #Miseq case
     if "MiSeq" in runtype:
@@ -193,7 +193,12 @@ def get_ss_projects(run_dir):
     #NovaSeq 600 case
     elif "NovaSeq" in runtype:
         FCID_samplesheet_origin = os.path.join(CONFIG['bioinfo_tab']['novaseq_samplesheets'],
-                                    current_year, '{}.csv'.format(FCID)) 
+                                    current_year, '{}.csv'.format(FCID))
+        data = parse_samplesheet(FCID_samplesheet_origin, run_dir)
+    #NextSeq Case
+    elif "NextSeq" in runtype:
+        FCID_samplesheet_origin = os.path.join(CONFIG['bioinfo_tab']['nextseq_samplesheets'],
+                                    current_year, '{}.csv'.format(FCID))
         data = parse_samplesheet(FCID_samplesheet_origin, run_dir)
     else:
         logger.warn("Cannot locate the samplesheet for run {}".format(run_dir))
