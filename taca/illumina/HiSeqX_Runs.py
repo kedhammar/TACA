@@ -100,7 +100,6 @@ class HiSeqX_Run(Run):
             demux_number_with_the_same_sample_type = len(max([v for k, v in lane_table.items()],key=len))
             # Prepare sub-samplesheets, masks and commands
             for i in range(0,demux_number_with_the_same_sample_type):
-                bcl2fastq_cmd_counter += i
                 # Prepare sub-samplesheet
                 # A dictionary with lane and sample IDs to include
                 samples_to_include = dict()
@@ -142,8 +141,8 @@ class HiSeqX_Run(Run):
                     misc.call_external_command_detached(cmd, with_log_files = True, prefix="demux_{}".format(bcl2fastq_cmd_counter))
                     logger.info(("BCL to FASTQ conversion and demultiplexing started for run {} on {}".format(os.path.basename(self.id), datetime.now())))
 
-            # Demutiplexing done for one sample type and scripts will continue working with the next type. Command counter should increase by 1
-            bcl2fastq_cmd_counter += 1
+                # Demutiplexing done for one mask type and scripts will continue working with the next type. Command counter should increase by 1
+                bcl2fastq_cmd_counter += 1
 
         return True
 
