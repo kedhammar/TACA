@@ -20,11 +20,18 @@ def find_runs_to_process():
     data_dirs = CONFIG.get('nanopore_analysis').get('data_dirs')
     found_run_dirs = []
     for data_dir in data_dirs:
-        found = [os.path.join(data_dir, run_dir) for run_dir in os.listdir(data_dir)
-                 if os.path.isdir(os.path.join(data_dir, run_dir))
-                 and run_dir != 'nosync']
-        for found_dir in found:
-            found_run_dirs.append(found_dir)
+        try:
+            found = [os.path.join(data_dir, run_dir) for run_dir in os.listdir(data_dir)
+                     if os.path.isdir(os.path.join(data_dir, run_dir))
+                     and run_dir != 'nosync']
+        except OSError:
+            logger.warn("There was an issue locating the following directory: " + data_dir +
+                        ". Please check that it exists and try again.")
+        if found:
+            for found_dir in found:
+                found_run_dirs.append(found_dir)
+        else:
+            logger.warn("Could not find any run directories in " + data_dir + ". Skipping.")
     return found_run_dirs
 
 def process_run(run_dir):
@@ -87,8 +94,11 @@ def start_analysis_pipeline(run_dir):
 
 def check_exit_status(status_file):
     # Read pipeline exit status file and return True if 0, False if anything else
-    with open(status_file, 'r') as f:
-        exit_status = f.readline().strip()
+    try:
+        with open(status_file, 'r') as f:
+            exit_status = f.readline().strip()
+    except IOError:
+        logger.warn("There was an issue opening the exit status file: " + status_file + ". Skipping.")
     if exit_status == '0':
         return True
     else:
@@ -96,11 +106,11 @@ def check_exit_status(status_file):
 
 def is_not_transferred(run_id, transfer_log):
     # Return True if run id not in transfer.tsv, else False
-    with open(transfer_log, 'r') as f:
-        if run_id not in f.read():
-            return True
-        else:
-            return False
+        with open(transfer_log, 'r') as f:
+            if run_id not in f.read():
+                return True
+            else:
+                return False
 
 def transfer_run(run_dir):
     #rsync dir to irma
@@ -109,13 +119,19 @@ def transfer_run(run_dir):
     rsync_opts = {"--no-o" : None, "--no-g" : None, "--chmod" : "g+rw", "-r" : None}
     connection_details = CONFIG.get("nanopore_analysis").get("transfer").get("analysis_server")
     transfer_object = RsyncAgent(run_dir, dest_path=destination, remote_host=connection_details["host"], remote_user=connection_details["user"], validate=False, opts=rsync_opts)
-    transfer_object.transfer()
+    try:
+        transfer_object.transfer()
+    except RsyncError:
+        logger.warn("An error occurred while transferring " + run_dir + " to the ananlysis server. Please check the logfiles")
     return
 
 def update_transfer_log(run_id, transfer_log):
-    with open(transfer_log, 'a') as f:
-        tsv_writer = csv.writer(f, delimiter='\t')
-        tsv_writer.writerow([run_id, str(datetime.now())])
+    try:
+        with open(transfer_log, 'a') as f:
+            tsv_writer = csv.writer(f, delimiter='\t')
+            tsv_writer.writerow([run_id, str(datetime.now())])
+    except IOError:
+        logger.warn("Could not update the transfer logfile for run " + run_id + ". Please make sure " + transfer_log + " gets updated.")
     return
 
 def archive_run(run_dir):
