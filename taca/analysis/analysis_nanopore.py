@@ -7,9 +7,12 @@ import glob
 import csv
 import subprocess
 import shutil
+import smtplib
+
 from datetime import datetime
 from taca.utils.config import CONFIG
 from taca.utils.transfer import RsyncAgent
+from taca.utils.misc import send_mail
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +33,7 @@ def process_run(run_dir):
     demux_dir = os.path.join(run_dir, "nanoseq_output")  # TODO: Check actual name of output dir
     sample_sheet = os.path.join(run_dir, "sample_sheet.csv")  # TODO: Check actual name for sample sheet
     analysis_exit_status_file = os.path.join(run_dir, ".exitcode_for_nanoseq")
-
+    email_recipients = CONFIG.get('mail').get('recipients')
     if os.path.isfile(summary_file) and not os.path.isdir(demux_dir):
         logger.info("Sequencing done for run " + run_dir + ". Attempting to start analysis.")
         if os.path.isfile(sample_sheet):
@@ -39,7 +42,11 @@ def process_run(run_dir):
 #            make sample_sheet
 #            start_analysis_pipeline(run_dir)
         else:
-            logger.warn("Samplesheet not found for run " + run_dir + ". Operator notified. Skipping.") # TODO: Email operator
+            logger.warn("Samplesheet not found for run " + run_dir + ". Operator notified. Skipping.")
+            email_subject = ("Samplesheet missing for run {}".format(os.path.basename(run_dir)))
+            email_message = """The samplesheet for run {run} is missing and the
+            information can't be found in LIMS. Please add the samplesheet to {run}.""".format(run=run_dir)
+            send_mail(email_subject, email_message, email_recipients)
     elif os.path.isdir(demux_dir) and not os.path.isfile(analysis_exit_status_file):
         logger.info("Analysis has started for run " + run_dir +" but is not yet done. Skipping.")
     elif os.path.isdir(demux_dir) and os.path.isfile(analysis_exit_status_file):
@@ -54,10 +61,16 @@ def process_run(run_dir):
                 logger.info("Run "+ run_dir + " has been synced to the analysis cluster.")
                 archive_run(run_dir)
                 logger.info("Run " + run_dir + " is finished and has been archived.")
-                # TODO: email operator
+                email_subject = ("Run successfully processed: {}".format(os.path.basename(run_dir)))
+                email_message = """Run {} has been analysed, transferred and archived
+                successfully.""".format(run_dir)
+                send_mail(email_subject, email_message, email_recipients)
         else:
             logger.warn("Analysis pipeline exited with a non-zero exit status for run " + run_dir + ". Notifying operator.")
-            # TODO: Email operator
+            email_subject = ("Analysis failed for run {}".format(os.path.basename(run_dir)))
+            email_message = """The analysis failed for run {run}.
+            Please review the logfiles in {run}.""".format(run=run_dir)
+            send_mail(email_subject, email_message, email_recipients)
     else:
         logger.info("Run " + run_dir + " not finished yet. Skipping.")
     return
