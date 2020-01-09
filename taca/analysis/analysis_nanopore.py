@@ -94,11 +94,8 @@ def start_analysis_pipeline(run_dir):
 
 def check_exit_status(status_file):
     # Read pipeline exit status file and return True if 0, False if anything else
-    try:
-        with open(status_file, 'r') as f:
-            exit_status = f.readline().strip()
-    except IOError:
-        logger.warn("There was an issue opening the exit status file: " + status_file + ". Skipping.")
+    with open(status_file, 'r') as f:
+        exit_status = f.readline().strip()
     if exit_status == '0':
         return True
     else:

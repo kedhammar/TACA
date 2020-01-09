@@ -1,0 +1,17 @@
+log:
+    file: "data/taca.log"
+
+nanopore_analysis:
+  data_dirs:
+    - data/nanopore_data/RNA_FC
+  transfer:
+    transfer_file: data/nanopore_data/transfer.tsv
+    analysis_server:
+      host:
+      port:
+      user:
+    destination: ~/
+  finished_dir: data/nanopore_data/nosync
+
+mail:
+  recipients: sara.sjunnebo@scilifelab.se
