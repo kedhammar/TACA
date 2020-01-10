@@ -67,7 +67,7 @@ def process_run(run_dir):
                 update_transfer_log(run_id, transfer_log)
                 logger.info("Run "+ run_dir + " has been synced to the analysis cluster.")
                 archive_run(run_dir)
-                logger.info("Run " + run_dir + " is finished and has been archived.")
+                logger.info("Run " + run_dir + " is finished and has been archived. Notifying operator.")
                 email_subject = ("Run successfully processed: {}".format(os.path.basename(run_dir)))
                 email_message = """Run {} has been analysed, transferred and archived
                 successfully.""".format(run_dir)
