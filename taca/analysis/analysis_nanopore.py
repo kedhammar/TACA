@@ -17,21 +17,23 @@ from taca.utils.misc import send_mail
 logger = logging.getLogger(__name__)
 
 def find_runs_to_process():
-    data_dirs = CONFIG.get('nanopore_analysis').get('data_dirs')
+    nanopore_data_dir = CONFIG.get('nanopore_analysis').get('data_dir')[0]
     found_run_dirs = []
-    for data_dir in data_dirs:
-        try:
-            found = [os.path.join(data_dir, run_dir) for run_dir in os.listdir(data_dir)
-                     if os.path.isdir(os.path.join(data_dir, run_dir))
-                     and run_dir != 'nosync']
-        except OSError:
-            logger.warn("There was an issue locating the following directory: " + data_dir +
-                        ". Please check that it exists and try again.")
-        if found:
-            for found_dir in found:
-                found_run_dirs.append(found_dir)
-        else:
-            logger.warn("Could not find any run directories in " + data_dir + ". Skipping.")
+    try:
+        found_top_dirs = [os.path.join(nanopore_data_dir, top_dir) for top_dir in os.listdir(nanopore_data_dir)
+                 if os.path.isdir(os.path.join(nanopore_data_dir, top_dir))
+                 and top_dir != 'nosync']
+    except OSError:
+        logger.warn("There was an issue locating the following directory: " + nanopore_data_dir +
+                    ". Please check that it exists and try again.")
+    # Get the actual location of the run directories in /var/lib/MinKnow/data/USERDETERMINEDNAME/USERDETSAMPLENAME/run
+    if found_top_dirs:
+        for top_dir in found_top_dirs:
+            for sample_dir in os.listdir(top_dir):
+                for run_dir in os.listdir(os.path.join(top_dir, sample_dir)):
+                    found_run_dirs.append(os.path.join(top_dir, sample_dir, run_dir))
+    else:
+        logger.warn("Could not find any run directories in " + nanopore_data_dir)
     return found_run_dirs
 
 def process_run(run_dir):
