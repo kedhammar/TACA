@@ -46,7 +46,7 @@ def process_run(run_dir):
     if os.path.isfile(summary_file) and not os.path.isdir(demux_dir):
         logger.info("Sequencing done for run " + run_dir + ". Attempting to start analysis.")
         if os.path.isfile(sample_sheet):
-            start_analysis_pipeline(run_dir)
+            start_analysis_pipeline(run_dir, sample_sheet)
 #        else if data available in lims:
 #            make sample_sheet
 #            start_analysis_pipeline(run_dir)
@@ -62,8 +62,8 @@ def process_run(run_dir):
         analysis_successful = check_exit_status(analysis_exit_status_file)
         if analysis_successful:
             run_id = os.path.basename(run_dir)
-            transfer_file_name = CONFIG.get('nanopore_analysis').get('transfer').get('transfer_file')
-            transfer_log = os.path.join(os.path.dirname(run_dir), transfer_file_name)
+            transfer_log = CONFIG.get('nanopore_analysis').get('transfer').get('transfer_file')
+#            transfer_log = os.path.join(os.path.dirname(run_dir), transfer_file_name)
             if is_not_transferred(run_id, transfer_log):
                 transfer_run(run_dir)
                 update_transfer_log(run_id, transfer_log)
@@ -84,9 +84,10 @@ def process_run(run_dir):
         logger.info("Run " + run_dir + " not finished yet. Skipping.")
     return
 
-def start_analysis_pipeline(run_dir):
+def start_analysis_pipeline(run_dir, sample_sheet):
     # start analysis detatched
-    analysis_command = "nextflow run nf-core/nanoseq -r dev --help ; echo $? > .exitcode_for_taca.txt"  # TODO: Change to actual command
+#    analysis_command = "nextflow run nf-core/nanoseq -r dev --help ; echo $? > .exitcode_for_taca.txt"  # TODO: Change to actual command
+    analysis_command = "nextflow run nf-core/nanoseq --input " + sample_sheet + " --run_dir " + run_dir + "/fast5/ --flowcell FLO-FLG001 --guppy_gpu -c /home/ngi_staff/test_runs/nanodemux_tiny3/extra_conf.conf --outdir " + run_dir + "/nanoseq_output --skip_alignment --kit SQK-LSK109 --max_cpus 6 --max_memory 20.GB -profile singularity --barcode_kit EXP-NBD114; echo $? > .exitcode_for_taca.txt"
     try:
         p_handle = subprocess.Popen(analysis_command, stdout=subprocess.PIPE, shell=True, cwd=run_dir)
         logger.info("Started analysis for run " + run_dir)
@@ -137,9 +138,9 @@ def archive_run(run_dir):
     # mv dir to nosync
     logger.info("Archiving run " + run_dir)
     archive_dir = CONFIG.get("nanopore_analysis").get("finished_dir")
-    archive_path = os.path.join(os.path.dirname(run_dir), archive_dir, os.path.basename(run_dir))
+#    archive_path = os.path.join(os.path.dirname(run_dir), archive_dir, os.path.basename(run_dir))
     try:
-        shutil.move(run_dir, archive_path)
+        shutil.move(run_dir, archive_dir)
         logger.info("Successfully archived " + run_dir)
     except shutil.Error:
         logger.warn("An error occurred when archiving " + run_dir + ". Please check the logfile for more info.")
