@@ -39,17 +39,15 @@ def find_runs_to_process():
 def process_run(run_dir):
     logger.info("Processing run: " + run_dir)
     summary_file = os.path.join(run_dir, "final_summary.txt")
-    demux_dir = os.path.join(run_dir, "nanoseq_output")  # TODO: Check actual name of output dir
-    sample_sheet = os.path.join(run_dir, "sample_sheet.csv")  # TODO: Check actual name for sample sheet
+    demux_dir = os.path.join(run_dir, "nanoseq_output")
+    sample_sheet_location = glob.glob(run_dir + "/*sample_sheet.csv")
+    sample_sheet = sample_sheet_location[0] if sample_sheet_location else ""
     analysis_exit_status_file = os.path.join(run_dir, ".exitcode_for_nanoseq")
     email_recipients = CONFIG.get('mail').get('recipients')
     if os.path.isfile(summary_file) and not os.path.isdir(demux_dir):
         logger.info("Sequencing done for run " + run_dir + ". Attempting to start analysis.")
         if os.path.isfile(sample_sheet):
             start_analysis_pipeline(run_dir, sample_sheet)
-#        else if data available in lims:
-#            make sample_sheet
-#            start_analysis_pipeline(run_dir)
         else:
             logger.warn("Samplesheet not found for run " + run_dir + ". Operator notified. Skipping.")
             email_subject = ("Samplesheet missing for run {}".format(os.path.basename(run_dir)))
@@ -86,8 +84,8 @@ def process_run(run_dir):
 
 def start_analysis_pipeline(run_dir, sample_sheet):
     # start analysis detatched
-#    analysis_command = "nextflow run nf-core/nanoseq -r dev --help ; echo $? > .exitcode_for_taca.txt"  # TODO: Change to actual command
-    analysis_command = "nextflow run nf-core/nanoseq --input " + sample_sheet + " --run_dir " + run_dir + "/fast5/ --flowcell FLO-FLG001 --guppy_gpu -c /home/ngi_staff/test_runs/nanodemux_tiny3/extra_conf.conf --outdir " + run_dir + "/nanoseq_output --skip_alignment --kit SQK-LSK109 --max_cpus 6 --max_memory 20.GB -profile singularity --barcode_kit EXP-NBD114; echo $? > .exitcode_for_taca.txt"
+    analysis_command = "nextflow run nf-core/nanoseq -r dev --help ; echo $? > .exitcode_for_taca.txt"  # TODO: Change to actual command
+#    analysis_command = "nextflow run nf-core/nanoseq --input " + sample_sheet + " --run_dir " + run_dir + "/fast5/ --flowcell FLO-FLG001 --guppy_gpu -c /home/ngi_staff/test_runs/nanodemux_tiny3/extra_conf.conf --outdir " + run_dir + "/nanoseq_output --skip_alignment --kit SQK-LSK109 --max_cpus 6 --max_memory 20.GB -profile singularity --barcode_kit EXP-NBD114; echo $? > .exitcode_for_nanoseq"
     try:
         p_handle = subprocess.Popen(analysis_command, stdout=subprocess.PIPE, shell=True, cwd=run_dir)
         logger.info("Started analysis for run " + run_dir)
@@ -116,7 +114,7 @@ def transfer_run(run_dir):
     #rsync dir to irma
     logger.info("Transferring run " + run_dir + " to analysis cluster")
     destination = CONFIG.get("nanopore_analysis").get("transfer").get("destination")
-    rsync_opts = {"--no-o" : None, "--no-g" : None, "--chmod" : "g+rw", "-r" : None}
+    rsync_opts = {"--no-o" : None, "--no-g" : None, "--chmod" : "g+rw", "-r" : None, "--exclude" : "work"}
     connection_details = CONFIG.get("nanopore_analysis").get("transfer").get("analysis_server")
     transfer_object = RsyncAgent(run_dir, dest_path=destination, remote_host=connection_details["host"], remote_user=connection_details["user"], validate=False, opts=rsync_opts)
     try:
@@ -138,7 +136,6 @@ def archive_run(run_dir):
     # mv dir to nosync
     logger.info("Archiving run " + run_dir)
     archive_dir = CONFIG.get("nanopore_analysis").get("finished_dir")
-#    archive_path = os.path.join(os.path.dirname(run_dir), archive_dir, os.path.basename(run_dir))
     try:
         shutil.move(run_dir, archive_dir)
         logger.info("Successfully archived " + run_dir)
