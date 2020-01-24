@@ -84,14 +84,37 @@ def process_run(run_dir):
 
 def start_analysis_pipeline(run_dir, sample_sheet):
     # start analysis detatched
-    analysis_command = "nextflow run nf-core/nanoseq -r dev --help ; echo $? > .exitcode_for_taca.txt"  # TODO: Change to actual command
-#    analysis_command = "nextflow run nf-core/nanoseq --input " + sample_sheet + " --run_dir " + run_dir + "/fast5/ --flowcell FLO-FLG001 --guppy_gpu -c /home/ngi_staff/test_runs/nanodemux_tiny3/extra_conf.conf --outdir " + run_dir + "/nanoseq_output --skip_alignment --kit SQK-LSK109 --max_cpus 6 --max_memory 20.GB -profile singularity --barcode_kit EXP-NBD114; echo $? > .exitcode_for_nanoseq"
+    flowcell_id = get_flowcell_id(run_dir)
+#    analysis_command = "nextflow run nf-core/nanoseq -r dev --help ; echo $? > .exitcode_for_taca.txt"  # TODO: Change to actual command
+    analysis_command = "nextflow run nf-core/nanoseq --input " + sample_sheet + \
+        " --run_dir " + run_dir + "/fast5/ \
+        --flowcell " + flowcell_id + \
+        " --guppy_gpu \
+        -c /home/ngi_staff/test_runs/nanodemux_tiny3/extra_conf.conf \
+        --outdir " + run_dir + "/nanoseq_output \
+        --skip_alignment \
+        --kit SQK-LSK109 \
+        --max_cpus 6 \
+        --max_memory 20.GB \
+        -profile singularity \
+        --barcode_kit EXP-NBD114; echo $? > .exitcode_for_nanoseq"
     try:
         p_handle = subprocess.Popen(analysis_command, stdout=subprocess.PIPE, shell=True, cwd=run_dir)
         logger.info("Started analysis for run " + run_dir)
     except subprocess.CalledProcessError:
         logger.warn("An error occurred while starting the analysis for run " + run_dir + ". Please check the logfile for info.")
     return
+
+def get_flowcell_id(run_dir):
+    # Look for flow_cell_product_code in report.md and return the corresponding value
+    report_file = os.path.join(run_dir, "report.md")
+    with open(report_file, 'r') as f:
+        for line in f.readlines():
+            if "flow_cell_product_code" in line:
+                return line.split('"')[3]
+            else:
+                logger.error("An unexpected error occurred while fetching the flowcell ID from " + report_file + ". Please check that the file exists.")
+                return None
 
 def check_exit_status(status_file):
     # Read pipeline exit status file and return True if 0, False if anything else
