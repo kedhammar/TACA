@@ -110,9 +110,9 @@ def get_flowcell_id(run_dir):
         for line in f.readlines():
             if "flow_cell_product_code" in line:
                 return line.split('"')[3]
-            else:
-                logger.error("An unexpected error occurred while fetching the flowcell ID from " + report_file + ". Please check that the file exists.")
-                return None
+#            else:
+#                logger.error("An unexpected error occurred while fetching the flowcell ID from " + report_file + ". Please check that the file exists.")
+#                return None
 
 def check_exit_status(status_file):
     # Read pipeline exit status file and return True if 0, False if anything else
