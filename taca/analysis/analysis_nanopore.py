@@ -84,8 +84,24 @@ def process_run(run_dir):
 def start_analysis_pipeline(run_dir, sample_sheet):
     # start analysis detatched
     flowcell_id = get_flowcell_id(run_dir)
-#    analysis_command = "nextflow run nf-core/nanoseq -r dev --help ; echo $? > .exitcode_for_taca.txt" 
-    analysis_command = "nextflow run nf-core/nanoseq --input " + sample_sheet + \
+    if is_multiplexed(sample_sheet):
+        logger.info("Run " + run_dir + " is multiplexed. Starting nanoseq with --barcode_kit option")
+#        analysis_command = "nextflow run nf-core/nanoseq -r dev --help ; echo $? > .exitcode_for_taca.txt"
+        analysis_command = "nextflow run nf-core/nanoseq --input " + sample_sheet + \
+            " --run_dir " + run_dir + "/fast5/ \
+            --outdir " + run_dir + "/nanoseq_output \
+            --flowcell " + flowcell_id + \
+            " --guppy_gpu \
+            --skip_alignment \
+            --kit SQK-LSK109 \
+            --max_cpus 6 \
+            --max_memory 20.GB \
+            --barcode_kit EXP-NBD114 \
+            -profile singularity; echo $? > .exitcode_for_nanoseq"
+    else:
+        logger.info("Run " + run_dir + " is not multiplexed. Starting nanoseq without --barcode_kit option")
+#        analysis_command = "nextflow run nf-core/nanoseq -r dev --help ; echo $? > .exitcode_for_taca.txt"
+        analysis_command = "nextflow run nf-core/nanoseq --input " + sample_sheet + \
         " --run_dir " + run_dir + "/fast5/ \
         --outdir " + run_dir + "/nanoseq_output \
         --flowcell " + flowcell_id + \
@@ -94,8 +110,8 @@ def start_analysis_pipeline(run_dir, sample_sheet):
         --kit SQK-LSK109 \
         --max_cpus 6 \
         --max_memory 20.GB \
-        --barcode_kit EXP-NBD114 \
         -profile singularity; echo $? > .exitcode_for_nanoseq"
+
     try:
         p_handle = subprocess.Popen(analysis_command, stdout=subprocess.PIPE, shell=True, cwd=run_dir)
         logger.info("Started analysis for run " + run_dir)
@@ -113,6 +129,18 @@ def get_flowcell_id(run_dir):
 #            else:
 #                logger.error("An unexpected error occurred while fetching the flowcell ID from " + report_file + ". Please check that the file exists.")
 #                return None
+
+def is_multiplexed(sample_sheet):
+    # Look in the sample_sheet and return True if the run was multiplexed, else False.
+    with open(sample_sheet, 'r') as f:
+        for i, line in enumerate(f):
+            if i == 1:
+                line_entries = line.split(',')
+    if line_entries[2]:
+        return True
+    else:
+        return False
+
 
 def check_exit_status(status_file):
     # Read pipeline exit status file and return True if 0, False if anything else
