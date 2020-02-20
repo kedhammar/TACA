@@ -86,7 +86,6 @@ def start_analysis_pipeline(run_dir, sample_sheet):
     flowcell_id = get_flowcell_id(run_dir)
     if is_multiplexed(sample_sheet):
         logger.info("Run " + run_dir + " is multiplexed. Starting nanoseq with --barcode_kit option")
-#        analysis_command = "nextflow run nf-core/nanoseq -r dev --help ; echo $? > .exitcode_for_taca.txt"
         analysis_command = "nextflow run nf-core/nanoseq --input " + sample_sheet + \
             " --run_dir " + run_dir + "/fast5/ \
             --outdir " + run_dir + "/nanoseq_output \
@@ -100,7 +99,6 @@ def start_analysis_pipeline(run_dir, sample_sheet):
             -profile singularity; echo $? > .exitcode_for_nanoseq"
     else:
         logger.info("Run " + run_dir + " is not multiplexed. Starting nanoseq without --barcode_kit option")
-#        analysis_command = "nextflow run nf-core/nanoseq -r dev --help ; echo $? > .exitcode_for_taca.txt"
         analysis_command = "nextflow run nf-core/nanoseq --input " + sample_sheet + \
         " --run_dir " + run_dir + "/fast5/ \
         --outdir " + run_dir + "/nanoseq_output \
@@ -126,9 +124,6 @@ def get_flowcell_id(run_dir):
         for line in f.readlines():
             if "flow_cell_product_code" in line:
                 return line.split('"')[3]
-#            else:
-#                logger.error("An unexpected error occurred while fetching the flowcell ID from " + report_file + ". Please check that the file exists.")
-#                return None
 
 def is_multiplexed(sample_sheet):
     # Look in the sample_sheet and return True if the run was multiplexed, else False.
