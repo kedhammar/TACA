@@ -6,9 +6,13 @@ python:
 install:
     - python setup.py install
     - mkdir ~/.taca && cp tests/data/taca_test_cfg.yaml ~/.taca/taca.yaml
+    - pip install codecov
 
 script:
-    - cd tests && nosetests -v -s
+    - cd tests && nosetests --with-coverage -v -s
+
+after_success:
+    - codecov
 
 notifications:
     email: false
