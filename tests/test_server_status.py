@@ -54,13 +54,13 @@ class TestServerStatus(unittest.TestCase):
 
 
 class TestCronjobs(unittest.TestCase):
-
     @mock.patch('taca.server_status.cronjobs.CronTab')
-    def test__parse_crontab(self, mock_crontab):
+    @mock.patch('taca.server_status.cronjobs.getpass.getuser')
+    def test__parse_crontab(self, mock_getpass, mock_crontab):
         '''parse crontab'''
         mock_crontab.return_value = crontab.CronTab(tab=INITAL_TAB)
-
-        expected_crontab = {'sara.sjunnebo':
+        mock_getpass.return_value = "test_user"
+        expected_crontab = {'test_user':
                             [{'Comment': u'First Comment',
                               'Day of month': '*',
                               'Command': u'firstcommand',
