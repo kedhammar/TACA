@@ -1,5 +1,17 @@
 log:
-    file: data/taca.log
+  file: data/taca.log
+
+server_status:
+  command: df -h
+  servers:
+    localhost: "data/"
+  user:
+
+statusdb:
+  url: url
+  username: username
+  password: pwd
+  port: port
 
 analysis:
     HiSeqX:

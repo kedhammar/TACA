@@ -1,5 +1,4 @@
 import subprocess
-import json
 import logging
 import couchdb
 import datetime
@@ -74,8 +73,8 @@ def _parse_output(output): # for nases
 
 def update_status_db(data, server_type=None):
     """ Pushed the data to status db,
-        data can be from nases or from uppmax
-        server_type should be either 'uppmax' or 'nas'
+        data can be from nases
+        server_type should be 'nas'
     """
     db_config = CONFIG.get('statusdb')
     if db_config is None:
@@ -97,11 +96,11 @@ def update_status_db(data, server_type=None):
     logging.info('Connection established')
     for key in data.keys(): # data is dict of dicts
         server = data[key] # data[key] is dictionary (the command output)
-        server['name'] = key # key is nas url or uppmax project
+        server['name'] = key # key is nas url
         # datetime.datetime(2015, 11, 18, 9, 54, 33, 473189) is not JSON serializable
-        server['time'] = datetime.datetime.now().isoformat() 
+        server['time'] = datetime.datetime.now().isoformat()
         server['server_type'] = server_type or 'unknown'
-        
+
         try:
             db.save(server)
         except Exception, e:
@@ -109,100 +108,3 @@ def update_status_db(data, server_type=None):
             raise
         else:
             logging.info('{}: Server status has been updated'.format(key))
-
-def get_uppmax_quotas():
-    current_time = datetime.datetime.now()
-    try:
-        uq = subprocess.Popen(["/sw/uppmax/bin/uquota", "-q"], stdout=subprocess.PIPE)
-    except Exception, e:
-        logging.error(e.message)
-        raise e
-
-    output = uq.communicate()[0]
-    logging.info("Disk Usage:")
-    logging.info(output)
-
-    projects = output.split("\n/proj/")[1:]
-
-    result = {}
-    for proj in projects:
-        project_dict = {"time": current_time.isoformat()}
-        project = proj.strip("\n").split()
-        project_dict["project"] = project[0]
-        project_dict["usage (GB)"] = project[1]
-        project_dict["quota limit (GB)"] = project[2]
-        try:
-            project_dict["quota_decrease"] = project[3]
-        except:
-            pass
-
-        result[project[0]] = project_dict
-    return result
-
-def get_uppmax_cpu_hours():
-    current_time = datetime.datetime.now()
-    try:
-        # script that runs on uppmax
-        uq = subprocess.Popen(["/sw/uppmax/bin/projinfo", '-q'], stdout=subprocess.PIPE)
-    except Exception, e:
-        logging.error(e.message)
-        raise e
-
-    # output is lines with the format: project_id  cpu_usage  cpu_limit
-    output = uq.communicate()[0]
-
-    logging.info("CPU Hours Usage:")
-    logging.info(output)
-    result = {}
-    # parsing output
-    for proj in output.strip().split('\n'):
-        project_dict = {"time": current_time.isoformat()}
-
-        try: # split line into a list
-            project_id, cpu_hours, cpu_limit = proj.split()
-        # sometimes it returns empty strings or something strange
-        except Exception, e:
-            logging.error(e.message)
-        else:
-            project_dict["project"] = project_id
-            project_dict["cpu hours"] = cpu_hours
-            project_dict["cpu limit"] = cpu_limit
-
-            quotas = _get_uppmax_cpu_quotas(project_id)
-            if quotas:
-                project_dict["cpu_quota_decrease"] = quotas
-
-            result[project_id] = project_dict
-
-    return result
-
-def _get_uppmax_cpu_quotas(project_id):
-    today = datetime.date.today()
-    result = {}
-    try:
-        logging.info("CPU Quotas Decrease, project {}:".format(project_id))
-        # sed will look for lines between the one containing project_id and the section with the next project (starts with Name:..)
-        # grep select the lines containing 'Shortgrants'
-        command = "sed -n '/{}/,/Name/p' /sw/uppmax/etc/projects | grep Shortgrants".format(project_id)
-        # shell=True and universal_newlines=True - to make it work with quotes
-        cpu_quotas = subprocess.Popen(command, universal_newlines=True, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        output = cpu_quotas.communicate()[0].split('\n')
-
-    except Exception, e:
-        logging.error(e.message)
-    else:
-        for line in output:
-            # line should be: "Shortgrants:  milou=7000	20150421"
-            logging.info(line)
-            try:
-                shortgrants, cpu_hours, date_string = line.split()
-            except Exception, e:
-                logging.error(e.message)
-            else:
-                quota_date = datetime.datetime.strptime(date_string, "%Y%m%d").date()
-                if quota_date > today:
-                    # cpu_hours will be 'milou=20000' or 'irma=20000'
-                    cpu_hours = cpu_hours.split('=')[-1]
-                    quota_date = '{}-{}-{}'.format(quota_date.year, quota_date.month, quota_date.day)
-                    result[quota_date] = cpu_hours
-    return result
