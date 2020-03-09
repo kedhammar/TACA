@@ -9,7 +9,7 @@ import tempfile
 import unittest
 from taca.utils import misc, filesystem, transfer
 
-class TestMisc():  
+class TestMisc():
     """ Test class for the misc functions """
 
     @classmethod
@@ -25,39 +25,54 @@ class TestMisc():
                 'c8498fc299bc3e22690045f1b62ce4e9',
             'SHA1':
                 '098fb272dfdae2ea1ba57c795dd325fa70e3c3fb'}
-            
-    @classmethod        
+
+    @classmethod
     def tearDownClass(self):
         shutil.rmtree(self.rootdir)
-    
+
     # Test generator for different hashing algorithms
     def test_hashfile(self):
         for alg,obj in self.hashfile_digests.items():
             yield self.check_hash, alg, obj
-    
+
     def test_hashfile_dir(self):
-        """Hash digest for a directory should be None"""   
+        """Hash digest for a directory should be None"""
         assert misc.hashfile(self.rootdir) is None
-    
+
     def test_multiple_hashfile_calls(self):
         """ Ensure that the hasher object is cleared between subsequent calls
         """
         assert misc.hashfile(self.hashfile,hasher='sha1') == misc.hashfile(self.hashfile,'sha1')
-        
+
     def check_hash(self, alg, exp):
         assert misc.hashfile(self.hashfile,hasher=alg) == exp
-        
+
+    def test_send_mail(self):
+        pass
+
+    def test_call_external_command(self):
+        pass
+
+    def test_call_external_command_detached(self):
+        pass
+
+    def test_to_seconds(self):
+        pass
+
+    
+
+
 
 class TestFilesystem(unittest.TestCase):
     """ Test class for the filesystem functions """
 
     def setUp(self):
         self.rootdir = tempfile.mkdtemp(prefix="test_taca_filesystem")
-        
+
     def tearDown(self):
         shutil.rmtree(self.rootdir)
-    
-    def test_crete_folder1(self):
+
+    def test_crete_folder_non_existing(self):
         """ Ensure that a non-existing folder is created """
         target_folder = os.path.join(self.rootdir,"target-non-existing")
         self.assertTrue(
@@ -68,14 +83,14 @@ class TestFilesystem(unittest.TestCase):
             "A non-existing target folder was not created \
             but method returned True"
         )
-    
-    def test_crete_folder2(self):
+
+    def test_crete_folder_existing(self):
         """ Ensure that an existing folder is detected """
         self.assertTrue(
             filesystem.create_folder(self.rootdir),
             "A pre-existing target folder was not detected")
-    
-    def test_crete_folder3(self):
+
+    def test_crete_folder_parent_non_existing(self):
         """ Ensure that a non-existing parent folder is created """
         target_folder = os.path.join(
             self.rootdir,
@@ -89,14 +104,22 @@ class TestFilesystem(unittest.TestCase):
             "A non-existing parent folder was not created \
             but method returned True"
         )
-    
-    def test_crete_folder3(self):
+
+    def test_crete_folder_exception(self):
         """ Ensure that create_folder handles thrown exceptions gracefully """
-        with mock.patch.object(filesystem.os,'makedirs',side_effect=OSError):
+        with mock.patch.object(filesystem.os, 'makedirs', side_effect=OSError):
             self.assertFalse(
                 filesystem.create_folder(
                     os.path.join(self.rootdir,"target-non-existing")),
                 "A raised exception was not handled properly")
+
+    def test_chdir(self):
+        """ Ensure start dir and end dir are the same """
+        initial_dir = os.getcwd()
+        filesystem.chdir(self.rootdir)
+        final_dir = os.getcwd()
+        self.assertEqual(initial_dir, final_dir)
+
 
 class TestTransferAgent(unittest.TestCase):
     """ Test class for the TransferAgent class """
@@ -105,20 +128,20 @@ class TestTransferAgent(unittest.TestCase):
     def setUpClass(self):
         self.rootdir = tempfile.mkdtemp(prefix="test_taca_transfer_src")
         self.testfile = tempfile.mkstemp(dir=self.rootdir)
-    
-    @classmethod        
+
+    @classmethod
     def tearDownClass(self):
         shutil.rmtree(self.rootdir)
-    
+
     def setUp(self):
         self.destdir = tempfile.mkdtemp(prefix="test_taca_transfer_dest")
         self.agent = transfer.TransferAgent(
             src_path=self.rootdir,
             dest_path=self.destdir)
-            
+
     def tearDown(self):
         shutil.rmtree(self.destdir)
-        
+
     def test_transfer_validate_src_path(self):
         """ src_path should validate properly """
         self.agent.validate_src_path()
@@ -130,7 +153,7 @@ class TestTransferAgent(unittest.TestCase):
             "this-file-does-not-exist")
         with self.assertRaises(transfer.TransferError):
             self.agent.validate_src_path()
-                    
+
     def test_transfer_validate_dest_path(self):
         """ dest_path should validate properly """
         self.agent.validate_dest_path()
@@ -142,7 +165,6 @@ class TestTransferAgent(unittest.TestCase):
         """ do_transfer in superclass should raise exception if called """
         with self.assertRaises(NotImplementedError):
             self.agent.transfer()
-
 
     def test_transfer_validate_transfer(self):
         """ validate_transfer in superclass should raise exception if called """
@@ -160,18 +182,18 @@ class TestSymlinkAgent(unittest.TestCase):
             open(os.path.join(path,"file{}".format(n)),'w').close()
             path = os.path.join(path,"folder{}".format(n))
             os.mkdir(path)
-    
-    @classmethod        
-    def tearDownClass(self): 
+
+    @classmethod
+    def tearDownClass(self):
         shutil.rmtree(self.rootdir)
-        
+
     def setUp(self):
         self.targetdir = tempfile.mkdtemp(
             prefix="test_taca_filesystem_symlink_dest")
-        
+
     def tearDown(self):
         shutil.rmtree(self.targetdir)
-    
+
     def test_symlink_validate_transfer(self):
         src = os.path.join(self.rootdir,"file0")
         dst = os.path.join(self.targetdir,"file0")
@@ -180,42 +202,42 @@ class TestSymlinkAgent(unittest.TestCase):
 
     def test_symlink_file1(self):
         """ Symlink a single file in the top folder """
-        src = os.path.join(self.rootdir,"file0")    
+        src = os.path.join(self.rootdir,"file0")
         target = os.path.join(self.targetdir,os.path.basename(src))
         self.assertTrue(transfer.SymlinkAgent(src,target).transfer())
-        
-    def test_symlink_file2(self):    
+
+    def test_symlink_file2(self):
         """ Symlnik a single file into a non-existing folder """
         src = os.path.join(self.rootdir,"folder0","folder1","file2")
         target = os.path.join(
             self.targetdir,
             "these","folders","should","be","created")
         self.assertTrue(transfer.SymlinkAgent(src,target).transfer())
- 
+
     def test_symlink_file3(self):
         """ Replace an existing file with overwrite """
-        src = os.path.join(self.rootdir,"file0")    
+        src = os.path.join(self.rootdir,"file0")
         target = os.path.join(self.targetdir,os.path.basename(src))
         open(target,'w').close()
         self.assertTrue(transfer.SymlinkAgent(src,target).transfer())
-        
+
     def test_symlink_file4(self):
         """ Don't replace an existing file without overwrite """
-        src = os.path.join(self.rootdir,"file0")    
+        src = os.path.join(self.rootdir,"file0")
         target = os.path.join(self.targetdir,os.path.basename(src))
         open(target,'w').close()
         self.assertFalse(
             transfer.SymlinkAgent(src,target,overwrite=False).transfer())
-        
+
     def test_symlink_file5(self):
         """ Don't create a broken symlink """
-        src = os.path.join(self.rootdir,"non-existing-file")    
+        src = os.path.join(self.rootdir,"non-existing-file")
         target = os.path.join(self.targetdir,os.path.basename(src))
         with self.assertRaises(transfer.TransferError):
             transfer.SymlinkAgent(src,target).transfer()
-    
+
     def test_symlink_file6(self):
-        """ Failing to remove existing file should raise SymlinkError 
+        """ Failing to remove existing file should raise SymlinkError
         """
         src = self.rootdir
         target = os.path.join(self.targetdir,"target-file")
@@ -226,33 +248,33 @@ class TestSymlinkAgent(unittest.TestCase):
             side_effect=OSError("Mocked error")):
             with self.assertRaises(transfer.SymlinkError):
                 transfer.SymlinkAgent(src,target).transfer()
-            
+
     def test_symlink_folder1(self):
         """ Symlinking a top-level folder """
         src = os.path.join(self.rootdir,"folder0")
         target = os.path.join(self.targetdir,os.path.basename(src))
         self.assertTrue(transfer.SymlinkAgent(src,target).transfer())
-        
+
     def test_symlink_folder2(self):
         """ Replace an existing folder with overwrite """
         src = os.path.join(self.rootdir,"folder0")
         target = os.path.join(self.targetdir,os.path.basename(src))
         shutil.copytree(src,target)
         self.assertTrue(transfer.SymlinkAgent(src,target).transfer())
-        
+
     def test_symlink_folder3(self):
         """ Don't overwrite a mount point """
-        src = os.path.join(self.rootdir)    
+        src = os.path.join(self.rootdir)
         target = os.path.join(self.targetdir)
         with mock.patch.object(transfer.os.path,'ismount',return_value=True):
             with self.assertRaises(transfer.SymlinkError):
                 transfer.SymlinkAgent(src,target).transfer()
-            
+
     def test_symlink_folder4(self):
         """ Don't overwrite an existing path that is neither a mount point,
             file, link or directory
         """
-        src = os.path.join(self.rootdir)    
+        src = os.path.join(self.rootdir)
         target = os.path.join(self.targetdir)
         with mock.patch('taca.utils.transfer.os.path') as mockobj:
             mockobj.ismount.return_value = False
@@ -261,18 +283,18 @@ class TestSymlinkAgent(unittest.TestCase):
             mockobj.isdir.return_value = False
             with self.assertRaises(transfer.SymlinkError):
                 transfer.SymlinkAgent(src,target).transfer()
-    
+
     def test_symlink_folder5(self):
-        """ Failing to create parent folder structure should raise SymlinkError 
+        """ Failing to create parent folder structure should raise SymlinkError
         """
         src = self.rootdir
         target = os.path.join(self.targetdir,"non-existing-folder","target-file")
         with mock.patch.object(transfer,'create_folder',return_value=False):
             with self.assertRaises(transfer.SymlinkError):
                 transfer.SymlinkAgent(src,target).transfer()
-    
+
     def test_symlink_folder6(self):
-        """ Failing to remove existing folder should raise SymlinkError 
+        """ Failing to remove existing folder should raise SymlinkError
         """
         src = self.rootdir
         target = self.targetdir
@@ -282,9 +304,9 @@ class TestSymlinkAgent(unittest.TestCase):
             side_effect=OSError("Mocked error")):
             with self.assertRaises(transfer.SymlinkError):
                 transfer.SymlinkAgent(src,target).transfer()
-        
+
     def test_symlink_folder7(self):
-        """ Failing to create symlink should raise SymlinkError 
+        """ Failing to create symlink should raise SymlinkError
         """
         src = self.rootdir
         target = os.path.join(self.targetdir,os.path.basename(src))
@@ -294,9 +316,9 @@ class TestSymlinkAgent(unittest.TestCase):
             side_effect=OSError("Mocked error")):
             with self.assertRaises(transfer.SymlinkError):
                 transfer.SymlinkAgent(src,target).transfer()
-                
+
     def test_symlink_folder8(self):
-        """ An unexpected exception should propagate upwards 
+        """ An unexpected exception should propagate upwards
         """
         src = self.rootdir
         target = self.targetdir
@@ -306,7 +328,7 @@ class TestSymlinkAgent(unittest.TestCase):
             side_effect=Exception("Mocked error")):
             with self.assertRaises(Exception):
                 transfer.SymlinkAgent(src,target).transfer()
-    
+
 class TestRsyncAgent(unittest.TestCase):
     """ Test class for the RsyncAgent class """
 
@@ -332,19 +354,19 @@ class TestRsyncAgent(unittest.TestCase):
                 map(lambda y: _write_digest(cls.rootdir, digesth, os.path.join(x[0], y)),
                     filter(lambda z: os.path.join(x[0], z) != cls.digestfile, x[2])),
                 os.walk(cls.rootdir))
-        
-    @classmethod        
+
+    @classmethod
     def tearDownClass(cls):
         shutil.rmtree(cls.rootdir)
         os.unlink(cls.testfile)
-        
+
     def setUp(self):
         self.destdir = tempfile.mkdtemp(prefix="test_taca_transfer_dest")
         self.agent = transfer.RsyncAgent(
             self.rootdir,
             dest_path=self.destdir,
             validate=False)
-        
+
     def tearDown(self):
         shutil.rmtree(self.destdir)
 
@@ -366,7 +388,7 @@ class TestRsyncAgent(unittest.TestCase):
         self.assertEqual(agent.cmdopts, agent.DEFAULT_OPTS)
 
     def test_rsync_validate_transfer(self):
-        """ validate_transfer 
+        """ validate_transfer
         """
         # validation on remote hosts are not supported
         self.agent.remote_host = "not None"
@@ -399,7 +421,7 @@ class TestRsyncAgent(unittest.TestCase):
         self.agent.dest_path = self.destdir
         with self.assertRaises(transfer.TransferError):
             self.agent.validate_dest_path()
-         
+
     def test_rsync_agent1(self):
         """ Destination path should be properly constructed """
         self.assertEqual(
@@ -422,10 +444,10 @@ class TestRsyncAgent(unittest.TestCase):
             "user@localhost:",
             self.agent.remote_path(),
             "Destination path was not correct for empty destination path")
-    
+
     def test_rsync_agent2(self):
-        """ An error thrown by the rsync subprocess should be wrapped and 
-            propagated 
+        """ An error thrown by the rsync subprocess should be wrapped and
+            propagated
         """
         with mock.patch.object(
             transfer.subprocess,'check_call',
@@ -434,7 +456,7 @@ class TestRsyncAgent(unittest.TestCase):
                     returncode=-1)):
             with self.assertRaises(transfer.RsyncError):
                 self.agent.transfer()
-                
+
     def test_rsync_agent3(self):
         """ rsync transfer of a single file """
         self.agent.src_path = os.path.join(self.rootdir,"file0")
@@ -448,7 +470,7 @@ class TestRsyncAgent(unittest.TestCase):
                     self.destdir,
                     os.path.basename(self.agent.src_path))),
             "test file was not properly transferred")
-                
+
     def test_rsync_agent4(self):
         """ rsync transfer of a folder """
         self.agent.src_path = os.path.join(self.rootdir,"folder0")
@@ -462,7 +484,7 @@ class TestRsyncAgent(unittest.TestCase):
                     self.destdir,
                     os.path.basename(self.agent.src_path))),
             "folder was not properly transferred")
-                
+
     def test_rsync_agent5(self):
         """ rsync should be able to resolve symlinks """
         self.agent.src_path = os.path.join(self.rootdir,"folder0")
@@ -486,7 +508,7 @@ class TestRsyncAgent(unittest.TestCase):
                 if not self.validate_files(s,d):
                     return False
         return True
-    
+
     def validate_files(self,src,dst):
         return os.path.exists(src) and \
             os.path.isfile(src) and \
