@@ -7,7 +7,7 @@ import gzip
 import operator
 import subprocess
 from datetime import datetime
-from taca.utils.filesystem import chdir, control_fastq_filename
+from taca.utils.filesystem import chdir
 from taca.illumina.Runs import Run
 from taca.utils import misc
 from flowcell_parser.classes import SampleSheetParser, RunParser
