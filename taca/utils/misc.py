@@ -204,6 +204,7 @@ def run_is_demuxed(run, couch_info=None):
         server = "http://{username}:{password}@{url}:{port}".format(**couch_info)
         couch = couchdb.Server(server)
         fc_db = couch[couch_info['db']]
+        print(fc_db.view())
         for fc in fc_db.view("names/name", reduce=False, descending=True):
             if fc.key != run_name:
                 continue
