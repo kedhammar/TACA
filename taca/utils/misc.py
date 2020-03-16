@@ -30,7 +30,6 @@ def send_mail(subject, content, receiver):
     s.sendmail('TACA', [receiver], msg.as_string())
     s.quit()
 
-
 def call_external_command(cl, with_log_files=False, prefix=None, log_dir=""):
     """ Executes an external command
 
@@ -66,7 +65,6 @@ def call_external_command(cl, with_log_files=False, prefix=None, log_dir=""):
         if with_log_files:
             stdout.close()
             stderr.close()
-
 
 def call_external_command_detached(cl, with_log_files=False, prefix=None):
     """ Executes an external command
@@ -139,7 +137,6 @@ def hashfile(afile, hasher='sha1', blocksize=65536):
             buf = fh.read(blocksize)
     return hashobj.hexdigest()
 
-
 def query_yes_no(question, default="yes", force=False):
     """Ask a yes/no question via raw_input() and return their answer.
     "question" is a string that is presented to the user. "default"
@@ -178,12 +175,10 @@ def query_yes_no(question, default="yes", force=False):
             sys.stdout.write("Please respond with 'yes' or 'no' "\
                                  "(or 'y' or 'n').\n")
 
-
 def return_unique(seq):
     seen = set()
     seen_add = seen.add
     return [ x for x in seq if not (x in seen or seen_add(x))]
-
 
 def run_is_demuxed(run, couch_info=None):
     """Check in StatusDB 'x_flowcells' database if the given run has an entry which means it was
@@ -204,7 +199,6 @@ def run_is_demuxed(run, couch_info=None):
         server = "http://{username}:{password}@{url}:{port}".format(**couch_info)
         couch = couchdb.Server(server)
         fc_db = couch[couch_info['db']]
-        print(fc_db.view())
         for fc in fc_db.view("names/name", reduce=False, descending=True):
             if fc.key != run_name:
                 continue

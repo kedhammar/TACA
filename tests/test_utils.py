@@ -10,6 +10,7 @@ import unittest
 import time
 from taca.utils import misc, filesystem, transfer
 
+
 class TestMisc(unittest.TestCase):
     """ Test class for the misc functions """
 
@@ -56,7 +57,6 @@ class TestMisc(unittest.TestCase):
         assert misc.send_mail("subject", "content", "receiver") is None
         with self.assertRaises(SystemExit):
             misc.send_mail("subject", "content", None)
-
 
     def test_call_external_command_pass(self):
         """ Call external command """
@@ -106,18 +106,6 @@ class TestMisc(unittest.TestCase):
         returned_list = misc.return_unique(input_list)
         expected_list = ['a', 'b', 'c']
         self.assertEqual(returned_list, expected_list)
-
-    @mock.patch('taca.utils.misc.couchdb.Server')
-    def test_run_is_demuxed(self, mock_couchdb):
-        """ Return True if run is demultiplexed """
-        mock_couchdb.__getitem__.view.return_value = '190201_BHHFCFDSXX'
-        mock_couchdb.__getitem__.get.return_value = {'illumina': {'Demultiplex_Stats': 'some_stats'}}
-        couch_info = {'username': 'Cat',
-                      'password': 'Tuna',
-                      'url': 'test_url',
-                      'port': 1234,
-                      'db': 'cats_db'}
-        self.assertTrue(misc.run_is_demuxed("190201_A00621_0032_BHHFCFDSXX", couch_info))
 
 
 class TestFilesystem(unittest.TestCase):
@@ -228,6 +216,7 @@ class TestTransferAgent(unittest.TestCase):
         with self.assertRaises(NotImplementedError):
             self.agent.validate_transfer()
 
+
 class TestSymlinkAgent(unittest.TestCase):
     """ Test class for the SymlinkAgent class """
 
@@ -252,33 +241,34 @@ class TestSymlinkAgent(unittest.TestCase):
         shutil.rmtree(self.targetdir)
 
     def test_symlink_validate_transfer(self):
+        """ verify that the dest_path was created """
         src = os.path.join(self.rootdir,"file0")
         dst = os.path.join(self.targetdir,"file0")
         os.symlink(src,dst)
         self.assertTrue(transfer.SymlinkAgent(src,dst).validate_transfer())
 
-    def test_symlink_file1(self):
+    def test_symlink_file_top_folder(self):
         """ Symlink a single file in the top folder """
         src = os.path.join(self.rootdir,"file0")
         target = os.path.join(self.targetdir,os.path.basename(src))
         self.assertTrue(transfer.SymlinkAgent(src,target).transfer())
 
-    def test_symlink_file2(self):
-        """ Symlnik a single file into a non-existing folder """
+    def test_symlink_file_make_dir(self):
+        """ Symlink a single file into a non-existing folder """
         src = os.path.join(self.rootdir,"folder0","folder1","file2")
         target = os.path.join(
             self.targetdir,
             "these","folders","should","be","created")
         self.assertTrue(transfer.SymlinkAgent(src,target).transfer())
 
-    def test_symlink_file3(self):
+    def test_symlink_file_overwrite(self):
         """ Replace an existing file with overwrite """
         src = os.path.join(self.rootdir,"file0")
         target = os.path.join(self.targetdir,os.path.basename(src))
         open(target,'w').close()
         self.assertTrue(transfer.SymlinkAgent(src,target).transfer())
 
-    def test_symlink_file4(self):
+    def test_symlink_file_not_overwrite(self):
         """ Don't replace an existing file without overwrite """
         src = os.path.join(self.rootdir,"file0")
         target = os.path.join(self.targetdir,os.path.basename(src))
@@ -286,16 +276,15 @@ class TestSymlinkAgent(unittest.TestCase):
         self.assertFalse(
             transfer.SymlinkAgent(src,target,overwrite=False).transfer())
 
-    def test_symlink_file5(self):
+    def test_symlink_file_broken(self):
         """ Don't create a broken symlink """
         src = os.path.join(self.rootdir,"non-existing-file")
         target = os.path.join(self.targetdir,os.path.basename(src))
         with self.assertRaises(transfer.TransferError):
             transfer.SymlinkAgent(src,target).transfer()
 
-    def test_symlink_file6(self):
-        """ Failing to remove existing file should raise SymlinkError
-        """
+    def test_symlink_file_unlink_fail(self):
+        """ Failing to remove existing file should raise SymlinkError """
         src = self.rootdir
         target = os.path.join(self.targetdir,"target-file")
         open(target,'w').close()
@@ -306,20 +295,20 @@ class TestSymlinkAgent(unittest.TestCase):
             with self.assertRaises(transfer.SymlinkError):
                 transfer.SymlinkAgent(src,target).transfer()
 
-    def test_symlink_folder1(self):
+    def test_symlink_folder_top_folder(self):
         """ Symlinking a top-level folder """
         src = os.path.join(self.rootdir,"folder0")
         target = os.path.join(self.targetdir,os.path.basename(src))
         self.assertTrue(transfer.SymlinkAgent(src,target).transfer())
 
-    def test_symlink_folder2(self):
+    def test_symlink_folder_overwrite(self):
         """ Replace an existing folder with overwrite """
         src = os.path.join(self.rootdir,"folder0")
         target = os.path.join(self.targetdir,os.path.basename(src))
         shutil.copytree(src,target)
         self.assertTrue(transfer.SymlinkAgent(src,target).transfer())
 
-    def test_symlink_folder3(self):
+    def test_symlink_folder_mount_point(self):
         """ Don't overwrite a mount point """
         src = os.path.join(self.rootdir)
         target = os.path.join(self.targetdir)
@@ -327,7 +316,7 @@ class TestSymlinkAgent(unittest.TestCase):
             with self.assertRaises(transfer.SymlinkError):
                 transfer.SymlinkAgent(src,target).transfer()
 
-    def test_symlink_folder4(self):
+    def test_symlink_folder_not_overwrite(self):
         """ Don't overwrite an existing path that is neither a mount point,
             file, link or directory
         """
@@ -341,7 +330,7 @@ class TestSymlinkAgent(unittest.TestCase):
             with self.assertRaises(transfer.SymlinkError):
                 transfer.SymlinkAgent(src,target).transfer()
 
-    def test_symlink_folder5(self):
+    def test_symlink_folder_parent_error(self):
         """ Failing to create parent folder structure should raise SymlinkError
         """
         src = self.rootdir
@@ -350,7 +339,7 @@ class TestSymlinkAgent(unittest.TestCase):
             with self.assertRaises(transfer.SymlinkError):
                 transfer.SymlinkAgent(src,target).transfer()
 
-    def test_symlink_folder6(self):
+    def test_symlink_folder_rmtree_fail(self):
         """ Failing to remove existing folder should raise SymlinkError
         """
         src = self.rootdir
@@ -362,7 +351,7 @@ class TestSymlinkAgent(unittest.TestCase):
             with self.assertRaises(transfer.SymlinkError):
                 transfer.SymlinkAgent(src,target).transfer()
 
-    def test_symlink_folder7(self):
+    def test_symlink_folder_symlink_error(self):
         """ Failing to create symlink should raise SymlinkError
         """
         src = self.rootdir
@@ -374,7 +363,7 @@ class TestSymlinkAgent(unittest.TestCase):
             with self.assertRaises(transfer.SymlinkError):
                 transfer.SymlinkAgent(src,target).transfer()
 
-    def test_symlink_folder8(self):
+    def test_symlink_folder_unexpected(self):
         """ An unexpected exception should propagate upwards
         """
         src = self.rootdir
@@ -385,6 +374,7 @@ class TestSymlinkAgent(unittest.TestCase):
             side_effect=Exception("Mocked error")):
             with self.assertRaises(Exception):
                 transfer.SymlinkAgent(src,target).transfer()
+
 
 class TestRsyncAgent(unittest.TestCase):
     """ Test class for the RsyncAgent class """
@@ -428,8 +418,7 @@ class TestRsyncAgent(unittest.TestCase):
         shutil.rmtree(self.destdir)
 
     def test_init(self):
-        """ test initiation of agent instance
-        """
+        """ test initiation of agent instance """
         # initiate with some values
         args = ["arg1"]
         kwargs = {"dest_path": "arg2",
@@ -445,8 +434,7 @@ class TestRsyncAgent(unittest.TestCase):
         self.assertEqual(agent.cmdopts, agent.DEFAULT_OPTS)
 
     def test_rsync_validate_transfer(self):
-        """ validate_transfer
-        """
+        """ validate_transfer """
         # validation on remote hosts are not supported
         self.agent.remote_host = "not None"
         with self.assertRaises(NotImplementedError):
@@ -464,8 +452,7 @@ class TestRsyncAgent(unittest.TestCase):
         self.assertFalse(self.agent.validate_transfer(), "validation with an invalid digestfile should return false")
 
     def test_rsync_validate_dest_path(self):
-        """ Destination path should be properly checked
-        """
+        """ Destination path should be properly checked """
         try:
             self.agent.validate_dest_path()
         except transfer.TransferError as e:
@@ -479,7 +466,7 @@ class TestRsyncAgent(unittest.TestCase):
         with self.assertRaises(transfer.TransferError):
             self.agent.validate_dest_path()
 
-    def test_rsync_agent1(self):
+    def test_rsync_agent_dest_paths_constructed(self):
         """ Destination path should be properly constructed """
         self.assertEqual(
             self.destdir,
@@ -502,10 +489,9 @@ class TestRsyncAgent(unittest.TestCase):
             self.agent.remote_path(),
             "Destination path was not correct for empty destination path")
 
-    def test_rsync_agent2(self):
+    def test_rsync_agent_propagate_error(self):
         """ An error thrown by the rsync subprocess should be wrapped and
-            propagated
-        """
+            propagated """
         with mock.patch.object(
             transfer.subprocess,'check_call',
                 side_effect=subprocess.CalledProcessError(
@@ -514,7 +500,7 @@ class TestRsyncAgent(unittest.TestCase):
             with self.assertRaises(transfer.RsyncError):
                 self.agent.transfer()
 
-    def test_rsync_agent3(self):
+    def test_rsync_agent_file(self):
         """ rsync transfer of a single file """
         self.agent.src_path = os.path.join(self.rootdir,"file0")
         self.assertTrue(
@@ -528,7 +514,7 @@ class TestRsyncAgent(unittest.TestCase):
                     os.path.basename(self.agent.src_path))),
             "test file was not properly transferred")
 
-    def test_rsync_agent4(self):
+    def test_rsync_agent_dir(self):
         """ rsync transfer of a folder """
         self.agent.src_path = os.path.join(self.rootdir,"folder0")
         self.assertTrue(
@@ -542,7 +528,7 @@ class TestRsyncAgent(unittest.TestCase):
                     os.path.basename(self.agent.src_path))),
             "folder was not properly transferred")
 
-    def test_rsync_agent5(self):
+    def test_rsync_agent_symlink(self):
         """ rsync should be able to resolve symlinks """
         self.agent.src_path = os.path.join(self.rootdir,"folder0")
         os.symlink(self.testfile,os.path.join(self.agent.src_path,"link1"))
