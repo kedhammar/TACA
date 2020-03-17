@@ -1,0 +1,7 @@
+[Header]
+Investigator Name,Christian Natanaelsson
+Experiment Name,H2WY7CCXX
+Date,2015-04-23
+[Data]
+Lane,SampleID,SampleName,SamplePlate,SampleWell,index,Project
+1,Sample_P1775_147,P1775_147,FCB_150423,1:1,GAATTCGT,J_Lundeberg_14_24

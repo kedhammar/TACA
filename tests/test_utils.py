@@ -8,7 +8,8 @@ import subprocess
 import tempfile
 import unittest
 import time
-from taca.utils import misc, filesystem, transfer
+import couchdb
+from taca.utils import misc, filesystem, transfer, config, bioinfo_tab
 
 
 class TestMisc(unittest.TestCase):
@@ -558,3 +559,163 @@ class TestRsyncAgent(unittest.TestCase):
             os.path.exists(dst) and \
             os.path.isfile(dst) and \
             misc.hashfile(src) == misc.hashfile(dst)
+
+class TestConfig(unittest.TestCase):
+
+    def test_load_yaml_config_pass(self):
+        """ Load a yaml config file """
+        got_config_data = config.load_yaml_config('data/taca_test_cfg_minimal.yaml')
+        expexted_config_data = {'statusdb':
+                                {'url': 'url',
+                                 'username': 'username',
+                                 'password': 'pwd',
+                                 'port': 'port'},
+                                'log':
+                                {'file': 'data/taca.log'}}
+        self.assertItemsEqual(expexted_config_data, got_config_data)
+        with self.assertRaises(IOError):
+            missing_config_data = config.load_yaml_config('data/missing_file.yaml)')
+
+
+class TestBioinfoTab(unittest.TestCase):
+    """ Test class for bioinfo_tab """
+
+    @classmethod
+    def setUpClass(self):
+        self.rootdir = tempfile.mkdtemp(prefix="test_taca_bt")
+        self.new_run = os.path.join(self.rootdir,'nosync/190821_M01545_0252_000000001')
+        os.makedirs(self.new_run)
+        self.demux_run = os.path.join(self.rootdir, '190821_M01545_0252_000000002')
+        os.makedirs(os.path.join(self.demux_run, 'Unaligned_1'))
+        self.seq_run = os.path.join(self.rootdir, '190821_M01545_0252_000000003')
+        os.makedirs(self.seq_run)
+        self.error_run = os.path.join(self.rootdir, '190821_M01545_0252_000000004')
+        os.makedirs(self.error_run)
+        with open(os.path.join(self.error_run, 'RTAComplete.txt'), 'w') as fh:
+            fh.write("This is some contents\n")
+
+    @classmethod
+    def tearDownClass(self):
+        shutil.rmtree(self.rootdir)
+
+    def test_setupServer(self):
+        """ Set up server connection """
+        config = {'statusdb':
+                  {'url': 'url',
+                   'username': 'username',
+                   'password': 'pwd',
+                   'port': '1234'}}
+        got_connection = bioinfo_tab.setupServer(config)
+        assert isinstance(got_connection, couchdb.Server)
+
+    def test_collect_runs(self):
+        #FIXME
+        pass
+
+    def test_update_statusdb(self):
+        #FIXME
+        pass
+
+    def test_get_status_new(self):
+        """ return status New """
+        got_status = bioinfo_tab.get_status(self.new_run)
+        self.assertEqual(got_status, 'New')
+
+    def test_get_status_demultiplexing(self):
+        """ return status Demultiplexing """
+        got_status = bioinfo_tab.get_status(self.demux_run)
+        self.assertEqual(got_status, 'Demultiplexing')
+
+    def test_get_status_sequencing(self):
+        """ return status Sequencing """
+        got_status = bioinfo_tab.get_status(self.seq_run)
+        self.assertEqual(got_status, 'Sequencing')
+
+    def test_get_status_error(self):
+        """ return status ERROR """
+        got_status = bioinfo_tab.get_status(self.error_run)
+        self.assertEqual(got_status, 'ERROR')
+
+    def get_ss_projects(self):
+        #FIXME
+        pass
+
+    def test_parse_sample_sheet(self):
+        """ parse samplesheet """
+        sample_sheet = 'data/samplesheet.csv'
+        expected_data = [{'SampleWell': '1:1',
+                          'index': 'GAATTCGT',
+                          'Lane': '1',
+                          'SamplePlate': 'FCB_150423',
+                          'SampleName': 'P1775_147',
+                          'SampleID': 'Sample_P1775_147',
+                          'Project': 'J_Lundeberg_14_24'}]
+        parsed_data = bioinfo_tab.parse_samplesheet(sample_sheet, "run_dir")
+        self.assertEqual(expected_data, parsed_data)
+
+    def test_parse_sample_sheet_is_miseq(self):
+        """ parse miseq samplesheet """
+        sample_sheet = 'data/miseq_samplesheet.csv'
+        expected_data = [{'SampleWell': '1:1',
+                          'index': 'GAATTCGT',
+                          'Lane': '1',
+                          'SamplePlate': 'FCB_150423',
+                          'SampleName': 'P1775_147',
+                          'SampleID': 'Sample_P1775_147',
+                          'Project': 'J_Lundeberg_14_24'}]
+        parsed_data = bioinfo_tab.parse_samplesheet(sample_sheet, "run_dir", is_miseq=True)
+        self.assertEqual(expected_data, parsed_data)
+
+    def test_parse_sample_sheet_is_miseq_error(self):
+        """ return empty list if not production or application in miseq sample sheet """
+        sample_sheet = 'data/samplesheet.csv'
+        parsed_data = bioinfo_tab.parse_samplesheet(sample_sheet, "run_dir", is_miseq=True)
+        self.assertEqual(parsed_data, [])
+
+    @mock.patch('taca.utils.bioinfo_tab.send_mail')
+    @mock.patch('taca.utils.bioinfo_tab.datetime.datetime')
+    def test_error_mailer_no_samplesheet(self, mock_datetime, mock_send_mail):
+        """ send email if no_samplesheet error """
+        body='TACA has encountered an issue that might be worth investigating\n'
+        body+='The offending entry is: '
+        body+= 'run_missing_samplesheet'
+        body+='\n\nSincerely, TACA'
+        subject='ERROR, Samplesheet error'
+        mock_datetime.now()
+        mock_datetime.now().hour = 7
+        bioinfo_tab.error_emailer('no_samplesheet', 'run_missing_samplesheet')
+        mock_send_mail.assert_called_with(subject, body, 'some_user@some_email.com')
+
+    @mock.patch('taca.utils.bioinfo_tab.send_mail')
+    @mock.patch('taca.utils.bioinfo_tab.datetime.datetime')
+    def test_error_mailer_failed_run(self, mock_datetime, mock_send_mail):
+        """ send email if failed_run error """
+        body='TACA has encountered an issue that might be worth investigating\n'
+        body+='The offending entry is: '
+        body+= 'failed_run'
+        body+='\n\nSincerely, TACA'
+        subject='WARNING, Reinitialization of partially failed FC'
+        mock_datetime.now()
+        mock_datetime.now().hour = 7
+        bioinfo_tab.error_emailer('failed_run', 'failed_run')
+        mock_send_mail.assert_called_with(subject, body, 'some_user@some_email.com')
+
+    @mock.patch('taca.utils.bioinfo_tab.send_mail')
+    @mock.patch('taca.utils.bioinfo_tab.datetime.datetime')
+    def test_error_mailer_weird_samplesheet(self, mock_datetime, mock_send_mail):
+        """ send email if weird_samplesheet error """
+        body='TACA has encountered an issue that might be worth investigating\n'
+        body+='The offending entry is: '
+        body+= 'weird_samplesheet_run'
+        body+='\n\nSincerely, TACA'
+        subject='ERROR, Incorrectly formatted samplesheet'
+        mock_datetime.now()
+        mock_datetime.now().hour = 7
+        bioinfo_tab.error_emailer('weird_samplesheet', 'weird_samplesheet_run')
+        mock_send_mail.assert_called_with(subject, body, 'some_user@some_email.com')
+
+    @mock.patch('taca.utils.bioinfo_tab.couchdb')
+    def test_fail_run(self, mock_couchdb):
+        """ update couchdb of Failed runs """
+        #FIXME
+        pass

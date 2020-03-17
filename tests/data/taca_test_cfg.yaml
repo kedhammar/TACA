@@ -55,3 +55,6 @@ analysis:
                 data_archive:
                 include:
                     - "*.file"
+mail:
+  recipients:
+    some_user@some_email.com
