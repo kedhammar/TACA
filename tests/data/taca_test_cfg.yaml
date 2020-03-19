@@ -11,7 +11,7 @@ statusdb:
   url: url
   username: username
   password: pwd
-  port: port
+  port: 1234
 
 analysis:
     HiSeqX:
@@ -55,6 +55,11 @@ analysis:
                 data_archive:
                 include:
                     - "*.file"
+
+bioinfo_tab:
+  data_dirs:
+    - "data/test_data/"
+
 mail:
   recipients:
     some_user@some_email.com

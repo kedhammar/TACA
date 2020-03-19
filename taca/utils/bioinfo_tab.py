@@ -145,7 +145,7 @@ def get_ss_projects(run_dir):
     FCID = run_name_components[3][1:]
     newData = False
     miseq = False
-
+    # FIXME: this check breaks if the system is case insensitive
     if os.path.exists(os.path.join(run_dir, 'runParameters.xml')):
         run_parameters_file = "runParameters.xml"
     elif os.path.exists(os.path.join(run_dir, 'RunParameters.xml')):

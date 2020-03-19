@@ -608,13 +608,12 @@ class TestBioinfoTab(unittest.TestCase):
         got_connection = bioinfo_tab.setupServer(config)
         assert isinstance(got_connection, couchdb.Server)
 
-    def test_collect_runs(self):
-        #FIXME
-        pass
-
-    def test_update_statusdb(self):
-        #FIXME
-        pass
+    @mock.patch('taca.utils.bioinfo_tab.update_statusdb', return_value=None)
+    def test_collect_runs(self, mock_update_statusdb):
+        """ find runs in specified dir """
+        bioinfo_tab.collect_runs()
+        calls = [mock.call('data/test_data/190201_A00621_0032_BHHFCFDSXX'), mock.call('data/test_data/nosync/190201_A00621_0032_BHHFCFDSXY')]
+        mock_update_statusdb.assert_has_calls(calls)
 
     def test_get_status_new(self):
         """ return status New """
@@ -635,10 +634,6 @@ class TestBioinfoTab(unittest.TestCase):
         """ return status ERROR """
         got_status = bioinfo_tab.get_status(self.error_run)
         self.assertEqual(got_status, 'ERROR')
-
-    def get_ss_projects(self):
-        #FIXME
-        pass
 
     def test_parse_sample_sheet(self):
         """ parse samplesheet """
@@ -713,9 +708,3 @@ class TestBioinfoTab(unittest.TestCase):
         mock_datetime.now().hour = 7
         bioinfo_tab.error_emailer('weird_samplesheet', 'weird_samplesheet_run')
         mock_send_mail.assert_called_with(subject, body, 'some_user@some_email.com')
-
-    @mock.patch('taca.utils.bioinfo_tab.couchdb')
-    def test_fail_run(self, mock_couchdb):
-        """ update couchdb of Failed runs """
-        #FIXME
-        pass
