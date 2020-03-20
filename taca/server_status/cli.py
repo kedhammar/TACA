@@ -1,6 +1,5 @@
 import click
 import logging
-import os
 
 from taca.server_status import server_status as status
 from taca.utils.config import CONFIG

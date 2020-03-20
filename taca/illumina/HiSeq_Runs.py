@@ -1,21 +1,14 @@
 import os
-import re
-import csv
-import glob
 import shutil
-import gzip
-import operator
-import subprocess
-from datetime import datetime
 from taca.utils.filesystem import chdir
 from taca.illumina.Runs import Run
 from taca.utils import misc
-from flowcell_parser.classes import SampleSheetParser, RunParser
-
+from flowcell_parser.classes import SampleSheetParser
 
 import logging
 
 logger = logging.getLogger(__name__)
+
 
 class HiSeq_Run(Run):
 

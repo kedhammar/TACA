@@ -1,7 +1,6 @@
 """ Load and parse configuration file
 """
 
-import glob
 import logging
 from taca.utils.config import CONFIG
 from taca.utils import config as conf
@@ -13,17 +12,11 @@ from dateutil.relativedelta import relativedelta
 import random
 import subprocess
 
-
 logger = logging.getLogger(__name__)
-
-
-
 
 def setupServer(conf):
     url="http://{0}:{1}@{2}:{3}".format(conf['username'], conf['password'], conf['url'], conf['port'])
     return couchdb.Server(url)
-
-
 
 def create_version_report(path):
     #creates the file version_report.txt for stuff run ngi_pipeline
@@ -56,10 +49,6 @@ def create_version_report(path):
         VERSION_REPORT.write("piper\n")
         VERSION_REPORT.write("-----\n")
         VERSION_REPORT.write("Piper is a pipeline system developed and maintained at the National Genomics Infrastructure build on top of GATK Queue. For more information and the source code visit: www.github.com/NationalGenomicsInfrastructure/piper\n")
-        
-        
-
-
 
 def create_FC(incoming_dir, run_name, samplesheet, fastq_1 = None, fastq_2=None ):
     # create something like 160217_ST-E00201_0063_AHJHNYCCXX
@@ -103,7 +92,7 @@ def create_FC(incoming_dir, run_name, samplesheet, fastq_1 = None, fastq_2=None 
         else:
             fs.do_symlink(fastq_1, os.path.join(path_to_fc, "Demultiplexing", project_name, sample_id, fastq_1_dest))
             fs.do_symlink(fastq_2, os.path.join(path_to_fc, "Demultiplexing", project_name, sample_id, fastq_2_dest))
-    
+
     with open(os.path.join(path_to_fc, "SampleSheet.csv"), "w") as Samplesheet_file:
         Samplesheet_file.write("[Header]\n")
         Samplesheet_file.write("Date,2016-03-29\n")
@@ -116,8 +105,6 @@ def create_FC(incoming_dir, run_name, samplesheet, fastq_1 = None, fastq_2=None 
             for key in header:
                 Samplesheet_file.write("{},".format(line[key]))
             Samplesheet_file.write("\n")
-
-
 
 def create_uppmax_env(ngi_config):
     paths = {}
@@ -152,7 +139,6 @@ def create_uppmax_env(ngi_config):
     fs.create_folder(path_to_analysis)
     return paths
 
-
 def produce_analysis_qc_ngi(ngi_config, project_id):
     analysis_dir = os.path.join(ngi_config["analysis"]["base_root"],
                                             ngi_config["analysis"]["sthlm_root"],
@@ -173,7 +159,6 @@ def produce_analysis_qc_ngi(ngi_config, project_id):
         fastq_screen_dir  = os.path.join(sample_dir_qc, "fastq_screen")
         fs.create_folder(fastq_screen_dir)
         #do not create more than this....
-
 
 def produce_analysis_piper(ngi_config, project_id):
     #create piper_ngi
@@ -209,12 +194,6 @@ def produce_analysis_piper(ngi_config, project_id):
     fs.create_folder(current_dir)
     create_version_report(current_dir)
 
-
-
-
-
-
-
 def select_random_projects(projects_in, num_proj, application, projects_out, label):
     chosen_projects = 0
     iterations      = 0 #safe guard to avoid infinite loops
@@ -240,8 +219,6 @@ def select_random_projects(projects_in, num_proj, application, projects_out, lab
             #I select this one
             projects_out.append([selected_proj, label])
             chosen_projects += 1
-
-
 
 def create(projects, ngi_config_file, fastq_1, fastq_2):
     #connect to statusdb
@@ -370,14 +347,9 @@ def create(projects, ngi_config_file, fastq_1, fastq_2):
             produce_analysis_qc_ngi(ngi_config, project[0])
             if project[1].startswith("WGreseq"):
                 produce_analysis_piper(ngi_config, project[0])
-                
-
 
     #now I need to store in a file the results
     with open("projects.txt", "w") as PROJECTS:
         for project in projects_to_reproduce:
             if project[0] in reproduced_projects:
                 PROJECTS.write("{}:{}\n".format(project[0], project[1]))
-
-
-

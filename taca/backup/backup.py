@@ -3,7 +3,6 @@ import couchdb
 import logging
 import os
 import re
-import sys
 import shutil
 import subprocess as sp
 import time

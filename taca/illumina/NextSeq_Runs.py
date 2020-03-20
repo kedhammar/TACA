@@ -1,19 +1,8 @@
-import os
-import re
-import csv
-import glob
-import shutil
-import gzip
-import operator
-import subprocess
-from datetime import datetime
-from taca.illumina.Runs import Run
 from taca.illumina.HiSeqX_Runs import HiSeqX_Run
-from taca.utils import misc
-
 import logging
 
 logger = logging.getLogger(__name__)
+
 
 class NextSeq_Run(HiSeqX_Run):
 

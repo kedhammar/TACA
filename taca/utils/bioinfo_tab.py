@@ -1,4 +1,3 @@
-import socket
 import os
 import couchdb
 import glob
@@ -6,7 +5,6 @@ import re
 import logging
 import datetime
 
-from csv import DictReader
 from taca.utils.config import CONFIG
 from flowcell_parser.classes import SampleSheetParser, RunParametersParser
 from collections import defaultdict, OrderedDict
