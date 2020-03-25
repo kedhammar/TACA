@@ -68,7 +68,7 @@ class TestMisc(unittest.TestCase):
 
     def test_call_external_command_fail(self):
         """ Call external command should handle error """
-        command = "ls -Q"
+        command = "ls -E"
         with self.assertRaises(subprocess.CalledProcessError):
             misc.call_external_command(command)
 
