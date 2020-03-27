@@ -42,6 +42,7 @@ class TestTracker(unittest.TestCase):
         |   |   |__ Stats
         |   |       |__ DemultiplexingStats.xml
         |   |__ RTAComplete.txt
+        |   |__ SampleSheet.csv
         |__ 141124_ST-INPROGRESS_02_AFCIDXX
         |   |__ RunInfo.xml
         |   |__ Demultiplexing
@@ -100,6 +101,7 @@ class TestTracker(unittest.TestCase):
         open(os.path.join(in_progress, 'SampleSheet_1.csv'), 'w').close()
         open(os.path.join(in_progress_done, 'SampleSheet_0.csv'), 'w').close()
         open(os.path.join(in_progress_done, 'SampleSheet_1.csv'), 'w').close()
+        shutil.copy('data/samplesheet.csv', os.path.join(completed, 'SampleSheet.csv'))
 
         # Create files indicating that demultiplexing is ongoing
         open(os.path.join(in_progress_done, 'Demultiplexing_0', 'Stats', 'DemultiplexingStats.xml'), 'w').close()
@@ -197,4 +199,23 @@ class TestTracker(unittest.TestCase):
         self.assertTrue(self.in_progress._is_demultiplexing_started())
         self.assertFalse(self.to_start._is_demultiplexing_started())
 
+    def test_generate_per_lane_base_mask(self):
+        """ Generate base mask """
+        expected_mask = {'1':
+                         {'Y151I8Y151':
+                          {'base_mask': ['Y151', 'I8', 'Y151'],
+                           'data': [
+                               {'SampleWell': '1:1',
+                                'index': 'GAATTCGT',
+                                'Lane': '1',
+                                'SamplePlate': 'FCB_150423',
+                                'SampleName': 'P1775_147',
+                                'SampleID': 'Sample_P1775_147',
+                                'Project': 'J_Lundeberg_14_24'}
+                           ]
+                          }
+                         }
+        }
+        got_mask = self.completed._generate_per_lane_base_mask()
+        self.assertItemsEqual(expected_mask, got_mask)
 
