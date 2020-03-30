@@ -28,8 +28,8 @@ def processing_status(run_dir):
     else:
         return 'IN_PROGRESS'
 
-class TestTracker(unittest.TestCase):
-    """ analysis.py script tests
+class TestRuns(unittest.TestCase):
+    """ Tests for the Run base class
     """
     @classmethod
     def setUpClass(self):
@@ -68,7 +68,7 @@ class TestTracker(unittest.TestCase):
         |__ 141124_ST-TOSTART_04_FCIDXXX
         |   |__ RunInfo.xml
         |   |__ RTAComplete.txt
-        |__
+        |__ archive
         """
         self.tmp_dir = os.path.join(tempfile.mkdtemp(), 'tmp')
         self.transfer_file = os.path.join(self.tmp_dir, 'transfer.tsv')
@@ -121,6 +121,10 @@ class TestTracker(unittest.TestCase):
         for run in [running, to_start, in_progress, in_progress_done, completed]:
             shutil.copy('data/RunInfo.xml', run)
             shutil.copy('data/runParameters.xml', run)
+
+        # Create archive dir
+        self.archive_dir = os.path.join(self.tmp_dir, "archive")
+        os.makedirs(self.archive_dir)
 
         # Create run objects
         self.running = HiSeqX_Run(os.path.join(self.tmp_dir,
@@ -218,4 +222,42 @@ class TestTracker(unittest.TestCase):
         }
         got_mask = self.completed._generate_per_lane_base_mask()
         self.assertItemsEqual(expected_mask, got_mask)
+
+    @mock.patch('taca.illumina.Runs.misc.call_external_command')
+    def test_transfer_run(self, mock_call_external_command):
+        """ Call external rsync """
+        analysis = False
+        self.completed.transfer_run(self.transfer_file, analysis)
+        command_line = ['rsync', '-Lav', '--no-o', '--no-g', '--chmod=g+rw',
+                        '--exclude=Demultiplexing_*/*_*',
+                        '--include=*/', '--include=*.file',
+                        '--exclude=*', '--prune-empty-dirs',
+                        os.path.join(self.tmp_dir, '141124_ST-COMPLETED1_01_AFCIDXX'),
+                        'None@None:None']
+        mock_call_external_command.assert_called_once_with(command_line,
+                                                           log_dir=os.path.join(self.tmp_dir, '141124_ST-COMPLETED1_01_AFCIDXX'),
+                                                           prefix='',
+                                                           with_log_files=True)
+
+    @mock.patch('taca.illumina.Runs.shutil.move')
+    def test_archive_run(self, mock_move):
+        """ Move file to archive """
+        self.completed.archive_run(self.archive_dir)
+        mock_move.assert_called_once_with(os.path.join(self.tmp_dir, '141124_ST-COMPLETED1_01_AFCIDXX'),
+                                          os.path.join(self.archive_dir, '141124_ST-COMPLETED1_01_AFCIDXX'))
+
+    @mock.patch('taca.illumina.Runs.misc.send_mail')
+    def test_send_mail(self, mock_send_mail):
+        """ send mail to user """
+        self.completed.send_mail("Hello", "user@email.com")
+        mock_send_mail.assert_called_once_with("141124_ST-COMPLETED1_01_AFCIDXX", "Hello", "user@email.com")
+
+
+#TODO: Confirm that the transfer --analysis option should be removed since it's broken
+#    @mock.patch('taca.illumina.Runs.requests')
+#    def test_trigger_analysis(self, mock_requests):
+#        """ Trigger analysis """
+#        mock_requests.status_codes.codes.OK = 300
+#        mock_requests.get().status_code = 300
+#        self.to_start.trigger_analysis()
 
