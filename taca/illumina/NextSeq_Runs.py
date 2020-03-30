@@ -1,7 +1,4 @@
 from taca.illumina.HiSeqX_Runs import HiSeqX_Run
-import logging
-
-logger = logging.getLogger(__name__)
 
 
 class NextSeq_Run(HiSeqX_Run):

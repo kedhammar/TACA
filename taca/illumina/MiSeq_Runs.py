@@ -2,10 +2,6 @@ import os
 from taca.illumina.HiSeq_Runs import HiSeq_Run
 from flowcell_parser.classes import SampleSheetParser
 
-import logging
-
-logger = logging.getLogger(__name__)
-
 
 class MiSeq_Run(HiSeq_Run):
 

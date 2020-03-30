@@ -1,9 +1,5 @@
 from taca.illumina.HiSeqX_Runs import HiSeqX_Run
 
-import logging
-
-logger = logging.getLogger(__name__)
-
 
 class NovaSeq_Run(HiSeqX_Run):
     def __init__(self,  run_dir, samplesheet_folders):
