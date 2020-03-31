@@ -1,4 +1,3 @@
-import socket
 import os
 import couchdb
 import glob
@@ -6,7 +5,6 @@ import re
 import logging
 import datetime
 
-from csv import DictReader
 from taca.utils.config import CONFIG
 from flowcell_parser.classes import SampleSheetParser, RunParametersParser
 from collections import defaultdict, OrderedDict
@@ -145,7 +143,7 @@ def get_ss_projects(run_dir):
     FCID = run_name_components[3][1:]
     newData = False
     miseq = False
-
+    # FIXME: this check breaks if the system is case insensitive
     if os.path.exists(os.path.join(run_dir, 'runParameters.xml')):
         run_parameters_file = "runParameters.xml"
     elif os.path.exists(os.path.join(run_dir, 'RunParameters.xml')):

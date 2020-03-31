@@ -1,21 +1,7 @@
 import os
-import re
-import csv
-import glob
-import shutil
-import gzip
-import operator
-import subprocess
-from datetime import datetime
-from taca.utils.filesystem import chdir, control_fastq_filename
 from taca.illumina.HiSeq_Runs import HiSeq_Run
-from taca.utils import misc
-from flowcell_parser.classes import RunParametersParser, SampleSheetParser, RunParser, LaneBarcodeParser, DemuxSummaryParser
+from flowcell_parser.classes import SampleSheetParser
 
-
-import logging
-
-logger = logging.getLogger(__name__)
 
 class MiSeq_Run(HiSeq_Run):
 

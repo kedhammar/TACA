@@ -1,16 +1,10 @@
 import os
 import re
-import csv
-import glob
-import shutil
-import copy
-import json
 from datetime import datetime
-from taca.utils.filesystem import chdir, control_fastq_filename
+from taca.utils.filesystem import chdir
 from taca.illumina.Runs import Run
 from taca.utils import misc
-from flowcell_parser.classes import RunParametersParser, SampleSheetParser, RunParser, DemuxSummaryParser
-
+from flowcell_parser.classes import SampleSheetParser
 
 import logging
 
@@ -19,6 +13,7 @@ logger = logging.getLogger(__name__)
 TENX_GENO_PAT = re.compile("SI-GA-[A-H][1-9][0-2]?")
 TENX_ATAC_PAT = re.compile("SI-NA-[A-H][1-9][0-2]?")
 IDT_UMI_PAT = re.compile("([ATCG]{4,}N+$)")
+
 
 class HiSeqX_Run(Run):
 
