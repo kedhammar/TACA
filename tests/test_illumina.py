@@ -39,6 +39,7 @@ class TestRuns(unittest.TestCase):
         |__ 141124_ST-COMPLETED_01_AFCIDXX
         |   |__ RunInfo.xml
         |   |__ Demultiplexing
+        |   |   |__ Undetermined_S0_L001_R1_001.fastq.gz
         |   |   |__ Stats
         |   |       |__ DemultiplexingStats.xml
         |   |__ RTAComplete.txt
@@ -109,6 +110,7 @@ class TestRuns(unittest.TestCase):
 
         # Create files indicating that the preprocessing is done
         open(os.path.join(completed, 'Demultiplexing', 'Stats', 'DemultiplexingStats.xml'), 'w').close()
+        open(os.path.join(completed, 'Demultiplexing', 'Undetermined_S0_L001_R1_001.fastq.gz'), 'w').close()
         with open(os.path.join(completed, 'Demultiplexing', 'Stats', 'Stats.json'), 'w') as stats_json:
             json.dump({"silly": 1}, stats_json)
 
@@ -252,12 +254,23 @@ class TestRuns(unittest.TestCase):
         self.completed.send_mail("Hello", "user@email.com")
         mock_send_mail.assert_called_once_with("141124_ST-COMPLETED1_01_AFCIDXX", "Hello", "user@email.com")
 
+    def test_is_unpooled_lane(self):
+        """ Check if lane is unpooled """
+        self.assertTrue(self.in_progress.is_unpooled_lane('1'))
 
-#TODO: Confirm that the transfer --analysis option should be removed since it's broken
-#    @mock.patch('taca.illumina.Runs.requests')
-#    def test_trigger_analysis(self, mock_requests):
-#        """ Trigger analysis """
-#        mock_requests.status_codes.codes.OK = 300
-#        mock_requests.get().status_code = 300
-#        self.to_start.trigger_analysis()
+    def test_get_samples_per_lane(self):
+        """ Return samples from samplesheet """
+        expected_samples = {'1': 'P10000_1001', '2': 'P10000_1005'}
+        got_samples =  self.in_progress.get_samples_per_lane()
+        self.assertItemsEqual(expected_samples, got_samples)
+
+    @mock.patch('taca.illumina.Runs.os.rename')
+    def test_rename_undet(self, mock_rename):
+        """ Prepend sample name to file name """
+        samples_per_lane = {'1': 'P10000_1001', '2': 'P10000_1005'}
+        lane = '1'
+        self.completed._rename_undet(lane, samples_per_lane)
+        old_name = os.path.join(self.tmp_dir, '141124_ST-COMPLETED1_01_AFCIDXX/Demultiplexing/Undetermined_S0_L001_R1_001.fastq.gz')
+        new_name = os.path.join(self.tmp_dir, '141124_ST-COMPLETED1_01_AFCIDXX/Demultiplexing/P10000_1001_Undetermined_L011_R1_001.fastq.gz')
+        mock_rename.assert_called_once_with(old_name, new_name)
 
