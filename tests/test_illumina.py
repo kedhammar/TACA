@@ -7,11 +7,13 @@ import unittest
 import csv
 import json
 import mock
+import filecmp
 from datetime import datetime
 
 from taca.analysis.analysis import *
-from taca.illumina.Runs import Run
+from taca.illumina.Runs import Run, _create_folder_structure, _generate_lane_html
 from taca.illumina.HiSeqX_Runs import HiSeqX_Run
+from flowcell_parser.classes import LaneBarcodeParser
 from taca.utils import config as conf
 
 
@@ -90,7 +92,7 @@ class TestRuns(unittest.TestCase):
         os.makedirs(os.path.join(in_progress, 'Demultiplexing_1'))
         os.makedirs(os.path.join(in_progress_done, 'Demultiplexing'))
         os.makedirs(os.path.join(in_progress_done, 'Demultiplexing_0/Stats'))
-        os.makedirs(os.path.join(in_progress_done, 'Demultiplexing_1/Stats'))
+        #os.makedirs(os.path.join(in_progress_done, 'Demultiplexing_1/Stats'))
         os.makedirs(os.path.join(completed, 'Demultiplexing', 'Stats'))
 
         # Create files indicating that the run is finished
@@ -101,12 +103,12 @@ class TestRuns(unittest.TestCase):
         open(os.path.join(in_progress, 'SampleSheet_0.csv'), 'w').close()
         open(os.path.join(in_progress, 'SampleSheet_1.csv'), 'w').close()
         open(os.path.join(in_progress_done, 'SampleSheet_0.csv'), 'w').close()
-        open(os.path.join(in_progress_done, 'SampleSheet_1.csv'), 'w').close()
+        #open(os.path.join(in_progress_done, 'SampleSheet_1.csv'), 'w').close()
         shutil.copy('data/samplesheet.csv', os.path.join(completed, 'SampleSheet.csv'))
 
         # Create files indicating that demultiplexing is ongoing
         open(os.path.join(in_progress_done, 'Demultiplexing_0', 'Stats', 'DemultiplexingStats.xml'), 'w').close()
-        open(os.path.join(in_progress_done, 'Demultiplexing_1', 'Stats', 'DemultiplexingStats.xml'), 'w').close()
+        #open(os.path.join(in_progress_done, 'Demultiplexing_1', 'Stats', 'DemultiplexingStats.xml'), 'w').close()
 
         # Create files indicating that the preprocessing is done
         open(os.path.join(completed, 'Demultiplexing', 'Stats', 'DemultiplexingStats.xml'), 'w').close()
@@ -274,3 +276,34 @@ class TestRuns(unittest.TestCase):
         new_name = os.path.join(self.tmp_dir, '141124_ST-COMPLETED1_01_AFCIDXX/Demultiplexing/P10000_1001_Undetermined_L011_R1_001.fastq.gz')
         mock_rename.assert_called_once_with(old_name, new_name)
 
+    @mock.patch('taca.illumina.Runs.os.symlink')
+    def test_aggregate_demux_results_simple_complex(self, mock_symlink):
+        """ Aggregare demux results simple case"""
+        simple_lanes = {'141124_ST-INPROGRESSDONE1_02_AFCIDXX': 0}
+        complex_lanes = {}
+        self.assertTrue(self.in_progress_done._aggregate_demux_results_simple_complex(simple_lanes, complex_lanes))
+        calls = [mock.call(os.path.join(self.tmp_dir, '141124_ST-INPROGRESSDONE1_02_AFCIDXX/Demultiplexing_0/Stats/DemultiplexingStats.xml'),
+                           os.path.join(self.tmp_dir, '141124_ST-INPROGRESSDONE1_02_AFCIDXX/Demultiplexing/Stats/DemultiplexingStats.xml')),
+                 mock.call(os.path.join(self.tmp_dir, '141124_ST-INPROGRESSDONE1_02_AFCIDXX/Demultiplexing_0/Stats/AdapterTrimming.txt'),
+                           os.path.join(self.tmp_dir, '141124_ST-INPROGRESSDONE1_02_AFCIDXX/Demultiplexing/Stats/AdapterTrimming.txt')),
+                 mock.call(os.path.join(self.tmp_dir, '141124_ST-INPROGRESSDONE1_02_AFCIDXX/Demultiplexing_0/Stats/ConversionStats.xml'),
+                           os.path.join(self.tmp_dir, '141124_ST-INPROGRESSDONE1_02_AFCIDXX/Demultiplexing/Stats/ConversionStats.xml')),
+                 mock.call(os.path.join(self.tmp_dir, '141124_ST-INPROGRESSDONE1_02_AFCIDXX/Demultiplexing_0/Stats/Stats.json'),
+                           os.path.join(self.tmp_dir, '141124_ST-INPROGRESSDONE1_02_AFCIDXX/Demultiplexing/Stats/Stats.json'))]
+        mock_symlink.assert_has_calls(calls)
+
+    def test_create_folder_structure(self):
+        """ Make directory structure """
+        root = 'data/some_dir'
+        dirs = ['dir1', 'dir2']
+        path = _create_folder_structure(root, dirs)
+        self.assertEqual(path, 'data/some_dir/dir1/dir2')
+
+    def test_generate_lane_html(self):
+        """ Generate lane HTML """
+        html_report = 'data/lane.html'
+        html_report_lane_parser = LaneBarcodeParser(html_report)
+        html_file = os.path.join(self.tmp_dir, 'generated_lane.html')
+        expected_file = 'data/lane_result.html'
+        _generate_lane_html(html_file, html_report_lane_parser)
+        self.assertTrue(filecmp.cmp(html_file, expected_file))
