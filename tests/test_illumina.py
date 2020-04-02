@@ -12,8 +12,9 @@ from datetime import datetime
 
 from taca.analysis.analysis import *
 from taca.illumina.Runs import Run, _create_folder_structure, _generate_lane_html
+from taca.illumina.HiSeq_Runs import HiSeq_Run, _data_filed_conversion
 from taca.illumina.HiSeqX_Runs import HiSeqX_Run
-from flowcell_parser.classes import LaneBarcodeParser
+from flowcell_parser.classes import LaneBarcodeParser, SampleSheetParser
 from taca.utils import config as conf
 
 
@@ -307,3 +308,402 @@ class TestRuns(unittest.TestCase):
         expected_file = 'data/lane_result.html'
         _generate_lane_html(html_file, html_report_lane_parser)
         self.assertTrue(filecmp.cmp(html_file, expected_file))
+
+
+class TestHiSeqRuns(unittest.TestCase):
+    """ Tests for the HiSeq_Run base class
+    """
+
+    def test_is_sequencing_done(self):
+        """ Is finished should be True only if "RTAComplete.txt" file is present...
+        """
+        self.assertFalse(self.running._is_sequencing_done())
+        self.assertTrue(all(map(lambda run: run._is_sequencing_done, self.finished_runs)))
+
+    def test_get_run_status(self):
+        """ Status of the processing depends on the generated files
+        """
+        self.assertEqual('SEQUENCING', self.running.get_run_status())
+        self.assertEqual('TO_START', self.to_start.get_run_status())
+        self.assertEqual('IN_PROGRESS', self.in_progress.get_run_status())
+        self.assertEqual('COMPLETED', self.completed.get_run_status())
+
+    def test_is_transferred(self):
+        """ is_transferred should rely on the info in transfer.tsv
+        """
+        self.assertTrue(self.completed.is_transferred(self.transfer_file))
+        self.assertFalse(self.running.is_transferred(self.transfer_file))
+        self.assertFalse(self.to_start.is_transferred(self.transfer_file))
+        self.assertFalse(self.in_progress.is_transferred( self.transfer_file))
+
+    @mock.patch('taca.illumina.HiSeqX_Runs.HiSeqX_Run._aggregate_demux_results')
+    def test_check_run_status_done(self, mock_aggregate_demux_results):
+        """ check_run_status should recognize if a demultiplexing run is finished or not
+        """
+        # _aggregate_demux_results is only run if the demultiplexing is done
+        self.in_progress.check_run_status()
+        mock_aggregate_demux_results.assert_not_called()
+        self.in_progress_done.check_run_status()
+        mock_aggregate_demux_results.assert_called_once()
+
+    def test_get_run_type(self):
+        """ Return runtype if set"""
+        self.assertEqual('NGI-RUN', self.running.get_run_type())
+
+    def test_get_demux_folder(self):
+        """ Return name of demux folder if set"""
+        self.assertEqual('Demultiplexing', self.running._get_demux_folder())
+
+    def test_get_samplesheet(self):
+        """ Return location of sample sheet"""
+        self.assertEqual('data/2014/FCIDXX.csv', self.running._get_samplesheet())
+
+    def test_is_demultiplexing_done(self):
+        """ Return true if Stats.json exists, else false"""
+        self.assertFalse(self.in_progress._is_demultiplexing_done())
+        self.assertTrue(self.completed._is_demultiplexing_done())
+
+    def test_is_demultiplexing_started(self):
+        """ Return true if demux folder exists, else false"""
+        self.assertTrue(self.in_progress._is_demultiplexing_started())
+        self.assertFalse(self.to_start._is_demultiplexing_started())
+
+    def test_generate_per_lane_base_mask(self):
+        """ Generate base mask """
+        expected_mask = {'1':
+                         {'Y151I8Y151':
+                          {'base_mask': ['Y151', 'I8', 'Y151'],
+                           'data': [
+                               {'SampleWell': '1:1',
+                                'index': 'GAATTCGT',
+                                'Lane': '1',
+                                'SamplePlate': 'FCB_150423',
+                                'SampleName': 'P1775_147',
+                                'SampleID': 'Sample_P1775_147',
+                                'Project': 'J_Lundeberg_14_24'}
+                           ]
+                          }
+                         }
+        }
+        got_mask = self.completed._generate_per_lane_base_mask()
+        self.assertItemsEqual(expected_mask, got_mask)
+
+    @mock.patch('taca.illumina.Runs.misc.call_external_command')
+    def test_transfer_run(self, mock_call_external_command):
+        """ Call external rsync """
+        analysis = False
+        self.completed.transfer_run(self.transfer_file, analysis)
+        command_line = ['rsync', '-Lav', '--no-o', '--no-g', '--chmod=g+rw',
+                        '--exclude=Demultiplexing_*/*_*',
+                        '--include=*/', '--include=*.file',
+                        '--exclude=*', '--prune-empty-dirs',
+                        os.path.join(self.tmp_dir, '141124_ST-COMPLETED1_01_AFCIDXX'),
+                        'None@None:None']
+        mock_call_external_command.assert_called_once_with(command_line,
+                                                           log_dir=os.path.join(self.tmp_dir, '141124_ST-COMPLETED1_01_AFCIDXX'),
+                                                           prefix='',
+                                                           with_log_files=True)
+
+    @mock.patch('taca.illumina.Runs.shutil.move')
+    def test_archive_run(self, mock_move):
+        """ Move file to archive """
+        self.completed.archive_run(self.archive_dir)
+        mock_move.assert_called_once_with(os.path.join(self.tmp_dir, '141124_ST-COMPLETED1_01_AFCIDXX'),
+                                          os.path.join(self.archive_dir, '141124_ST-COMPLETED1_01_AFCIDXX'))
+
+    @mock.patch('taca.illumina.Runs.misc.send_mail')
+    def test_send_mail(self, mock_send_mail):
+        """ send mail to user """
+        self.completed.send_mail("Hello", "user@email.com")
+        mock_send_mail.assert_called_once_with("141124_ST-COMPLETED1_01_AFCIDXX", "Hello", "user@email.com")
+
+    def test_is_unpooled_lane(self):
+        """ Check if lane is unpooled """
+        self.assertTrue(self.in_progress.is_unpooled_lane('1'))
+
+    def test_get_samples_per_lane(self):
+        """ Return samples from samplesheet """
+        expected_samples = {'1': 'P10000_1001', '2': 'P10000_1005'}
+        got_samples =  self.in_progress.get_samples_per_lane()
+        self.assertItemsEqual(expected_samples, got_samples)
+
+    @mock.patch('taca.illumina.Runs.os.rename')
+    def test_rename_undet(self, mock_rename):
+        """ Prepend sample name to file name """
+        samples_per_lane = {'1': 'P10000_1001', '2': 'P10000_1005'}
+        lane = '1'
+        self.completed._rename_undet(lane, samples_per_lane)
+        old_name = os.path.join(self.tmp_dir, '141124_ST-COMPLETED1_01_AFCIDXX/Demultiplexing/Undetermined_S0_L001_R1_001.fastq.gz')
+        new_name = os.path.join(self.tmp_dir, '141124_ST-COMPLETED1_01_AFCIDXX/Demultiplexing/P10000_1001_Undetermined_L011_R1_001.fastq.gz')
+        mock_rename.assert_called_once_with(old_name, new_name)
+
+    @mock.patch('taca.illumina.Runs.os.symlink')
+    def test_aggregate_demux_results_simple_complex(self, mock_symlink):
+        """ Aggregare demux results simple case"""
+        simple_lanes = {'141124_ST-INPROGRESSDONE1_02_AFCIDXX': 0}
+        complex_lanes = {}
+        self.assertTrue(self.in_progress_done._aggregate_demux_results_simple_complex(simple_lanes, complex_lanes))
+        calls = [mock.call(os.path.join(self.tmp_dir, '141124_ST-INPROGRESSDONE1_02_AFCIDXX/Demultiplexing_0/Stats/DemultiplexingStats.xml'),
+                           os.path.join(self.tmp_dir, '141124_ST-INPROGRESSDONE1_02_AFCIDXX/Demultiplexing/Stats/DemultiplexingStats.xml')),
+                 mock.call(os.path.join(self.tmp_dir, '141124_ST-INPROGRESSDONE1_02_AFCIDXX/Demultiplexing_0/Stats/AdapterTrimming.txt'),
+                           os.path.join(self.tmp_dir, '141124_ST-INPROGRESSDONE1_02_AFCIDXX/Demultiplexing/Stats/AdapterTrimming.txt')),
+                 mock.call(os.path.join(self.tmp_dir, '141124_ST-INPROGRESSDONE1_02_AFCIDXX/Demultiplexing_0/Stats/ConversionStats.xml'),
+                           os.path.join(self.tmp_dir, '141124_ST-INPROGRESSDONE1_02_AFCIDXX/Demultiplexing/Stats/ConversionStats.xml')),
+                 mock.call(os.path.join(self.tmp_dir, '141124_ST-INPROGRESSDONE1_02_AFCIDXX/Demultiplexing_0/Stats/Stats.json'),
+                           os.path.join(self.tmp_dir, '141124_ST-INPROGRESSDONE1_02_AFCIDXX/Demultiplexing/Stats/Stats.json'))]
+        mock_symlink.assert_has_calls(calls)
+
+    def test_create_folder_structure(self):
+        """ Make directory structure """
+        root = 'data/some_dir'
+        dirs = ['dir1', 'dir2']
+        path = _create_folder_structure(root, dirs)
+        self.assertEqual(path, 'data/some_dir/dir1/dir2')
+
+    def test_generate_lane_html(self):
+        """ Generate lane HTML """
+        html_report = 'data/lane.html'
+        html_report_lane_parser = LaneBarcodeParser(html_report)
+        html_file = os.path.join(self.tmp_dir, 'generated_lane.html')
+        expected_file = 'data/lane_result.html'
+        _generate_lane_html(html_file, html_report_lane_parser)
+        self.assertTrue(filecmp.cmp(html_file, expected_file))
+
+
+class TestHiSeqRuns(unittest.TestCase):
+    """ Tests for the HiSeq_Run base class
+    """
+    @classmethod
+    def setUpClass(self):
+        """ Creates the following directory tree for testing purposes:
+
+        tmp/
+        |__ 141124_ST-COMPLETED_01_AFCIDXX
+        |   |__ RunInfo.xml
+        |   |__ Demultiplexing
+        |   |   |__ Undetermined_S0_L001_R1_001.fastq.gz
+        |   |   |__ Stats
+        |   |       |__ DemultiplexingStats.xml
+        |   |__ RTAComplete.txt
+        |   |__ SampleSheet.csv
+        |__ 141124_ST-INPROGRESS_02_AFCIDXX
+        |   |__ RunInfo.xml
+        |   |__ Demultiplexing
+        |   |__ Demultiplexing_0
+        |   |__ Demultiplexing_1
+        |   |__ SampleSheet_0.csv
+        |   |__ SampleSheet_1.csv
+        |   |__ RTAComplete.txt
+        |__ 141124_ST-INPROGRESSDONE_02_AFCIDXX
+        |   |__ RunInfo.xml
+        |   |__ Demultiplexing
+        |   |__ Demultiplexing_0
+        |   |   |__Stats
+        |   |      |__ DemultiplexingStats.xml
+        |   |__ Demultiplexing_1
+        |   |   |__Stats
+        |   |      |__ DemultiplexingStats.xml
+        |   |__ SampleSheet_0.csv
+        |   |__ SampleSheet_1.csv
+        |   |__ RTAComplete.txt
+        |__ 141124_ST-RUNNING_03_AHISEQFCIDXX
+        |   |__ RunInfo.xml
+        |__ 141124_ST-TOSTART_04_AHISEQFCIDXX
+        |   |__ RunInfo.xml
+        |   |__ RTAComplete.txt
+        |__ archive
+        """
+        self.tmp_dir = os.path.join(tempfile.mkdtemp(), 'tmp')
+        self.transfer_file = os.path.join(self.tmp_dir, 'transfer.tsv')
+
+        running = os.path.join(self.tmp_dir, '141124_ST-RUNNING1_03_AHISEQFCIDXX')
+        to_start = os.path.join(self.tmp_dir, '141124_ST-TOSTART1_04_AHISEQFCIDXX')
+        in_progress = os.path.join(self.tmp_dir, '141124_ST-INPROGRESS1_02_AFCIDXX')
+        in_progress_done = os.path.join(self.tmp_dir, '141124_ST-INPROGRESSDONE1_02_AFCIDXX')
+        completed = os.path.join(self.tmp_dir, '141124_ST-COMPLETED1_01_AFCIDXX')
+        finished_runs = [to_start, in_progress, in_progress_done, completed]
+
+        # Create runs directory structure
+        os.makedirs(self.tmp_dir)
+        os.makedirs(running)
+        os.makedirs(to_start)
+        os.makedirs(os.path.join(in_progress, 'Demultiplexing'))
+        os.makedirs(os.path.join(in_progress, 'Demultiplexing_0'))
+        os.makedirs(os.path.join(in_progress, 'Demultiplexing_1'))
+        os.makedirs(os.path.join(in_progress_done, 'Demultiplexing'))
+        os.makedirs(os.path.join(in_progress_done, 'Demultiplexing_0/Stats'))
+        #os.makedirs(os.path.join(in_progress_done, 'Demultiplexing_1/Stats'))
+        os.makedirs(os.path.join(completed, 'Demultiplexing', 'Stats'))
+
+        # Create files indicating that the run is finished
+        for run in finished_runs:
+            open(os.path.join(run, 'RTAComplete.txt'), 'w').close()
+
+        # Create sample sheets for running demultiplexing
+        open(os.path.join(in_progress, 'SampleSheet_0.csv'), 'w').close()
+        open(os.path.join(in_progress, 'SampleSheet_1.csv'), 'w').close()
+        open(os.path.join(in_progress_done, 'SampleSheet_0.csv'), 'w').close()
+        #open(os.path.join(in_progress_done, 'SampleSheet_1.csv'), 'w').close()
+        shutil.copy('data/samplesheet.csv', os.path.join(completed, 'SampleSheet.csv'))
+
+        # Create files indicating that demultiplexing is ongoing
+        open(os.path.join(in_progress_done, 'Demultiplexing_0', 'Stats', 'DemultiplexingStats.xml'), 'w').close()
+        #open(os.path.join(in_progress_done, 'Demultiplexing_1', 'Stats', 'DemultiplexingStats.xml'), 'w').close()
+
+        # Create files indicating that the preprocessing is done
+        open(os.path.join(completed, 'Demultiplexing', 'Stats', 'DemultiplexingStats.xml'), 'w').close()
+        open(os.path.join(completed, 'Demultiplexing', 'Undetermined_S0_L001_R1_001.fastq.gz'), 'w').close()
+        with open(os.path.join(completed, 'Demultiplexing', 'Stats', 'Stats.json'), 'w') as stats_json:
+            json.dump({"silly": 1}, stats_json)
+
+        # Create transfer file and add the completed run
+        with open(self.transfer_file, 'w') as f:
+            tsv_writer = csv.writer(f, delimiter='\t')
+            tsv_writer.writerow([os.path.basename(completed), str(datetime.now())])
+
+        # Move sample RunInfo.xml file to every run directory
+        for run in [running, to_start, in_progress, in_progress_done, completed]:
+            shutil.copy('data/RunInfo.xml', run)
+            shutil.copy('data/runParameters.xml', run)
+
+        # Create archive dir
+        self.archive_dir = os.path.join(self.tmp_dir, "archive")
+        os.makedirs(self.archive_dir)
+
+        # Create run objects
+        self.running = HiSeq_Run(os.path.join(self.tmp_dir,
+                                               '141124_ST-RUNNING1_03_AHISEQFCIDXX'),
+                                  CONFIG["analysis"]["HiSeq"])
+        self.to_start = HiSeq_Run(os.path.join(self.tmp_dir,
+                                         '141124_ST-TOSTART1_04_AHISEQFCIDXX'),
+                            CONFIG["analysis"]["HiSeq"])
+        self.in_progress = HiSeq_Run(os.path.join(self.tmp_dir,
+                                            '141124_ST-INPROGRESS1_02_AFCIDXX'),
+                               CONFIG["analysis"]["HiSeq"])
+        self.in_progress_done = HiSeq_Run(os.path.join(self.tmp_dir,
+                                            '141124_ST-INPROGRESSDONE1_02_AFCIDXX'),
+                               CONFIG["analysis"]["HiSeq"])
+        self.completed = HiSeq_Run(os.path.join(self.tmp_dir,
+                                          '141124_ST-COMPLETED1_01_AFCIDXX'),
+                             CONFIG["analysis"]["HiSeq"])
+        self.transfer_file = os.path.join(self.tmp_dir, 'transfer.tsv')
+
+    @classmethod
+    def tearDownClass(self):
+        shutil.rmtree(self.tmp_dir)
+
+    def test_copy_samplesheet(self):
+        """ Copy HiSeq SampleSheet """
+        self.running._copy_samplesheet()
+        self.assertTrue(os.path.isfile(os.path.join(self.tmp_dir, '141124_ST-RUNNING1_03_AHISEQFCIDXX/SampleSheet.csv')))
+
+    def test_generate_clean_samplesheet(self):
+        """ Make clean sample sheet """
+        ssparser = SampleSheetParser('data/2014/HISEQFCIDXX.csv')
+        expected_samplesheet = '''[Header]
+Date,None
+Investigator Name,Test
+Experiment Name,CIDXX
+[Data]
+Lane,Sample_ID,Sample_Name,index,index2,Sample_Project,FCID,SampleRef,Description,Control,Recipe,Operator
+1,Sample_Sample_P10000_1001,Sample_P10000_1001,CGCGCAG,,A_Test_18_01,HISEQFCIDXX,Human (Homo sapiens GRCh37),A_Test_18_01,N,2x50,Some_One
+1,Sample_Sample_P10000_1005,Sample_P10000_1005,AGGTACC,,A_Test_18_01,HISEQFCIDXX,Human (Homo sapiens GRCh37),A_Test_18_01,N,2x50,Some_One
+'''
+        got_samplesheet = self.running._generate_clean_samplesheet(ssparser)
+        self.assertEqual(got_samplesheet, expected_samplesheet)
+
+    def test_data_filed_conversion(self):
+        """ Convert fields in the sample sheet """
+        fields_to_convert = ['FCID',
+                            'Lane',
+                           'SampleID',
+                           'SampleRef',
+                           'Index',
+                           'Description',
+                           'Control',
+                           'Recipe',
+                           'Operator',
+                           'SampleProject'
+                           ]
+        converted_fields = []
+        for field in fields_to_convert:
+            converted_field = _data_filed_conversion(field)
+            converted_fields.append(converted_field)
+
+        expected_fields = ['FCID',
+                           'Lane',
+                           'Sample_ID',
+                           'SampleRef',
+                           'index',
+                           'Description',
+                           'Control',
+                           'Recipe',
+                           'Operator',
+                           'Sample_Project'
+                           ]
+        self.assertEqual(expected_fields, converted_fields)
+
+    @mock.patch('taca.illumina.HiSeq_Runs.misc.call_external_command_detached')
+    def test_demultiplex_run(self, mock_call_external):
+        """ Demultiplex HiSeq Run"""
+        self.to_start.demultiplex_run()
+        mock_call_external.assert_called_once_with(['path_to_bcl_to_fastq',
+                                                    '--output-dir',
+                                                    'Demultiplexing_0',
+                                                    '--use-bases-mask',
+                                                    '1:Y151,I7N1,Y151',
+                                                    '--tiles',
+                                                    's_1',
+                                                    '--sample-sheet',
+                                                    os.path.join(self.tmp_dir, '141124_ST-TOSTART1_04_AHISEQFCIDXX/SampleSheet_0.csv')],
+                                                   prefix='demux_0',
+                                                   with_log_files=True)
+
+    def test_generate_bcl2fastq_command(self):
+        """Generate command to demultiplex """
+        mask = self.to_start._generate_per_lane_base_mask()
+        got_command = self.to_start._generate_bcl2fastq_command(mask, True, 0)
+        expexted_command = ['path_to_bcl_to_fastq',
+                            '--output-dir',
+                            'Demultiplexing_0',
+                            '--use-bases-mask',
+                            '1:Y151,I7N1,Y151',
+                            '--tiles',
+                            's_1',
+                            '--sample-sheet',
+                            os.path.join(self.tmp_dir, '141124_ST-TOSTART1_04_AHISEQFCIDXX/SampleSheet_0.csv')]
+        self.assertEqual(got_command, expexted_command)
+
+    @mock.patch('taca.illumina.HiSeq_Runs.HiSeq_Run._aggregate_demux_results_simple_complex')
+    def test_aggregate_demux_results(self, mockaggregate_demux_results_simple_complex):
+        """ aggregate the results from different demultiplexing steps"""
+        self.to_start._aggregate_demux_results()
+        mockaggregate_demux_results_simple_complex.assert_called_with({'1':
+                                                                       {'Y151I7N1Y151':
+                                                                        {'base_mask': ['Y151', 'I7N1', 'Y151'],
+                                                                         'data': [{'Control': 'N',
+                                                                                   'index': 'CGCGCAG',
+                                                                                   'Lane': '1',
+                                                                                   'Description': 'A_Test_18_01',
+                                                                                   'Sample_ID': 'Sample_Sample_P10000_1001',
+                                                                                   'Recipe': '2x50',
+                                                                                   'FCID': 'HISEQFCIDXX',
+                                                                                   'SampleRef': 'Human (Homo sapiens GRCh37)',
+                                                                                   'Operator': 'Some_One',
+                                                                                   'Sample_Project': 'A_Test_18_01',
+                                                                                   'Sample_Name': 'Sample_P10000_1001',
+                                                                                   'index2': ''},
+                                                                                  {'Control': 'N',
+                                                                                   'index': 'AGGTACC',
+                                                                                   'Lane': '1',
+                                                                                   'Description': 'A_Test_18_01',
+                                                                                   'Sample_ID': 'Sample_Sample_P10000_1005',
+                                                                                   'Recipe': '2x50',
+                                                                                   'FCID': 'HISEQFCIDXX',
+                                                                                   'SampleRef': 'Human (Homo sapiens GRCh37)',
+                                                                                   'Operator': 'Some_One',
+                                                                                   'Sample_Project': 'A_Test_18_01',
+                                                                                   'Sample_Name': 'Sample_P10000_1005',
+                                                                                   'index2': ''}]
+                                                                        }
+                                                                       }}, {})
