@@ -13,7 +13,7 @@ from datetime import datetime
 from taca.analysis.analysis import *
 from taca.illumina.Runs import Run, _create_folder_structure, _generate_lane_html
 from taca.illumina.HiSeq_Runs import HiSeq_Run, _data_filed_conversion
-from taca.illumina.HiSeqX_Runs import HiSeqX_Run
+from taca.illumina.HiSeqX_Runs import HiSeqX_Run, _generate_clean_samplesheet, _classify_samples, parse_10X_indexes, _generate_samplesheet_subset
 from flowcell_parser.classes import LaneBarcodeParser, SampleSheetParser
 from taca.utils import config as conf
 
@@ -471,104 +471,36 @@ class TestHiSeqRuns(unittest.TestCase):
 
 
 class TestHiSeqRuns(unittest.TestCase):
-    """ Tests for the HiSeq_Run base class
+    """ Tests for the HiSeq_Run run class
     """
     @classmethod
     def setUpClass(self):
         """ Creates the following directory tree for testing purposes:
 
         tmp/
-        |__ 141124_ST-COMPLETED_01_AFCIDXX
-        |   |__ RunInfo.xml
-        |   |__ Demultiplexing
-        |   |   |__ Undetermined_S0_L001_R1_001.fastq.gz
-        |   |   |__ Stats
-        |   |       |__ DemultiplexingStats.xml
-        |   |__ RTAComplete.txt
-        |   |__ SampleSheet.csv
-        |__ 141124_ST-INPROGRESS_02_AFCIDXX
-        |   |__ RunInfo.xml
-        |   |__ Demultiplexing
-        |   |__ Demultiplexing_0
-        |   |__ Demultiplexing_1
-        |   |__ SampleSheet_0.csv
-        |   |__ SampleSheet_1.csv
-        |   |__ RTAComplete.txt
-        |__ 141124_ST-INPROGRESSDONE_02_AFCIDXX
-        |   |__ RunInfo.xml
-        |   |__ Demultiplexing
-        |   |__ Demultiplexing_0
-        |   |   |__Stats
-        |   |      |__ DemultiplexingStats.xml
-        |   |__ Demultiplexing_1
-        |   |   |__Stats
-        |   |      |__ DemultiplexingStats.xml
-        |   |__ SampleSheet_0.csv
-        |   |__ SampleSheet_1.csv
-        |   |__ RTAComplete.txt
         |__ 141124_ST-RUNNING_03_AHISEQFCIDXX
         |   |__ RunInfo.xml
         |__ 141124_ST-TOSTART_04_AHISEQFCIDXX
-        |   |__ RunInfo.xml
-        |   |__ RTAComplete.txt
-        |__ archive
+            |__ RunInfo.xml
+            |__ RTAComplete.txt
         """
         self.tmp_dir = os.path.join(tempfile.mkdtemp(), 'tmp')
-        self.transfer_file = os.path.join(self.tmp_dir, 'transfer.tsv')
 
         running = os.path.join(self.tmp_dir, '141124_ST-RUNNING1_03_AHISEQFCIDXX')
         to_start = os.path.join(self.tmp_dir, '141124_ST-TOSTART1_04_AHISEQFCIDXX')
-        in_progress = os.path.join(self.tmp_dir, '141124_ST-INPROGRESS1_02_AFCIDXX')
-        in_progress_done = os.path.join(self.tmp_dir, '141124_ST-INPROGRESSDONE1_02_AFCIDXX')
-        completed = os.path.join(self.tmp_dir, '141124_ST-COMPLETED1_01_AFCIDXX')
-        finished_runs = [to_start, in_progress, in_progress_done, completed]
 
         # Create runs directory structure
         os.makedirs(self.tmp_dir)
         os.makedirs(running)
         os.makedirs(to_start)
-        os.makedirs(os.path.join(in_progress, 'Demultiplexing'))
-        os.makedirs(os.path.join(in_progress, 'Demultiplexing_0'))
-        os.makedirs(os.path.join(in_progress, 'Demultiplexing_1'))
-        os.makedirs(os.path.join(in_progress_done, 'Demultiplexing'))
-        os.makedirs(os.path.join(in_progress_done, 'Demultiplexing_0/Stats'))
-        #os.makedirs(os.path.join(in_progress_done, 'Demultiplexing_1/Stats'))
-        os.makedirs(os.path.join(completed, 'Demultiplexing', 'Stats'))
 
         # Create files indicating that the run is finished
-        for run in finished_runs:
-            open(os.path.join(run, 'RTAComplete.txt'), 'w').close()
-
-        # Create sample sheets for running demultiplexing
-        open(os.path.join(in_progress, 'SampleSheet_0.csv'), 'w').close()
-        open(os.path.join(in_progress, 'SampleSheet_1.csv'), 'w').close()
-        open(os.path.join(in_progress_done, 'SampleSheet_0.csv'), 'w').close()
-        #open(os.path.join(in_progress_done, 'SampleSheet_1.csv'), 'w').close()
-        shutil.copy('data/samplesheet.csv', os.path.join(completed, 'SampleSheet.csv'))
-
-        # Create files indicating that demultiplexing is ongoing
-        open(os.path.join(in_progress_done, 'Demultiplexing_0', 'Stats', 'DemultiplexingStats.xml'), 'w').close()
-        #open(os.path.join(in_progress_done, 'Demultiplexing_1', 'Stats', 'DemultiplexingStats.xml'), 'w').close()
-
-        # Create files indicating that the preprocessing is done
-        open(os.path.join(completed, 'Demultiplexing', 'Stats', 'DemultiplexingStats.xml'), 'w').close()
-        open(os.path.join(completed, 'Demultiplexing', 'Undetermined_S0_L001_R1_001.fastq.gz'), 'w').close()
-        with open(os.path.join(completed, 'Demultiplexing', 'Stats', 'Stats.json'), 'w') as stats_json:
-            json.dump({"silly": 1}, stats_json)
-
-        # Create transfer file and add the completed run
-        with open(self.transfer_file, 'w') as f:
-            tsv_writer = csv.writer(f, delimiter='\t')
-            tsv_writer.writerow([os.path.basename(completed), str(datetime.now())])
+        open(os.path.join(running, 'RTAComplete.txt'), 'w').close()
 
         # Move sample RunInfo.xml file to every run directory
-        for run in [running, to_start, in_progress, in_progress_done, completed]:
+        for run in [running, to_start]:
             shutil.copy('data/RunInfo.xml', run)
             shutil.copy('data/runParameters.xml', run)
-
-        # Create archive dir
-        self.archive_dir = os.path.join(self.tmp_dir, "archive")
-        os.makedirs(self.archive_dir)
 
         # Create run objects
         self.running = HiSeq_Run(os.path.join(self.tmp_dir,
@@ -577,16 +509,6 @@ class TestHiSeqRuns(unittest.TestCase):
         self.to_start = HiSeq_Run(os.path.join(self.tmp_dir,
                                          '141124_ST-TOSTART1_04_AHISEQFCIDXX'),
                             CONFIG["analysis"]["HiSeq"])
-        self.in_progress = HiSeq_Run(os.path.join(self.tmp_dir,
-                                            '141124_ST-INPROGRESS1_02_AFCIDXX'),
-                               CONFIG["analysis"]["HiSeq"])
-        self.in_progress_done = HiSeq_Run(os.path.join(self.tmp_dir,
-                                            '141124_ST-INPROGRESSDONE1_02_AFCIDXX'),
-                               CONFIG["analysis"]["HiSeq"])
-        self.completed = HiSeq_Run(os.path.join(self.tmp_dir,
-                                          '141124_ST-COMPLETED1_01_AFCIDXX'),
-                             CONFIG["analysis"]["HiSeq"])
-        self.transfer_file = os.path.join(self.tmp_dir, 'transfer.tsv')
 
     @classmethod
     def tearDownClass(self):
@@ -598,7 +520,7 @@ class TestHiSeqRuns(unittest.TestCase):
         self.assertTrue(os.path.isfile(os.path.join(self.tmp_dir, '141124_ST-RUNNING1_03_AHISEQFCIDXX/SampleSheet.csv')))
 
     def test_generate_clean_samplesheet(self):
-        """ Make clean sample sheet """
+        """ Make clean HiSeq sample sheet """
         ssparser = SampleSheetParser('data/2014/HISEQFCIDXX.csv')
         expected_samplesheet = '''[Header]
 Date,None
@@ -613,7 +535,7 @@ Lane,Sample_ID,Sample_Name,index,index2,Sample_Project,FCID,SampleRef,Descriptio
         self.assertEqual(got_samplesheet, expected_samplesheet)
 
     def test_data_filed_conversion(self):
-        """ Convert fields in the sample sheet """
+        """ Convert fields in the HiSeq sample sheet """
         fields_to_convert = ['FCID',
                             'Lane',
                            'SampleID',
@@ -660,7 +582,7 @@ Lane,Sample_ID,Sample_Name,index,index2,Sample_Project,FCID,SampleRef,Descriptio
                                                    with_log_files=True)
 
     def test_generate_bcl2fastq_command(self):
-        """Generate command to demultiplex """
+        """Generate command to demultiplex HiSeq """
         mask = self.to_start._generate_per_lane_base_mask()
         got_command = self.to_start._generate_bcl2fastq_command(mask, True, 0)
         expexted_command = ['path_to_bcl_to_fastq',
@@ -676,7 +598,7 @@ Lane,Sample_ID,Sample_Name,index,index2,Sample_Project,FCID,SampleRef,Descriptio
 
     @mock.patch('taca.illumina.HiSeq_Runs.HiSeq_Run._aggregate_demux_results_simple_complex')
     def test_aggregate_demux_results(self, mockaggregate_demux_results_simple_complex):
-        """ aggregate the results from different demultiplexing steps"""
+        """ aggregate the results from different demultiplexing steps HiSeq"""
         self.to_start._aggregate_demux_results()
         mockaggregate_demux_results_simple_complex.assert_called_with({'1':
                                                                        {'Y151I7N1Y151':
@@ -707,3 +629,166 @@ Lane,Sample_ID,Sample_Name,index,index2,Sample_Project,FCID,SampleRef,Descriptio
                                                                                    'index2': ''}]
                                                                         }
                                                                        }}, {})
+
+class TestHiSeqXRuns(unittest.TestCase):
+    """ Tests for the HiSeqX_Run run class
+    """
+    @classmethod
+    def setUpClass(self):
+        """ Creates the following directory tree for testing purposes:
+
+        tmp/
+        |__ 141124_ST-RUNNING_03_AFCIDXX
+        |   |__ RunInfo.xml
+        |__ 141124_ST-TOSTART_04_AFCIDXX
+            |__ RunInfo.xml
+            |__ RTAComplete.txt
+        """
+        self.tmp_dir = os.path.join(tempfile.mkdtemp(), 'tmp')
+
+        running = os.path.join(self.tmp_dir, '141124_ST-RUNNING1_03_AFCIDXX')
+        to_start = os.path.join(self.tmp_dir, '141124_ST-TOSTART1_04_AFCIDXX')
+
+        # Create runs directory structure
+        os.makedirs(self.tmp_dir)
+        os.makedirs(running)
+        os.makedirs(to_start)
+
+        # Create files indicating that the run is finished
+        open(os.path.join(running, 'RTAComplete.txt'), 'w').close()
+
+        # Move sample RunInfo.xml file to every run directory
+        for run in [running, to_start]:
+            shutil.copy('data/RunInfo.xml', run)
+            shutil.copy('data/runParameters.xml', run)
+
+        # Create run objects
+        self.running = HiSeqX_Run(os.path.join(self.tmp_dir,
+                                               '141124_ST-RUNNING1_03_AFCIDXX'),
+                                  CONFIG["analysis"]["HiSeqX"])
+        self.to_start = HiSeqX_Run(os.path.join(self.tmp_dir,
+                                         '141124_ST-TOSTART1_04_AFCIDXX'),
+                            CONFIG["analysis"]["HiSeqX"])
+    @classmethod
+    def tearDownClass(self):
+        shutil.rmtree(self.tmp_dir)
+
+    def test_copy_samplesheet(self):
+        """ Copy HiSeqX SampleSheet """
+        self.running._copy_samplesheet()
+        self.assertTrue(os.path.isfile(os.path.join(self.tmp_dir, '141124_ST-RUNNING1_03_AFCIDXX/SampleSheet.csv')))
+
+    def test_generate_clean_samplesheet(self):
+        """ Make clean HiSeqX sample sheet """
+        ssparser = SampleSheetParser('data/2014/FCIDXX.csv')
+        indexfile = 'data/test_10X_indexes'
+        expected_samplesheet = '''[Header]
+Date,None
+Investigator Name,Test
+Experiment Name,CIDXX
+[Data]
+Lane,SampleID,SampleName,SamplePlate,SampleWell,index,index2,Project,Description
+1,Sample_P10000_1001,P10000_1001,CIDXX,1:1,CGCGCAG,,A_Test_18_01,
+2,Sample_P10000_1005,P10000_1005,CIDXX,2:1,AGGTACC,,A_Test_18_01,
+'''
+        got_samplesheet = _generate_clean_samplesheet(ssparser,indexfile, rename_samples=True, rename_qPCR_suffix = True, fields_qPCR=[ssparser.dfield_snm])
+        self.assertEqual(got_samplesheet, expected_samplesheet)
+
+    @mock.patch('taca.illumina.HiSeqX_Runs.misc.call_external_command_detached')
+    def test_demultiplex_run(self, mock_call_external):
+        """ Demultiplex HiSeqX Run"""
+        self.to_start.demultiplex_run()
+        mock_call_external.assert_called_once_with(['path_to_bcl_to_fastq',
+                                                    '--output-dir',
+                                                    'Demultiplexing_0',
+                                                    '--sample-sheet',
+                                                    os.path.join(self.tmp_dir,
+                                                                 '141124_ST-TOSTART1_04_AFCIDXX/SampleSheet_0.csv'),
+                                                    '--use-bases-mask',
+                                                    '1:Y151,I7N1,Y151',
+                                                    '--use-bases-mask',
+                                                    '2:Y151,I7N1,Y151'],
+                                                   prefix='demux_0', with_log_files=True)
+
+    @mock.patch('taca.illumina.HiSeqX_Runs.HiSeqX_Run._aggregate_demux_results_simple_complex')
+    def test_aggregate_demux_results(self, mockaggregate_demux_results_simple_complex):
+        """ aggregate the results from different demultiplexing steps HiSeqX"""
+        self.to_start._aggregate_demux_results()
+        mockaggregate_demux_results_simple_complex.assert_called_with({'1': 0, '2': 0}, {})
+
+    def test_generate_bcl_command(self):
+        """ Generate bcl command HiSeqX"""
+        sample_type = 'ordinary' #_classify_samples('data/test_10X_indexes', SampleSheetParser('data/2014/FCIDXX.csv'))
+        mask_table = {'1': [7, 0], '2': [7, 0]}
+        expected_command = ['path_to_bcl_to_fastq',
+                            '--output-dir',
+                            'Demultiplexing_0',
+                            '--sample-sheet',
+                            os.path.join(self.tmp_dir, '141124_ST-TOSTART1_04_AFCIDXX/SampleSheet_0.csv'),
+                            '--use-bases-mask',
+                            '1:Y151,I7N1,Y151',
+                            '--use-bases-mask',
+                            '2:Y151,I7N1,Y151']
+        got_command = self.to_start.generate_bcl_command(sample_type, mask_table, 0)
+        self.assertEqual(expected_command, got_command)
+
+    def test_generate_per_lane_base_mask(self):
+        ''' Generate base mask HiSeqX'''
+        sample_type = 'ordinary' #_classify_samples('data/test_10X_indexes', SampleSheetParser('data/2014/FCIDXX.csv'))
+        mask_table = {'1': [7, 0], '2': [7, 0]}
+        got_mask = self.to_start._generate_per_lane_base_mask(sample_type, mask_table)
+        expected_mask = {'1':
+                         {'Y151I7N1Y151':
+                          {'base_mask': ['Y151', 'I7N1', 'Y151']}},
+                         '2':
+                         {'Y151I7N1Y151':
+                          {'base_mask': ['Y151', 'I7N1', 'Y151']}}}
+        self.assertEqual(got_mask, expected_mask)
+
+    def test_compute_base_mask(self):
+        """ Compute base mask HiSeqX """
+        runSetup = self.to_start.runParserObj.runinfo.get_read_configuration()
+        sample_type = 'ordinary' #_classify_samples('data/test_10X_indexes', SampleSheetParser('data/2014/FCIDXX.csv'))
+        index1_size = 7
+        is_dual_index = False
+        index2_size = 0
+        got_mask = self.to_start._compute_base_mask(runSetup, sample_type, index1_size, is_dual_index, index2_size)
+        expected_mask = ['Y151', 'I7N1', 'Y151']
+        self.assertEqual(got_mask, expected_mask)
+
+    def test_classify_samples(self):
+        """ Classify HiSeqX samples """
+        got_sample_table = _classify_samples('data/test_10X_indexes', SampleSheetParser('data/2014/FCIDXX.csv'))
+        expected_sample_table = {'1': [('P10000_1001',
+                                        {'sample_type': 'ordinary',
+                                         'index_length': [7, 0]})],
+                                 '2': [('P10000_1005',
+                                        {'sample_type': 'ordinary',
+                                         'index_length': [7, 0]})]}
+        self.assertEqual(got_sample_table, expected_sample_table)
+
+    def test_parse_10X_indexes(self):
+        """ Parse 10X indexes HiSeqX """
+        got_index_dict = parse_10X_indexes('data/test_10X_indexes')
+        expected_index_dict = {'SI-GA-A1':
+                               ['GGTTTACT', 'CTAAACGG', 'TCGGCGTC', 'AACCGTAA'],
+                               'SI-GA-A2':
+                               ['TTTCATGA', 'ACGTCCCT', 'CGCATGTG', 'GAAGGAAC']}
+        self.assertEqual(got_index_dict, expected_index_dict)
+
+    def test_generate_samplesheet_subset(self):
+        """ Make HiSeqX samplesheet subset """
+        ssparser = SampleSheetParser('data/2014/FCIDXX.csv')
+        samples_to_include = {'1': ['P10000_1001']}
+        got_data = _generate_samplesheet_subset(ssparser, samples_to_include)
+        expected_data = '''[Header]
+Date,None
+Investigator Name,Test
+Experiment Name,CIDXX
+[Data]
+Lane,SampleID,SampleName,SamplePlate,SampleWell,index,index2,Project,Description
+1,Sample_P10000_1001,P10000_1001,CIDXX,1:1,CGCGCAG,,A_Test_18_01,
+'''
+        self.assertEqual(got_data, expected_data)
+
+    
