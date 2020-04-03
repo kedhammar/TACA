@@ -12,8 +12,16 @@ statusdb:
   username: username
   password: pwd
   port: 1234
+  xten_db: x_flowcells
 
 analysis:
+    status_dir: data/
+    deliver_runfolder:
+      analysis_server:
+        host: b5.biotech.kth.se
+        port:
+        user: sara.sjunnebo
+      destination: test
     HiSeqX:
         QC:
             max_percentage_undetermined_indexes_pooled_lane: 5
@@ -82,3 +90,4 @@ bioinfo_tab:
 mail:
   recipients:
     some_user@some_email.com
+
