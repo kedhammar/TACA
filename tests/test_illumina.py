@@ -14,6 +14,7 @@ from taca.analysis.analysis import *
 from taca.illumina.Runs import Run, _create_folder_structure, _generate_lane_html
 from taca.illumina.HiSeq_Runs import HiSeq_Run, _data_filed_conversion
 from taca.illumina.HiSeqX_Runs import HiSeqX_Run, _generate_clean_samplesheet, _classify_samples, parse_10X_indexes, _generate_samplesheet_subset
+from taca.illumina.MiSeq_Runs import MiSeq_Run
 from flowcell_parser.classes import LaneBarcodeParser, SampleSheetParser
 from taca.utils import config as conf
 
@@ -791,4 +792,101 @@ Lane,SampleID,SampleName,SamplePlate,SampleWell,index,index2,Project,Description
 '''
         self.assertEqual(got_data, expected_data)
 
-    
+
+class TestMiSeqRuns(unittest.TestCase):
+    """ Tests for the MiSeq_Run run class
+    """
+    @classmethod
+    def setUpClass(self):
+        """ Creates the following directory tree for testing purposes:
+
+        tmp/
+        |__ 141124_ST-RUNNING_03_AMISEQFCIDXX
+        |   |__ RunInfo.xml
+        |__ 141124_ST-TOSTART_04_AMISEQFCIDXX
+            |__Data/Intensities/BaseCalls
+            |                   |__SampleSheet.csv
+            |__ RunInfo.xml
+            |__ RTAComplete.txt
+        """
+        self.tmp_dir = os.path.join(tempfile.mkdtemp(), 'tmp')
+
+        running = os.path.join(self.tmp_dir, '141124_ST-RUNNING1_03_AMISEQFCIDXX')
+        to_start = os.path.join(self.tmp_dir, '141124_ST-TOSTART1_04_AMISEQFCIDXX')
+
+        # Create runs directory structure
+        os.makedirs(self.tmp_dir)
+        os.makedirs(running)
+        os.makedirs(to_start)
+        os.makedirs(os.path.join(self.tmp_dir, '141124_ST-TOSTART1_04_AMISEQFCIDXX', 'Data', 'Intensities', 'BaseCalls'))
+
+        samplesheet_data = '''[Header]
+Assay,null
+Description,Production
+Workflow,LibraryQC
+Project Name,A_Test_18_01
+Investigator Name,Test
+Experiment Name,A_Test_18_01
+Date,2019-01-23
+Chemistry,amplicon
+[Data]
+Lane,Sample_ID,Sample_Name,index,Sample_Project,Sample_Plate,Sample_Well,I7_Index_ID,index2,I5_Index_ID,Description,GenomeFolder
+1,Sample_Sample_P10000_1001,Sample_P10000_1001,TATAGCCT,A_Test_18_01,P10000P1-A1,A1,TATAGCCT,GCCTCTAT,GCCTCTAT,Production,/hg19/Sequence/Chromosomes
+1,Sample_Sample_P10000_1005,Sample_P10000_1005,TATAGCCT,A_Test_18_01,P10000P1-A1,A1,TATAGCCT,GCGCGAGA,GCGCGAGA,Production,/hg19/Sequence/Chromosomes
+'''
+        sample_sheet_dest = os.path.join(self.tmp_dir, '141124_ST-TOSTART1_04_AMISEQFCIDXX', 'Data', 'Intensities', 'BaseCalls','SampleSheet.csv')
+        with open(sample_sheet_dest, 'wb') as f:
+                f.write(samplesheet_data)
+
+        # Create files indicating that the run is finished
+        open(os.path.join(running, 'RTAComplete.txt'), 'w').close()
+
+        # Move sample RunInfo.xml file to every run directory
+        for run in [running, to_start]:
+            shutil.copy('data/RunInfo.xml', run)
+            shutil.copy('data/runParameters.xml', run)
+
+        # Create run objects
+        self.running = MiSeq_Run(os.path.join(self.tmp_dir,
+                                              '141124_ST-RUNNING1_03_AMISEQFCIDXX'),
+                                 CONFIG["analysis"]["MiSeq"])
+        self.to_start = MiSeq_Run(os.path.join(self.tmp_dir,
+                                                '141124_ST-TOSTART1_04_AMISEQFCIDXX'),
+                                   CONFIG["analysis"]["MiSeq"])
+
+    @classmethod
+    def tearDownClass(self):
+        shutil.rmtree(self.tmp_dir)
+
+    def test_generate_clean_samplesheet(self):
+        """ Make clean HiSeqX sample sheet """
+        ssparser = SampleSheetParser('data/2014/MISEQFCIDXX.csv')
+        expected_samplesheet = '''[Header]
+Assay,null
+Description,Production
+Workflow,LibraryQC
+Project Name,A_Test_18_01
+Investigator Name,Test
+Experiment Name,A_Test_18_01
+Date,2019-01-23
+Chemistry,amplicon
+[Data]
+Lane,Sample_ID,Sample_Name,index,Sample_Project,Sample_Plate,Sample_Well,I7_Index_ID,index2,I5_Index_ID,Description,GenomeFolder
+1,Sample_Sample_P10000_1001,Sample_P10000_1001,TATAGCCT,A_Test_18_01,P10000P1-A1,A1,TATAGCCT,GCCTCTAT,GCCTCTAT,Production,/hg19/Sequence/Chromosomes
+1,Sample_Sample_P10000_1005,Sample_P10000_1005,TATAGCCT,A_Test_18_01,P10000P1-A1,A1,TATAGCCT,GCGCGAGA,GCGCGAGA,Production,/hg19/Sequence/Chromosomes
+'''
+        got_samplesheet = self.running._generate_clean_samplesheet(ssparser)
+        self.assertEqual(got_samplesheet, expected_samplesheet)
+
+    def test_set_run_type(self):
+        """ Set MiSeq runtype"""
+        run_type = self.to_start.run_type
+        self.assertEqual(run_type, 'NGI-RUN')
+
+    def test_get_samplesheet(self):
+        """ Get sample sheet location MiSeq or return None """
+        found_sample_sheet = self.to_start._get_samplesheet()
+        expected_sample_sheet = os.path.join(self.tmp_dir,'141124_ST-TOSTART1_04_AMISEQFCIDXX/Data/Intensities/BaseCalls/SampleSheet.csv')
+        self.assertEqual(found_sample_sheet, expected_sample_sheet)
+        missing_sample_sheet = self.running._get_samplesheet()
+        self.assertIsNone(missing_sample_sheet)
