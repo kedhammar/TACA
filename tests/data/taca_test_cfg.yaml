@@ -55,6 +55,25 @@ analysis:
                 data_archive:
                 include:
                     - "*.file"
+    MiSeq:
+        QC:
+            max_number_undetermined_reads_simple_lane: 5000000
+            max_percentage_undetermined_indexes_simple_lane: 5
+            max_percentage_undetermined_indexes_NoIndex_lane: 30
+            max_frequency_most_represented_und_index_NoIndex_lane: 40
+        bcl2fastq:
+            bin: path_to_bcl_to_fastq
+            options:
+                - output-dir: Demultiplexing
+        samplesheets_dir: "data"
+        analysis_server:
+            host:
+            port:
+            user:
+            sync:
+                data_archive:
+                include:
+                    - "*.file"
 
 bioinfo_tab:
   data_dirs:

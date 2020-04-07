@@ -1,0 +1,11 @@
+[Header]
+Investigator Name,Test
+Date,None
+Experiment Name,CIDXX
+[Reads]
+151
+151
+[Data]
+FCID,Lane,SampleID,SampleRef,Index,Description,Control,Recipe,Operator,SampleProject
+HISEQFCIDXX,1,Sample_P10000_1001,Human (Homo sapiens GRCh37),CGCGCAG,A_Test_18_01,N,2x50,Some_One,A_Test_18_01
+HISEQFCIDXX,1,Sample_P10000_1005,Human (Homo sapiens GRCh37),AGGTACC,A_Test_18_01,N,2x50,Some_One,A_Test_18_01

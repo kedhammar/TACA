@@ -1,0 +1,19 @@
+[Header]
+Investigator Name,Test
+Project Name,A_Test_18_01
+Experiment Name,A_Test_18_01
+Date,2019-01-23
+Workflow,LibraryQC
+Assay,null
+Description,Production
+Chemistry,amplicon
+[Reads]
+251
+251
+[Settings]
+OnlyGenerateFASTQ,1
+FilterPCRDuplicates,0
+[Data]
+Sample_ID,Sample_Name,Sample_Plate,Sample_Well,Sample_Project,index,I7_Index_ID,index2,I5_Index_ID,Description,GenomeFolder
+Sample_P10000_1001,Sample_P10000_1001,P10000P1-A1,A1,A_Test_18_01,TATAGCCT,TATAGCCT,GCCTCTAT,GCCTCTAT,Production,/hg19/Sequence/Chromosomes
+Sample_P10000_1005,Sample_P10000_1005,P10000P1-A1,A1,A_Test_18_01,TATAGCCT,TATAGCCT,GCGCGAGA,GCGCGAGA,Production,/hg19/Sequence/Chromosomes
