@@ -1,0 +1,19 @@
+backup:
+    archive_dirs:
+        miseq: data/nas/miseq.lab/nosync
+    data_dirs:
+        miseq: data/nas/miseq.lab
+    keys_path: data/nas/run_keys
+    gpg_receiver: some.user
+    check_demux: True
+
+statusdb:
+  url: url
+  username: username
+  password: pwd
+  port: 1234
+  xten_db: x_flowcells
+
+mail:
+  recipients:
+    some_user@some_email.com
