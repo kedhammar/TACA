@@ -99,9 +99,3 @@ class TestBackupUtils(unittest.TestCase):
         files = ['data/nas/miseq.lab/190201_A00621_0032_BHHFCFDSXX/RTAComplete.txt', 'data/nas/miseq.lab/190201_A00621_0032_BHHFCFDSXX/missing_file.txt']
         backup_object._clean_tmp_files(files)
         mock_remove.assert_called_once_with('data/nas/miseq.lab/190201_A00621_0032_BHHFCFDSXX/RTAComplete.txt')
-
-    def test_encrypt_runs(self):
-        backup_object = backup.backup_utils()
-        run = '200201_A00621_0032_BHHFCFDSXX'
-        force = False
-        backup_object.encrypt_runs(run, force)
