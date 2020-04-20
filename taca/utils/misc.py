@@ -6,7 +6,6 @@ import os
 import smtplib
 import subprocess
 import sys
-import glob
 
 from datetime import datetime
 from email.mime.text import MIMEText

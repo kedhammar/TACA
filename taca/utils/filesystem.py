@@ -2,20 +2,15 @@
 """
 import contextlib
 import os
-import re
 import shutil
-from subprocess import check_call, CalledProcessError, Popen, PIPE
 
 RUN_RE = '^\d{6}_[a-zA-Z\d\-]+_\d{4}_[AB0][A-Z\d\-]+$'
-PROJECT_RE = '[a-zA-Z]+\.[a-zA-Z]+_\d{2}_\d{2}'
 
 @contextlib.contextmanager
 def chdir(new_dir):
     """Context manager to temporarily change to a new directory.
     """
     cur_dir = os.getcwd()
-    # This is weird behavior. I'm removing and and we'll see if anything breaks.
-    #safe_makedir(new_dir)
     os.chdir(new_dir)
     try:
         yield
