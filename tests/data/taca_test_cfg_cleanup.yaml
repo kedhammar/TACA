@@ -1,0 +1,19 @@
+log:
+  file: data/taca.log
+
+statusdb:
+  url: url
+  username: username
+  password: pwd
+  port: 1234
+  xten_db: x_flowcells
+
+storage:
+  data_dirs:
+    - data/test_data/
+  archive_dirs:
+    HiSeq: data/test_data/nosync
+
+mail:
+  recipients:
+    some_user@some_email.com

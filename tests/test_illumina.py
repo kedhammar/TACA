@@ -296,10 +296,10 @@ class TestRuns(unittest.TestCase):
 
     def test_create_folder_structure(self):
         """ Make directory structure """
-        root = 'data/some_dir'
+        root = self.tmp_dir
         dirs = ['dir1', 'dir2']
         path = _create_folder_structure(root, dirs)
-        self.assertEqual(path, 'data/some_dir/dir1/dir2')
+        self.assertEqual(path, os.path.join(self.tmp_dir, 'dir1/dir2'))
 
     def test_generate_lane_html(self):
         """ Generate lane HTML """
@@ -456,10 +456,10 @@ class TestHiSeqRuns(unittest.TestCase):
 
     def test_create_folder_structure(self):
         """ Make directory structure """
-        root = 'data/some_dir'
+        root = self.tmp_dir
         dirs = ['dir1', 'dir2']
         path = _create_folder_structure(root, dirs)
-        self.assertEqual(path, 'data/some_dir/dir1/dir2')
+        self.assertEqual(path, os.path.join(self.tmp_dir, 'dir1/dir2'))
 
     def test_generate_lane_html(self):
         """ Generate lane HTML """
