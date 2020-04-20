@@ -6,14 +6,13 @@ import subprocess
 import shutil
 import requests
 import glob
+import json
 
 from datetime import datetime
 
 from taca.utils import misc
 from taca.utils.misc import send_mail
-
 from flowcell_parser.classes import RunParser, LaneBarcodeParser
-import json
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +56,6 @@ class Run(object):
     def demultiplex_run(self):
         raise NotImplementedError("Please Implement this method")
 
-
     def check_run_status(self):
         """
         This function checks the status of a run while in progress.
@@ -96,7 +94,6 @@ class Run(object):
                 if self.is_unpooled_lane(lane):
                     self._rename_undet(lane, samples_per_lane)
 
-
     def _set_run_type(self):
         raise NotImplementedError("Please Implement this method")
 
@@ -108,12 +105,6 @@ class Run(object):
 
     def _set_sequencer_type(self, configuration):
         raise NotImplementedError("Please Implement this method")
-
-    def _get_sequencer_type(self):
-        if self.sequencer_type:
-            return self.sequencer_type
-        else:
-            raise RuntimeError("sequencer_type not yet available!!")
 
     def _set_run_parser_obj(self, configuration):
         self.runParserObj = RunParser(self.run_dir)
@@ -143,7 +134,6 @@ class Run(object):
             return ssname
         else:
             raise RuntimeError("not able to find samplesheet {}.csv in {}".format(self.flowcell_id, self.CONFIG['samplesheets_dir']))
-
 
     def _is_demultiplexing_done(self):
         return os.path.exists(os.path.join(self.run_dir,
@@ -352,7 +342,6 @@ class Run(object):
         if mail_recipients:
             send_mail(sbt, msg, mail_recipients)
 
-
         if analysis:
             # This needs to pass the runtype (i.e., Xten or HiSeq) and start the correct pipeline
             self.trigger_analysis()
@@ -428,7 +417,6 @@ class Run(object):
         except IOError:
             return False
 
-
     def is_unpooled_lane(self, lane):
         """
             :param lane: lane identifier
@@ -441,18 +429,6 @@ class Run(object):
             if l['Lane'] == lane:
                 count += 1
         return count == 1
-
-    def is_unpooled_run(self):
-        """
-            :param ss: SampleSheet reader
-            :type ss: flowcell_parser.XTenSampleSheet
-            :rtype: boolean
-            :returns: True if the samplesheet has one entry per lane, False otherwise
-        """
-        ar = []
-        for l in self.runParserObj.samplesheet.data:
-            ar.append(l['Lane'])
-        return len(ar)==len(set(ar))
 
     def get_samples_per_lane(self):
         """
@@ -468,8 +444,6 @@ class Run(object):
             d[l['Lane']]=l[ss.dfield_snm]
 
         return d
-
-
 
     def _rename_undet(self, lane, samples_per_lane):
         """Renames the Undetermined fastq file by prepending the sample name in front of it
@@ -495,9 +469,6 @@ class Run(object):
             new_name="_".join(old_name_comps)
             logger.info("Renaming {} to {}".format(file, os.path.join(os.path.dirname(file), new_name)))
             os.rename(file, os.path.join(os.path.dirname(file), new_name))
-
-
-
 
     def _aggregate_demux_results_simple_complex(self, simple_lanes, complex_lanes):
         run_dir      =  self.run_dir
@@ -726,7 +697,6 @@ class Run(object):
         return True
 
 
-
 def _create_folder_structure(root, dirs):
     """
     creates a fodler stucture rooted in root usinf all dirs listed in dirs (a list)
@@ -738,9 +708,6 @@ def _create_folder_structure(root, dirs):
         if not os.path.exists(path):
             os.makedirs(path)
     return path
-
-
-
 
 def _generate_lane_html(html_file, html_report_lane_parser):
     with open(html_file, "w") as html:

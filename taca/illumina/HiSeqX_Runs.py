@@ -1,12 +1,12 @@
 import os
 import re
+import logging
 from datetime import datetime
+
 from taca.utils.filesystem import chdir
 from taca.illumina.Runs import Run
 from taca.utils import misc
 from flowcell_parser.classes import SampleSheetParser
-
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -247,7 +247,6 @@ class HiSeqX_Run(Run):
 
         return base_masks
 
-
     def _compute_base_mask(self, runSetup, sample_type, index1_size, is_dual_index, index2_size):
         """
             Assumptions:
@@ -304,6 +303,7 @@ class HiSeqX_Run(Run):
                     # then I need to ignore the second index completely
                         bm.append('N' + str(cycles))
         return bm
+
 
 def _generate_clean_samplesheet(ssparser, indexfile, fields_to_remove=None, rename_samples=True, rename_qPCR_suffix = False, fields_qPCR= None):
     """
@@ -369,7 +369,6 @@ def _generate_clean_samplesheet(ssparser, indexfile, fields_to_remove=None, rena
 
     return output
 
-
 def _classify_samples(indexfile, ssparser):
     """
     Given an ssparser object
@@ -411,7 +410,6 @@ def _classify_samples(indexfile, ssparser):
 
     return sample_table
 
-
 def parse_10X_indexes(indexfile):
     """
     Takes a file of 10X indexes and returns them as a dict.
@@ -423,7 +421,6 @@ def parse_10X_indexes(indexfile):
             line_=line.rstrip().split(',')
             index_dict[line_[0]]=line_[1:5]
     return index_dict
-
 
 def _generate_samplesheet_subset(ssparser, samples_to_include):
     output=""
