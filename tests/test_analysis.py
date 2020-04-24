@@ -77,9 +77,8 @@ class TestAnalysis(unittest.TestCase):
     def test_transfer_run(self, mock_transfer_run):
         """ Transfer run to Uppmax"""
         run_dir = (self.completed)
-        analysis = False
-        an.transfer_run(run_dir, analysis)
-        mock_transfer_run.assert_called_once_with('nosync/data/transfer.tsv', False, 'some_user@some_email.com')
+        an.transfer_run(run_dir)
+        mock_transfer_run.assert_called_once_with('nosync/data/transfer.tsv', 'some_user@some_email.com')
 
     @mock.patch('taca.analysis.analysis.RsyncAgent.transfer')
     @mock.patch('taca.analysis.analysis.subprocess.call')

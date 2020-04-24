@@ -273,12 +273,11 @@ class Run(object):
                         bm.append('N' + str(cycles))
         return bm
 
-    def transfer_run(self, t_file, analysis, mail_recipients=None):
+    def transfer_run(self, t_file, mail_recipients=None):
         """ Transfer a run to the analysis server. Will add group R/W permissions to
             the run directory in the destination server so that the run can be processed
             by any user/account in that group (i.e a functional account...).
             :param str t_file: File where to put the transfer information
-            :param bool analysis: Trigger analysis on remote server
         """
         # TODO: check the run type and build the correct rsync command
         # The option -a implies -o and -g which is not the desired behaviour
@@ -342,10 +341,6 @@ class Run(object):
         if mail_recipients:
             send_mail(sbt, msg, mail_recipients)
 
-        if analysis:
-            # This needs to pass the runtype (i.e., Xten or HiSeq) and start the correct pipeline
-            self.trigger_analysis()
-
     def archive_run(self, destination):
         """ Move run to the archive folder
             :param str destination: the destination folder
@@ -355,40 +350,6 @@ class Run(object):
             shutil.move(self.run_dir, os.path.join(destination, self.id))
         else:
             logger.warning("Cannot move run to archive, destination does not exist")
-
-    def trigger_analysis(self):
-        """ Trigger the analysis of the flowcell in the analysis sever.
-            :param str run_id: run/flowcell id
-        """
-        if not self.CONFIG.get('analysis_server', {}):
-            logger.warn(("No configuration found for remote analysis server. "
-                     "Not triggering analysis of {}"
-                     .format(os.path.basename(self.id))))
-        else:
-            url = ("http://{host}:{port}/flowcell_analysis/{dir}"
-                   .format(host=self.CONFIG['analysis_server']['host'],
-                           port=self.CONFIG['analysis_server']['port'],
-                           dir=os.path.basename(self.id)))
-            params = {'path': self.CONFIG['analysis_server']['sync']['data_archive']}
-            try:
-                r = requests.get(url, params=params)
-                if r.status_code != requests.status_codes.codes.OK:
-                    logger.warn(("Something went wrong when triggering the "
-                                 "analysis of {}. Please check the logfile "
-                                 "and make sure to start the analysis!"
-                                .format(os.path.basename(self.run_id))))
-                else:
-                    logger.info('Analysis of flowcell {} triggered in {}'
-                                .format(os.path.basename(self.run_id),
-                                self.CONFIG['analysis'][self.run_type]['analysis_server']['host']))
-                    a_file = os.path.join(self.CONFIG['analysis'][self.run_type]['status_dir'], 'analysis.tsv')
-                    with open(a_file, 'a') as analysis_file:
-                        tsv_writer = csv.writer(analysis_file, delimiter='\t')
-                        tsv_writer.writerow([os.path.basename(self.run_id), str(datetime.now())])
-            except requests.exceptions.ConnectionError:
-                logger.warn(("Something went wrong when triggering the analysis "
-                            "of {}. Please check the logfile and make sure to "
-                            "start the analysis!".format(os.path.basename(self.run_id))))
 
     def send_mail(self, msg, rcp):
         """ Sends mail about run completion
