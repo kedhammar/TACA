@@ -360,6 +360,20 @@ class TestHiSeqRuns(unittest.TestCase):
         self.running._copy_samplesheet()
         self.assertTrue(os.path.isfile(os.path.join(self.tmp_dir, '141124_ST-RUNNING1_03_AHISEQFCIDXX/SampleSheet.csv')))
 
+    @mock.patch('taca.illumina.HiSeq_Runs.HiSeq_Run._get_samplesheet')
+    @mock.patch('taca.illumina.HiSeq_Runs.SampleSheetParser')
+    def test_copy_samplesheet_missing(self, mock_parser, mock_samplesheet):
+        """ Rais RuntimeError if HiSeq samplesheet is missing """
+        mock_samplesheet.return_value = 'some/missing/file.csv'
+        with self.assertRaises(RuntimeError):
+            self.running._copy_samplesheet()
+
+    @mock.patch('taca.illumina.HiSeq_Runs.open')
+    def test_copy_samplesheet_fail(self, mock_open):
+        """ Return False if samplesheet not written """
+        mock_open.write.return_value = RuntimeError
+        self.assertFalse(self.running._copy_samplesheet())
+
     def test_generate_clean_samplesheet(self):
         """ Make clean HiSeq sample sheet """
         ssparser = SampleSheetParser('data/2014/HISEQFCIDXX.csv')
