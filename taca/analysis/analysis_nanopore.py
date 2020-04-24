@@ -158,7 +158,7 @@ def transfer_run(run_dir):
     #rsync dir to irma
     logger.info("Transferring run " + run_dir + " to analysis cluster")
     destination = CONFIG.get("nanopore_analysis").get("transfer").get("destination")
-    rsync_opts = {"--no-o" : None, "--no-g" : None, "--chmod" : "g+rw", "-r" : None, "--exclude" : "work"}
+    rsync_opts = {"-Lav": None, "--no-o" : None, "--no-g" : None, "--chmod" : "g+rw", "-r" : None, "--exclude" : "work"}
     connection_details = CONFIG.get("nanopore_analysis").get("transfer").get("analysis_server")
     transfer_object = RsyncAgent(run_dir, dest_path=destination, remote_host=connection_details["host"], remote_user=connection_details["user"], validate=False, opts=rsync_opts)
     try:
