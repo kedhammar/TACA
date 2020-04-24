@@ -11,7 +11,7 @@ import smtplib
 
 from datetime import datetime
 from taca.utils.config import CONFIG
-from taca.utils.transfer import RsyncAgent
+from taca.utils.transfer import RsyncAgent, RsyncError
 from taca.utils.misc import send_mail
 
 logger = logging.getLogger(__name__)
@@ -62,15 +62,20 @@ def process_run(run_dir):
             run_id = os.path.basename(run_dir)
             transfer_log = CONFIG.get('nanopore_analysis').get('transfer').get('transfer_file')
             if is_not_transferred(run_id, transfer_log):
-                transfer_run(run_dir)
-                update_transfer_log(run_id, transfer_log)
-                logger.info("Run "+ run_dir + " has been synced to the analysis cluster.")
-                archive_run(run_dir)
-                logger.info("Run " + run_dir + " is finished and has been archived. Notifying operator.")
-                email_subject = ("Run successfully processed: {}".format(os.path.basename(run_dir)))
-                email_message = """Run {} has been analysed, transferred and archived
-                successfully.""".format(run_dir)
-                send_mail(email_subject, email_message, email_recipients)
+                if transfer_run(run_dir):
+                    update_transfer_log(run_id, transfer_log)
+                    logger.info("Run "+ run_dir + " has been synced to the analysis cluster.")
+                    archive_run(run_dir)
+                    logger.info("Run " + run_dir + " is finished and has been archived. Notifying operator.")
+                    email_subject = ("Run successfully processed: {}".format(os.path.basename(run_dir)))
+                    email_message = """Run {} has been analysed, transferred and archived
+                    successfully.""".format(run_dir)
+                    send_mail(email_subject, email_message, email_recipients)
+                else:
+                    email_subject = ("Run processed with errors: {}".format(os.path.basename(run_dir)))
+                    email_message = """Run {} has been analysed, but an error occurred during
+                    transfer.""".format(run_dir)
+                    send_mail(email_subject, email_message, email_recipients)
         else:
             logger.warn("Analysis pipeline exited with a non-zero exit status for run " + run_dir + ". Notifying operator.")
             email_subject = ("Analysis failed for run {}".format(os.path.basename(run_dir)))
@@ -165,7 +170,8 @@ def transfer_run(run_dir):
         transfer_object.transfer()
     except RsyncError:
         logger.warn("An error occurred while transferring " + run_dir + " to the ananlysis server. Please check the logfiles")
-    return
+        return False
+    return True
 
 def update_transfer_log(run_id, transfer_log):
     try:
