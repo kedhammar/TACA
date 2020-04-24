@@ -132,14 +132,15 @@ def get_flowcell_id(run_dir):
 
 def is_multiplexed(sample_sheet):
     # Look in the sample_sheet and return True if the run was multiplexed, else False.
+    # Assumes that a run that has not been multiplexed has the barcode 0
     with open(sample_sheet, 'r') as f:
         for i, line in enumerate(f):
             if i == 1:
                 line_entries = line.split(',')
-    if line_entries[2]:
-        return True
-    else:
+    if line_entries[2] == '0':
         return False
+    else:
+        return True
 
 
 def check_exit_status(status_file):
