@@ -367,12 +367,6 @@ class TestHiSeqRuns(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             self.running._copy_samplesheet()
 
-    @mock.patch('taca.illumina.HiSeq_Runs.open')
-    def test_copy_samplesheet_fail(self, mock_open):
-        """ Return False if samplesheet not written """
-        mock_open.write.return_value = RuntimeError
-        self.assertFalse(self.running._copy_samplesheet())
-
     def test_generate_clean_samplesheet(self):
         """ Make clean HiSeq sample sheet """
         ssparser = SampleSheetParser('data/samplesheet_dual_index.csv')
