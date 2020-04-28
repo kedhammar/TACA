@@ -94,7 +94,6 @@ class TestRuns(unittest.TestCase):
         os.makedirs(os.path.join(in_progress, 'Demultiplexing_1'))
         os.makedirs(os.path.join(in_progress_done, 'Demultiplexing'))
         os.makedirs(os.path.join(in_progress_done, 'Demultiplexing_0/Stats'))
-        #os.makedirs(os.path.join(in_progress_done, 'Demultiplexing_1/Stats'))
         os.makedirs(os.path.join(completed, 'Demultiplexing', 'Stats'))
 
         # Create files indicating that the run is finished
@@ -376,14 +375,14 @@ class TestHiSeqRuns(unittest.TestCase):
 
     def test_generate_clean_samplesheet(self):
         """ Make clean HiSeq sample sheet """
-        ssparser = SampleSheetParser('data/2014/HISEQFCIDXX.csv')
+        ssparser = SampleSheetParser('data/samplesheet_dual_index.csv')
         expected_samplesheet = '''[Header]
 Date,None
 Investigator Name,Test
 Experiment Name,CIDXX
 [Data]
 Lane,Sample_ID,Sample_Name,index,index2,Sample_Project,FCID,SampleRef,Description,Control,Recipe,Operator
-1,Sample_Sample_P10000_1001,Sample_P10000_1001,CGCGCAG,,A_Test_18_01,HISEQFCIDXX,Human (Homo sapiens GRCh37),A_Test_18_01,N,2x50,Some_One
+1,Sample_Sample_P10000_1001,Sample_P10000_1001,CGCGCAG,CTGCGCG,A_Test_18_01,HISEQFCIDXX,Human (Homo sapiens GRCh37),A_Test_18_01,N,2x50,Some_One
 1,Sample_Sample_P10000_1005,Sample_P10000_1005,AGGTACC,,A_Test_18_01,HISEQFCIDXX,Human (Homo sapiens GRCh37),A_Test_18_01,N,2x50,Some_One
 '''
         got_samplesheet = self.running._generate_clean_samplesheet(ssparser)
@@ -419,43 +418,95 @@ Lane,Sample_ID,Sample_Name,index,index2,Sample_Project,FCID,SampleRef,Descriptio
                            'Sample_Project'
                            ]
         self.assertEqual(expected_fields, converted_fields)
+        with self.assertRaises(RuntimeError):
+            _data_filed_conversion('not_a_field')
 
     @mock.patch('taca.illumina.HiSeq_Runs.misc.call_external_command_detached')
     def test_demultiplex_run(self, mock_call_external):
         """ Demultiplex HiSeq Run"""
         self.to_start.demultiplex_run()
         mock_call_external.assert_called_once_with(['path_to_bcl_to_fastq',
-                                                    '--output-dir',
-                                                    'Demultiplexing_0',
-                                                    '--use-bases-mask',
-                                                    '1:Y151,I7N1,Y151',
-                                                    '--tiles',
-                                                    's_1',
-                                                    '--sample-sheet',
-                                                    os.path.join(self.tmp_dir, '141124_ST-TOSTART1_04_AHISEQFCIDXX/SampleSheet_0.csv')],
+                                                    '--some-opt', 'some_val',
+                                                    '--other-opt',
+                                                    '--output-dir', 'Demultiplexing_0',
+                                                    '--use-bases-mask', '1:Y151,I7N1,Y151',
+                                                    '--tiles', 's_1',
+                                                    '--sample-sheet', os.path.join(self.tmp_dir, '141124_ST-TOSTART1_04_AHISEQFCIDXX/SampleSheet_0.csv')],
                                                    prefix='demux_0',
                                                    with_log_files=True)
+
+    @mock.patch('taca.illumina.HiSeq_Runs.misc.call_external_command_detached')
+    @mock.patch('taca.illumina.HiSeq_Runs.HiSeq_Run._generate_per_lane_base_mask')
+    def test_demultiplex_run_complex(self, mock_mask, mock_call_external):
+        """ Demultiplex complex HiSeq Run """
+        mock_mask.return_value = {'1':
+                                  {'Y151I7N1Y151':
+                                   {'base_mask': ['Y151', 'I7N1', 'Y151'],
+                                    'data': [{'Control': 'N',
+                                              'Lane': '1',
+                                              'Sample_ID': 'Sample_Sample_P10000_1001',
+                                              'Sample_Name': 'Sample_P10000_1001',
+                                              'index': 'CGCGCAA',
+                                              'index2': 'CGCGCAC',
+                                              'Sample_Project': 'A_Test_18_01',
+                                              'FCID': 'HISEQFCIDXX',
+                                              'SampleRef': 'Human (Homo sapiens GRCh37)',
+                                              'Description': 'A_Test_18_01',
+                                              'Recipe': '2x50',
+                                              'Operator': 'Some_One'}]},
+                                  'Y150I7N1Y151':
+                                   {'base_mask': ['Y150', 'I7N1', 'Y151'],
+                                    'data': [{'Control': 'N',
+                                              'Lane': '1',
+                                              'Sample_ID': 'Sample_Sample_P10000_1001',
+                                              'Sample_Name': 'Sample_P10000_1001',
+                                              'index': 'CGCGCAG',
+                                              'index2': 'CGCGCGG',
+                                              'Sample_Project': 'A_Test_18_01',
+                                              'FCID': 'HISEQFCIDXX',
+                                              'SampleRef': 'Human (Homo sapiens GRCh37)',
+                                              'Description': 'A_Test_18_01',
+                                              'Recipe': '2x50',
+                                              'Operator': 'Some_One'}]}
+                                  }}
+        self.to_start.demultiplex_run()
+        calls = [mock.call(['path_to_bcl_to_fastq',
+                            '--some-opt', 'some_val',
+                            '--other-opt',
+                            '--output-dir', 'Demultiplexing_0',
+                            '--use-bases-mask', '1:Y150,I7N1,Y151',
+                            '--tiles', 's_1',
+                            '--sample-sheet', os.path.join(self.tmp_dir, '141124_ST-TOSTART1_04_AHISEQFCIDXX', 'SampleSheet_0.csv')],
+                           prefix='demux_0', with_log_files=True),
+                 mock.call(['path_to_bcl_to_fastq',
+                            '--some-opt', 'some_val',
+                            '--other-opt',
+                            '--output-dir', 'Demultiplexing_1',
+                            '--use-bases-mask', '1:Y151,I7N1,Y151',
+                            '--tiles', 's_1',
+                            '--sample-sheet', os.path.join(self.tmp_dir, '141124_ST-TOSTART1_04_AHISEQFCIDXX', 'SampleSheet_1.csv')],
+                           prefix='demux_1', with_log_files=True)]
+        mock_call_external.assert_has_calls(calls)
 
     def test_generate_bcl2fastq_command(self):
         """Generate command to demultiplex HiSeq """
         mask = self.to_start._generate_per_lane_base_mask()
-        got_command = self.to_start._generate_bcl2fastq_command(mask, True, 0)
+        got_command = self.to_start._generate_bcl2fastq_command(mask, True, 0, True)
         expexted_command = ['path_to_bcl_to_fastq',
-                            '--output-dir',
-                            'Demultiplexing_0',
-                            '--use-bases-mask',
-                            '1:Y151,I7N1,Y151',
-                            '--tiles',
-                            's_1',
-                            '--sample-sheet',
-                            os.path.join(self.tmp_dir, '141124_ST-TOSTART1_04_AHISEQFCIDXX/SampleSheet_0.csv')]
+                            '--some-opt', 'some_val',
+                            '--other-opt',
+                            '--output-dir', 'Demultiplexing_0',
+                            '--use-bases-mask', '1:Y151,I7N1,Y151',
+                            '--tiles', 's_1',
+                            '--sample-sheet', os.path.join(self.tmp_dir, '141124_ST-TOSTART1_04_AHISEQFCIDXX/SampleSheet_0.csv'),
+                            '--mask-short-adapter-reads', '0']
         self.assertEqual(got_command, expexted_command)
 
     @mock.patch('taca.illumina.HiSeq_Runs.HiSeq_Run._aggregate_demux_results_simple_complex')
-    def test_aggregate_demux_results(self, mockaggregate_demux_results_simple_complex):
+    def test_aggregate_demux_results(self, mock_aggregate_demux_results_simple_complex):
         """ aggregate the results from different demultiplexing steps HiSeq"""
         self.to_start._aggregate_demux_results()
-        mockaggregate_demux_results_simple_complex.assert_called_with({'1':
+        mock_aggregate_demux_results_simple_complex.assert_called_with({'1':
                                                                        {'Y151I7N1Y151':
                                                                         {'base_mask': ['Y151', 'I7N1', 'Y151'],
                                                                          'data': [{'Control': 'N',
@@ -484,6 +535,28 @@ Lane,Sample_ID,Sample_Name,index,index2,Sample_Project,FCID,SampleRef,Descriptio
                                                                                    'index2': ''}]
                                                                         }
                                                                        }}, {})
+
+    @mock.patch('taca.illumina.HiSeq_Runs.HiSeq_Run._aggregate_demux_results_simple_complex')
+    @mock.patch('taca.illumina.HiSeq_Runs.HiSeq_Run._generate_per_lane_base_mask')
+    def test_aggregate_demux_results_complex(self, mock_base_mask, mock_aggregate_demux_results_simple_complex):
+        """ aggregate the results from different demultiplexing steps HiSeq, complex case """
+        mock_base_mask.return_value = {'1':
+                                  {'Y151I7N1Y151':
+                                   {'base_mask': ['Y151', 'I7N1', 'Y151'],
+                                    'data': []},
+                                  'Y150I7N1Y151':
+                                   {'base_mask': ['Y150', 'I7N1', 'Y151'],
+                                    'data': []}
+                                  }}
+        self.to_start._aggregate_demux_results()
+        mock_aggregate_demux_results_simple_complex.assert_called_once_with({}, {'1':
+                                                                       {'Y151I7N1Y151':
+                                                                        {'base_mask': ['Y151', 'I7N1', 'Y151'],
+                                                                         'data': []},
+                                                                        'Y150I7N1Y151':
+                                                                        {'base_mask': ['Y150', 'I7N1', 'Y151'],
+                                                                         'data': []}
+                                                                       }})
 
 class TestHiSeqXRuns(unittest.TestCase):
     """ Tests for the HiSeqX_Run run class

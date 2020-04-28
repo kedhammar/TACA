@@ -54,6 +54,8 @@ analysis:
             bin: path_to_bcl_to_fastq
             options:
                 - output-dir: Demultiplexing
+                - some-opt: some_val
+                - other-opt
         samplesheets_dir: "data"
         analysis_server:
             host:
