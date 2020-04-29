@@ -84,6 +84,8 @@ analysis:
                 data_archive:
                 include:
                     - "*.file"
+    DummySeq:
+      samplesheets_dir: "data"
 
 bioinfo_tab:
   data_dirs:

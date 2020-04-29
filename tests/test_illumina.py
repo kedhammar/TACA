@@ -73,6 +73,9 @@ class TestRuns(unittest.TestCase):
         |__ 141124_ST-TOSTART_04_FCIDXXX
         |   |__ RunInfo.xml
         |   |__ RTAComplete.txt
+        |__ 141124_ST-DUMMY1_01_AFCIDXX
+        |   |__ RunInfo.xml
+        |   |__ SampleSheet.csv
         |__ archive
         """
         self.tmp_dir = os.path.join(tempfile.mkdtemp(), 'tmp')
@@ -83,6 +86,7 @@ class TestRuns(unittest.TestCase):
         in_progress = os.path.join(self.tmp_dir, '141124_ST-INPROGRESS1_02_AFCIDXX')
         in_progress_done = os.path.join(self.tmp_dir, '141124_ST-INPROGRESSDONE1_02_AFCIDXX')
         completed = os.path.join(self.tmp_dir, '141124_ST-COMPLETED1_01_AFCIDXX')
+        dummy = os.path.join(self.tmp_dir, '141124_ST-DUMMY1_01_AFCIDXX')
         finished_runs = [to_start, in_progress, in_progress_done, completed]
 
         # Create runs directory structure
@@ -95,6 +99,7 @@ class TestRuns(unittest.TestCase):
         os.makedirs(os.path.join(in_progress_done, 'Demultiplexing'))
         os.makedirs(os.path.join(in_progress_done, 'Demultiplexing_0/Stats'))
         os.makedirs(os.path.join(completed, 'Demultiplexing', 'Stats'))
+        os.makedirs(dummy)
 
         # Create files indicating that the run is finished
         for run in finished_runs:
@@ -104,12 +109,10 @@ class TestRuns(unittest.TestCase):
         open(os.path.join(in_progress, 'SampleSheet_0.csv'), 'w').close()
         open(os.path.join(in_progress, 'SampleSheet_1.csv'), 'w').close()
         open(os.path.join(in_progress_done, 'SampleSheet_0.csv'), 'w').close()
-        #open(os.path.join(in_progress_done, 'SampleSheet_1.csv'), 'w').close()
         shutil.copy('data/samplesheet.csv', os.path.join(completed, 'SampleSheet.csv'))
 
         # Create files indicating that demultiplexing is ongoing
         open(os.path.join(in_progress_done, 'Demultiplexing_0', 'Stats', 'DemultiplexingStats.xml'), 'w').close()
-        #open(os.path.join(in_progress_done, 'Demultiplexing_1', 'Stats', 'DemultiplexingStats.xml'), 'w').close()
 
         # Create files indicating that the preprocessing is done
         open(os.path.join(completed, 'Demultiplexing', 'Stats', 'DemultiplexingStats.xml'), 'w').close()
@@ -123,7 +126,7 @@ class TestRuns(unittest.TestCase):
             tsv_writer.writerow([os.path.basename(completed), str(datetime.now())])
 
         # Move sample RunInfo.xml file to every run directory
-        for run in [running, to_start, in_progress, in_progress_done, completed]:
+        for run in [running, to_start, in_progress, in_progress_done, completed, dummy]:
             shutil.copy('data/RunInfo.xml', run)
             shutil.copy('data/runParameters.xml', run)
 
@@ -147,12 +150,27 @@ class TestRuns(unittest.TestCase):
         self.completed = Run(os.path.join(self.tmp_dir,
                                           '141124_ST-COMPLETED1_01_AFCIDXX'),
                              CONFIG["analysis"]["HiSeqX"])
+        self.dummy_run = Run(os.path.join(self.tmp_dir,
+                                          '141124_ST-DUMMY1_01_AFCIDXX'),
+                             CONFIG["analysis"]["HiSeq"])
         self.finished_runs = [self.to_start, self.in_progress, self.completed]
         self.transfer_file = os.path.join(self.tmp_dir, 'transfer.tsv')
 
     @classmethod
     def tearDownClass(self):
         shutil.rmtree(self.tmp_dir)
+
+    def test_run_setup(self):
+        """ Raise RuntimeError if things are missing """
+        # if rundir missing
+        with self.assertRaises(RuntimeError):
+            Run("missing_dir", CONFIG["analysis"]["HiSeqX"])
+        # if config incomplete
+        with self.assertRaises(RuntimeError):
+            Run(self.tmp_dir, CONFIG["analysis"]["DummySeq"])
+        # if runParameters.xml missing
+        with self.assertRaises(RuntimeError):
+            Run(self.tmp_dir, CONFIG["analysis"]["HiSeq"])
 
     def test_is_sequencing_done(self):
         """ Is finished should be True only if "RTAComplete.txt" file is present...
@@ -186,9 +204,19 @@ class TestRuns(unittest.TestCase):
         self.in_progress_done.check_run_status()
         mock_aggregate_demux_results.assert_called_once()
 
+    @mock.patch('taca.illumina.Runs.Run.get_run_status')
+    def test_check_run_status_completed(self, mock_status):
+        """ Return None if run is finished
+        """
+        mock_status.return_value = 'COMPLETED'
+        self.assertEqual(self.in_progress.check_run_status(), None)
+
     def test_get_run_type(self):
         """ Return runtype if set"""
         self.assertEqual('NGI-RUN', self.running.get_run_type())
+        self.to_start.run_type = False
+        with self.assertRaises(RuntimeError):
+            self.to_start.get_run_type()
 
     def test_get_demux_folder(self):
         """ Return name of demux folder if set"""
@@ -210,23 +238,42 @@ class TestRuns(unittest.TestCase):
 
     def test_generate_per_lane_base_mask(self):
         """ Generate base mask """
+        with self.assertRaises(RuntimeError):
+            self.dummy_run._generate_per_lane_base_mask()
+
+        shutil.copy('data/samplesheet_dummy_run.csv', os.path.join(self.tmp_dir,'141124_ST-DUMMY1_01_AFCIDXX', 'SampleSheet.csv'))
+        self.dummy_run._set_run_parser_obj(CONFIG["analysis"]["HiSeq"])
         expected_mask = {'1':
-                         {'Y151I8Y151':
-                          {'base_mask': ['Y151', 'I8', 'Y151'],
-                           'data': [
-                               {'SampleWell': '1:1',
-                                'index': 'GAATTCGT',
-                                'Lane': '1',
-                                'SamplePlate': 'FCB_150423',
-                                'SampleName': 'P1775_147',
-                                'SampleID': 'Sample_P1775_147',
-                                'Project': 'J_Lundeberg_14_24'}
-                           ]
-                          }
-                         }
-        }
-        got_mask = self.completed._generate_per_lane_base_mask()
-        self.assertItemsEqual(expected_mask, got_mask)
+                         {'Y151I7N1Y151':
+                          {'base_mask': ['Y151', 'I7N1', 'Y151'],
+                           'data': [{'index': 'CGCGCAG',
+                                     'Lane': '1',
+                                     'Sample_ID': 'Sample_P10000_1001',
+                                     'Sample_Project': 'A_Test_18_01',
+                                     'Sample_Name': 'Sample_P10000_1001',
+                                     'index2': 'CTGCGCG'},
+                                    {'index': 'AGGTACC',
+                                     'Lane': '1',
+                                     'Sample_ID': 'Sample_P10000_1005',
+                                     'Sample_Project': 'A_Test_18_01',
+                                     'Sample_Name': 'Sample_P10000_1005',
+                                     'index2': ''}]}}}
+        got_mask = self.dummy_run._generate_per_lane_base_mask()
+        self.assertEqual(expected_mask, got_mask)
+
+    def test_compute_base_mask(self):
+        """ Compute Run base mask """
+        runSetup = [{'IsIndexedRead': 'N', 'NumCycles': '151', 'Number': '1'},
+                    {'IsIndexedRead': 'Y', 'NumCycles': '8', 'Number': '2'},
+                    {'IsIndexedRead': 'Y', 'NumCycles': '8', 'Number': '3'},
+                    {'IsIndexedRead': 'N', 'NumCycles': '151', 'Number': '4'}]
+        index_size = 7
+        dual_index_sample = True
+        index2_size = 7
+        got_mask = self.dummy_run._compute_base_mask(runSetup, index_size, dual_index_sample, index2_size)
+        print got_mask
+        expected_mask = ['Y151', 'I7N1', 'I7N1', 'Y151']
+        self.assertEqual(got_mask, expected_mask)
 
     @mock.patch('taca.illumina.Runs.misc.call_external_command')
     def test_transfer_run(self, mock_call_external_command):
