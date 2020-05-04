@@ -8,6 +8,7 @@ import csv
 import json
 import mock
 import filecmp
+import subprocess
 from datetime import datetime
 
 from taca.analysis.analysis import *
@@ -189,10 +190,17 @@ class TestRuns(unittest.TestCase):
     def test_is_transferred(self):
         """ is_transferred should rely on the info in transfer.tsv
         """
+        os.makedirs(os.path.join(self.tmp_dir, '141124_ST-DUMMY1_01_AFCIDXX', 'transferring'))
+        self.assertTrue(self.dummy_run.is_transferred(self.transfer_file))
         self.assertTrue(self.completed.is_transferred(self.transfer_file))
         self.assertFalse(self.running.is_transferred(self.transfer_file))
         self.assertFalse(self.to_start.is_transferred(self.transfer_file))
         self.assertFalse(self.in_progress.is_transferred( self.transfer_file))
+        self.assertFalse(self.completed.is_transferred('missing_file'))
+
+    def test_is_transferred_error(self):
+        """ """
+        pass
 
     @mock.patch('taca.illumina.HiSeqX_Runs.HiSeqX_Run._aggregate_demux_results')
     def test_check_run_status_done(self, mock_aggregate_demux_results):
@@ -290,6 +298,14 @@ class TestRuns(unittest.TestCase):
                                                            log_dir=os.path.join(self.tmp_dir, '141124_ST-COMPLETED1_01_AFCIDXX'),
                                                            prefix='',
                                                            with_log_files=True)
+
+    #@mock.patch('taca.utils.misc.subprocess.check_call')
+    @mock.patch('taca.illumina.Runs.misc.call_external_command')
+    def test_transfer_run_error(self, mock_call_external_command):
+        """ Handle external rsync error """
+        mock_call_external_command.side_effect = subprocess.CalledProcessError(1, 'some error')
+        with self.assertRaises(subprocess.CalledProcessError):
+            self.completed.transfer_run(self.transfer_file, False)
 
     @mock.patch('taca.illumina.Runs.shutil.move')
     def test_archive_run(self, mock_move):
