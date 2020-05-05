@@ -96,11 +96,12 @@ class TestRuns(unittest.TestCase):
         os.makedirs(running)
         os.makedirs(to_start)
         os.makedirs(os.path.join(in_progress, 'Demultiplexing'))
-        os.makedirs(os.path.join(in_progress, 'Demultiplexing_0'))
+        os.makedirs(os.path.join(in_progress, 'Demultiplexing_0', "Reports", "html","FCIDXX", "all", "all", "all"))
         os.makedirs(os.path.join(in_progress, 'Demultiplexing_1'))
         os.makedirs(os.path.join(in_progress_done, 'Demultiplexing'))
         os.makedirs(os.path.join(in_progress_done, 'Demultiplexing_0/Stats'))
         os.makedirs(os.path.join(completed, 'Demultiplexing', 'Stats'))
+        #os.makedirs(os.path.join(completed, "Demultiplexing_0", "Reports", "html","FCIDXX", "all", "all", "all"))
         os.makedirs(dummy)
 
         # Create files indicating that the run is finished
@@ -116,10 +117,12 @@ class TestRuns(unittest.TestCase):
         # Create files indicating that demultiplexing is ongoing
         open(os.path.join(in_progress_done, 'Demultiplexing_0', 'Stats', 'DemultiplexingStats.xml'), 'w').close()
         open(os.path.join(in_progress_done, 'Demultiplexing_0', 'Stats', 'DemuxSummaryF1L1.txt'), 'w').close()
+        shutil.copy('data/lane.html', os.path.join(in_progress,"Demultiplexing_0", "Reports", "html","FCIDXX", "all", "all", "all"))
 
         # Create files indicating that the preprocessing is done
         open(os.path.join(completed, 'Demultiplexing', 'Stats', 'DemultiplexingStats.xml'), 'w').close()
         open(os.path.join(completed, 'Demultiplexing', 'Undetermined_S0_L001_R1_001.fastq.gz'), 'w').close()
+        #shutil.copy('data/lane.html', os.path.join(completed,"Demultiplexing_0", "Reports", "html","FCIDXX", "all", "all", "all"))
         with open(os.path.join(completed, 'Demultiplexing', 'Stats', 'Stats.json'), 'w') as stats_json:
             json.dump({"silly": 1}, stats_json)
 
@@ -162,11 +165,12 @@ class TestRuns(unittest.TestCase):
 
         complex_run_dir = os.path.join(self.tmp_dir, '141124_ST-COMPLEX1_01_AFCIDXX')
         os.makedirs(os.path.join(complex_run_dir, 'Demultiplexing'))
-        #os.makedirs(os.path.join(complex_run_dir, 'Demultiplexing_1'))
         os.makedirs(os.path.join(complex_run_dir, 'Demultiplexing_0/Stats'))
+        os.makedirs(os.path.join(complex_run_dir, 'Demultiplexing_0/N__One_20_01/Sample_P12345_1001'))
         os.makedirs(os.path.join(complex_run_dir,"Demultiplexing_0", "Reports", "html","FCIDXX", "all", "all", "all"))
-        open(os.path.join(complex_run_dir, 'SampleSheet_0.csv'), 'w').close()
-        #open(os.path.join(complex_run_dir, 'SampleSheet_1.csv'), 'w').close()
+        shutil.copy('data/samplesheet.csv', os.path.join(complex_run_dir, 'SampleSheet_0.csv'))
+        open(os.path.join(complex_run_dir, 'Demultiplexing_0/N__One_20_01/Sample_P12345_1001/P16510_1001_S1_L001_R1_001.fastq.gz'), 'w').close()
+        open(os.path.join(complex_run_dir, 'Demultiplexing_0/N__One_20_01/Sample_P12345_1001/P16510_1001_S1_L001_R2_001.fastq.gz'), 'w').close()
         with open(os.path.join(complex_run_dir, 'Demultiplexing_0', 'Stats', 'Stats.json'), 'w') as stats_json:
             json.dump({'RunNumber': 1,
                        'Flowcell': 'FCIDXX',
@@ -383,30 +387,19 @@ class TestRuns(unittest.TestCase):
     @mock.patch('taca.illumina.Runs.json.dump')
     def test_aggregate_demux_results_simple_complex_complex(self, mock_json_dump):
         """ Aggregare demux results complex case """
-        #complex_run_dir = os.path.join(self.tmp_dir, '141124_ST-COMPLEX1_01_AFCIDXX')
-        #os.makedirs(os.path.join(complex_run_dir, 'Demultiplexing'))
-        ##os.makedirs(os.path.join(complex_run_dir, 'Demultiplexing_1'))
-        #os.makedirs(os.path.join(complex_run_dir, 'Demultiplexing_0/Stats'))
-        #os.makedirs(os.path.join(complex_run_dir,"Demultiplexing_0", "Reports", "html","FCIDXX", "all", "all", "all"))
-        #open(os.path.join(complex_run_dir, 'SampleSheet_0.csv'), 'w').close()
-        ##open(os.path.join(complex_run_dir, 'SampleSheet_1.csv'), 'w').close()
-        #with open(os.path.join(complex_run_dir, 'Demultiplexing_0', 'Stats', 'Stats.json'), 'w') as stats_json:
-        #    json.dump({'RunNumber': 1,
-        #               'Flowcell': 'FCIDXX',
-        #               'RunId': 1,
-        #               'ConversionResults': 'Blah',
-        #               'ReadInfosForLanes': 'Something',
-        #               'UnknownBarcodes': 'Something_else'}, stats_json)
-        #shutil.copy('data/RunInfo.xml', complex_run_dir)
-        #shutil.copy('data/runParameters.xml', complex_run_dir)
-        #shutil.copy('data/lane.html', os.path.join(complex_run_dir,"Demultiplexing_0", "Reports", "html","FCIDXX", "all", "all", "all"))
-        #shutil.copy('data/laneBarcode.html', os.path.join(complex_run_dir,"Demultiplexing_0", "Reports", "html","FCIDXX", "all", "all", "all"))
-        #self.complex_run = Run(os.path.join(self.tmp_dir, '141124_ST-COMPLEX1_01_AFCIDXX'),
-        #                       CONFIG["analysis"]["HiSeq"])
         complex_lanes = {'141124_ST-COMPLEX1_01_AFCIDXX': 0}
         simple_lanes = {}
         self.assertTrue(self.complex_run._aggregate_demux_results_simple_complex(simple_lanes, complex_lanes))
         mock_json_dump.assert_called_once()
+
+    def test_aggregate_demux_results_simple_complex_fail(self):
+        """ aggregate_demux_results_simple_complex should raise error if files are missing """
+        complex_lanes = {'141124_ST-COMPLEX1_01_AFCIDXX': 0}
+        simple_lanes = {}
+        with self.assertRaises(RuntimeError):
+            self.in_progress_done._aggregate_demux_results_simple_complex(simple_lanes, complex_lanes)
+        with self.assertRaises(RuntimeError):
+            self.in_progress._aggregate_demux_results_simple_complex(simple_lanes, complex_lanes)
 
     def test_create_folder_structure(self):
         """ Make directory structure """
