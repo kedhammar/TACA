@@ -596,8 +596,6 @@ class Run(object):
         DemultiplexingStats_xml_dir = _create_folder_structure(demux_folder, ["Stats"])
         #now generate the Stats.json
         with open(os.path.join(DemultiplexingStats_xml_dir, "Stats.json"), 'w') as json_data_cumulative:
-            #import pdb
-            #pdb.set_trace()
             stats_list = {}
             for stat_json in stats_json:
                 with open(stat_json) as json_data_partial:
@@ -650,7 +648,6 @@ class Run(object):
                                 complex_lane_entry = {'Lane': unknown_barcode_lane["Lane"],
                                                     'Barcodes': {"unknown": 1}}
                                 stats_list['UnknownBarcodes'][index] = complex_lane_entry
-#                        stats_list['UnknownBarcodes'].extend(data['UnknownBarcodes'])
             json.dump(stats_list, json_data_cumulative)
 
         #now the run is formally COMPLETED
