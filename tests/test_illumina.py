@@ -819,7 +819,7 @@ Lane,SampleID,SampleName,SamplePlate,SampleWell,index,index2,Project,Description
         runSetup = self.to_start.runParserObj.runinfo.get_read_configuration()
         sample_type = 'ordinary' #_classify_samples('data/test_10X_indexes', SampleSheetParser('data/2014/FCIDXX.csv'))
         index1_size = 7
-        is_dual_index = False
+        is_dual_index = True
         index2_size = 0
         got_mask = self.to_start._compute_base_mask(runSetup, sample_type, index1_size, is_dual_index, index2_size)
         expected_mask = ['Y151', 'I7N1', 'N151']
@@ -840,7 +840,7 @@ Lane,SampleID,SampleName,SamplePlate,SampleWell,index,index2,Project,Description
         """ Parse 10X indexes HiSeqX """
         got_index_dict = parse_10X_indexes('data/test_10X_indexes')
         expected_index_dict = {'SI-GA-A1':
-                               ['GGTTTACT', 'CTAAACGG', 'TCGGCGTC', 'AACCGTAA'],
+                               ['CGCGCAG', 'CTAAACGG', 'TCGGCGTC', 'AACCGTAA'],
                                'SI-GA-A2':
                                ['TTTCATGA', 'ACGTCCCT', 'CGCATGTG', 'GAAGGAAC']}
         self.assertEqual(got_index_dict, expected_index_dict)
