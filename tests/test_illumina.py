@@ -837,13 +837,22 @@ Lane,SampleID,SampleName,SamplePlate,SampleWell,index,index2,Project,Description
 
     def test_classify_samples(self):
         """ Classify HiSeqX samples """
-        got_sample_table = _classify_samples('data/test_10X_indexes', SampleSheetParser('data/2014/FCIDXX.csv'))
+        got_sample_table = _classify_samples('data/test_10X_indexes', SampleSheetParser('data/samplesheet_sample_check.csv'))
         expected_sample_table = {'1': [('P10000_1001',
-                                        {'sample_type': '10X_GENO',
-                                         'index_length': [7, 0]})],
-                                 '2': [('P10000_1005',
-                                        {'sample_type': 'ordinary',
-                                         'index_length': [7, 0]})]}
+                                       {'sample_type': '10X_GENO',
+                                        'index_length': [7, 0]})],
+                                '3': [('P10000_1001',
+                                       {'sample_type': '10X_ATAC',
+                                        'index_length': [8, 16]})],
+                                '2': [('P10000_1005',
+                                       {'sample_type': 'ordinary',
+                                        'index_length': [7, 0]})],
+                                '5': [('P10000_1005',
+                                       {'sample_type': 'ordinary',
+                                        'index_length': [0, 0]})],
+                                '4': [('P10000_1005',
+                                       {'sample_type': 'IDT_UMI',
+                                        'index_length': [4, 0]})]}
         self.assertEqual(got_sample_table, expected_sample_table)
 
     def test_parse_10X_indexes(self):
@@ -851,6 +860,8 @@ Lane,SampleID,SampleName,SamplePlate,SampleWell,index,index2,Project,Description
         got_index_dict = parse_10X_indexes('data/test_10X_indexes')
         expected_index_dict = {'SI-GA-A1':
                                ['CGCGCAG', 'CTAAACGG', 'TCGGCGTC', 'AACCGTAA'],
+                               'SI-NA-A1':
+                               ['TTTCATGA', 'ACGTCCCT', 'CGCATGTG', 'GAAGGAAC'],
                                'SI-GA-A2':
                                ['TTTCATGA', 'ACGTCCCT', 'CGCATGTG', 'GAAGGAAC']}
         self.assertEqual(got_index_dict, expected_index_dict)
