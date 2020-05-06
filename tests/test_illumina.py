@@ -395,7 +395,7 @@ class TestRuns(unittest.TestCase):
 
     def test_is_unpooled_lane(self):
         """ Check if lane is unpooled """
-        self.assertTrue(self.in_progress.is_unpooled_lane('1'))
+        self.assertTrue(self.in_progress.is_unpooled_lane('2'))
 
     def test_get_samples_per_lane(self):
         """ Return samples from samplesheet """
@@ -761,7 +761,10 @@ Investigator Name,Test
 Experiment Name,CIDXX
 [Data]
 Lane,SampleID,SampleName,SamplePlate,SampleWell,index,index2,Project,Description
+1,Sample_P10000_1001,P10000_1001,CIDXX,1:1,AACCGTAA,,A_Test_18_01,
 1,Sample_P10000_1001,P10000_1001,CIDXX,1:1,CGCGCAG,,A_Test_18_01,
+1,Sample_P10000_1001,P10000_1001,CIDXX,1:1,CTAAACGG,,A_Test_18_01,
+1,Sample_P10000_1001,P10000_1001,CIDXX,1:1,TCGGCGTC,,A_Test_18_01,
 2,Sample_P10000_1005,P10000_1005,CIDXX,2:1,AGGTACC,,A_Test_18_01,
 '''
         got_samplesheet = _generate_clean_samplesheet(ssparser,indexfile, rename_samples=True, rename_qPCR_suffix = True, fields_qPCR=[ssparser.dfield_snm])
@@ -771,24 +774,31 @@ Lane,SampleID,SampleName,SamplePlate,SampleWell,index,index2,Project,Description
     def test_demultiplex_run(self, mock_call_external):
         """ Demultiplex HiSeqX Run"""
         self.to_start.demultiplex_run()
-        mock_call_external.assert_called_once_with(['path_to_bcl_to_fastq',
-                                                    '--output-dir', 'Demultiplexing_0',
-                                                    '--opt', 'b',
-                                                    '--c',
-                                                    '--sample-sheet', os.path.join(self.tmp_dir, '141124_ST-TOSTART1_04_AFCIDXX/SampleSheet_0.csv'),
-                                                    '--use-bases-mask', '1:Y151,I7N1,N151',
-                                                    '--use-bases-mask', '2:Y151,I7N1,N151'],
-                                                   prefix='demux_0', with_log_files=True)
+        calls = [mock.call(['path_to_bcl_to_fastq',
+                            '--output-dir', 'Demultiplexing_0',
+                            '--opt', 'b',
+                            '--c', '--a',
+                            '--sample-sheet', os.path.join(self.tmp_dir, '141124_ST-TOSTART1_04_AFCIDXX/SampleSheet_0.csv'),
+                            '--use-bases-mask', '1:Y151,I7N1,N151'],
+                           prefix='demux_0', with_log_files=True),
+                 mock.call(['path_to_bcl_to_fastq',
+                            '--output-dir', 'Demultiplexing_1',
+                            '--opt', 'b',
+                            '--c',
+                            '--sample-sheet', os.path.join(self.tmp_dir, '141124_ST-TOSTART1_04_AFCIDXX/SampleSheet_1.csv'),
+                            '--use-bases-mask', '2:Y151,I7N1,N151'],
+                           prefix='demux_1', with_log_files=True)]
+        mock_call_external.assert_has_calls(calls)
 
     @mock.patch('taca.illumina.HiSeqX_Runs.HiSeqX_Run._aggregate_demux_results_simple_complex')
     def test_aggregate_demux_results(self, mockaggregate_demux_results_simple_complex):
-        """ aggregate the results from different demultiplexing steps HiSeqX"""
+        """ Aggregate the results from different demultiplexing steps HiSeqX"""
         self.to_start._aggregate_demux_results()
         mockaggregate_demux_results_simple_complex.assert_called_with({'1': 0, '2': 0}, {})
 
     def test_generate_bcl_command(self):
         """ Generate bcl command HiSeqX"""
-        sample_type = '10X_GENO' 
+        sample_type = '10X_GENO'
         mask_table = {'1': [7, 0], '2': [7, 0]}
         expected_command = ['path_to_bcl_to_fastq',
                             '--output-dir', 'Demultiplexing_0',
@@ -829,7 +839,7 @@ Lane,SampleID,SampleName,SamplePlate,SampleWell,index,index2,Project,Description
         """ Classify HiSeqX samples """
         got_sample_table = _classify_samples('data/test_10X_indexes', SampleSheetParser('data/2014/FCIDXX.csv'))
         expected_sample_table = {'1': [('P10000_1001',
-                                        {'sample_type': 'ordinary',
+                                        {'sample_type': '10X_GENO',
                                          'index_length': [7, 0]})],
                                  '2': [('P10000_1005',
                                         {'sample_type': 'ordinary',
@@ -856,7 +866,7 @@ Investigator Name,Test
 Experiment Name,CIDXX
 [Data]
 Lane,SampleID,SampleName,SamplePlate,SampleWell,index,index2,Project,Description
-1,Sample_P10000_1001,P10000_1001,CIDXX,1:1,CGCGCAG,,A_Test_18_01,
+1,Sample_P10000_1001,P10000_1001,CIDXX,1:1,SI-GA-A1,,A_Test_18_01,
 '''
         self.assertEqual(got_data, expected_data)
 

@@ -7,5 +7,5 @@ Experiment Name,CIDXX
 151
 [Data]
 Lane,SampleID,SampleName,SamplePlate,SampleWell,index,index2,Project,Description
-1,Sample_P10000_1001,P10000_1001,CIDXX,1:1,CGCGCAG,,A_Test_18_01,
+1,Sample_P10000_1001,P10000_1001,CIDXX,1:1,SI-GA-A1,,A_Test_18_01,
 2,Sample_P10000_1005,P10000_1005,CIDXX,2:1,AGGTACC,,A_Test_18_01,
