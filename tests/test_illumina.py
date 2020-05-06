@@ -166,22 +166,66 @@ class TestRuns(unittest.TestCase):
         complex_run_dir = os.path.join(self.tmp_dir, '141124_ST-COMPLEX1_01_AFCIDXX')
         os.makedirs(os.path.join(complex_run_dir, 'Demultiplexing'))
         os.makedirs(os.path.join(complex_run_dir, 'Demultiplexing_0/Stats'))
+        os.makedirs(os.path.join(complex_run_dir, 'Demultiplexing_1/Stats'))
         os.makedirs(os.path.join(complex_run_dir, 'Demultiplexing_0/N__One_20_01/Sample_P12345_1001'))
         os.makedirs(os.path.join(complex_run_dir,"Demultiplexing_0", "Reports", "html","FCIDXX", "all", "all", "all"))
+        os.makedirs(os.path.join(complex_run_dir,"Demultiplexing_1", "Reports", "html","FCIDXX", "all", "all", "all"))
         shutil.copy('data/samplesheet.csv', os.path.join(complex_run_dir, 'SampleSheet_0.csv'))
+        shutil.copy('data/samplesheet.csv', os.path.join(complex_run_dir, 'SampleSheet_1.csv'))
         open(os.path.join(complex_run_dir, 'Demultiplexing_0/N__One_20_01/Sample_P12345_1001/P16510_1001_S1_L001_R1_001.fastq.gz'), 'w').close()
         open(os.path.join(complex_run_dir, 'Demultiplexing_0/N__One_20_01/Sample_P12345_1001/P16510_1001_S1_L001_R2_001.fastq.gz'), 'w').close()
-        with open(os.path.join(complex_run_dir, 'Demultiplexing_0', 'Stats', 'Stats.json'), 'w') as stats_json:
-            json.dump({'RunNumber': 1,
-                       'Flowcell': 'FCIDXX',
-                       'RunId': 1,
-                       'ConversionResults': 'Blah',
-                       'ReadInfosForLanes': 'Something',
-                       'UnknownBarcodes': 'ABC'}, stats_json)
+        stats_files = [os.path.join(complex_run_dir, 'Demultiplexing_0', 'Stats', 'Stats.json'), os.path.join(complex_run_dir, 'Demultiplexing_1', 'Stats', 'Stats.json')]
+        for f in stats_files:
+            with open(f, 'w') as stats_json:
+                #TODO: add this to a file instead
+                json.dump({'RunNumber': 131,
+                           'Flowcell': 'FCIDXX',
+                           'RunId': '141124_ST-COMPLEX1_01_AFCIDXX',
+                           'ConversionResults': [{"LaneNumber" : 1,
+                                                  "DemuxResults" : [{
+                                                      "SampleId" : "Sample_P12345_1001",
+                                                      "SampleName" : "P12345_1001",
+                                                      "NumberReads" : 494288265,
+                                                      "Yield" : 58820303535,
+                                                      "ReadMetrics" : [{
+                                                          "ReadNumber" : 1,
+                                                          "Yield" : 13840071420,
+                                                          "YieldQ30" : 13329609381,
+                                                          "QualityScoreSum" : 503672520160,
+                                                          "TrimmedBases" : 0
+                                                      }]}],
+                                                  "Undetermined" : {
+                                                      "NumberReads" : 17709745,
+                                                      "Yield" : 2036620675,
+                                                      "ReadMetrics" : [{"ReadNumber" : 1,
+                                                                        "Yield" : 885487250,
+                                                                        "YieldQ30" : 680049984,
+                                                                        "QualityScoreSum" : 28815661398,
+                                                                        "TrimmedBases" : 0},
+                                                                       {"ReadNumber" : 2,
+                                                                        "Yield" : 283355920,
+                                                                        "YieldQ30" : 179655904,
+                                                                        "QualityScoreSum" : 8324058259,
+                                                                        "TrimmedBases" : 0
+                                                                       }]}}],
+                           'ReadInfosForLanes': [{"LaneNumber" : 1,
+                                                  "ReadInfos" : [{"Number" : 1,
+                                                                  "NumCycles" : 28,
+                                                                  "IsIndexedRead" : 'false'}]}],
+                           'UnknownBarcodes': [{"Lane" : 1,
+                                                "Barcodes" : {
+                                                    "GGGGGGGG" : 3203920,
+                                                    "CCCTAACA" : 290420}},
+                                               {"Lane" : 2,
+                                                "Barcodes" : {
+                                                    "GGGGGGGG" : 3075440,
+                                                    "CCCTAACA" : 296260}}]}, stats_json)
         shutil.copy('data/RunInfo.xml', complex_run_dir)
         shutil.copy('data/runParameters.xml', complex_run_dir)
         shutil.copy('data/lane.html', os.path.join(complex_run_dir,"Demultiplexing_0", "Reports", "html","FCIDXX", "all", "all", "all"))
+        shutil.copy('data/lane.html', os.path.join(complex_run_dir,"Demultiplexing_1", "Reports", "html","FCIDXX", "all", "all", "all"))
         shutil.copy('data/laneBarcode.html', os.path.join(complex_run_dir,"Demultiplexing_0", "Reports", "html","FCIDXX", "all", "all", "all"))
+        shutil.copy('data/laneBarcode.html', os.path.join(complex_run_dir,"Demultiplexing_1", "Reports", "html","FCIDXX", "all", "all", "all"))
         self.complex_run = Run(os.path.join(self.tmp_dir, '141124_ST-COMPLEX1_01_AFCIDXX'),
                                CONFIG["analysis"]["HiSeq"])
 
@@ -394,11 +438,11 @@ class TestRuns(unittest.TestCase):
 
     def test_aggregate_demux_results_simple_complex_fail(self):
         """ aggregate_demux_results_simple_complex should raise error if files are missing """
-        complex_lanes = {'141124_ST-COMPLEX1_01_AFCIDXX': 0}
+        complex_lanes = {'1': 0}
         simple_lanes = {}
         with self.assertRaises(RuntimeError):
             self.in_progress_done._aggregate_demux_results_simple_complex(simple_lanes, complex_lanes)
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(RuntimeError): #FIXME
             self.in_progress._aggregate_demux_results_simple_complex(simple_lanes, complex_lanes)
 
     def test_create_folder_structure(self):
