@@ -33,8 +33,11 @@ analysis:
         bcl2fastq:
             bin: path_to_bcl_to_fastq
             index_path: "data/test_10X_indexes"
+            options_10X: a
             options:
                 - output-dir: Demultiplexing
+                - opt: b
+                - c
         samplesheets_dir: "data"
         analysis_server:
             host:

@@ -162,7 +162,7 @@ class TestRuns(unittest.TestCase):
         self.finished_runs = [self.to_start, self.in_progress, self.completed]
         self.transfer_file = os.path.join(self.tmp_dir, 'transfer.tsv')
 
-
+        # Setup additional case to catch complex lanes
         complex_run_dir = os.path.join(self.tmp_dir, '141124_ST-COMPLEX1_01_AFCIDXX')
         os.makedirs(os.path.join(complex_run_dir, 'Demultiplexing'))
         os.makedirs(os.path.join(complex_run_dir, 'Demultiplexing_0/Stats'))
@@ -323,21 +323,22 @@ class TestRuns(unittest.TestCase):
 
         shutil.copy('data/samplesheet_dummy_run.csv', os.path.join(self.tmp_dir,'141124_ST-DUMMY1_01_AFCIDXX', 'SampleSheet.csv'))
         self.dummy_run._set_run_parser_obj(CONFIG["analysis"]["HiSeq"])
-        expected_mask = {'1':
-                         {'Y151I7N1Y151':
-                          {'base_mask': ['Y151', 'I7N1', 'Y151'],
-                           'data': [{'index': 'CGCGCAG',
-                                     'Lane': '1',
-                                     'Sample_ID': 'Sample_P10000_1001',
-                                     'Sample_Project': 'A_Test_18_01',
-                                     'Sample_Name': 'Sample_P10000_1001',
-                                     'index2': 'CTGCGCG'},
-                                    {'index': 'AGGTACC',
-                                     'Lane': '1',
-                                     'Sample_ID': 'Sample_P10000_1005',
-                                     'Sample_Project': 'A_Test_18_01',
-                                     'Sample_Name': 'Sample_P10000_1005',
-                                     'index2': ''}]}}}
+        expected_mask = {'1': {'Y151I7N1I7N144':
+                               {'base_mask': ['Y151', 'I7N1', 'I7N144'],
+                                'data': [{'index': 'CGCGCAG',
+                                          'Lane': '1',
+                                          'Sample_ID': 'Sample_P10000_1001',
+                                          'Sample_Project': 'A_Test_18_01',
+                                          'Sample_Name': 'Sample_P10000_1001',
+                                          'index2': 'CTGCGCG'}]},
+                               'Y151I7N1N151':
+                               {'base_mask': ['Y151', 'I7N1', 'N151'],
+                                'data': [{'index': 'AGGTACC',
+                                          'Lane': '1',
+                                          'Sample_ID': 'Sample_P10000_1005',
+                                          'Sample_Project': 'A_Test_18_01',
+                                          'Sample_Name': 'Sample_P10000_1005',
+                                          'index2': ''}]}}}
         got_mask = self.dummy_run._generate_per_lane_base_mask()
         self.assertEqual(expected_mask, got_mask)
 
@@ -442,8 +443,6 @@ class TestRuns(unittest.TestCase):
         simple_lanes = {}
         with self.assertRaises(RuntimeError):
             self.in_progress_done._aggregate_demux_results_simple_complex(simple_lanes, complex_lanes)
-        with self.assertRaises(RuntimeError): #FIXME
-            self.in_progress._aggregate_demux_results_simple_complex(simple_lanes, complex_lanes)
 
     def test_create_folder_structure(self):
         """ Make directory structure """
@@ -575,7 +574,7 @@ Lane,Sample_ID,Sample_Name,index,index2,Sample_Project,FCID,SampleRef,Descriptio
                                                     '--some-opt', 'some_val',
                                                     '--other-opt',
                                                     '--output-dir', 'Demultiplexing_0',
-                                                    '--use-bases-mask', '1:Y151,I7N1,Y151',
+                                                    '--use-bases-mask', '1:Y151,I7N1,N151',
                                                     '--tiles', 's_1',
                                                     '--sample-sheet', os.path.join(self.tmp_dir, '141124_ST-TOSTART1_04_AHISEQFCIDXX/SampleSheet_0.csv')],
                                                    prefix='demux_0',
@@ -642,7 +641,7 @@ Lane,Sample_ID,Sample_Name,index,index2,Sample_Project,FCID,SampleRef,Descriptio
                             '--some-opt', 'some_val',
                             '--other-opt',
                             '--output-dir', 'Demultiplexing_0',
-                            '--use-bases-mask', '1:Y151,I7N1,Y151',
+                            '--use-bases-mask', '1:Y151,I7N1,N151',
                             '--tiles', 's_1',
                             '--sample-sheet', os.path.join(self.tmp_dir, '141124_ST-TOSTART1_04_AHISEQFCIDXX/SampleSheet_0.csv'),
                             '--mask-short-adapter-reads', '0']
@@ -653,8 +652,8 @@ Lane,Sample_ID,Sample_Name,index,index2,Sample_Project,FCID,SampleRef,Descriptio
         """ aggregate the results from different demultiplexing steps HiSeq"""
         self.to_start._aggregate_demux_results()
         mock_aggregate_demux_results_simple_complex.assert_called_with({'1':
-                                                                       {'Y151I7N1Y151':
-                                                                        {'base_mask': ['Y151', 'I7N1', 'Y151'],
+                                                                       {'Y151I7N1N151':
+                                                                        {'base_mask': ['Y151', 'I7N1', 'N151'],
                                                                          'data': [{'Control': 'N',
                                                                                    'index': 'CGCGCAG',
                                                                                    'Lane': '1',
@@ -773,15 +772,12 @@ Lane,SampleID,SampleName,SamplePlate,SampleWell,index,index2,Project,Description
         """ Demultiplex HiSeqX Run"""
         self.to_start.demultiplex_run()
         mock_call_external.assert_called_once_with(['path_to_bcl_to_fastq',
-                                                    '--output-dir',
-                                                    'Demultiplexing_0',
-                                                    '--sample-sheet',
-                                                    os.path.join(self.tmp_dir,
-                                                                 '141124_ST-TOSTART1_04_AFCIDXX/SampleSheet_0.csv'),
-                                                    '--use-bases-mask',
-                                                    '1:Y151,I7N1,Y151',
-                                                    '--use-bases-mask',
-                                                    '2:Y151,I7N1,Y151'],
+                                                    '--output-dir', 'Demultiplexing_0',
+                                                    '--opt', 'b',
+                                                    '--c',
+                                                    '--sample-sheet', os.path.join(self.tmp_dir, '141124_ST-TOSTART1_04_AFCIDXX/SampleSheet_0.csv'),
+                                                    '--use-bases-mask', '1:Y151,I7N1,N151',
+                                                    '--use-bases-mask', '2:Y151,I7N1,N151'],
                                                    prefix='demux_0', with_log_files=True)
 
     @mock.patch('taca.illumina.HiSeqX_Runs.HiSeqX_Run._aggregate_demux_results_simple_complex')
@@ -792,17 +788,16 @@ Lane,SampleID,SampleName,SamplePlate,SampleWell,index,index2,Project,Description
 
     def test_generate_bcl_command(self):
         """ Generate bcl command HiSeqX"""
-        sample_type = 'ordinary' #_classify_samples('data/test_10X_indexes', SampleSheetParser('data/2014/FCIDXX.csv'))
+        sample_type = '10X_GENO' 
         mask_table = {'1': [7, 0], '2': [7, 0]}
         expected_command = ['path_to_bcl_to_fastq',
-                            '--output-dir',
-                            'Demultiplexing_0',
-                            '--sample-sheet',
-                            os.path.join(self.tmp_dir, '141124_ST-TOSTART1_04_AFCIDXX/SampleSheet_0.csv'),
-                            '--use-bases-mask',
-                            '1:Y151,I7N1,Y151',
-                            '--use-bases-mask',
-                            '2:Y151,I7N1,Y151']
+                            '--output-dir', 'Demultiplexing_0',
+                            '--opt', 'b',
+                            '--c',
+                            '--a',
+                            '--sample-sheet', os.path.join(self.tmp_dir, '141124_ST-TOSTART1_04_AFCIDXX/SampleSheet_0.csv'),
+                            '--use-bases-mask', '1:Y151,I7N1,N151',
+                            '--use-bases-mask', '2:Y151,I7N1,N151']
         got_command = self.to_start.generate_bcl_command(sample_type, mask_table, 0)
         self.assertEqual(expected_command, got_command)
 
@@ -812,11 +807,11 @@ Lane,SampleID,SampleName,SamplePlate,SampleWell,index,index2,Project,Description
         mask_table = {'1': [7, 0], '2': [7, 0]}
         got_mask = self.to_start._generate_per_lane_base_mask(sample_type, mask_table)
         expected_mask = {'1':
-                         {'Y151I7N1Y151':
-                          {'base_mask': ['Y151', 'I7N1', 'Y151']}},
+                         {'Y151I7N1N151':
+                          {'base_mask': ['Y151', 'I7N1', 'N151']}},
                          '2':
-                         {'Y151I7N1Y151':
-                          {'base_mask': ['Y151', 'I7N1', 'Y151']}}}
+                         {'Y151I7N1N151':
+                          {'base_mask': ['Y151', 'I7N1', 'N151']}}}
         self.assertEqual(got_mask, expected_mask)
 
     def test_compute_base_mask(self):
@@ -827,7 +822,7 @@ Lane,SampleID,SampleName,SamplePlate,SampleWell,index,index2,Project,Description
         is_dual_index = False
         index2_size = 0
         got_mask = self.to_start._compute_base_mask(runSetup, sample_type, index1_size, is_dual_index, index2_size)
-        expected_mask = ['Y151', 'I7N1', 'Y151']
+        expected_mask = ['Y151', 'I7N1', 'N151']
         self.assertEqual(got_mask, expected_mask)
 
     def test_classify_samples(self):
