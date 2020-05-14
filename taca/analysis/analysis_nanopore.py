@@ -76,6 +76,8 @@ def process_run(run_dir):
                     email_message = """Run {} has been analysed, but an error occurred during
                     transfer.""".format(run_dir)
                     send_mail(email_subject, email_message, email_recipients)
+            else:
+                logger.warn("The following run has already been transferred, skipping: " + run_dir)
         else:
             logger.warn("Analysis pipeline exited with a non-zero exit status for run " + run_dir + ". Notifying operator.")
             email_subject = ("Analysis failed for run {}".format(os.path.basename(run_dir)))
@@ -196,7 +198,7 @@ def archive_run(run_dir):
 
 def run_preprocessing(run):
     if run:
-        process_run(run)
+        process_run(os.path.normpath(run))
     else:
         runs_to_process = find_runs_to_process()
         for run_dir in runs_to_process:
