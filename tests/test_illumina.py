@@ -752,7 +752,7 @@ Lane,SampleID,SampleName,SamplePlate,SampleWell,index,index2,Project,Description
         self.assertEqual(expected_command, got_command)
 
     def test_generate_per_lane_base_mask(self):
-        """Generate base mask HiSeX."""
+        """Generate base mask HiSeqX."""
         sample_type = 'ordinary'
         mask_table = {'1': [7, 0], '2': [7, 0]}
         got_mask = self.to_start._generate_per_lane_base_mask(sample_type, mask_table)
