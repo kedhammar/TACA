@@ -30,7 +30,6 @@ class MiSeq_Run(HiSeq_Run):
             #otherwise this is a non NGI run
                 self.run_type = "NON-NGI-RUN"
 
-
     def _get_samplesheet(self):
         """
         Locate and parse the samplesheet for a run.
@@ -44,9 +43,6 @@ class MiSeq_Run(HiSeq_Run):
             #some MiSeq runs do not have the SampleSheet at all, in this case assume they are non NGI.
             #not real clean solution but what else can be done if no samplesheet is provided?
             return None
-
-
-
 
     def _generate_clean_samplesheet(self, ssparser):
         """
@@ -72,7 +68,6 @@ class MiSeq_Run(HiSeq_Run):
             if 'Lane' not in entry:
                 entry['Lane'] = '1'
             data.append(entry)
-
 
         fields_to_output = ['Lane', ssparser.dfield_sid, ssparser.dfield_snm, 'index', ssparser.dfield_proj]
         #now create the new SampleSheet data section

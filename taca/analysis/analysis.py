@@ -134,10 +134,9 @@ def _upload_to_statusdb(run):
         parser.obj['DemultiplexConfig'] = {'Setup': {'Software': run.CONFIG.get('bcl2fastq',{})}}
     fcpdb.update_doc( db , parser.obj, over_write_db_entry=True)
 
-def transfer_run(run_dir, analysis):
+def transfer_run(run_dir):
     """ Interface for click to force a transfer a run to uppmax
         :param: string run_dir: the run to tranfer
-        :param bool analysis: if trigger or not the analysis
     """
     runObj = get_runObj(run_dir)
     mail_recipients = CONFIG.get('mail', {}).get('recipients')
@@ -146,9 +145,7 @@ def transfer_run(run_dir, analysis):
         # Maybe throw an exception if possible?
         logger.error("Trying to force a transfer of run {} but the sequencer was not recognized.".format(run_dir))
     else:
-        runObj.transfer_run(os.path.join("nosync",CONFIG['analysis']['status_dir'], 'transfer.tsv'),
-                            analysis, mail_recipients) # do not start analsysis automatically if I force the transfer
-
+        runObj.transfer_run(os.path.join("nosync",CONFIG['analysis']['status_dir'], 'transfer.tsv'), mail_recipients)
 
 def transfer_runfolder(run_dir, pid):
     """ Transfer the entire run folder for a specified project and run to uppmax

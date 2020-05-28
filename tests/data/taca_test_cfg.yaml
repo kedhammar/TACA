@@ -33,8 +33,11 @@ analysis:
         bcl2fastq:
             bin: path_to_bcl_to_fastq
             index_path: "data/test_10X_indexes"
+            options_10X: a
             options:
                 - output-dir: Demultiplexing
+                - opt: b
+                - c
         samplesheets_dir: "data"
         analysis_server:
             host:
@@ -54,6 +57,8 @@ analysis:
             bin: path_to_bcl_to_fastq
             options:
                 - output-dir: Demultiplexing
+                - some-opt: some_val
+                - other-opt
         samplesheets_dir: "data"
         analysis_server:
             host:
@@ -82,6 +87,8 @@ analysis:
                 data_archive:
                 include:
                     - "*.file"
+    DummySeq:
+      samplesheets_dir: "data"
 
 bioinfo_tab:
   data_dirs:

@@ -9,3 +9,6 @@ Experiment Name,CIDXX
 Lane,SampleID,SampleName,SamplePlate,SampleWell,index,index2,Project,Description
 1,Sample_P10000_1001,P10000_1001,CIDXX,1:1,SI-GA-A1,,A_Test_18_01,
 2,Sample_P10000_1005,P10000_1005,CIDXX,2:1,AGGTACC,,A_Test_18_01,
+3,Sample_P10000_1001,P10000_1001,CIDXX,1:1,SI-NA-A1,,A_Test_18_01,
+4,Sample_P10000_1005,P10000_1005,CIDXX,2:1,AGGTN,,A_Test_18_01,
+5,Sample_P10000_1005,P10000_1005,CIDXX,2:1,NoIndex,,A_Test_18_01,
