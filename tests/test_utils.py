@@ -9,6 +9,7 @@ import tempfile
 import unittest
 import time
 import couchdb
+from collections import defaultdict
 from taca.utils import misc, filesystem, transfer, config, bioinfo_tab
 
 
@@ -578,7 +579,7 @@ class TestConfig(unittest.TestCase):
 
 
 class TestBioinfoTab(unittest.TestCase):
-    """ Test class for bioinfo_tab """
+    """Test class for bioinfo_tab."""
 
     @classmethod
     def setUpClass(self):
@@ -599,7 +600,7 @@ class TestBioinfoTab(unittest.TestCase):
         shutil.rmtree(self.rootdir)
 
     def test_setupServer(self):
-        """ Set up server connection """
+        """Set up server connection."""
         config = {'statusdb':
                   {'url': 'url',
                    'username': 'username',
@@ -610,33 +611,55 @@ class TestBioinfoTab(unittest.TestCase):
 
     @mock.patch('taca.utils.bioinfo_tab.update_statusdb', return_value=None)
     def test_collect_runs(self, mock_update_statusdb):
-        """ find runs in specified dir """
+        """Find runs in specified directory."""
         bioinfo_tab.collect_runs()
         calls = [mock.call('data/test_data/190201_A00621_0032_BHHFCFDSXX'), mock.call('data/test_data/nosync/190201_A00621_0032_BHHFCFDSXY')]
         mock_update_statusdb.assert_has_calls(calls)
 
+    def test_get_ss_projects(self):
+        """Get project info."""
+        run_dir = 'data/test_data/190201_A00621_0032_BHHFCFDSXX'
+        got_info = bioinfo_tab.get_ss_projects(run_dir)
+        expected_info = defaultdict(bioinfo_tab.Tree,
+                               {'HHFCFDSXX': defaultdict(bioinfo_tab.Tree,
+                                                         {'1': defaultdict(bioinfo_tab.Tree,
+                                                                           {'P10000_1001': defaultdict(bioinfo_tab.Tree,
+                                                                                                       {'P10000': defaultdict(bioinfo_tab.Tree, {})})}),
+                                                          '2': defaultdict(bioinfo_tab.Tree,
+                                                                           {'P10000_1005': defaultdict(bioinfo_tab.Tree,
+                                                                                                       {'P10000': defaultdict(bioinfo_tab.Tree, {})})})})})
+        self.assertEqual(expected_info, got_info)
+
+    @mock.patch('taca.utils.bioinfo_tab.couchdb.Server')
+    def test_update_statusdb(self, mock_couch):
+        """Update statusdb."""
+        run_dir = 'data/test_data/190201_A00621_0032_BHHFCFDSXX'
+        bioinfo_tab.update_statusdb(run_dir)
+        mock_couch.assert_called_with('http://username:pwd@url:1234')
+
+
     def test_get_status_new(self):
-        """ return status New """
+        """Return status New."""
         got_status = bioinfo_tab.get_status(self.new_run)
         self.assertEqual(got_status, 'New')
 
     def test_get_status_demultiplexing(self):
-        """ return status Demultiplexing """
+        """Return status Demultiplexing."""
         got_status = bioinfo_tab.get_status(self.demux_run)
         self.assertEqual(got_status, 'Demultiplexing')
 
     def test_get_status_sequencing(self):
-        """ return status Sequencing """
+        """Return status Sequencing."""
         got_status = bioinfo_tab.get_status(self.seq_run)
         self.assertEqual(got_status, 'Sequencing')
 
     def test_get_status_error(self):
-        """ return status ERROR """
+        """Return status ERROR."""
         got_status = bioinfo_tab.get_status(self.error_run)
         self.assertEqual(got_status, 'ERROR')
 
     def test_parse_sample_sheet(self):
-        """ parse samplesheet """
+        """Parse samplesheet."""
         sample_sheet = 'data/samplesheet.csv'
         expected_data = [{'SampleWell': '1:1',
                           'index': 'GAATTCGT',
@@ -649,7 +672,7 @@ class TestBioinfoTab(unittest.TestCase):
         self.assertEqual(expected_data, parsed_data)
 
     def test_parse_sample_sheet_is_miseq(self):
-        """ parse miseq samplesheet """
+        """Parse MiSeq samplesheet."""
         sample_sheet = 'data/miseq_samplesheet.csv'
         expected_data = [{'SampleWell': '1:1',
                           'index': 'GAATTCGT',
@@ -662,7 +685,7 @@ class TestBioinfoTab(unittest.TestCase):
         self.assertEqual(expected_data, parsed_data)
 
     def test_parse_sample_sheet_is_miseq_error(self):
-        """ return empty list if not production or application in miseq sample sheet """
+        """Return empty list if not production or application in MiSeq samplesheet."""
         sample_sheet = 'data/samplesheet.csv'
         parsed_data = bioinfo_tab.parse_samplesheet(sample_sheet, "run_dir", is_miseq=True)
         self.assertEqual(parsed_data, [])
@@ -670,7 +693,7 @@ class TestBioinfoTab(unittest.TestCase):
     @mock.patch('taca.utils.bioinfo_tab.send_mail')
     @mock.patch('taca.utils.bioinfo_tab.datetime.datetime')
     def test_error_mailer_no_samplesheet(self, mock_datetime, mock_send_mail):
-        """ send email if no_samplesheet error """
+        """Send email if no_samplesheet error."""
         body='TACA has encountered an issue that might be worth investigating\n'
         body+='The offending entry is: '
         body+= 'run_missing_samplesheet'
@@ -684,7 +707,7 @@ class TestBioinfoTab(unittest.TestCase):
     @mock.patch('taca.utils.bioinfo_tab.send_mail')
     @mock.patch('taca.utils.bioinfo_tab.datetime.datetime')
     def test_error_mailer_failed_run(self, mock_datetime, mock_send_mail):
-        """ send email if failed_run error """
+        """Send email if failed_run error."""
         body='TACA has encountered an issue that might be worth investigating\n'
         body+='The offending entry is: '
         body+= 'failed_run'
@@ -698,7 +721,7 @@ class TestBioinfoTab(unittest.TestCase):
     @mock.patch('taca.utils.bioinfo_tab.send_mail')
     @mock.patch('taca.utils.bioinfo_tab.datetime.datetime')
     def test_error_mailer_weird_samplesheet(self, mock_datetime, mock_send_mail):
-        """ send email if weird_samplesheet error """
+        """Send email if weird_samplesheet error."""
         body='TACA has encountered an issue that might be worth investigating\n'
         body+='The offending entry is: '
         body+= 'weird_samplesheet_run'

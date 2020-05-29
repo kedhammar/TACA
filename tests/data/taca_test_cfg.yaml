@@ -92,7 +92,8 @@ analysis:
 
 bioinfo_tab:
   data_dirs:
-    - "data/test_data/"
+    - "data/test_data"
+  xten_samplesheets: "data"
 
 mail:
   recipients:
