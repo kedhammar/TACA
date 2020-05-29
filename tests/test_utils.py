@@ -583,8 +583,8 @@ class TestBioinfoTab(unittest.TestCase):
 
     @classmethod
     def setUpClass(self):
-        self.rootdir = tempfile.mkdtemp(prefix="test_taca_bt")
-        self.new_run = os.path.join(self.rootdir,'nosync/190821_M01545_0252_000000001')
+        self.rootdir = tempfile.mkdtemp(prefix='test_taca_bt')
+        self.new_run = os.path.join(self.rootdir,'nosync', '190821_M01545_0252_000000001')
         os.makedirs(self.new_run)
         self.demux_run = os.path.join(self.rootdir, '190821_M01545_0252_000000002')
         os.makedirs(os.path.join(self.demux_run, 'Unaligned_1'))
@@ -593,7 +593,7 @@ class TestBioinfoTab(unittest.TestCase):
         self.error_run = os.path.join(self.rootdir, '190821_M01545_0252_000000004')
         os.makedirs(self.error_run)
         with open(os.path.join(self.error_run, 'RTAComplete.txt'), 'w') as fh:
-            fh.write("This is some contents\n")
+            fh.write('This is some contents\n')
 
     @classmethod
     def tearDownClass(self):
@@ -637,7 +637,6 @@ class TestBioinfoTab(unittest.TestCase):
         bioinfo_tab.update_statusdb(run_dir)
         mock_couch.assert_called_with('http://username:pwd@url:1234')
 
-
     def test_get_status_new(self):
         """Return status New."""
         got_status = bioinfo_tab.get_status(self.new_run)
@@ -668,7 +667,7 @@ class TestBioinfoTab(unittest.TestCase):
                           'SampleName': 'P1775_147',
                           'SampleID': 'Sample_P1775_147',
                           'Project': 'J_Lundeberg_14_24'}]
-        parsed_data = bioinfo_tab.parse_samplesheet(sample_sheet, "run_dir")
+        parsed_data = bioinfo_tab.parse_samplesheet(sample_sheet, 'run_dir')
         self.assertEqual(expected_data, parsed_data)
 
     def test_parse_sample_sheet_is_miseq(self):
@@ -681,13 +680,13 @@ class TestBioinfoTab(unittest.TestCase):
                           'SampleName': 'P1775_147',
                           'SampleID': 'Sample_P1775_147',
                           'Project': 'J_Lundeberg_14_24'}]
-        parsed_data = bioinfo_tab.parse_samplesheet(sample_sheet, "run_dir", is_miseq=True)
+        parsed_data = bioinfo_tab.parse_samplesheet(sample_sheet, 'run_dir', is_miseq=True)
         self.assertEqual(expected_data, parsed_data)
 
     def test_parse_sample_sheet_is_miseq_error(self):
         """Return empty list if not production or application in MiSeq samplesheet."""
         sample_sheet = 'data/samplesheet.csv'
-        parsed_data = bioinfo_tab.parse_samplesheet(sample_sheet, "run_dir", is_miseq=True)
+        parsed_data = bioinfo_tab.parse_samplesheet(sample_sheet, 'run_dir', is_miseq=True)
         self.assertEqual(parsed_data, [])
 
     @mock.patch('taca.utils.bioinfo_tab.send_mail')
@@ -731,3 +730,11 @@ class TestBioinfoTab(unittest.TestCase):
         mock_datetime.now().hour = 7
         bioinfo_tab.error_emailer('weird_samplesheet', 'weird_samplesheet_run')
         mock_send_mail.assert_called_with(subject, body, 'some_user@some_email.com')
+
+    @mock.patch('taca.utils.bioinfo_tab.couchdb.Server')
+    def test_fail_run(self, mock_couch):
+        """Fail run in statusdb."""
+        run_id = '190201_A00621_0032_BHHFCFDSXX'
+        project = 'P0001'
+        bioinfo_tab.fail_run(run_id, project)
+        mock_couch.assert_called_with('http://username:pwd@url:1234')
