@@ -111,62 +111,85 @@ class TestMisc(unittest.TestCase):
 
 
 class TestFilesystem(unittest.TestCase):
-    """ Test class for the filesystem functions """
+    """Test class for the filesystem functions."""
 
     def setUp(self):
-        self.rootdir = tempfile.mkdtemp(prefix="test_taca_filesystem")
+        self.rootdir = tempfile.mkdtemp(prefix='test_taca_filesystem')
 
     def tearDown(self):
         shutil.rmtree(self.rootdir)
 
     def test_crete_folder_non_existing(self):
-        """ Ensure that a non-existing folder is created """
-        target_folder = os.path.join(self.rootdir,"target-non-existing")
+        """Ensure that a non-existing folder is created."""
+        target_folder = os.path.join(self.rootdir,'target-non-existing')
         self.assertTrue(
             filesystem.create_folder(target_folder),
-            "A non-existing target folder could not be created")
+            'A non-existing target folder could not be created')
         self.assertTrue(
             os.path.exists(target_folder),
-            "A non-existing target folder was not created \
-            but method returned True"
+            'A non-existing target folder was not created \
+            but method returned True'
         )
 
     def test_crete_folder_existing(self):
-        """ Ensure that an existing folder is detected """
+        """Ensure that an existing folder is detected."""
         self.assertTrue(
             filesystem.create_folder(self.rootdir),
-            "A pre-existing target folder was not detected")
+            'A pre-existing target folder was not detected')
 
     def test_crete_folder_parent_non_existing(self):
-        """ Ensure that a non-existing parent folder is created """
+        """Ensure that a non-existing parent folder is created."""
         target_folder = os.path.join(
             self.rootdir,
-            "parent-non-existing",
-            "target-non-existing")
+            'parent-non-existing',
+            'target-non-existing')
         self.assertTrue(
             filesystem.create_folder(target_folder),
-            "A non-existing parent and target folder could not be created")
+            'A non-existing parent and target folder could not be created')
         self.assertTrue(
             os.path.exists(target_folder),
-            "A non-existing parent folder was not created \
-            but method returned True"
+            'A non-existing parent folder was not created \
+            but method returned True'
         )
 
     def test_crete_folder_exception(self):
-        """ Ensure that create_folder handles thrown exceptions gracefully """
+        """Ensure that create_folder handles thrown exceptions gracefully."""
         with mock.patch.object(filesystem.os, 'makedirs', side_effect=OSError):
             self.assertFalse(
                 filesystem.create_folder(
-                    os.path.join(self.rootdir,"target-non-existing")),
-                "A raised exception was not handled properly")
+                    os.path.join(self.rootdir,'target-non-existing')),
+                'A raised exception was not handled properly')
 
     def test_chdir(self):
-        """ Ensure start dir and end dir are the same """
+        """Ensure start dir and end dir are the same."""
         initial_dir = os.getcwd()
         filesystem.chdir(self.rootdir)
         final_dir = os.getcwd()
         self.assertEqual(initial_dir, final_dir)
 
+    def test_touch(self):
+        """Make empty file."""
+        new_file = os.path.join(self.rootdir, 'empty')
+        filesystem.touch(new_file)
+        self.assertTrue(os.path.isfile(new_file))
+
+    def test_do_symlink(self):
+        """Make a symlink."""
+        src = os.path.join(self.rootdir, 'source_file')
+        open(src, 'w').close()
+        dst = os.path.join(self.rootdir, 'dest_file')
+        filesystem.do_symlink(src, dst)
+        self.assertTrue(os.path.islink(dst))
+
+    def test_do_copy(self):
+        """Copy files."""
+        src_dir = os.path.join(self.rootdir, 'source_dir')
+        src = os.path.join(src_dir, 'source_file')
+        os.mkdir(src_dir)
+        open(src, 'w').close()
+        dst_dir = os.path.join(self.rootdir, 'dest_dir')
+        filesystem.do_copy(src_dir, dst_dir)
+        self.assertTrue(os.path.isfile(os.path.join(dst_dir, 'source_file')))
 
 class TestTransferAgent(unittest.TestCase):
     """Test class for the TransferAgent class."""
