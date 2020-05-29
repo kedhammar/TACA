@@ -554,8 +554,8 @@ class TestRsyncAgent(unittest.TestCase):
 
 class TestConfig(unittest.TestCase):
 
-    def test_load_yaml_config_pass(self):
-        """ Load a yaml config file """
+    def test_load_yaml_config(self):
+        """Load a yaml config file"""
         got_config_data = config.load_yaml_config('data/taca_test_cfg_minimal.yaml')
         expexted_config_data = {'statusdb':
                                 {'url': 'url',
@@ -568,6 +568,19 @@ class TestConfig(unittest.TestCase):
         with self.assertRaises(IOError):
             missing_config_data = config.load_yaml_config('data/missing_file.yaml)')
 
+    def test_load_config(self):
+        """Load a config file."""
+        got_config_data = config.load_config('data/taca_test_cfg_minimal.yaml')
+        expexted_config_data = {'statusdb':
+                                {'url': 'url',
+                                 'username': 'username',
+                                 'password': 'pwd',
+                                 'port': 'port'},
+                                'log':
+                                {'file': 'data/taca.log'}}
+        self.assertItemsEqual(expexted_config_data, got_config_data)
+        with self.assertRaises(IOError):
+            missing_config_data = config.load_config('data/missing_file.yaml)')
 
 class TestBioinfoTab(unittest.TestCase):
     """Test class for bioinfo_tab."""
