@@ -64,8 +64,10 @@ class TestMisc(unittest.TestCase):
         """ Call external command """
         new_file = os.path.join(self.rootdir, "test_call_external")
         command = "touch " + new_file
-        misc.call_external_command(command)
+        log_dir = os.path.join(self.rootdir, 'log_tests')
+        misc.call_external_command(command, with_log_files=True, prefix='test', log_dir=log_dir)
         assert os.path.isfile(new_file)
+        assert os.path.isfile(os.path.join(self.rootdir, 'log_tests', 'test_touch.out'))
 
     def test_call_external_command_fail(self):
         """ Call external command should handle error """
@@ -75,11 +77,17 @@ class TestMisc(unittest.TestCase):
 
     def test_call_external_command_detached(self):
         """ Call external command detached"""
-        new_file = os.path.join(self.rootdir, "test_call_external")
+        new_file = os.path.join(self.rootdir, "test_call_external_det")
         command = "touch " + new_file
-        misc.call_external_command_detached(command)
+        misc.call_external_command_detached(command, with_log_files=True, prefix='test_det')
         time.sleep(0.1)
-        assert os.path.isfile(new_file)
+        self.assertTrue(os.path.isfile(new_file))
+        self.assertTrue(os.path.isfile('test_det_touch.out'))
+        try:
+            os.remove('test_det_touch.out')
+            os.remove('test_det_touch.err')
+        except:
+            pass
 
     def test_to_seconds(self):
         """ Transform days and hours to seconds """
@@ -109,6 +117,17 @@ class TestMisc(unittest.TestCase):
         expected_list = ['a', 'b', 'c']
         self.assertEqual(returned_list, expected_list)
 
+    @mock.patch('taca.utils.misc.couchdb.Server')
+    def test_run_is_demuxed(self, mock_couch):
+        """Check in StatusDB if run was demultiplexed."""
+        run = '200201_A00621_0032_BHHFCFDSXX'
+        couch_info = {'url': 'url',
+                      'username': 'username',
+                      'password': 'pwd',
+                      'port': '1234',
+                      'db': 'db'}
+        is_demultiplexed = misc.run_is_demuxed(run, couch_info=couch_info)
+        #TODO: should add a check here but not sure how to mock this properly
 
 class TestFilesystem(unittest.TestCase):
     """Test class for the filesystem functions."""
