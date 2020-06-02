@@ -1,4 +1,4 @@
-""" Unit tests for the utils helper functions """
+"""Unit tests for the utils helper functions."""
 
 import hashlib
 import mock
@@ -14,14 +14,14 @@ from taca.utils import misc, filesystem, transfer, config, bioinfo_tab
 
 
 class TestMisc(unittest.TestCase):
-    """ Test class for the misc functions """
+    """Test class for the misc functions."""
 
     @classmethod
     def setUpClass(self):
-        self.rootdir = tempfile.mkdtemp(prefix="test_taca_misc")
-        self.hashfile = os.path.join(self.rootdir,'test_hashfile')
-        with open(self.hashfile,'w') as fh:
-            fh.write("This is some contents\n")
+        self.rootdir = tempfile.mkdtemp(prefix='test_taca_misc')
+        self.hashfile = os.path.join(self.rootdir, 'test_hashfile')
+        with open(self.hashfile, 'w') as fh:
+            fh.write('This is some contents\n')
         self.hashfile_digests = {
             'SHA256':
                 '4f075ae76b480bb0200dab01cd304f4045e04cd2b73e88b89549e5ac1627f222',
@@ -36,49 +36,48 @@ class TestMisc(unittest.TestCase):
 
     # Test generator for different hashing algorithms
     def test_hashfile(self):
-        for alg,obj in self.hashfile_digests.items():
+        for alg, obj in self.hashfile_digests.items():
             yield self.check_hash, alg, obj
 
     def test_hashfile_dir(self):
-        """Hash digest for a directory should be None"""
+        """Hash digest for a directory should be None."""
         assert misc.hashfile(self.rootdir) is None
 
     def test_multiple_hashfile_calls(self):
-        """ Ensure that the hasher object is cleared between subsequent calls
-        """
-        assert misc.hashfile(self.hashfile,hasher='sha1') == misc.hashfile(self.hashfile,'sha1')
+        """Ensure that the hasher object is cleared between subsequent calls."""
+        assert misc.hashfile(self.hashfile, hasher='sha1') == misc.hashfile(self.hashfile, 'sha1')
 
     def check_hash(self, alg, exp):
-        assert misc.hashfile(self.hashfile,hasher=alg) == exp
+        assert misc.hashfile(self.hashfile, hasher=alg) == exp
 
     @mock.patch('taca.utils.misc.smtplib.SMTP')
     def test_send_mail(self, mock_smtplib):
-        """ Test send email """
+        """Test send email."""
         mock_smtplib.sendmail()
         mock_smtplib.quit()
-        assert misc.send_mail("subject", "content", "receiver") is None
+        assert misc.send_mail('subject', 'content', 'receiver') is None
         with self.assertRaises(SystemExit):
-            misc.send_mail("subject", "content", None)
+            misc.send_mail('subject', 'content', None)
 
     def test_call_external_command_pass(self):
-        """ Call external command """
-        new_file = os.path.join(self.rootdir, "test_call_external")
-        command = "touch " + new_file
+        """Call external command."""
+        new_file = os.path.join(self.rootdir, 'test_call_external')
+        command = 'touch ' + new_file
         log_dir = os.path.join(self.rootdir, 'log_tests')
         misc.call_external_command(command, with_log_files=True, prefix='test', log_dir=log_dir)
         assert os.path.isfile(new_file)
         assert os.path.isfile(os.path.join(self.rootdir, 'log_tests', 'test_touch.out'))
 
     def test_call_external_command_fail(self):
-        """ Call external command should handle error """
-        command = "ls -E"
+        """Call external command should handle error."""
+        command = 'ls -E'
         with self.assertRaises(subprocess.CalledProcessError):
             misc.call_external_command(command)
 
     def test_call_external_command_detached(self):
-        """ Call external command detached"""
-        new_file = os.path.join(self.rootdir, "test_call_external_det")
-        command = "touch " + new_file
+        """Call external command detached."""
+        new_file = os.path.join(self.rootdir, 'test_call_external_det')
+        command = 'touch ' + new_file
         misc.call_external_command_detached(command, with_log_files=True, prefix='test_det')
         time.sleep(0.1)
         self.assertTrue(os.path.isfile(new_file))
@@ -90,7 +89,7 @@ class TestMisc(unittest.TestCase):
             pass
 
     def test_to_seconds(self):
-        """ Transform days and hours to seconds """
+        """Transform days and hours to seconds."""
         with self.assertRaises(SystemExit):
             misc.to_seconds(days=1, hours=1)
         with self.assertRaises(SystemExit):
@@ -100,18 +99,18 @@ class TestMisc(unittest.TestCase):
 
     @mock.patch('taca.utils.misc.raw_input', return_value='yes')
     def test_query_yes_no_true(self, mock_raw_input):
-        """Return True from answer yes """
-        response = misc.query_yes_no("Some question")
+        """Return True from answer yes."""
+        response = misc.query_yes_no('Some question')
         self.assertTrue(response)
 
     @mock.patch('taca.utils.misc.raw_input', return_value='no')
     def test_query_yes_no_false(self, mock_raw_input):
-        """Return False from answer no """
-        response = misc.query_yes_no("Some question")
+        """Return False from answer no."""
+        response = misc.query_yes_no('Some question')
         self.assertFalse(response)
 
     def test_return_unique(self):
-        """ Return unique items in a list """
+        """Return unique items in a list."""
         input_list = ['a', 'b', 'a', 'c']
         returned_list = misc.return_unique(input_list)
         expected_list = ['a', 'b', 'c']

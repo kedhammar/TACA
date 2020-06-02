@@ -14,49 +14,48 @@ logger = logging.getLogger(__name__)
 
 def setupServer(conf):
     db_conf = conf['statusdb']
-    url="http://{0}:{1}@{2}:{3}".format(db_conf['username'], db_conf['password'], db_conf['url'], db_conf['port'])
+    url='http://{0}:{1}@{2}:{3}'.format(db_conf['username'], db_conf['password'], db_conf['url'], db_conf['port'])
     return couchdb.Server(url)
 
-"""Constructor for a search tree
-"""
+
 class Tree(defaultdict):
+    """Constructor for a search tree."""
     def __init__(self, value=None):
         super(Tree, self).__init__(Tree)
         self.value = value
 
-"""Update command
-"""
+
 def collect_runs():
+    """Update command."""
     found_runs=[]
     #Pattern explained:
     #Digits_(maybe ST-)AnythingLetterornumberNumber_Number_AorbLetterornumberordash
-    rundir_re = re.compile("\d{6}_[ST-]*\w+\d+_\d+_[AB]?[A-Z0-9\-]+")
+    rundir_re = re.compile('\d{6}_[ST-]*\w+\d+_\d+_[AB]?[A-Z0-9\-]+')
     for data_dir in CONFIG['bioinfo_tab']['data_dirs']:
         if os.path.exists(data_dir):
-            potential_run_dirs=glob.glob(os.path.join(data_dir, '*'))
+            potential_run_dirs = glob.glob(os.path.join(data_dir, '*'))
             for run_dir in potential_run_dirs:
                 if rundir_re.match(os.path.basename(os.path.abspath(run_dir))) and os.path.isdir(run_dir):
                     found_runs.append(os.path.basename(run_dir))
-                    logger.info("Working on {}".format(run_dir))
+                    logger.info('Working on {}'.format(run_dir))
                     #updates run status
                     update_statusdb(run_dir)
-        nosync_data_dir = os.path.join(data_dir, "nosync")
-        potential_nosync_run_dirs=glob.glob(os.path.join(nosync_data_dir, '*'))
+        nosync_data_dir = os.path.join(data_dir, 'nosync')
+        potential_nosync_run_dirs = glob.glob(os.path.join(nosync_data_dir, '*'))
         #wades through nosync directories
         for run_dir in potential_nosync_run_dirs:
             if rundir_re.match(os.path.basename(os.path.abspath(run_dir))) and os.path.isdir(run_dir):
                 #update the run status
                 update_statusdb(run_dir)
 
-""" Gets status for a project
-"""
 def update_statusdb(run_dir):
+    """Gets status for a project."""
     #fetch individual fields
-    project_info=get_ss_projects(run_dir)
+    project_info = get_ss_projects(run_dir)
     run_id = os.path.basename(os.path.abspath(run_dir))
-    couch=setupServer(CONFIG)
-    valueskey=datetime.datetime.now().isoformat()
-    db=couch['bioinfo_analysis']
+    couch = setupServer(CONFIG)
+    valueskey = datetime.datetime.now().isoformat()
+    db = couch['bioinfo_analysis']
     view = db.view('latest_data/sample_id')
     #Construction and sending of individual records, if samplesheet is incorrectly formatted the loop is skipped
     if not project_info == []:
@@ -66,7 +65,7 @@ def update_statusdb(run_dir):
                     for project in project_info[flowcell][lane][sample]:
                         project_info[flowcell][lane][sample].value = get_status(run_dir)
                         sample_status = project_info[flowcell][lane][sample].value
-                        obj={'run_id':run_id, 'project_id':project, 'flowcell': flowcell, 'lane': lane,
+                        obj = {'run_id':run_id, 'project_id':project, 'flowcell': flowcell, 'lane': lane,
                              'sample':sample, 'status':sample_status, 'values':{valueskey:{'user':'taca','sample_status':sample_status}} }
                         #If entry exists, append to existing
                         #Special if case to handle lanes written as int, can be safely removed when old lanes
@@ -83,24 +82,24 @@ def update_statusdb(run_dir):
                                 #Appends old entry to new. Essentially merges the two
                                 for k, v in remote_doc.items():
                                     obj['values'][k] = v
-                                logger.info("Updating {} {} {} {} {} as {}".format(run_id, project,
+                                logger.info('Updating {} {} {} {} {} as {}'.format(run_id, project,
                                 flowcell, lane, sample, sample_status))
                                 #Sorts timestamps
-                                obj['values'] = OrderedDict(sorted(obj['values'].iteritems(),key=lambda (k,v): k,reverse=True))
+                                obj['values'] = OrderedDict(sorted(obj['values'].iteritems(), key=lambda (k,v): k, reverse=True))
                                 #Update record cluster
                                 obj['_rev'] = db[remote_id].rev
                                 obj['_id'] = remote_id
                                 db.save(obj)
                         #Creates new entry
                         else:
-                            logger.info("Creating {} {} {} {} {} as {}".format(run_id, project,
+                            logger.info('Creating {} {} {} {} {} as {}'.format(run_id, project,
                             flowcell, lane, sample, sample_status))
                             #creates record
                             db.save(obj)
                         #Sets FC error flag
                         if not project_info[flowcell].value == None:
-                            if (("Failed" in project_info[flowcell].value and "Failed" not in sample_status)
-                             or ("Failed" in sample_status and "Failed" not in project_info[flowcell].value)):
+                            if (('Failed' in project_info[flowcell].value and 'Failed' not in sample_status)
+                             or ('Failed' in sample_status and 'Failed' not in project_info[flowcell].value)):
                                 project_info[flowcell].value = 'Ambiguous'
                             else:
                                 project_info[flowcell].value = sample_status
@@ -110,15 +109,14 @@ def update_statusdb(run_dir):
                 if 'Ambiguous' in project_info[flowcell].value:
                     error_emailer('failed_run', run_name)
 
-""" Gets status of a sample run, based on flowcell info (folder structure)
-"""
 def get_status(run_dir):
+    """Gets status of a sample run, based on flowcell info (folder structure)."""
     #default state, should never occur
     status = 'ERROR'
     run_name = os.path.basename(os.path.abspath(run_dir))
-    xten_dmux_folder=os.path.join(run_dir, 'Demultiplexing')
-    unaligned_folder=glob.glob(os.path.join(run_dir, 'Unaligned_*'))
-    nosync_pattern = re.compile("nosync")
+    xten_dmux_folder = os.path.join(run_dir, 'Demultiplexing')
+    unaligned_folder = glob.glob(os.path.join(run_dir, 'Unaligned_*'))
+    nosync_pattern = re.compile('nosync')
 
     #If we're in a nosync folder
     if nosync_pattern.search(run_dir):
@@ -131,34 +129,33 @@ def get_status(run_dir):
         status = 'Sequencing'
     return status
 
-"""Fetches project, FC, lane & sample (sample-run) status for a given folder
-"""
 def get_ss_projects(run_dir):
+    """Fetches project, FC, lane & sample (sample-run) status for a given folder."""
     proj_tree = Tree()
-    lane_pattern=re.compile("^([1-8]{1,2})$")
-    sample_proj_pattern=re.compile("^((P[0-9]{3,5})_[0-9]{3,5})")
+    lane_pattern = re.compile('^([1-8]{1,2})$')
+    sample_proj_pattern = re.compile('^((P[0-9]{3,5})_[0-9]{3,5})')
     run_name = os.path.basename(os.path.abspath(run_dir))
     current_year = '20' + run_name[0:2]
-    run_name_components = run_name.split("_")
+    run_name_components = run_name.split('_')
     FCID = run_name_components[3][1:]
     newData = False
     miseq = False
     # FIXME: this check breaks if the system is case insensitive
     if os.path.exists(os.path.join(run_dir, 'runParameters.xml')):
-        run_parameters_file = "runParameters.xml"
+        run_parameters_file = 'runParameters.xml'
     elif os.path.exists(os.path.join(run_dir, 'RunParameters.xml')):
-        run_parameters_file = "RunParameters.xml"
+        run_parameters_file = 'RunParameters.xml'
     else:
-        logger.error("Cannot find RunParameters.xml or runParameters.xml in the run folder for run {}".format(run_dir))
+        logger.error('Cannot find RunParameters.xml or runParameters.xml in the run folder for run {}'.format(run_dir))
         return []
     rp = RunParametersParser(os.path.join(run_dir, run_parameters_file))
     try:
-        runtype = rp.data['RunParameters']["Setup"]["Flowcell"]
+        runtype = rp.data['RunParameters']['Setup']['Flowcell']
     except KeyError:
-        logger.warn("Parsing runParameters to fetch instrument type, "
-                "not found Flowcell information in it. Using ApplicationName")
+        logger.warn('Parsing runParameters to fetch instrument type, '
+                    'not found Flowcell information in it. Using ApplicationName')
         try:
-            runtype = rp.data['RunParameters']["Setup"].get("ApplicationName", "")
+            runtype = rp.data['RunParameters']['Setup'].get('ApplicationName', '')
         except KeyError:
             logger.warn("Couldn't find 'Setup' or 'ApplicationName' could be Novaseq. Trying 'Application'")
             runtype = rp.data['RunParameters']['Application']
@@ -166,40 +163,40 @@ def get_ss_projects(run_dir):
 
 
     #Miseq case
-    if "MiSeq" in runtype:
-        if os.path.exists(os.path.join(run_dir,'Data','Intensities','BaseCalls', 'SampleSheet.csv')):
-            FCID_samplesheet_origin = os.path.join(run_dir,'Data','Intensities','BaseCalls', 'SampleSheet.csv')
-        elif os.path.exists(os.path.join(run_dir,'SampleSheet.csv')):
-            FCID_samplesheet_origin = os.path.join(run_dir,'SampleSheet.csv')
+    if 'MiSeq' in runtype:
+        if os.path.exists(os.path.join(run_dir, 'Data', 'Intensities', 'BaseCalls', 'SampleSheet.csv')):
+            FCID_samplesheet_origin = os.path.join(run_dir, 'Data', 'Intensities', 'BaseCalls', 'SampleSheet.csv')
+        elif os.path.exists(os.path.join(run_dir, 'SampleSheet.csv')):
+            FCID_samplesheet_origin = os.path.join(run_dir, 'SampleSheet.csv')
         else:
-            logger.warn("No samplesheet found for {}".format(run_dir))
+            logger.warn('No samplesheet found for {}'.format(run_dir))
         miseq = True
         lanes = str(1)
         #Pattern is a bit more rigid since we're no longer also checking for lanes
-        sample_proj_pattern=re.compile("^((P[0-9]{3,5})_[0-9]{3,5})$")
+        sample_proj_pattern=re.compile('^((P[0-9]{3,5})_[0-9]{3,5})$')
         data = parse_samplesheet(FCID_samplesheet_origin, run_dir, is_miseq=True)
     #HiSeq X case
-    elif "HiSeq X" in runtype:
+    elif 'HiSeq X' in runtype:
         FCID_samplesheet_origin = os.path.join(CONFIG['bioinfo_tab']['xten_samplesheets'],
                                     current_year, '{}.csv'.format(FCID))
         data = parse_samplesheet(FCID_samplesheet_origin, run_dir)
     #HiSeq 2500 case
-    elif "HiSeq" in runtype or "TruSeq" in runtype:
+    elif 'HiSeq' in runtype or 'TruSeq' in runtype:
         FCID_samplesheet_origin = os.path.join(CONFIG['bioinfo_tab']['hiseq_samplesheets'],
                                     current_year, '{}.csv'.format(FCID))
         data = parse_samplesheet(FCID_samplesheet_origin, run_dir)
     #NovaSeq 600 case
-    elif "NovaSeq" in runtype:
+    elif 'NovaSeq' in runtype:
         FCID_samplesheet_origin = os.path.join(CONFIG['bioinfo_tab']['novaseq_samplesheets'],
                                     current_year, '{}.csv'.format(FCID))
         data = parse_samplesheet(FCID_samplesheet_origin, run_dir)
     #NextSeq Case
-    elif "NextSeq" in runtype:
+    elif 'NextSeq' in runtype:
         FCID_samplesheet_origin = os.path.join(CONFIG['bioinfo_tab']['nextseq_samplesheets'],
                                     current_year, '{}.csv'.format(FCID))
         data = parse_samplesheet(FCID_samplesheet_origin, run_dir)
     else:
-        logger.warn("Cannot locate the samplesheet for run {}".format(run_dir))
+        logger.warn('Cannot locate the samplesheet for run {}'.format(run_dir))
         return []
 
     #If samplesheet is empty, dont bother going through it
@@ -230,34 +227,34 @@ def get_ss_projects(run_dir):
             lane = False
 
     if proj_tree.keys() == []:
-        logger.info("INCORRECTLY FORMATTED SAMPLESHEET, CHECK {}".format(run_name))
+        logger.info('INCORRECTLY FORMATTED SAMPLESHEET, CHECK {}'.format(run_name))
     return proj_tree
 
-"""Parses a samplesheet with SampleSheetParser
-   :param FCID_samplesheet_origin sample sheet path
-"""
 def parse_samplesheet(FCID_samplesheet_origin, run_dir, is_miseq=False):
+    """Parses a samplesheet with SampleSheetParser
+   :param FCID_samplesheet_origin sample sheet path
+    """
     data = []
     try:
-        ss_reader=SampleSheetParser(FCID_samplesheet_origin)
-        data=ss_reader.data
+        ss_reader = SampleSheetParser(FCID_samplesheet_origin)
+        data = ss_reader.data
     except:
-        logger.warn("Cannot initialize SampleSheetParser for {}. Most likely due to poor comma separation".format(run_dir))
+        logger.warn('Cannot initialize SampleSheetParser for {}. Most likely due to poor comma separation'.format(run_dir))
         return []
 
     if is_miseq:
         if not 'Description' in ss_reader.header or not \
         ('Production' in ss_reader.header['Description'] or 'Application' in ss_reader.header['Description']):
-            logger.warn("Run {} not labelled as production or application. Disregarding it.".format(run_dir))
+            logger.warn('Run {} not labelled as production or application. Disregarding it.'.format(run_dir))
             #skip this run
             return []
     return data
 
-"""Sends a custom error e-mail
+def error_emailer(flag, info):
+    """Sends a custom error e-mail
     :param flag e-mail state
     :param info variable that describes the record in some way
-"""
-def error_emailer(flag, info):
+    """
     recipients = CONFIG['mail']['recipients']
 
     #failed_run: Samplesheet for a given project couldn't be found
@@ -278,14 +275,13 @@ def error_emailer(flag, info):
     if hourNow == 7 or hourNow == 12 or hourNow == 16:
         send_mail(subject, body, recipients)
 
-
 def fail_run(runid, project):
-    """Updates status of specified run or project-run to Failed"""
+    """Updates status of specified run or project-run to Failed."""
     username = CONFIG.get('statusdb', {}).get('username')
     password = CONFIG.get('statusdb', {}).get('password')
     url = CONFIG.get('statusdb', {}).get('url')
     port = CONFIG.get('statusdb', {}).get('port')
-    status_db_url = "http://{username}:{password}@{url}:{port}".format(username=username, password=password, url=url, port=port)
+    status_db_url = 'http://{username}:{password}@{url}:{port}'.format(username=username, password=password, url=url, port=port)
     logger.info('Connecting to status db: {}:{}'.format(url, port))
     try:
         status_db = couchdb.Server(status_db_url)
@@ -316,4 +312,4 @@ def fail_run(runid, project):
             logger.error('Cannot update object project-sample-run-lane: {}-{}-{}-{}'.format(row.value.get('project_id'), row.value.get('sample'), row.value.get('run_id'), row.value.get('lane')))
             logger.error(e)
             raise e
-    logger.info("Successfully updated {} objects".format(updated))
+    logger.info('Successfully updated {} objects'.format(updated))
