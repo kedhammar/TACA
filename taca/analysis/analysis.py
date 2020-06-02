@@ -186,7 +186,7 @@ def transfer_runfolder(run_dir, pid):
 
     # Rsync the files to irma
     destination = CONFIG["analysis"]["deliver_runfolder"].get("destination")
-    rsync_opts = {"--no-o" : None, "--no-g" : None, "--chmod" : "g+rw"}
+    rsync_opts = {"-Lav": None, "--no-o" : None, "--no-g" : None, "--chmod" : "g+rw"}
     connection_details = CONFIG["analysis"]["deliver_runfolder"].get("analysis_server")
     archive_transfer = RsyncAgent(archive, dest_path=destination, remote_host=connection_details["host"], remote_user=connection_details["user"], validate=False, opts=rsync_opts)
     md5_transfer = RsyncAgent(md5file, dest_path=destination, remote_host=connection_details["host"], remote_user=connection_details["user"], validate=False, opts=rsync_opts)
@@ -305,7 +305,7 @@ def run_preprocessing(run, force_trasfer=True, statusdb=True):
                             .format(run.id,
                                     run.CONFIG['analysis_server']['host'],
                                     run.CONFIG['analysis_server']['sync']['data_archive']))
-                run.transfer_run(t_file,  False, mail_recipients) # Do not trigger analysis
+                run.transfer_run(t_file, mail_recipients)
 
 
             # Archive the run if indicated in the config file
