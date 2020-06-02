@@ -146,6 +146,6 @@ class TestAnalysis(unittest.TestCase):
         message = 'The run 141124_ST-COMPLETED1_01_AFCIDXX has been demultiplexed.\n                The Run will be transferred to Irma for further analysis.\n\n             \
    The run is available at : https://genomics-status.scilifelab.se/flowcells/141124_ST-COMPLETED1_01_AFCIDXX\n\n                '
         mock_send_mail.assert_called_once_with(message, rcp='some_user@some_email.com')
-        mock_transfer_run.assert_called_once_with('data/transfer.tsv', False, 'some_user@some_email.com')
+        mock_transfer_run.assert_called_once_with('data/transfer.tsv', 'some_user@some_email.com')
 
 

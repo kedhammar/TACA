@@ -305,7 +305,7 @@ def run_preprocessing(run, force_trasfer=True, statusdb=True):
                             .format(run.id,
                                     run.CONFIG['analysis_server']['host'],
                                     run.CONFIG['analysis_server']['sync']['data_archive']))
-                run.transfer_run(t_file,  False, mail_recipients) # Do not trigger analysis
+                run.transfer_run(t_file, mail_recipients)
 
 
             # Archive the run if indicated in the config file
