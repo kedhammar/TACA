@@ -87,6 +87,36 @@ analysis:
                 data_archive:
                 include:
                     - "*.file"
+    NextSeq:
+        samplesheets_dir: "data"
+        bcl2fastq:
+            bin: path_to_bcl_to_fastq
+            index_path: "data/test_10X_indexes"
+            options:
+                - output-dir: Demultiplexing
+        analysis_server:
+            host:
+            port:
+            user:
+            sync:
+                data_archive:
+                include:
+                    - "*.file"
+    NovaSeq:
+        samplesheets_dir: "data"
+        bcl2fastq:
+            bin: path_to_bcl_to_fastq
+            index_path: "data/test_10X_indexes"
+            options:
+                - output-dir: Demultiplexing
+        analysis_server:
+            host:
+            port:
+            user:
+            sync:
+                data_archive:
+                include:
+                    - "*.file"
     DummySeq:
       samplesheets_dir: "data"
 

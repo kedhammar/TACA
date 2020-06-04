@@ -48,10 +48,42 @@ class TestAnalysis(unittest.TestCase):
     def tearDownClass(self):
         shutil.rmtree(self.tmp_dir)
 
-    def test_get_runObj(self):
-        """ Return appropriate run object """
+    def test_get_runObj_hiseq(self):
+        """Return HiSeq run object."""
+        hiseq_run = os.path.join(self.tmp_dir, '141124_ST-HISEQ1_01_AFCIDXX')
+        os.mkdir(hiseq_run)
+        shutil.copy('data/runParameters_hiseq.xml', os.path.join(hiseq_run, 'runParameters.xml'))
+        got_hiseq_run = an.get_runObj(hiseq_run)
+        self.assertEqual(got_hiseq_run.sequencer_type, "HiSeq")
+
+    def test_get_runObj_hiseqx(self):
+        """ Return HiSeqX run object """
         got_run = an.get_runObj(self.completed)
         self.assertEqual(got_run.sequencer_type, "HiSeqX")
+
+    def test_get_runObj_miseq(self):
+        """Return MiSeq run object."""
+        miseq_run = os.path.join(self.tmp_dir, '141124_ST-MISEQ1_01_AFCIDXX')
+        os.mkdir(miseq_run)
+        shutil.copy('data/runParameters_miseq.xml', os.path.join(miseq_run, 'runParameters.xml'))
+        got_miseq_run = an.get_runObj(miseq_run)
+        self.assertEqual(got_miseq_run.sequencer_type, "MiSeq")
+
+    def test_get_runObj_nextseq(self):
+        """Return NextSeq run object."""
+        nextseq_run = os.path.join(self.tmp_dir, '141124_ST-NEXTSEQ1_01_AFCIDXX')
+        os.mkdir(nextseq_run)
+        shutil.copy('data/runParameters_nextseq.xml', os.path.join(nextseq_run, 'runParameters.xml'))
+        got_nextseq_run = an.get_runObj(nextseq_run)
+        self.assertEqual(got_nextseq_run.sequencer_type, "NextSeq")
+
+    def test_get_runObj_novaseq(self):
+        """Return NovaSeq run object."""
+        novaseq_run = os.path.join(self.tmp_dir, '141124_ST-NOVASEQ1_01_AFCIDXX')
+        os.mkdir(novaseq_run)
+        shutil.copy('data/runParameters_novaseq.xml', os.path.join(novaseq_run, 'RunParameters.xml'))
+        got_novaseq_run = an.get_runObj(novaseq_run)
+        self.assertEqual(got_novaseq_run.sequencer_type, "NovaSeq")
 
     @mock.patch('taca.analysis.analysis.get_runObj')
     @mock.patch('taca.analysis.analysis._upload_to_statusdb')
@@ -63,15 +95,42 @@ class TestAnalysis(unittest.TestCase):
 
     @mock.patch('taca.analysis.analysis.fcpdb')
     def test__upload_to_statusdb(self, mock_fcpdb):
-        """ Upload to statusdb """
-        #os.makedirs(os.path.join(self.completed, 'Logs'))
-        #os.makedirs(os.path.join(self.completed, 'Demultiplexing/Reports/html/FCIDXX/all/all/all'))
-        #open(os.path.join(self.completed, 'Logs', 'CycleTimes.txt'), 'w').close()
-        #open(os.path.join(self.completed, 'Demultiplexing/Reports/html/FCIDXX/all/all/all', 'lane.html'), 'w').close()
-        #open(os.path.join(self.completed, 'Demultiplexing/Reports/html/FCIDXX/all/all/all', 'laneBarcode.html'), 'w').close()
-        run = an.get_runObj(self.completed)
-        an._upload_to_statusdb(run)
-        mock_fcpdb.update_doc.assert_called_once()
+        """Upload to statusdb."""
+        run = os.path.join(self.tmp_dir, '141124_ST-NOINDEX1_01_AFCIDYX')
+        os.mkdir(run)
+        shutil.copy('data/runParameters_minimal.xml', os.path.join(run, 'runParameters.xml'))
+        noindex_run = an.get_runObj(run)
+        an._upload_to_statusdb(noindex_run)
+        mock_fcpdb.update_doc.assert_called_once_with(mock_fcpdb.setupServer().__getitem__(), {'DemultiplexConfig':
+                          {'Setup': {'Software':
+                                     {'bin': 'path_to_bcl_to_fastq',
+                                      'options_10X': 'a',
+                                      'index_path': 'data/test_10X_indexes',
+                                      'options': [{'output-dir': 'Demultiplexing'}, {'opt': 'b'}, 'c']}}},
+                          'name': '141124_AFCIDYX',
+                          'RunParameters': {'Setup':
+                                            {'Flowcell': 'HiSeq X HD v2',
+                                             'ExperimentName': 'H2WY7CCXX'},
+                                            'Version': '1'},
+                          'samplesheet_csv': [{'SampleWell': '1:1',
+                                               'index': '',
+                                               'Lane': '1',
+                                               'SamplePlate': 'CIDXX',
+                                               'SampleName': 'P10000_1001',
+                                               'SampleID': 'Sample_P10000_1001',
+                                               'Project': 'A_Test_18_01',
+                                               'index2': '', 'Description': ''},
+                                              {'SampleWell': '2:1',
+                                               'index': '',
+                                               'Lane': '2',
+                                               'SamplePlate': 'CIDXX',
+                                               'SampleName': 'P10000_1005',
+                                               'SampleID': 'Sample_P10000_1005',
+                                               'Project': 'A_Test_18_01',
+                                               'index2': '',
+                                               'Description': ''}]},
+                         over_write_db_entry=True)
+
 
     @mock.patch('taca.analysis.analysis.HiSeqX_Run.transfer_run')
     def test_transfer_run(self, mock_transfer_run):
