@@ -16,12 +16,18 @@ statusdb:
 
 analysis:
     status_dir: data/
+    data_dir: data/test_data/
     deliver_runfolder:
       analysis_server:
         host: b5.biotech.kth.se
         port:
         user: sara.sjunnebo
       destination: test
+    mfs_path:
+      hiseq: data/
+      miseq: data/
+      hiseqx: data/
+      novaseq: data/
     HiSeqX:
         QC:
             max_percentage_undetermined_indexes_pooled_lane: 5

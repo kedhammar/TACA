@@ -99,38 +99,16 @@ class TestAnalysis(unittest.TestCase):
         run = os.path.join(self.tmp_dir, '141124_ST-NOINDEX1_01_AFCIDYX')
         os.mkdir(run)
         shutil.copy('data/runParameters_minimal.xml', os.path.join(run, 'runParameters.xml'))
+        demux_dir = os.path.join(run, 'Demultiplexing', 'Stats')
+        os.makedirs(demux_dir)
+        shutil.copy('data/DemuxSummaryF1L1.txt', demux_dir)
+        reports_dir = os.path.join(run, 'Demultiplexing', 'Reports', 'html', 'FCIDYX', 'all', 'all', 'all')
+        os.makedirs(reports_dir)
+        shutil.copy('data/laneBarcode.html', (reports_dir))
+        shutil.copy('data/lane.html', (reports_dir))
         noindex_run = an.get_runObj(run)
         an._upload_to_statusdb(noindex_run)
-        mock_fcpdb.update_doc.assert_called_once_with(mock_fcpdb.setupServer().__getitem__(), {'DemultiplexConfig':
-                          {'Setup': {'Software':
-                                     {'bin': 'path_to_bcl_to_fastq',
-                                      'options_10X': 'a',
-                                      'index_path': 'data/test_10X_indexes',
-                                      'options': [{'output-dir': 'Demultiplexing'}, {'opt': 'b'}, 'c']}}},
-                          'name': '141124_AFCIDYX',
-                          'RunParameters': {'Setup':
-                                            {'Flowcell': 'HiSeq X HD v2',
-                                             'ExperimentName': 'H2WY7CCXX'},
-                                            'Version': '1'},
-                          'samplesheet_csv': [{'SampleWell': '1:1',
-                                               'index': '',
-                                               'Lane': '1',
-                                               'SamplePlate': 'CIDXX',
-                                               'SampleName': 'P10000_1001',
-                                               'SampleID': 'Sample_P10000_1001',
-                                               'Project': 'A_Test_18_01',
-                                               'index2': '', 'Description': ''},
-                                              {'SampleWell': '2:1',
-                                               'index': '',
-                                               'Lane': '2',
-                                               'SamplePlate': 'CIDXX',
-                                               'SampleName': 'P10000_1005',
-                                               'SampleID': 'Sample_P10000_1005',
-                                               'Project': 'A_Test_18_01',
-                                               'index2': '',
-                                               'Description': ''}]},
-                         over_write_db_entry=True)
-
+        mock_fcpdb.update_doc.assert_called_once()
 
     @mock.patch('taca.analysis.analysis.HiSeqX_Run.transfer_run')
     def test_transfer_run(self, mock_transfer_run):
@@ -196,7 +174,9 @@ class TestAnalysis(unittest.TestCase):
     @mock.patch('taca.analysis.analysis._upload_to_statusdb')
     @mock.patch('taca.analysis.analysis.HiSeqX_Run.send_mail')
     @mock.patch('taca.analysis.analysis.HiSeqX_Run.transfer_run')
-    def test_run_preprocessing_completed(self, mock_transfer_run, mock_send_mail, mock_upload_to_statusdb, mock_get_run_status):
+    @mock.patch('taca.analysis.analysis.os.mkdir')
+    @mock.patch('taca.analysis.analysis.copyfile')
+    def test_run_preprocessing_completed(self, mock_copy,  mock_mkdir, mock_transfer_run, mock_send_mail, mock_upload_to_statusdb, mock_get_run_status):
         """ Run preprocessing demux completed """
         run = self.completed
         mock_get_run_status.return_value = 'COMPLETED'
@@ -206,5 +186,3 @@ class TestAnalysis(unittest.TestCase):
    The run is available at : https://genomics-status.scilifelab.se/flowcells/141124_ST-COMPLETED1_01_AFCIDXX\n\n                '
         mock_send_mail.assert_called_once_with(message, rcp='some_user@some_email.com')
         mock_transfer_run.assert_called_once_with('data/transfer.tsv', 'some_user@some_email.com')
-
-
