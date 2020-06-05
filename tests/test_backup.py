@@ -1,11 +1,7 @@
 #!/usr/bin/env python
 
-#import os
-#import shutil
-#import tempfile
 import unittest
 import mock
-#from datetime import datetime
 
 from taca.backup import backup
 from taca.utils import config as conf
@@ -33,7 +29,7 @@ class TestBackupUtils(unittest.TestCase):
         """ Get backup info from config """
         config_info = backup.backup_utils('data/nas/miseq.lab/190201_A00621_0032_BHHFCFDSXX')
         self.assertEqual(config_info.data_dirs, {'miseq': 'data/nas/miseq.lab'})
-        self.assertEqual(config_info.archive_dirs, {'miseq': 'data/nas/miseq.lab/nosync'})
+        self.assertEqual(config_info.archive_dirs, {'hiseq': 'blah', 'miseq': 'data/nas/miseq.lab/nosync'})
         self.assertEqual(config_info.keys_path, 'data/nas/run_keys')
         self.assertEqual(config_info.gpg_receiver, 'some.user')
         self.assertEqual(config_info.mail_recipients, 'some_user@some_email.com')
@@ -43,9 +39,21 @@ class TestBackupUtils(unittest.TestCase):
     def test_collect_runs(self):
         """ Get backup runs from archive directories """
         backup_object = backup.backup_utils()
-        backup_object.collect_runs(ext=".tar.gz")
+        backup_object.collect_runs(ext=".tar.gz", filter_by_ext=True)
+        #import pdb; pdb.set_trace()
         run = backup_object.runs[0].name
         self.assertEqual(run, '200201_A00621_0032_BHHFCFDSXX')
+
+    def test_collect_runs_specific_run(self):
+        """Collect only specific run."""
+        backup_object = backup.backup_utils(run='data/nas/miseq.lab/nosync/200201_A00621_0032_BHHFCFDSXX')
+        backup_object.collect_runs()
+        run = backup_object.runs[0].name
+        self.assertEqual(run, '200201_A00621_0032_BHHFCFDSXX')
+
+        missing_object = backup.backup_utils(run='some/missing/path/run')
+        with self.assertRaises(SystemExit):
+            missing_object.collect_runs()
 
     @mock.patch('taca.backup.backup.sp.Popen.communicate')
     @mock.patch('taca.backup.backup.misc')
@@ -57,7 +65,6 @@ class TestBackupUtils(unittest.TestCase):
         run = '190201_A00621_0032_BHHFCFDSXX'
         with self.assertRaises(SystemExit):
             backup_object.avail_disk_space(path, run)
-            mock_misc.assert_called_once()
 
     @mock.patch('taca.backup.backup.sp.check_call')
     def test_file_in_pdc(self, mock_call):
