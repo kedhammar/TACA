@@ -13,10 +13,10 @@ CONFIG = conf.load_yaml_config('data/taca_test_cfg_backup.yaml')
 
 
 class TestRunVars(unittest.TestCase):
-    """ Tests for TACA Backup variables class """
+    """Tests for TACA Backup variables class."""
 
     def test_backup_variables(self):
-        """ Set up backup variables """
+        """Set up backup variables."""
         run_variables = backup.run_vars('data/nas/miseq.lab/190201_A00621_0032_BHHFCFDSXX')
         self.assertEqual(run_variables.name, '190201_A00621_0032_BHHFCFDSXX')
         self.assertEqual(run_variables.zip, '190201_A00621_0032_BHHFCFDSXX.tar.gz')
@@ -26,10 +26,10 @@ class TestRunVars(unittest.TestCase):
 
 
 class TestBackupUtils(unittest.TestCase):
-    """ Tests for TACA Backup utils class """
+    """Tests for TACA Backup utils class."""
 
     def test_fetch_config_info(self):
-        """ Get backup info from config """
+        """Get backup info from config."""
         config_info = backup.backup_utils('data/nas/miseq.lab/190201_A00621_0032_BHHFCFDSXX')
         self.assertEqual(config_info.data_dirs, {'miseq': 'data/nas/miseq.lab'})
         self.assertEqual(config_info.archive_dirs, {'hiseq': 'blah', 'miseq': 'data/nas/miseq.lab/nosync'})
@@ -40,9 +40,9 @@ class TestBackupUtils(unittest.TestCase):
         self.assertEqual(config_info.couch_info, {'url': 'url', 'username': 'username', 'password': 'pwd', 'port': 1234, 'xten_db': 'x_flowcells'})
 
     def test_collect_runs(self):
-        """ Get backup runs from archive directories """
+        """Get backup runs from archive directories."""
         backup_object = backup.backup_utils()
-        backup_object.collect_runs(ext=".tar.gz", filter_by_ext=True)
+        backup_object.collect_runs(ext='.tar.gz', filter_by_ext=True)
         run = backup_object.runs[0].name
         self.assertEqual(run, '200201_A00621_0032_BHHFCFDSXY')
 
@@ -60,9 +60,9 @@ class TestBackupUtils(unittest.TestCase):
     @mock.patch('taca.backup.backup.sp.Popen.communicate')
     @mock.patch('taca.backup.backup.misc')
     def test_avail_disk_space(self, mock_misc, mock_sp):
-        """ Check backup disk space """
+        """Check backup disk space."""
         backup_object = backup.backup_utils()
-        mock_sp.return_value = ["Filesystem   512-blocks      Used Available Capacity iused      ifree %iused  Mounted on\n/dev/disk1s1  976490576 100 813074776    15% 1086272 4881366608    0%   /System/Volumes/Data", None]
+        mock_sp.return_value = ['Filesystem   512-blocks      Used Available Capacity iused      ifree %iused  Mounted on\n/dev/disk1s1  976490576 100 813074776    15% 1086272 4881366608    0%   /System/Volumes/Data', None]
         path = 'data/nas/miseq.lab/190201_A00621_0032_BHHFCFDSXX'
         run = '190201_A00621_0032_BHHFCFDSXX'
         with self.assertRaises(SystemExit):
@@ -70,8 +70,8 @@ class TestBackupUtils(unittest.TestCase):
 
     @mock.patch('taca.backup.backup.sp.check_call')
     def test_file_in_pdc(self, mock_call):
-        """ Check if files exist in PDC """
-        mock_call.return_value = "Whatever"
+        """Check if files exist in PDC."""
+        mock_call.return_value = 'Whatever'
         backup_object = backup.backup_utils()
         src_file = 'data/nas/miseq.lab/190201_A00621_0032_BHHFCFDSXX/RTAComplete.txt'
         self.assertTrue(backup_object.file_in_pdc(src_file, silent=True))
@@ -93,7 +93,7 @@ class TestBackupUtils(unittest.TestCase):
     def test_call_commands(self):
         """Call expernal backup command."""
         backup_object = backup.backup_utils()
-        got_output = backup_object._call_commands(cmd1="ls data/nas/miseq.lab", mail_failed=False, return_out=True)
+        got_output = backup_object._call_commands(cmd1='ls data/nas/miseq.lab', mail_failed=False, return_out=True)
         expected_output = (True, '190201_A00621_0032_BHHFCFDSXX\nnosync\n')
         self.assertEqual(got_output, expected_output)
 
@@ -103,18 +103,18 @@ class TestBackupUtils(unittest.TestCase):
         tmp_dir = os.path.join(tempfile.mkdtemp(), 'tmp')
         tmp_file = os.path.join(tmp_dir, 'output.out')
         os.makedirs(tmp_dir)
-        cmd1 = "ls data/nas/miseq.lab"
-        cmd2 = "ls data/nas/miseq.lab"
+        cmd1 = 'ls data/nas/miseq.lab'
+        cmd2 = 'ls data/nas/miseq.lab'
         got_output = backup_object._call_commands(cmd1, cmd2, out_file=tmp_file, mail_failed=False)
         self.assertTrue(os.path.isfile(tmp_file))
         shutil.rmtree(tmp_dir)
 
     def test_check_status(self):
-        """ Check subprocess status """
+        """Check subprocess status."""
         backup_object = backup.backup_utils()
         cmd = 'ls'
         status_pass = 0
-        err_msg = "Error"
+        err_msg = 'Error'
         got_status_pass = backup_object._check_status(cmd, status_pass, err_msg, mail_failed=False)
         self.assertTrue(got_status_pass)
         status_fail = 1
@@ -123,7 +123,7 @@ class TestBackupUtils(unittest.TestCase):
 
     @mock.patch('taca.backup.backup.os.remove')
     def test_clean_tmp_files(self, mock_remove):
-        """Remove file if it exist"""
+        """Remove file if it exist."""
         backup_object = backup.backup_utils()
         files = ['data/nas/miseq.lab/190201_A00621_0032_BHHFCFDSXX/RTAComplete.txt', 'data/nas/miseq.lab/190201_A00621_0032_BHHFCFDSXX/missing_file.txt']
         backup_object._clean_tmp_files(files)
@@ -161,4 +161,3 @@ class TestBackupUtils(unittest.TestCase):
         run = 'data/nas/miseq.lab/nosync/190201_A00621_0032_BHHFCFDSXX'
         backup_object.pdc_put(run)
         mock_logger.assert_called_once()
-
