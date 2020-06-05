@@ -44,7 +44,7 @@ class TestBackupUtils(unittest.TestCase):
         backup_object = backup.backup_utils()
         backup_object.collect_runs(ext=".tar.gz", filter_by_ext=True)
         run = backup_object.runs[0].name
-        self.assertEqual(run, '200201_A00621_0032_BHHFCFDSXX')
+        self.assertEqual(run, '200201_A00621_0032_BHHFCFDSXY')
 
     def test_collect_runs_specific_run(self):
         """Collect only specific run."""
@@ -137,3 +137,28 @@ class TestBackupUtils(unittest.TestCase):
         run = '190201_A00621_0032_BHHFCFDSXX'
         backup_object._log_pdc_statusdb(run)
         mock_logger.warn.assert_called_once()
+
+    @mock.patch('taca.backup.backup.backup_utils._call_commands', return_value=True)
+    @mock.patch('taca.backup.backup.shutil')
+    @mock.patch('taca.backup.backup.backup_utils._clean_tmp_files')
+    @mock.patch('taca.backup.backup.backup_utils.avail_disk_space')
+    def test_encrypt_runs(self, mock_space, mock_clean, mock_shutil, mock_command):
+        """Encrypt found runs."""
+        backup_object = backup.backup_utils(run='data/nas/miseq.lab/nosync/200201_A00621_0032_BHHFCFDSXX')
+        run = 'data/nas/miseq.lab/nosync/190201_A00621_0032_BHHFCFDSXX'
+        force = True
+        backup_object.encrypt_runs(run, force)
+        mock_clean.assert_called_once()
+        try:
+            os.remove('data/nas/miseq.lab/nosync/190201_A00621_0032_BHHFCFDSXX.encrypting')
+        except:
+            pass
+
+    @mock.patch('taca.backup.backup.logger.error')
+    def test_pdc_put(self, mock_logger):
+        """Put runs on PDC."""
+        backup_object = backup.backup_utils(run='data/nas/miseq.lab/nosync/200201_A00621_0032_BHHFCFDSXX')
+        run = 'data/nas/miseq.lab/nosync/190201_A00621_0032_BHHFCFDSXX'
+        backup_object.pdc_put(run)
+        mock_logger.assert_called_once()
+
