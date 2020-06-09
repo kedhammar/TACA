@@ -26,14 +26,6 @@ from taca.utils import config as conf
 # call it explicitely
 CONFIG = conf.load_yaml_config('data/taca_test_cfg.yaml')
 
-def processing_status(run_dir):
-    demux_dir = os.path.join(run_dir, 'Demultiplexing')
-    if not os.path.exists(demux_dir):
-        return 'TO_START'
-    elif os.path.exists(os.path.join(demux_dir, 'Stats', 'Stats.json')):
-        return 'COMPLETED'
-    else:
-        return 'IN_PROGRESS'
 
 class TestRuns(unittest.TestCase):
     """Tests for the Run base class."""

@@ -34,10 +34,10 @@ class TestMisc(unittest.TestCase):
     def tearDownClass(self):
         shutil.rmtree(self.rootdir)
 
-    # Test generator for different hashing algorithms
     def test_hashfile(self):
+        """Test different hashing algorithms."""
         for alg, obj in self.hashfile_digests.items():
-            yield self.check_hash, alg, obj
+            self.assertEqual(misc.hashfile(self.hashfile, hasher=alg), obj)
 
     def test_hashfile_dir(self):
         """Hash digest for a directory should be None."""
@@ -46,9 +46,6 @@ class TestMisc(unittest.TestCase):
     def test_multiple_hashfile_calls(self):
         """Ensure that the hasher object is cleared between subsequent calls."""
         assert misc.hashfile(self.hashfile, hasher='sha1') == misc.hashfile(self.hashfile, 'sha1')
-
-    def check_hash(self, alg, exp):
-        assert misc.hashfile(self.hashfile, hasher=alg) == exp
 
     @mock.patch('taca.utils.misc.smtplib.SMTP')
     def test_send_mail(self, mock_smtplib):
@@ -82,11 +79,8 @@ class TestMisc(unittest.TestCase):
         time.sleep(0.1)
         self.assertTrue(os.path.isfile(new_file))
         self.assertTrue(os.path.isfile('test_det_touch.out'))
-        try:
-            os.remove('test_det_touch.out')
-            os.remove('test_det_touch.err')
-        except:
-            pass
+        os.remove('test_det_touch.out')
+        os.remove('test_det_touch.err')
 
     def test_to_seconds(self):
         """Transform days and hours to seconds."""
@@ -488,10 +482,7 @@ class TestRsyncAgent(unittest.TestCase):
 
     def test_rsync_validate_dest_path(self):
         """Destination path should be properly checked."""
-        try:
-            self.agent.validate_dest_path()
-        except transfer.TransferError as e:
-            self.fail('a proper path raised an exception: {}'.format(e))
+        self.agent.validate_dest_path()
         self.agent.remote_host = None
         self.agent.dest_path = None
         with self.assertRaises(transfer.TransferError):

@@ -149,10 +149,7 @@ class TestBackupUtils(unittest.TestCase):
         force = True
         backup_object.encrypt_runs(run, force)
         mock_clean.assert_called_once()
-        try:
-            os.remove('data/nas/miseq.lab/nosync/190201_A00621_0032_BHHFCFDSXX.encrypting')
-        except:
-            pass
+        os.remove('data/nas/miseq.lab/nosync/190201_A00621_0032_BHHFCFDSXX.encrypting')
 
     @mock.patch('taca.backup.backup.logger.error')
     def test_pdc_put(self, mock_logger):
