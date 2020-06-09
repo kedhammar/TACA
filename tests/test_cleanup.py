@@ -14,12 +14,12 @@ CONFIG = conf.load_yaml_config('data/taca_test_cfg_cleanup.yaml')
 
 
 class TestCleanup(unittest.TestCase):
-    """ Tests for TACA Cleanup module """
+    """Tests for TACA Cleanup module."""
 
     @mock.patch('taca.cleanup.cleanup.shutil.move')
     @mock.patch('taca.cleanup.cleanup.os.listdir')
     def test_cleanup_nas(self, mock_listdir, mock_move):
-        """ Locate and move old data on NAS """
+        """Locate and move old data on NAS."""
         seconds = 1
         run = '190201_A00621_0032_BHHFCFDSXX'
         mock_listdir.return_value = [run]
@@ -29,7 +29,7 @@ class TestCleanup(unittest.TestCase):
     @mock.patch('taca.cleanup.cleanup.shutil.rmtree')
     @mock.patch('taca.cleanup.cleanup.os.listdir')
     def test_cleanup_processing(self, mock_listdir, mock_rmtree):
-        """ Locate and move old data on preproc """
+        """Locate and move old data on preproc."""
         seconds = 1
         run = '190201_A00621_0032_BHHFCFDSXY'
         mock_listdir.return_value = [run]
@@ -65,7 +65,7 @@ class TestCleanup(unittest.TestCase):
         mock_touch.assert_has_calls(calls)
 
     def test_get_closed_proj_info(self):
-        """ Return a dict if project is closed """
+        """Return a dict if project is closed."""
         pid = 'P1234'
         pdoc = {'close_date': '2019-04-07',
                 'project_name': 'A.Name_19_01',
@@ -81,13 +81,14 @@ class TestCleanup(unittest.TestCase):
         self.assertItemsEqual(got_data, expected_data)
 
     def test_collect_analysis_data_irma(self):
+        """Get analysis data on Irma."""
         pid = 'P1234'
         analysis_root = 'data/test_data/analysis'
         file_list, size = cleanup.collect_analysis_data_irma(pid, analysis_root, files_ext_to_remove={})
         self.assertEqual(file_list, 'cleaned')
 
     def test_collect_fastq_data_irma(self):
-        """ Collect removed files """
+        """Collect removed files."""
         fc_root = 'data/test_data/190201_A00621_0032_BHHFCFDSXX'
         fc_proj_src = 'N.Owens_19_01'
         file_list, size = cleanup.collect_fastq_data_irma(fc_root, fc_proj_src)
@@ -100,7 +101,7 @@ class TestCleanup(unittest.TestCase):
         self.assertEqual(size, 0)
 
     def test_collect_files_by_ext(self):
-        """ Return found paths """
+        """Return found paths."""
         path = 'data/test_data'
         ext = ['*.txt']
         found_files = cleanup.collect_files_by_ext(path, ext)
@@ -109,7 +110,7 @@ class TestCleanup(unittest.TestCase):
         self.assertItemsEqual(found_files, expected_files)
 
     def test_get_proj_meta_info(self):
-        """ Get project metadata  """
+        """Get project metadata."""
         info = {'name': 'Nobody Owens',
                 'pid': 'P1234',
                 'bioinfo_responsible': 'O.B. One',
@@ -130,38 +131,38 @@ Estimated data size: ~2kb
         self.assertEqual(got_data, expected_data)
 
     def test_get_files_size_text(self):
-        """ Format file size string """
+        """Format file size string."""
         plist = {'P1': {'fastq_size': 1001, 'analysis_size': 1000000},
                  'P2': {'fastq_size': 1001, 'analysis_size': 1000000}}
         got_data = cleanup.get_files_size_text(plist)
-        expected_data = "(~~2kb fastq data and ~~2mb analysis data) "
+        expected_data = '(~~2kb fastq data and ~~2mb analysis data) '
         self.assertEqual(got_data, expected_data)
 
     def test_def_get_size_unit(self):
-        """ Convert size """
+        """Convert size."""
         #function broken if size < 1000
         size = 1001
-        self.assertEqual(cleanup._def_get_size_unit(size), "~1kb")
+        self.assertEqual(cleanup._def_get_size_unit(size), '~1kb')
         size *= 1000
-        self.assertEqual(cleanup._def_get_size_unit(size), "~1mb")
+        self.assertEqual(cleanup._def_get_size_unit(size), '~1mb')
         size *= 1000
-        self.assertEqual(cleanup._def_get_size_unit(size), "~1gb")
+        self.assertEqual(cleanup._def_get_size_unit(size), '~1gb')
         size *= 1000
-        self.assertEqual(cleanup._def_get_size_unit(size), "~1tb")
+        self.assertEqual(cleanup._def_get_size_unit(size), '~1tb')
 
     @mock.patch('taca.cleanup.cleanup.os.remove')
     def test_remove_files(self, mock_remove):
-        """ Remove files in given list """
+        """Remove files in given list."""
         files = ['file1', 'file2']
         cleanup._remove_files(files)
         calls = [mock.call('file1'), mock.call('file2')]
         mock_remove.assert_has_calls(calls)
 
     def test_touch_cleaned(self):
-        """ Create empty file in specified dir """
+        """Create empty file in specified dir."""
         tmp_dir = os.path.join(tempfile.mkdtemp(), 'tmp')
         os.makedirs(tmp_dir)
         cleanup._touch_cleaned(tmp_dir)
-        expected_file = os.path.join(tmp_dir, "cleaned")
+        expected_file = os.path.join(tmp_dir, 'cleaned')
         self.assertTrue(os.path.exists(expected_file))
         shutil.rmtree(tmp_dir)
