@@ -36,6 +36,34 @@ class TestCleanup(unittest.TestCase):
         cleanup.cleanup_processing(seconds)
         mock_rmtree.assert_called_once_with(run)
 
+    @mock.patch('taca.cleanup.cleanup.statusdb')
+    @mock.patch('taca.cleanup.cleanup.get_closed_proj_info')
+    @mock.patch('taca.cleanup.cleanup.misc.query_yes_no')
+    @mock.patch('taca.cleanup.cleanup._remove_files')
+    @mock.patch('taca.cleanup.cleanup._touch_cleaned')
+    def test_cleanup_irma(self, mock_touch, mock_rm, mock_query, mock_info,  mock_statusdb):
+        """Locate and move old data on Irma."""
+        mock_info.return_value = {'closed_date': '2019-04-07',
+                                  'bioinfo_responsible': 'O.B. One',
+                                  'pid': 'P1234',
+                                  'name': 'N.Owens_19_01',
+                                  'closed_days': 5}
+        mock_query.return_value = True
+        mock_rm.return_value = True
+        days_fastq = 1
+        days_analysis = 1
+        only_fastq = False
+        only_analysis = False
+        clean_undetermined = False
+        status_db_config = 'config'
+        exclude_projects = False
+        list_only = False
+        date = '2016-01-31'
+        calls = [mock.call('data/irma/incoming/190201_A00621_0032_BHHFCFDSXX/Demultiplexing/N.Owens_19_01'),
+                 mock.call('../../nobackup/NGI/ANALYSIS/P1234')]
+        cleanup.cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, clean_undetermined, status_db_config, exclude_projects, list_only, date, dry_run=False)
+        mock_touch.assert_has_calls(calls)
+
     def test_get_closed_proj_info(self):
         """ Return a dict if project is closed """
         pid = 'P1234'
