@@ -134,10 +134,9 @@ def _upload_to_statusdb(run):
         parser.obj['DemultiplexConfig'] = {'Setup': {'Software': run.CONFIG.get('bcl2fastq',{})}}
     fcpdb.update_doc( db , parser.obj, over_write_db_entry=True)
 
-def transfer_run(run_dir, analysis):
+def transfer_run(run_dir):
     """ Interface for click to force a transfer a run to uppmax
         :param: string run_dir: the run to tranfer
-        :param bool analysis: if trigger or not the analysis
     """
     runObj = get_runObj(run_dir)
     mail_recipients = CONFIG.get('mail', {}).get('recipients')
@@ -146,9 +145,7 @@ def transfer_run(run_dir, analysis):
         # Maybe throw an exception if possible?
         logger.error("Trying to force a transfer of run {} but the sequencer was not recognized.".format(run_dir))
     else:
-        runObj.transfer_run(os.path.join("nosync",CONFIG['analysis']['status_dir'], 'transfer.tsv'),
-                            analysis, mail_recipients) # do not start analsysis automatically if I force the transfer
-
+        runObj.transfer_run(os.path.join("nosync",CONFIG['analysis']['status_dir'], 'transfer.tsv'), mail_recipients)
 
 def transfer_runfolder(run_dir, pid):
     """ Transfer the entire run folder for a specified project and run to uppmax
@@ -189,7 +186,7 @@ def transfer_runfolder(run_dir, pid):
 
     # Rsync the files to irma
     destination = CONFIG["analysis"]["deliver_runfolder"].get("destination")
-    rsync_opts = {"--no-o" : None, "--no-g" : None, "--chmod" : "g+rw"}
+    rsync_opts = {"-Lav": None, "--no-o" : None, "--no-g" : None, "--chmod" : "g+rw"}
     connection_details = CONFIG["analysis"]["deliver_runfolder"].get("analysis_server")
     archive_transfer = RsyncAgent(archive, dest_path=destination, remote_host=connection_details["host"], remote_user=connection_details["user"], validate=False, opts=rsync_opts)
     md5_transfer = RsyncAgent(md5file, dest_path=destination, remote_host=connection_details["host"], remote_user=connection_details["user"], validate=False, opts=rsync_opts)
@@ -308,7 +305,7 @@ def run_preprocessing(run, force_trasfer=True, statusdb=True):
                             .format(run.id,
                                     run.CONFIG['analysis_server']['host'],
                                     run.CONFIG['analysis_server']['sync']['data_archive']))
-                run.transfer_run(t_file,  False, mail_recipients) # Do not trigger analysis
+                run.transfer_run(t_file, mail_recipients)
 
 
             # Archive the run if indicated in the config file

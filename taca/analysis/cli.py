@@ -21,14 +21,13 @@ def demultiplex(run, force):
 	an.run_preprocessing(run, force_trasfer=force)
 
 @analysis.command()
-@click.option('-a','--analysis', is_flag=False, help='Trigger the analysis for the transferred flowcell')
 @click.option('--runfolder-project', is_flag=False, help='Project ID for runfolder transfer')
 @click.argument('rundir')
 
-def transfer(rundir, analysis, runfolder_project):
+def transfer(rundir, runfolder_project):
     """Transfers the run without qc"""
     if not runfolder_project:
-        an.transfer_run(rundir, analysis=analysis)
+        an.transfer_run(rundir)
     else:
         an.transfer_runfolder(rundir, pid=runfolder_project)
 

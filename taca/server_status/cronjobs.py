@@ -1,12 +1,10 @@
 import logging
-import subprocess
-from crontab import CronTab
 import platform
 import getpass
 import datetime
-
 import couchdb
 
+from crontab import CronTab
 from taca.utils.config import CONFIG
 
 def _parse_crontab():

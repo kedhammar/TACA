@@ -1,7 +1,27 @@
 log:
-    file: data/taca.log
+  file: data/taca.log
+
+server_status:
+  command: df -h
+  servers:
+    localhost: "data/"
+  user:
+
+statusdb:
+  url: url
+  username: username
+  password: pwd
+  port: 1234
+  xten_db: x_flowcells
 
 analysis:
+    status_dir: data/
+    deliver_runfolder:
+      analysis_server:
+        host: b5.biotech.kth.se
+        port:
+        user: sara.sjunnebo
+      destination: test
     HiSeqX:
         QC:
             max_percentage_undetermined_indexes_pooled_lane: 5
@@ -13,8 +33,11 @@ analysis:
         bcl2fastq:
             bin: path_to_bcl_to_fastq
             index_path: "data/test_10X_indexes"
+            options_10X: a
             options:
                 - output-dir: Demultiplexing
+                - opt: b
+                - c
         samplesheets_dir: "data"
         analysis_server:
             host:
@@ -34,6 +57,8 @@ analysis:
             bin: path_to_bcl_to_fastq
             options:
                 - output-dir: Demultiplexing
+                - some-opt: some_val
+                - other-opt
         samplesheets_dir: "data"
         analysis_server:
             host:
@@ -43,3 +68,33 @@ analysis:
                 data_archive:
                 include:
                     - "*.file"
+    MiSeq:
+        QC:
+            max_number_undetermined_reads_simple_lane: 5000000
+            max_percentage_undetermined_indexes_simple_lane: 5
+            max_percentage_undetermined_indexes_NoIndex_lane: 30
+            max_frequency_most_represented_und_index_NoIndex_lane: 40
+        bcl2fastq:
+            bin: path_to_bcl_to_fastq
+            options:
+                - output-dir: Demultiplexing
+        samplesheets_dir: "data"
+        analysis_server:
+            host:
+            port:
+            user:
+            sync:
+                data_archive:
+                include:
+                    - "*.file"
+    DummySeq:
+      samplesheets_dir: "data"
+
+bioinfo_tab:
+  data_dirs:
+    - "data/test_data/"
+
+mail:
+  recipients:
+    some_user@some_email.com
+

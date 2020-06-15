@@ -1,19 +1,11 @@
 import os
-import re
-import csv
-import glob
 import shutil
-import gzip
-import operator
-import subprocess
-from datetime import datetime
-from taca.utils.filesystem import chdir, control_fastq_filename
+import logging
+
+from taca.utils.filesystem import chdir
 from taca.illumina.Runs import Run
 from taca.utils import misc
-from flowcell_parser.classes import SampleSheetParser, RunParser
-
-
-import logging
+from flowcell_parser.classes import SampleSheetParser
 
 logger = logging.getLogger(__name__)
 
@@ -30,17 +22,6 @@ class HiSeq_Run(Run):
 
     def _set_run_type(self):
         self.run_type = "NGI-RUN"
-
-    def _get_run_mode(self): #Old function, not really used but might be usefull in the future
-        if self.runParserObj:
-            if self.runParserObj.runparameters.data.has_key('RunParameters') and \
-               self.runParserObj.runparameters.data['RunParameters'].has_key('Setup') and \
-               self.runParserObj.runparameters.data['RunParameters']['Setup'].has_key('RunMode'):
-                return self.runParserObj.runparameters.data['RunParameters']['Setup']['RunMode']
-            else:
-                raise RuntimeError("not able to guess run mode from RunParameters.xml, parsing problem or new version of software are the likely causes")
-        else:
-            raise RuntimeError("runParseObj not available")
 
     def _copy_samplesheet(self):
         ssname   = self._get_samplesheet()
@@ -122,8 +103,6 @@ class HiSeq_Run(Run):
                 misc.call_external_command_detached(bcl2fastq_command, with_log_files=True, prefix="demux_{}".format(execution))
                 execution += 1
 
-
-
     def _generate_bcl2fastq_command(self, base_masks, strict=True, suffix=0, mask_short_adapter_reads=False):
         """
         Generates the command to demultiplex with the given base_masks.
@@ -179,8 +158,6 @@ class HiSeq_Run(Run):
         logger.info(("BCL to FASTQ command built {} ".format(" ".join(cl))))
         return cl
 
-
-
     def _aggregate_demux_results(self):
         """
         This function aggregates the results from different demultiplexing steps
@@ -197,23 +174,16 @@ class HiSeq_Run(Run):
         #complex lanes contains the lanes such that there is more than one base mask
         self._aggregate_demux_results_simple_complex(simple_lanes, complex_lanes)
 
-
-
-
-
-
     def _generate_clean_samplesheet(self, ssparser):
         """
         Will generate a 'clean' samplesheet, for bcl2fastq2.19
         """
-
         output=""
         #Header
         output+="[Header]{}".format(os.linesep)
         for field in ssparser.header:
             output+="{},{}".format(field.rstrip(), ssparser.header[field].rstrip())
             output+=os.linesep
-
 
         #now parse the data section
         data = []
@@ -251,11 +221,6 @@ class HiSeq_Run(Run):
             output+=",".join(line)
             output+=os.linesep
         return output
-
-
-
-
-
 
 
 def _data_filed_conversion(field):
