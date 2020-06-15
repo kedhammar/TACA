@@ -46,7 +46,7 @@ class MiSeq_Run(HiSeq_Run):
 
     def _generate_clean_samplesheet(self, ssparser):
         """
-        Will generate a 'clean' samplesheet, for bcl2fastq2.17
+        Will generate a 'clean' samplesheet, for bcl2fastq
         """
         output=""
         #Header
@@ -67,9 +67,17 @@ class MiSeq_Run(HiSeq_Run):
                     entry[field] = value
             if 'Lane' not in entry:
                 entry['Lane'] = '1'
+            if 'index' not in entry:
+                entry['index'] = ''
+            if 'I7_Index_ID' not in entry:
+                entry['I7_Index_ID'] = ''
+            if 'index2' not in entry:
+                entry['index2'] = ''
+            if 'I5_Index_ID' not in entry:
+                entry['I5_Index_ID'] = ''
             data.append(entry)
 
-        fields_to_output = ['Lane', ssparser.dfield_sid, ssparser.dfield_snm, 'index', ssparser.dfield_proj]
+        fields_to_output = ['Lane', ssparser.dfield_sid, ssparser.dfield_snm, 'index', 'I7_Index_ID', 'index2', 'I5_Index_ID', ssparser.dfield_proj]
         #now create the new SampleSheet data section
         output+="[Data]{}".format(os.linesep)
         for field in ssparser.datafields:
