@@ -858,9 +858,9 @@ Experiment Name,A_Test_18_01
 Date,2019-01-23
 Chemistry,amplicon
 [Data]
-Lane,Sample_ID,Sample_Name,index,Sample_Project,Sample_Plate,Sample_Well,I7_Index_ID,index2,I5_Index_ID,Description,GenomeFolder
-1,Sample_Sample_P10000_1001,Sample_P10000_1001,TATAGCCT,A_Test_18_01,P10000P1-A1,A1,TATAGCCT,GCCTCTAT,GCCTCTAT,Production,/hg19/Sequence/Chromosomes
-1,Sample_Sample_P10000_1005,Sample_P10000_1005,TATAGCCT,A_Test_18_01,P10000P1-A1,A1,TATAGCCT,GCGCGAGA,GCGCGAGA,Production,/hg19/Sequence/Chromosomes
+Lane,Sample_ID,Sample_Name,index,I7_Index_ID,index2,I5_Index_ID,Sample_Project,Sample_Plate,Sample_Well,Description,GenomeFolder
+1,Sample_Sample_P10000_1001,Sample_P10000_1001,TATAGCCT,TATAGCCT,GCCTCTAT,GCCTCTAT,A_Test_18_01,P10000P1-A1,A1,Production,/hg19/Sequence/Chromosomes
+1,Sample_Sample_P10000_1005,Sample_P10000_1005,TATAGCCT,TATAGCCT,GCGCGAGA,GCGCGAGA,A_Test_18_01,P10000P1-A1,A1,Production,/hg19/Sequence/Chromosomes
 '''
         sample_sheet_dest = os.path.join(self.tmp_dir, '141124_ST-TOSTART1_04_AMISEQFCIDXX', 'Data', 'Intensities', 'BaseCalls','SampleSheet.csv')
         with open(sample_sheet_dest, 'wb') as f:
