@@ -1,5 +1,4 @@
-""" Filesystem utilities
-"""
+"""Filesystem utilities."""
 import contextlib
 import os
 import shutil
@@ -8,8 +7,7 @@ RUN_RE = '^\d{6}_[a-zA-Z\d\-]+_\d{4}_[AB0][A-Z\d\-]+$'
 
 @contextlib.contextmanager
 def chdir(new_dir):
-    """Context manager to temporarily change to a new directory.
-    """
+    """Context manager to temporarily change to a new directory."""
     cur_dir = os.getcwd()
     os.chdir(new_dir)
     try:
@@ -32,7 +30,7 @@ def create_folder(target_folder):
     return os.path.exists(target_folder)
 
 def touch(file):
-    open(file, "w").close()
+    open(file, 'w').close()
 
 def do_symlink(src_file, dst_file):
     link_f = os.symlink

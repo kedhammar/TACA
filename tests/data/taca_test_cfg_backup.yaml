@@ -1,6 +1,7 @@
 backup:
     archive_dirs:
         miseq: data/nas/miseq.lab/nosync
+        hiseq: blah
     data_dirs:
         miseq: data/nas/miseq.lab
     keys_path: data/nas/run_keys

@@ -1,6 +1,4 @@
-"""
-Analysis methods for TACA
-"""
+"""Analysis methods for TACA."""
 import glob
 import logging
 import os
@@ -22,70 +20,71 @@ logger = logging.getLogger(__name__)
 
 
 def get_runObj(run):
-    """ Tries to read runParameters.xml to parse the type of sequencer
+    """Tries to read runParameters.xml to parse the type of sequencer
         and then return the respective Run object (MiSeq, HiSeq..)
-        :param run: run name identifier
-        :type run: string
-        :rtype: Object
-        :returns: returns the sequencer type object,
-        None if the sequencer type is unknown of there was an error
+
+    :param run: run name identifier
+    :type run: string
+    :rtype: Object
+    :returns: returns the sequencer type object,
+    None if the sequencer type is unknown of there was an error
     """
 
     if os.path.exists(os.path.join(run, 'runParameters.xml')):
-        run_parameters_file = "runParameters.xml"
+        run_parameters_file = 'runParameters.xml'
     elif os.path.exists(os.path.join(run, 'RunParameters.xml')):
-        run_parameters_file = "RunParameters.xml"
+        run_parameters_file = 'RunParameters.xml'
     else:
-        logger.error("Cannot find RunParameters.xml or runParameters.xml in the run folder for run {}".format(run))
+        logger.error('Cannot find RunParameters.xml or runParameters.xml in the run folder for run {}'.format(run))
         return
 
     rppath = os.path.join(run, run_parameters_file)
     try:
         rp = RunParametersParser(os.path.join(run, run_parameters_file))
     except OSError:
-        logger.warn("Problems parsing the runParameters.xml file at {}. "
-                    "This is quite unexpected. please archive the run {} manually".format(rppath, run))
+        logger.warn('Problems parsing the runParameters.xml file at {}. '
+                    'This is quite unexpected. please archive the run {} manually'.format(rppath, run))
     else:
         #do a case by case test becasue there are so many version of RunParameters that there is no real other way
-        runtype = rp.data['RunParameters'].get("Application", "")
-        if "Setup" in rp.data['RunParameters']:
+        runtype = rp.data['RunParameters'].get('Application', '')
+        if 'Setup' in rp.data['RunParameters']:
             #this is the HiSeq2500, MiSeq, and HiSeqX case
             try:
                 # Works for recent control software
-                runtype = rp.data['RunParameters']["Setup"]["Flowcell"]
+                runtype = rp.data['RunParameters']['Setup']['Flowcell']
             except KeyError:
                 # Use this as second resource but print a warning in the logs
-                logger.warn("Parsing runParameters to fecth instrument type, "
-                            "not found Flowcell information in it. Using ApplicationName")
-                # here makes sense to use get with default value "" ->
+                logger.warn('Parsing runParameters to fecth instrument type, '
+                            'not found Flowcell information in it. Using ApplicationName')
+                # here makes sense to use get with default value '' ->
                 # so that it doesn't raise an exception in the next lines
                 # (in case ApplicationName is not found, get returns None)
-                runtype = rp.data['RunParameters']["Setup"].get("ApplicationName", "")
+                runtype = rp.data['RunParameters']['Setup'].get('ApplicationName', '')
 
-
-        if "HiSeq X" in runtype in runtype:
-            return HiSeqX_Run(run, CONFIG["analysis"]["HiSeqX"])
-        elif "HiSeq" in runtype or "TruSeq" in runtype:
-            return HiSeq_Run(run, CONFIG["analysis"]["HiSeq"])
-        elif "MiSeq" in runtype:
-            return MiSeq_Run(run, CONFIG["analysis"]["MiSeq"])
-        elif "NextSeq" in runtype:
-            return NextSeq_Run(run, CONFIG["analysis"]["NextSeq"])
-        elif "NovaSeq" in runtype:
-            return NovaSeq_Run(run, CONFIG["analysis"]["NovaSeq"])
+        if 'HiSeq X' in runtype:
+            return HiSeqX_Run(run, CONFIG['analysis']['HiSeqX'])
+        elif 'HiSeq' in runtype or 'TruSeq' in runtype:
+            return HiSeq_Run(run, CONFIG['analysis']['HiSeq'])
+        elif 'MiSeq' in runtype:
+            return MiSeq_Run(run, CONFIG['analysis']['MiSeq'])
+        elif 'NextSeq' in runtype:
+            return NextSeq_Run(run, CONFIG['analysis']['NextSeq'])
+        elif 'NovaSeq' in runtype:
+            return NovaSeq_Run(run, CONFIG['analysis']['NovaSeq'])
         else:
-            logger.warn("Unrecognized run type {}, cannot archive the run {}. "
-                        "Someone as likely bought a new sequencer without telling "
-                        "it to the bioinfo team".format(runtype, run))
+            logger.warn('Unrecognized run type {}, cannot archive the run {}. '
+                        'Someone as likely bought a new sequencer without telling '
+                        'it to the bioinfo team'.format(runtype, run))
     # Not necessary as the function will return None at this point but
     # just for being explicit
     return None
 
 def upload_to_statusdb(run_dir):
-    """ Function to upload run_dir informations to statusDB directly from click interface
-        :param run_dir: run name identifier
-        :type run: string
-        :rtype: None
+    """Function to upload run_dir informations to statusDB directly from click interface.
+
+    :param run_dir: run name identifier
+    :type run: string
+    :rtype: None
     """
     runObj = get_runObj(run_dir)
     if runObj:
@@ -94,8 +93,9 @@ def upload_to_statusdb(run_dir):
         _upload_to_statusdb(runObj)
 
 def _upload_to_statusdb(run):
-    """ Triggers the upload to statusdb using the dependency flowcell_parser
-        :param Run run: the object run
+    """Triggers the upload to statusdb using the dependency flowcell_parser.
+
+    :param Run run: the object run
     """
     couch = fcpdb.setupServer(CONFIG)
     db = couch[CONFIG['statusdb']['xten_db']]
@@ -109,8 +109,8 @@ def _upload_to_statusdb(run):
             try:
                 PFclusters = parser.obj['Undetermined'][lane]['unknown']
             except KeyError:
-                logger.error("While taking extra care of lane {} of NoIndex type " \
-                             "I found out that not all values were available".format(lane))
+                logger.error('While taking extra care of lane {} of NoIndex type ' \
+                             'I found out that not all values were available'.format(lane))
                 continue
             # In Lanes_stats fix the lane yield
             parser.obj['illumina']['Demultiplex_Stats']['Lanes_stats'][int(lane) - 1]['PF Clusters'] = str(PFclusters)
@@ -118,78 +118,80 @@ def _upload_to_statusdb(run):
             updated = 0 # Check that only one update is made
             for sample in parser.obj['illumina']['Demultiplex_Stats']['Barcode_lane_statistics']:
                 if lane in sample['Lane']:
-                    updated +=1
+                    updated += 1
                     sample['PF Clusters'] = str(PFclusters)
             if updated != 1:
-                logger.error("While taking extra care of lane {} of NoIndex type "
-                             "I updated more than once the barcode_lane. "
-                             "This is too much to continue so I will fail.".format(lane))
+                logger.error('While taking extra care of lane {} of NoIndex type '
+                             'I updated more than once the barcode_lane. '
+                             'This is too much to continue so I will fail.'.format(lane))
                 os.sys.exit()
             # If I am here it means I changed the HTML representation to something
             # else to accomodate the wired things we do
             # someone told me that in such cases it is better to put a place holder for this
-            parser.obj['illumina']['Demultiplex_Stats']['NotOriginal'] = "True"
+            parser.obj['illumina']['Demultiplex_Stats']['NotOriginal'] = 'True'
     # Update info about bcl2fastq tool
     if not parser.obj.get('DemultiplexConfig'):
-        parser.obj['DemultiplexConfig'] = {'Setup': {'Software': run.CONFIG.get('bcl2fastq',{})}}
-    fcpdb.update_doc( db , parser.obj, over_write_db_entry=True)
+        parser.obj['DemultiplexConfig'] = {'Setup': {'Software': run.CONFIG.get('bcl2fastq', {})}}
+    fcpdb.update_doc(db , parser.obj, over_write_db_entry=True)
 
 def transfer_run(run_dir):
-    """ Interface for click to force a transfer a run to uppmax
-        :param: string run_dir: the run to tranfer
+    """Interface for click to force a transfer a run to uppmax.
+
+    :param: string run_dir: the run to tranfer
     """
     runObj = get_runObj(run_dir)
     mail_recipients = CONFIG.get('mail', {}).get('recipients')
     if runObj is None:
         mail_recipients = CONFIG.get('mail', {}).get('recipients')
         # Maybe throw an exception if possible?
-        logger.error("Trying to force a transfer of run {} but the sequencer was not recognized.".format(run_dir))
+        logger.error('Trying to force a transfer of run {} but the sequencer was not recognized.'.format(run_dir))
     else:
-        runObj.transfer_run(os.path.join("nosync",CONFIG['analysis']['status_dir'], 'transfer.tsv'), mail_recipients)
+        runObj.transfer_run(os.path.join('nosync', CONFIG['analysis']['status_dir'], 'transfer.tsv'), mail_recipients)
 
 def transfer_runfolder(run_dir, pid):
-    """ Transfer the entire run folder for a specified project and run to uppmax
+    """Transfer the entire run folder for a specified project and run to uppmax.
+
     :param: string run_dir: the run to transfer
     :param: string pid: the project to include in the SampleSheet
     """
-    original_sample_sheet = os.path.join(run_dir, "SampleSheet.csv")
-    new_sample_sheet = os.path.join(run_dir, pid + "_SampleSheet.txt")
+    original_sample_sheet = os.path.join(run_dir, 'SampleSheet.csv')
+    new_sample_sheet = os.path.join(run_dir, pid + '_SampleSheet.txt')
 
     # Write new sample sheet including only rows for the specified project
     try:
         with open(new_sample_sheet, 'w') as nss:
             nss.write(extract_project_samplesheet(original_sample_sheet, pid))
     except IOError as e:
-        logger.error("An error occured while parsing the samplesheet. Please check the sample sheet and try again.")
+        logger.error('An error occured while parsing the samplesheet. Please check the sample sheet and try again.')
         raise e
 
     # Create a tar archive of the runfolder
     dir_name = os.path.basename(run_dir)
-    archive = dir_name + ".tar.gz"
+    archive = dir_name + '.tar.gz'
     run_dir_path = os.path.dirname(run_dir)
 
     try:
-        subprocess.call(["tar", "--exclude", "Demultiplexing*", "--exclude", "demux_*", "--exclude", "rsync*", "--exclude", "*.csv", "-cvzf", archive, "-C", run_dir_path, dir_name])
+        subprocess.call(['tar', '--exclude', 'Demultiplexing*', '--exclude', 'demux_*', '--exclude', 'rsync*', '--exclude', '*.csv', '-cvzf', archive, '-C', run_dir_path, dir_name])
     except subprocess.CalledProcessError as e:
-        logger.error("Error creating tar archive")
+        logger.error('Error creating tar archive')
         raise e
 
     # Generate the md5sum
-    md5file = archive + ".md5"
+    md5file = archive + '.md5'
     try:
         f = open(md5file, 'w')
-        subprocess.call(["md5sum", archive], stdout=f)
+        subprocess.call(['md5sum', archive], stdout=f)
         f.close()
     except subprocess.CalledProcessError as e:
-        logger.error("Error creating md5 file")
+        logger.error('Error creating md5 file')
         raise e
 
     # Rsync the files to irma
-    destination = CONFIG["analysis"]["deliver_runfolder"].get("destination")
-    rsync_opts = {"-Lav": None, "--no-o" : None, "--no-g" : None, "--chmod" : "g+rw"}
-    connection_details = CONFIG["analysis"]["deliver_runfolder"].get("analysis_server")
-    archive_transfer = RsyncAgent(archive, dest_path=destination, remote_host=connection_details["host"], remote_user=connection_details["user"], validate=False, opts=rsync_opts)
-    md5_transfer = RsyncAgent(md5file, dest_path=destination, remote_host=connection_details["host"], remote_user=connection_details["user"], validate=False, opts=rsync_opts)
+    destination = CONFIG['analysis']['deliver_runfolder'].get('destination')
+    rsync_opts = {'-Lav': None, '--no-o': None, '--no-g': None, '--chmod': 'g+rw'}
+    connection_details = CONFIG['analysis']['deliver_runfolder'].get('analysis_server')
+    archive_transfer = RsyncAgent(archive, dest_path=destination, remote_host=connection_details['host'], remote_user=connection_details['user'], validate=False, opts=rsync_opts)
+    md5_transfer = RsyncAgent(md5file, dest_path=destination, remote_host=connection_details['host'], remote_user=connection_details['user'], validate=False, opts=rsync_opts)
 
     archive_transfer.transfer()
     md5_transfer.transfer()
@@ -200,17 +202,16 @@ def transfer_runfolder(run_dir, pid):
         os.remove(archive)
         os.remove(md5file)
     except IOError as e:
-        logger.error("Was not able to delete all temporary files")
+        logger.error('Was not able to delete all temporary files')
         raise e
-
     return
 
 def extract_project_samplesheet(sample_sheet, pid):
-    header_line = ""
-    project_entries = ""
+    header_line = ''
+    project_entries = ''
     with open(sample_sheet) as f:
         for line in f:
-            if line.split(",")[0] in ('Lane', 'FCID'):  # include the header
+            if line.split(',')[0] in ('Lane', 'FCID'):  # include the header
                 header_line += line
             elif pid in line:
                 project_entries += line  # include only lines related to the specified project
@@ -218,14 +219,16 @@ def extract_project_samplesheet(sample_sheet, pid):
     return new_samplesheet_content
 
 def run_preprocessing(run, force_trasfer=True, statusdb=True):
-    """ Run demultiplexing in all data directories
-        :param str run: Process a particular run instead of looking for runs
-        :param bool force_tranfer: if set to True the FC is transferred also if fails QC
-        :param bool statusdb: True if we want to upload info to statusdb
+    """Run demultiplexing in all data directories.
+
+    :param str run: Process a particular run instead of looking for runs
+    :param bool force_tranfer: if set to True the FC is transferred also if fails QC
+    :param bool statusdb: True if we want to upload info to statusdb
     """
     def _process(run, force_trasfer):
-        """ Process a run/flowcell and transfer to analysis server
-            :param taca.illumina.Run run: Run to be processed and transferred
+        """Process a run/flowcell and transfer to analysis server.
+
+        :param taca.illumina.Run run: Run to be processed and transferred
         """
         logger.info('Checking run {}'.format(run.id))
         t_file = os.path.join(CONFIG['analysis']['status_dir'], 'transfer.tsv')
@@ -247,22 +250,22 @@ def run_preprocessing(run, force_trasfer=True, statusdb=True):
         elif run.get_run_status() == 'TO_START':
             if run.get_run_type() == 'NON-NGI-RUN':
                 # For now MiSeq specific case. Process only NGI-run, skip all the others (PhD student runs)
-                logger.warn("Run {} marked as {}, "
-                            "TACA will skip this and move the run to "
-                            "no-sync directory".format(run.id, run.get_run_type()))
+                logger.warn('Run {} marked as {}, '
+                            'TACA will skip this and move the run to '
+                            'no-sync directory'.format(run.id, run.get_run_type()))
                 # Archive the run if indicated in the config file
                 if 'storage' in CONFIG:
                     run.archive_run(CONFIG['storage']['archive_dirs'][run.sequencer_type])
                 return
             # Otherwise it is fine, process it
-            logger.info(("Starting BCL to FASTQ conversion and demultiplexing for run {}".format(run.id)))
+            logger.info(('Starting BCL to FASTQ conversion and demultiplexing for run {}'.format(run.id)))
             # Upload to statusDB if applies
             if 'statusdb' in CONFIG:
                 _upload_to_statusdb(run)
             run.demultiplex_run()
         elif run.get_run_status() == 'IN_PROGRESS':
-            logger.info(("BCL conversion and demultiplexing process in "
-                         "progress for run {}, skipping it".format(run.id)))
+            logger.info(('BCL conversion and demultiplexing process in '
+                         'progress for run {}, skipping it'.format(run.id)))
             # Upload to statusDB if applies
             if 'statusdb' in CONFIG:
                 _upload_to_statusdb(run)
@@ -272,7 +275,7 @@ def run_preprocessing(run, force_trasfer=True, statusdb=True):
         # previous elif might change the status to COMPLETED, therefore to avoid skipping
         # a cycle take the last if out of the elif
         if run.get_run_status() == 'COMPLETED':
-            logger.info(("Preprocessing of run {} is finished, transferring it".format(run.id)))
+            logger.info(('Preprocessing of run {} is finished, transferring it'.format(run.id)))
             # Upload to statusDB if applies
             if 'statusdb' in CONFIG:
                 _upload_to_statusdb(run)
@@ -307,7 +310,6 @@ def run_preprocessing(run, force_trasfer=True, statusdb=True):
                                     run.CONFIG['analysis_server']['sync']['data_archive']))
                 run.transfer_run(t_file, mail_recipients)
 
-
             # Archive the run if indicated in the config file
             if 'storage' in CONFIG:
                 run.archive_run(CONFIG['storage']['archive_dirs'][run.sequencer_type])
@@ -316,7 +318,7 @@ def run_preprocessing(run, force_trasfer=True, statusdb=True):
         # Needs to guess what run type I have (HiSeq, MiSeq, HiSeqX, NextSeq)
         runObj = get_runObj(run)
         if not runObj:
-            raise RuntimeError("Unrecognized instrument type or incorrect run folder {}".format(run))
+            raise RuntimeError('Unrecognized instrument type or incorrect run folder {}'.format(run))
         else:
             _process(runObj, force_trasfer)
     else:
@@ -327,12 +329,12 @@ def run_preprocessing(run, force_trasfer=True, statusdb=True):
             for _run in runs:
                 runObj = get_runObj(_run)
                 if not runObj:
-                    logger.warning("Unrecognized instrument type or incorrect run folder {}".format(run))
+                    logger.warning('Unrecognized instrument type or incorrect run folder {}'.format(run))
                 else:
                     try:
                         _process(runObj, force_trasfer)
                     except:
                         # this function might throw and exception,
                         # it is better to continue processing other runs
-                        logger.warning("There was an error processing the run {}".format(run))
+                        logger.warning('There was an error processing the run {}'.format(run))
                         pass
