@@ -90,7 +90,10 @@ def cleanup_processing(seconds):
         logger.error(msg)
         misc.send_mail(sbj, msg, cnt)
 
-def cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, clean_undetermined, status_db_config, exclude_projects, list_only, date, dry_run=False):
+def cleanup_irma(days_fastq, days_analysis,
+                 only_fastq, only_analysis,
+                 clean_undetermined, exclude_projects,
+                 list_only, date, dry_run=False):
     """Remove fastq/analysis data for projects that have been closed more than given
     days (as days_fastq/days_analysis) from the given 'irma' cluster.
 
@@ -100,7 +103,7 @@ def cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, clean_und
     :param bool only_analysis: Remove only analysis data for closed projects
     :param bool dry_run: Will summarize what is going to be done without really doing it
 
-    Example format for config file
+    Example format for entry in the taca config file
     cleanup:
         irma:
             flowcell:
@@ -176,7 +179,7 @@ def cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, clean_und
                 fc_abs_path = os.path.join(flowcell_dir, fc)
                 with filesystem.chdir(fc_abs_path):
                     if not os.path.exists(flowcell_project_source):
-                        logger.warn('Flowcell {} do not contain a "{}" direcotry'.format(fc, flowcell_project_source))
+                        logger.warn('Flowcell {} do not contain a "{}" directory'.format(fc, flowcell_project_source))
                         continue
                     projects_in_fc = [d for d in os.listdir(flowcell_project_source) \
                                       if re.match(r'^[A-Z]+[_\.]+[A-Za-z]+_\d\d_\d\d$',d) and \
@@ -348,7 +351,7 @@ def get_closed_proj_info(prj, pdoc, tdate=None):
     if not tdate:
         tdate = datetime.today()
     if not pdoc:
-        logger.warn('Seems like project {} dont have a proper statudb document, skipping it'.format(prj))
+        logger.warn('Seems like project {} does not have a proper statusdb document, skipping it'.format(prj))
     elif 'close_date' in pdoc:
         closed_date = pdoc['close_date']
         try:
@@ -386,8 +389,8 @@ def collect_analysis_data_irma(pid, analysis_root, files_ext_to_remove={}):
     return (file_list, size)
 
 def collect_fastq_data_irma(fc_root, fc_proj_src, proj_root=None, pid=None):
-    """Collect the fastq files that have to be removed from IRMA
-    return a tuple with files and total size of collected files."""
+    """Collect the fastq files that have to be removed from IRMA.
+    Return a tuple with files and total size of collected files."""
     size = 0
     file_list = {'flowcells': defaultdict(dict)}
     fc_proj_path = os.path.join(fc_root, fc_proj_src)
@@ -407,7 +410,7 @@ def collect_fastq_data_irma(fc_root, fc_proj_src, proj_root=None, pid=None):
     return (file_list, size)
 
 def collect_files_by_ext(path, ext=[]):
-    """Collect files with given extension from given path."""
+    """Collect files with a given extension from a given path."""
     if isinstance(ext, str):
         ext = [ext]
     collected_files = []
