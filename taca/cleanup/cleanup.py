@@ -179,7 +179,7 @@ def cleanup_irma(days_fastq, days_analysis,
                 fc_abs_path = os.path.join(flowcell_dir, fc)
                 with filesystem.chdir(fc_abs_path):
                     if not os.path.exists(flowcell_project_source):
-                        logger.warn('Flowcell {} do not contain a "{}" directory'.format(fc, flowcell_project_source))
+                        logger.warn('Flowcell {} does not contain a "{}" directory'.format(fc, flowcell_project_source))
                         continue
                     projects_in_fc = [d for d in os.listdir(flowcell_project_source) \
                                       if re.match(r'^[A-Z]+[_\.]+[A-Za-z]+_\d\d_\d\d$',d) and \

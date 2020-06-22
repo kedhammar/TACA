@@ -3,7 +3,7 @@
 import couchdb
 
 
-class statusdb_session(object):
+class StatusdbSession(object):
     """Wrapper class for couchdb."""
     def __init__(self, config, db=None):
         user = config.get('username')
@@ -34,7 +34,7 @@ class statusdb_session(object):
         return self.db.get(view.get(name))
 
 
-class ProjectSummaryConnection(statusdb_session):
+class ProjectSummaryConnection(StatusdbSession):
     def __init__(self, config, dbname='projects'):
         super(ProjectSummaryConnection, self).__init__(config)
         self.db = self.connection[dbname]
