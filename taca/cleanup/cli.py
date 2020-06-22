@@ -5,7 +5,11 @@ from taca.utils import misc
 
 @click.group()
 @click.pass_context
-def cleanup(ctx):
+@click.option('--status_db_config',
+              type=click.Path(exists=True, dir_okay=False),
+              envvar='STATUS_DB_CONFIG',
+              help='Path to statusdb-configuration.')
+def cleanup(ctx, status_db_config):
 	"""Cleaning up servers - management methods and utilities."""
 	pass
 
@@ -60,6 +64,7 @@ def preproc(ctx, days, hours):
 @click.pass_context
 def irma(ctx, days_fastq, days_analysis, only_fastq, only_analysis, clean_undetermined, date, exclude_projects, list_only, dry_run):
     """Do appropriate cleanup on IRMA."""
+    status_db_config = ctx.parent.params['status_db_config']
     if only_fastq and only_analysis:
         raise SystemExit('ERROR: Both option "only_fastq" and "only_analysis" is given, should only give either one')
     if not days_fastq and not only_analysis and not clean_undetermined:
@@ -68,5 +73,6 @@ def irma(ctx, days_fastq, days_analysis, only_fastq, only_analysis, clean_undete
         raise SystemExit('ERROR: "days_analysis" is not given while not selecting "only_fastq" option')
     cln.cleanup_irma(days_fastq, days_analysis,
                      only_fastq, only_analysis,
-                     clean_undetermined, exclude_projects,
-                     list_only, date, dry_run)
+                     clean_undetermined, status_db_config,
+                     exclude_projects, list_only,
+                     date, dry_run)

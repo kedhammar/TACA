@@ -55,12 +55,13 @@ class TestCleanup(unittest.TestCase):
         only_fastq = False
         only_analysis = False
         clean_undetermined = False
+        status_db_config = 'data/taca_test_cfg_cleanup.yaml'
         exclude_projects = False
         list_only = False
         date = '2016-01-31'
         calls = [mock.call('data/irma/incoming/190201_A00621_0032_BHHFCFDSXX/Demultiplexing/N.Owens_19_01'),
                  mock.call('../../nobackup/NGI/ANALYSIS/P1234')]
-        cleanup.cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, clean_undetermined, exclude_projects, list_only, date, dry_run=False)
+        cleanup.cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, clean_undetermined, status_db_config, exclude_projects, list_only, date, dry_run=False)
         mock_touch.assert_has_calls(calls)
 
     def test_get_closed_proj_info(self):

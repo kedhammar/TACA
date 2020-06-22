@@ -5,12 +5,13 @@ import os
 import re
 import shutil
 import time
+import yaml
 
 from collections import defaultdict
 from datetime import datetime
 from glob import glob
 
-from taca.utils.config import CONFIG
+from taca.utils.config import CONFIG, load_config
 from taca.utils import filesystem, misc, statusdb
 from taca.illumina.MiSeq_Runs import MiSeq_Run
 
@@ -92,8 +93,9 @@ def cleanup_processing(seconds):
 
 def cleanup_irma(days_fastq, days_analysis,
                  only_fastq, only_analysis,
-                 clean_undetermined, exclude_projects,
-                 list_only, date, dry_run=False):
+                 clean_undetermined, status_db_config,
+                 exclude_projects, list_only,
+                 date, dry_run=False):
     """Remove fastq/analysis data for projects that have been closed more than given
     days (as days_fastq/days_analysis) from the given 'irma' cluster.
 
@@ -141,11 +143,8 @@ def cleanup_irma(days_fastq, days_analysis,
         raise SystemExit
 
     # make a connection for project db
-    config_statusdb = CONFIG.get('statusdb', None)
-    if not config_statusdb:
-            raise AttributeError('Config file is missing the key statusdb,'
-                                 'make sure it has all required information')
-    pcon = statusdb.ProjectSummaryConnection(config_statusdb)
+    db_config = load_config(status_db_config)
+    pcon = statusdb.ProjectSummaryConnection(db_config.get('statusdb'))
     assert pcon, 'Could not connect to project database in StatusDB'
 
     # make exclude project list if provided
