@@ -10,9 +10,8 @@ from collections import defaultdict
 from datetime import datetime
 from glob import glob
 
-from statusdb.db import connections as statusdb
 from taca.utils.config import CONFIG
-from taca.utils import filesystem, misc
+from taca.utils import filesystem, misc, statusdb
 from taca.illumina.MiSeq_Runs import MiSeq_Run
 
 logger = logging.getLogger(__name__)
@@ -132,14 +131,18 @@ def cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, clean_und
         if date:
             date = datetime.strptime(date, '%Y-%m-%d')
     except KeyError as e:
-        logger.error('Config file is missing the key {}, make sure it have all required information'.format(str(e)))
+        logger.error('Config file is missing the key {}, make sure it has all required information'.format(str(e)))
         raise SystemExit
     except ValueError as e:
         logger.error('Date given with "--date" option is not in required format, see help for more info')
         raise SystemExit
 
-    # make a connection for project db #
-    pcon = statusdb.ProjectSummaryConnection(conf=status_db_config)
+    # make a connection for project db
+    config_statusdb = CONFIG.get('statusdb', None)
+    if not config_statusdb:
+            raise AttributeError('Config file is missing the key statusdb,'
+                                 'make sure it has all required information')
+    pcon = statusdb.ProjectSummaryConnection(config_statusdb)
     assert pcon, 'Could not connect to project database in StatusDB'
 
     # make exclude project list if provided
