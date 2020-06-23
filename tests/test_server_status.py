@@ -14,24 +14,27 @@ INITAL_TAB = """
 
 class TestServerStatus(unittest.TestCase):
     def test_get_nases_disk_space(self):
-        ''' Get disk space for disk specified in config file
-        '''
+        """Get disk space for disk specified in config file."""
         got_disk_space = server_status.get_nases_disk_space()
         assert got_disk_space
 
     def test_parse_output_valid_case(self):
-        ''' Parse valid disk space output
-        '''
-        valid_disk_space = "Filesystem     Size   Used  Avail Capacity iused      ifree %iused  Mounted on \
-        /dev/disk1s1  466Gi   59Gi  393Gi    14% 1062712 4881390168    0%   /System/Volumes/Data"
-        expected_result = {'disk_size': '14%', 'mounted_on': '/System/Volumes/Data', 'available_percentage': '100%', 'space_used': '1062712', 'used_percentage': '0%', 'filesystem': '393Gi', 'space_available': '4881390168'}
+        """Parse valid disk space output."""
+        valid_disk_space = 'Filesystem     Size   Used  Avail Capacity iused      ifree %iused  Mounted on \
+        /dev/disk1s1  466Gi   59Gi  393Gi    14% 1062712 4881390168    0%   /System/Volumes/Data'
+        expected_result = {'disk_size': '14%',
+                           'mounted_on': '/System/Volumes/Data',
+                           'available_percentage': '100%',
+                           'space_used': '1062712',
+                           'used_percentage': '0%',
+                           'filesystem': '393Gi',
+                           'space_available': '4881390168'}
         got_result = server_status._parse_output(valid_disk_space)
         self.assertItemsEqual(expected_result, got_result)
 
     def test_parse_output_invalid_case(self):
-        ''' Parse invalid disk space output
-        '''
-        invalid_disk_space = ""
+        """Parse invalid disk space output."""
+        invalid_disk_space = ''
         expected_invalid_result = {
             'disk_size': 'NaN',
             'space_used': 'NaN',
@@ -44,28 +47,20 @@ class TestServerStatus(unittest.TestCase):
         invalid_result = server_status._parse_output(invalid_disk_space)
         self.assertItemsEqual(expected_invalid_result, invalid_result)
 
-    @mock.patch('taca.server_status.server_status.couchdb')
+    @mock.patch('taca.server_status.server_status.statusdb')
     def test_update_status_db(self, mock_couchdb):
-        '''Update statusdb'''
+        """Update statusdb."""
         disk_space = {'localhost': {'disk_size': '14%', 'mounted_on': '/System/Volumes/Data', 'available_percentage': '100%', 'space_used': '1061701', 'used_percentage': '0%', 'filesystem': '393Gi', 'space_available': '4881391179'}}
         server_status.update_status_db(disk_space, server_type='nas')
-
-    @mock.patch('taca.server_status.server_status.couchdb')
-    def test_update_status_db_con_err(self, mock_couchdb):
-        """Raise errors when connection to couchdb fails."""
-        mock_couchdb.Server.side_effect = RuntimeError
-        data = {'hello'}
-        with self.assertRaises(RuntimeError):
-            server_status.update_status_db(data, server_type='nas')
 
 
 class TestCronjobs(unittest.TestCase):
     @mock.patch('taca.server_status.cronjobs.CronTab')
     @mock.patch('taca.server_status.cronjobs.getpass.getuser')
     def test_parse_crontab(self, mock_getpass, mock_crontab):
-        '''parse crontab'''
+        """Parse crontab."""
         mock_crontab.return_value = crontab.CronTab(tab=INITAL_TAB)
-        mock_getpass.return_value = "test_user"
+        mock_getpass.return_value = 'test_user'
         expected_crontab = {'test_user':
                             [{'Comment': u'First Comment',
                               'Day of month': '*',
