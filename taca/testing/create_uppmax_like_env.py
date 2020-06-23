@@ -1,22 +1,20 @@
-""" Load and parse configuration file
-"""
+""" Load and parse configuration file."""
 
 import logging
-from taca.utils.config import CONFIG
-from taca.utils import config as conf
-from taca.utils import filesystem as fs
-import couchdb
 import os
 import datetime
-from dateutil.relativedelta import relativedelta
 import random
 import subprocess
 
+from dateutil.relativedelta import relativedelta
+from taca.utils.config import CONFIG
+from taca.utils import config as conf
+from taca.utils import filesystem as fs
+from taca.utils import statusdb
+
+
 logger = logging.getLogger(__name__)
 
-def setupServer(conf):
-    url="http://{0}:{1}@{2}:{3}".format(conf['username'], conf['password'], conf['url'], conf['port'])
-    return couchdb.Server(url)
 
 def create_version_report(path):
     #creates the file version_report.txt for stuff run ngi_pipeline
@@ -221,16 +219,16 @@ def select_random_projects(projects_in, num_proj, application, projects_out, lab
             chosen_projects += 1
 
 def create(projects, ngi_config_file, fastq_1, fastq_2):
-    #connect to statusdb
-    couch_info = CONFIG.get('statusdb')
-    if couch_info is None:
+    # Connect to statusdb
+    statusdb_conf = CONFIG.get('statusdb')
+    if statusdb_conf is None:
         logger.error("No statusdb field in taca configuration file")
         return 1
-    if "dev" not in couch_info["url"]:
-        logger.error("url for status db is {}, but dev must be specified in this case".format(couch_info["url"]))
-    couch=setupServer(couch_info)
+    if "dev" not in statusdb_conf["url"]:
+        logger.error("url for status db is {}, but dev must be specified in this case".format(statusdb_conf["url"]))
+    couch_connection = statusdb.StatusdbSession(statusdb_conf).connection
     # connect to db and to view
-    projectsDB = couch["projects"]
+    projectsDB = couch_connection["projects"]
     project_summary = projectsDB.view("project/summary")
     projects_closed_more_than_three_months = {}
     projects_closed_more_than_one_month_less_than_three = {}
@@ -295,7 +293,7 @@ def create(projects, ngi_config_file, fastq_1, fastq_2):
 
     print "#going to reproduce {} projects (if this number is different from the one you specified.... trust me... do not worry".format(len(projects_to_reproduce))
     ### At this point I scan over x_flowcell and reproduce FCs
-    flowcellDB = couch["x_flowcells"]
+    flowcellDB = couch_connection["x_flowcells"]
     reproduced_projects = {}
     for fc_doc in flowcellDB:
         try:
