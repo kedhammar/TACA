@@ -55,7 +55,7 @@ class TestCleanup(unittest.TestCase):
         only_fastq = False
         only_analysis = False
         clean_undetermined = False
-        status_db_config = 'config'
+        status_db_config = 'data/taca_test_cfg_cleanup.yaml'
         exclude_projects = False
         list_only = False
         date = '2016-01-31'
