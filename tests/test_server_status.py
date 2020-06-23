@@ -81,11 +81,11 @@ class TestCronjobs(unittest.TestCase):
         got_crontab = cronjobs._parse_crontab()
         self.assertItemsEqual(expected_crontab, got_crontab)
 
-    @mock.patch('taca.server_status.cronjobs.couchdb', autospec=True)
+    @mock.patch('taca.server_status.cronjobs.statusdb')
     @mock.patch('taca.server_status.cronjobs.logging')
     @mock.patch('taca.server_status.cronjobs.platform')
     @mock.patch('taca.server_status.cronjobs._parse_crontab')
-    def test_update_cronjob_db(self, mock_parser, mock_platform, mock_logging, mock_couch):
+    def test_update_cronjob_db(self, mock_parser, mock_platform, mock_logging, mock_statusdb):
         """Update couchdb with cronjobs."""
         mock_parser.return_value = {'test_user':
                             [{'Comment': u'First Comment',
@@ -99,14 +99,7 @@ class TestCronjobs(unittest.TestCase):
                               'Month': '*'}]
         }
         mock_platform.node.return_value = 'server.name'
-        mock_couch_server = mock_couch.Server()
-        mock_db = mock_couch_server.__getitem__()
-        mock_view = mock_db.view()
-        mock_view_item = mock_view.__getitem__()
-        mock_view_item.rows.__nonzero__.return_value = False
-        mock_save = mock_db.save()
         cronjobs.update_cronjob_db()
         calls = [mock.call.info('Connecting to database: url'),
-                 mock.call.info('Creating a document'),
-                 mock.call.info('server has been successfully updated')]
+                 mock.call.warning('Document has not been created/updated')]
         mock_logging.assert_has_calls(calls)

@@ -2,9 +2,9 @@ import logging
 import platform
 import getpass
 import datetime
-import couchdb
 
 from crontab import CronTab
+from taca.utils import statusdb
 from taca.utils.config import CONFIG
 
 def _parse_crontab():
@@ -39,19 +39,15 @@ def update_cronjob_db():
     # parse results
     result = _parse_crontab()
     # connect to db
-    url = "http://{username}:{password}@{url}:{port}".format(
-            url=CONFIG.get('statusdb', {}).get('url'),
-            username=CONFIG.get('statusdb', {}).get('username'),
-            password=CONFIG.get('statusdb', {}).get('password'),
-            port=CONFIG.get('statusdb', {}).get('port'))
+    statusdb_conf = CONFIG.get('statusdb')
     logging.info('Connecting to database: {}'.format(CONFIG.get('statusdb', {}).get('url')))
     try:
-        couch = couchdb.Server(url)
+        couch_connection = statusdb.StatusdbSession(statusdb_conf).connection
     except Exception, e:
         logging.error(e.message)
     else:
         # update document
-        crontab_db = couch['cronjobs']
+        crontab_db = couch_connection['cronjobs']
         view = crontab_db.view('server/alias')
         # to be safe
         doc = {}
