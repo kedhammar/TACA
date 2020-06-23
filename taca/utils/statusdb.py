@@ -28,8 +28,6 @@ class StatusdbSession(object):
         else:
             view = self.name_view
         if not view.get(name, None):
-            if self.log:
-                self.log.warn('no entry "{}" in {}'.format(name, self.db))
             return None
         return self.db.get(view.get(name))
 
