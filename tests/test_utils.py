@@ -788,3 +788,11 @@ class TestStatusdb(unittest.TestCase):
                         'password': 'some_pwd'}
         entry = statusdb.ProjectSummaryConnection(couch_config).get_entry('name')
         self.assertEqual(entry, None)
+
+    def test_merge_dicts(self):
+        """Merge two dicts."""
+        d1 = {'a': '1', 'b': '2'}
+        d2 = {'a': '3', 'c': '4'}
+        merged_dict = statusdb.merge_dicts(d1, d2)
+        expected_dict = {'a': '1', 'b': '2', 'c': '4'}
+        self.assertEqual(merged_dict, expected_dict)

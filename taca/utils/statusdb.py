@@ -1,8 +1,10 @@
 """Classes for handling connection to StatusDB."""
 
 import couchdb
+import logging
 from datetime import datetime
 
+logger = logging.getLogger(__name__)
 
 class StatusdbSession(object):
     """Wrapper class for couchdb."""
@@ -98,12 +100,12 @@ def update_doc(db, obj, over_write_db_entry=False):
             obj['_id'] = doc_id
             obj['_rev'] = doc_rev
             db[doc_id] = obj
-            log.info('Updating {}'.format(obj['name']))
+            logger.info('Updating {}'.format(obj['name']))
     elif len(view[obj['name']].rows) == 0:
         db.save(obj)
-        log.info('Saving {}'.format(obj['name']))
+        logger.info('Saving {}'.format(obj['name']))
     else:
-        log.warn('More than one row with name {} found'.format(obj['name']))
+        logger.warn('More than one row with name {} found'.format(obj['name']))
 
 
 def merge_dicts(d1, d2):
@@ -117,7 +119,7 @@ def merge_dicts(d1, d2):
             elif d1[key] == d2[key]:
                 pass  # same leaf value
             else:
-                log.debug('Values for key {key} in d1 and d2 differ, '
+                logger.debug('Values for key {key} in d1 and d2 differ, '
                           'using the value of d1'.format(key=key))
         else:
             d1[key] = d2[key]
