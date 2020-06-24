@@ -12,8 +12,8 @@ from taca.illumina.NextSeq_Runs import NextSeq_Run
 from taca.illumina.NovaSeq_Runs import NovaSeq_Run
 from taca.utils.config import CONFIG
 from taca.utils.transfer import RsyncAgent
+from taca.utils import statusdb
 
-import flowcell_parser.db as fcpdb
 from flowcell_parser.classes import RunParametersParser
 
 logger = logging.getLogger(__name__)
@@ -45,10 +45,10 @@ def get_runObj(run):
         logger.warn('Problems parsing the runParameters.xml file at {}. '
                     'This is quite unexpected. please archive the run {} manually'.format(rppath, run))
     else:
-        #do a case by case test becasue there are so many version of RunParameters that there is no real other way
+        # Do a case by case test becasue there are so many version of RunParameters that there is no real other way
         runtype = rp.data['RunParameters'].get('Application', '')
         if 'Setup' in rp.data['RunParameters']:
-            #this is the HiSeq2500, MiSeq, and HiSeqX case
+            # This is the HiSeq2500, MiSeq, and HiSeqX case
             try:
                 # Works for recent control software
                 runtype = rp.data['RunParameters']['Setup']['Flowcell']
@@ -56,7 +56,7 @@ def get_runObj(run):
                 # Use this as second resource but print a warning in the logs
                 logger.warn('Parsing runParameters to fecth instrument type, '
                             'not found Flowcell information in it. Using ApplicationName')
-                # here makes sense to use get with default value '' ->
+                # Here makes sense to use get with default value '' ->
                 # so that it doesn't raise an exception in the next lines
                 # (in case ApplicationName is not found, get returns None)
                 runtype = rp.data['RunParameters']['Setup'].get('ApplicationName', '')
@@ -75,8 +75,6 @@ def get_runObj(run):
             logger.warn('Unrecognized run type {}, cannot archive the run {}. '
                         'Someone as likely bought a new sequencer without telling '
                         'it to the bioinfo team'.format(runtype, run))
-    # Not necessary as the function will return None at this point but
-    # just for being explicit
     return None
 
 def upload_to_statusdb(run_dir):
@@ -97,15 +95,15 @@ def _upload_to_statusdb(run):
 
     :param Run run: the object run
     """
-    couch = fcpdb.setupServer(CONFIG)
-    db = couch[CONFIG['statusdb']['xten_db']]
+    couch_conf = CONFIG['statusdb']
+    couch_connection = statusdb.StatusdbSession(couch_conf).connection
+    db = couch_connection[couch_conf['xten_db']]
     parser = run.runParserObj
     # Check if I have NoIndex lanes
-    # This could be refactored and some checks for key exceptions should be added
     for element in parser.obj['samplesheet_csv']:
         if 'NoIndex' in element['index'] or not element['index']: # NoIndex in the case of HiSeq, empty in the case of HiSeqX
-            lane = element['Lane'] # this is a lane with NoIndex
-            # in this case PF Cluster is the number of undetermined reads
+            lane = element['Lane'] # This is a lane with NoIndex
+            # In this case PF Cluster is the number of undetermined reads
             try:
                 PFclusters = parser.obj['Undetermined'][lane]['unknown']
             except KeyError:
@@ -132,7 +130,7 @@ def _upload_to_statusdb(run):
     # Update info about bcl2fastq tool
     if not parser.obj.get('DemultiplexConfig'):
         parser.obj['DemultiplexConfig'] = {'Setup': {'Software': run.CONFIG.get('bcl2fastq', {})}}
-    fcpdb.update_doc(db , parser.obj, over_write_db_entry=True)
+    statusdb.update_doc(db, parser.obj, over_write_db_entry=True)
 
 def transfer_run(run_dir):
     """Interface for click to force a transfer a run to uppmax.
@@ -143,7 +141,6 @@ def transfer_run(run_dir):
     mail_recipients = CONFIG.get('mail', {}).get('recipients')
     if runObj is None:
         mail_recipients = CONFIG.get('mail', {}).get('recipients')
-        # Maybe throw an exception if possible?
         logger.error('Trying to force a transfer of run {} but the sequencer was not recognized.'.format(run_dir))
     else:
         runObj.transfer_run(os.path.join('nosync', CONFIG['analysis']['status_dir'], 'transfer.tsv'), mail_recipients)
@@ -162,7 +159,8 @@ def transfer_runfolder(run_dir, pid):
         with open(new_sample_sheet, 'w') as nss:
             nss.write(extract_project_samplesheet(original_sample_sheet, pid))
     except IOError as e:
-        logger.error('An error occured while parsing the samplesheet. Please check the sample sheet and try again.')
+        logger.error('An error occured while parsing the samplesheet. '
+        'Please check the sample sheet and try again.')
         raise e
 
     # Create a tar archive of the runfolder
@@ -171,7 +169,13 @@ def transfer_runfolder(run_dir, pid):
     run_dir_path = os.path.dirname(run_dir)
 
     try:
-        subprocess.call(['tar', '--exclude', 'Demultiplexing*', '--exclude', 'demux_*', '--exclude', 'rsync*', '--exclude', '*.csv', '-cvzf', archive, '-C', run_dir_path, dir_name])
+        subprocess.call(['tar',
+                         '--exclude', 'Demultiplexing*',
+                         '--exclude', 'demux_*',
+                         '--exclude', 'rsync*',
+                         '--exclude', '*.csv',
+                         '-cvzf', archive,
+                         '-C', run_dir_path, dir_name])
     except subprocess.CalledProcessError as e:
         logger.error('Error creating tar archive')
         raise e
@@ -188,10 +192,23 @@ def transfer_runfolder(run_dir, pid):
 
     # Rsync the files to irma
     destination = CONFIG['analysis']['deliver_runfolder'].get('destination')
-    rsync_opts = {'-Lav': None, '--no-o': None, '--no-g': None, '--chmod': 'g+rw'}
+    rsync_opts = {'-Lav': None,
+                  '--no-o': None,
+                  '--no-g': None,
+                  '--chmod': 'g+rw'}
     connection_details = CONFIG['analysis']['deliver_runfolder'].get('analysis_server')
-    archive_transfer = RsyncAgent(archive, dest_path=destination, remote_host=connection_details['host'], remote_user=connection_details['user'], validate=False, opts=rsync_opts)
-    md5_transfer = RsyncAgent(md5file, dest_path=destination, remote_host=connection_details['host'], remote_user=connection_details['user'], validate=False, opts=rsync_opts)
+    archive_transfer = RsyncAgent(archive,
+                                  dest_path=destination,
+                                  remote_host=connection_details['host'],
+                                  remote_user=connection_details['user'],
+                                  validate=False,
+                                  opts=rsync_opts)
+    md5_transfer = RsyncAgent(md5file,
+                              dest_path=destination,
+                              remote_host=connection_details['host'],
+                              remote_user=connection_details['user'],
+                              validate=False,
+                              opts=rsync_opts)
 
     archive_transfer.transfer()
     md5_transfer.transfer()
@@ -269,17 +286,17 @@ def run_preprocessing(run, force_trasfer=True, statusdb=True):
             # Upload to statusDB if applies
             if 'statusdb' in CONFIG:
                 _upload_to_statusdb(run)
-            #this function checks if demux is done
+            # This function checks if demux is done
             run.check_run_status()
 
-        # previous elif might change the status to COMPLETED, therefore to avoid skipping
+        # Previous elif might change the status to COMPLETED, therefore to avoid skipping
         # a cycle take the last if out of the elif
         if run.get_run_status() == 'COMPLETED':
             logger.info(('Preprocessing of run {} is finished, transferring it'.format(run.id)))
             # Upload to statusDB if applies
             if 'statusdb' in CONFIG:
                 _upload_to_statusdb(run)
-                #notify with a mail run completion and stats uploaded
+                # Notify with a mail run completion and stats uploaded
                 msg = """The run {run} has been demultiplexed.
                 The Run will be transferred to Irma for further analysis.
 
@@ -324,7 +341,8 @@ def run_preprocessing(run, force_trasfer=True, statusdb=True):
     else:
         data_dirs = CONFIG.get('analysis').get('data_dirs')
         for data_dir in data_dirs:
-            # Run folder looks like DATE_*_*_*, the last section is the FC name. See Courtesy information from illumina of 10 June 2016 (no more XX at the end of the FC)
+            # Run folder looks like DATE_*_*_*, the last section is the FC name.
+            # See Courtesy information from illumina of 10 June 2016 (no more XX at the end of the FC)
             runs = glob.glob(os.path.join(data_dir, '[1-9]*_*_*_*'))
             for _run in runs:
                 runObj = get_runObj(_run)
@@ -334,7 +352,7 @@ def run_preprocessing(run, force_trasfer=True, statusdb=True):
                     try:
                         _process(runObj, force_trasfer)
                     except:
-                        # this function might throw and exception,
+                        # This function might throw and exception,
                         # it is better to continue processing other runs
                         logger.warning('There was an error processing the run {}'.format(run))
                         pass

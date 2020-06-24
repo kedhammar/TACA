@@ -38,3 +38,41 @@ class ProjectSummaryConnection(StatusdbSession):
         self.db = self.connection[dbname]
         self.name_view = {k.key: k.id for k in self.db.view('project/project_name', reduce=False)}
         self.id_view = {k.key: k.id for k in self.db.view('project/project_id', reduce=False)}
+
+
+def update_doc(db, obj, over_write_db_entry=False):
+    view = db.view('info/name')
+    if len(view[obj['name']].rows) == 1:
+        remote_doc = view[obj['name']].rows[0].value
+        doc_id = remote_doc.pop('_id')
+        doc_rev = remote_doc.pop('_rev')
+        if remote_doc != obj:
+            if not over_write_db_entry:
+                obj = merge_dicts(obj, remote_doc)
+            obj['_id'] = doc_id
+            obj['_rev'] = doc_rev
+            db[doc_id] = obj
+            log.info('Updating {}'.format(obj['name']))
+    elif len(view[obj['name']].rows) == 0:
+        db.save(obj)
+        log.info('Saving {}'.format(obj['name']))
+    else:
+        log.warn('More than one row with name {} found'.format(obj['name']))
+
+
+def merge_dicts(d1, d2):
+    """Merge dictionary d2 into dictionary d1.
+    If the same key is found, the one in d1 will be used.
+    """
+    for key in d2:
+        if key in d1:
+            if isinstance(d1[key], dict) and isinstance(d2[key], dict):
+                merge(d1[key], d2[key])
+            elif d1[key] == d2[key]:
+                pass  # same leaf value
+            else:
+                log.debug('Values for key {key} in d1 and d2 differ, '
+                          'using the value of d1'.format(key=key))
+        else:
+            d1[key] = d2[key]
+    return d1

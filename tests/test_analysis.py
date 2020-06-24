@@ -94,8 +94,8 @@ class TestAnalysis(unittest.TestCase):
         an.upload_to_statusdb(self.completed)
         mock_upload_to_statusdb.assert_called_once_with('HiSeqX_run_object')
 
-    @mock.patch('taca.analysis.analysis.fcpdb')
-    def test__upload_to_statusdb(self, mock_fcpdb):
+    @mock.patch('taca.analysis.analysis.statusdb')
+    def test__upload_to_statusdb(self, mock_statusdb):
         """Upload to statusdb."""
         run = os.path.join(self.tmp_dir, '141124_ST-NOINDEX1_01_AFCIDYX')
         os.mkdir(run)
@@ -109,7 +109,7 @@ class TestAnalysis(unittest.TestCase):
         shutil.copy('data/lane.html', (reports_dir))
         noindex_run = an.get_runObj(run)
         an._upload_to_statusdb(noindex_run)
-        mock_fcpdb.update_doc.assert_called_once()
+        mock_statusdb.update_doc.assert_called_once()
 
     @mock.patch('taca.analysis.analysis.HiSeqX_Run.transfer_run')
     def test_transfer_run(self, mock_transfer_run):
