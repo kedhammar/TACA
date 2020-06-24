@@ -70,7 +70,7 @@ class ProjectSummaryConnection(StatusdbSession):
         self.id_view = {k.key: k.id for k in self.db.view('project/project_id', reduce=False)}
 
 
-class FlowcellRunMetricsConnection(statusdb_session):
+class FlowcellRunMetricsConnection(StatusdbSession):
     def __init__(self, config, dbname='flowcells'):
         super(FlowcellRunMetricsConnection, self).__init__(config)
         self.db = self.connection[dbname]
@@ -78,7 +78,7 @@ class FlowcellRunMetricsConnection(statusdb_session):
         self.proj_list = {k.key:k.value for k in self.db.view('names/project_ids_list', reduce=False) if k.key}
 
 
-class X_FlowcellRunMetricsConnection(statusdb_session):
+class X_FlowcellRunMetricsConnection(StatusdbSession):
     def __init__(self, config, dbname='x_flowcells'):
         super(X_FlowcellRunMetricsConnection, self).__init__(config)
         self.db = self.connection[dbname]

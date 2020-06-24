@@ -10,7 +10,7 @@ import unittest
 import time
 import couchdb
 from collections import defaultdict
-from taca.utils import misc, filesystem, transfer, config, bioinfo_tab
+from taca.utils import misc, filesystem, transfer, config, bioinfo_tab, statusdb
 
 
 class TestMisc(unittest.TestCase):
@@ -774,3 +774,17 @@ class TestBioinfoTab(unittest.TestCase):
         project = 'P0001'
         bioinfo_tab.fail_run(run_id, project)
         mock_couch.assert_called_with('http://username:pwd@url:1234')
+
+
+class TestStatusdb(unittest.TestCase):
+    """Tests for statusdb utils."""
+
+    @mock.patch('taca.utils.statusdb.couchdb')
+    def test_get_entry(self, mock_couch):
+        """Get an entry from statusdb."""
+        couch_config = {'user': 'username',
+                        'port': '1234',
+                        'url': 'some_url',
+                        'password': 'some_pwd'}
+        entry = statusdb.ProjectSummaryConnection(couch_config).get_entry('name')
+        self.assertEqual(entry, None)
