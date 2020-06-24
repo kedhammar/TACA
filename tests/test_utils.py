@@ -110,7 +110,7 @@ class TestMisc(unittest.TestCase):
         expected_list = ['a', 'b', 'c']
         self.assertEqual(returned_list, expected_list)
 
-    @mock.patch('taca.utils.misc.couchdb.Server')
+    @mock.patch('taca.utils.misc.statusdb')
     def test_run_is_demuxed(self, mock_couch):
         """Check in StatusDB if run was demultiplexed."""
         run = '200201_A00621_0032_BHHFCFDSXX'

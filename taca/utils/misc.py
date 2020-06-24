@@ -1,5 +1,4 @@
 """Miscellaneous or general-use methods."""
-import couchdb
 import hashlib
 import os
 import smtplib
@@ -8,10 +7,10 @@ import sys
 
 from datetime import datetime
 from email.mime.text import MIMEText
-
+from taca.utils import statusdb
 
 def send_mail(subject, content, receiver):
-    """ Sends an email
+    """Sends an email.
 
     :param str subject: Subject for the email
     :param str content: Content of the email
@@ -29,7 +28,7 @@ def send_mail(subject, content, receiver):
     s.quit()
 
 def call_external_command(cl, with_log_files=False, prefix=None, log_dir=''):
-    """ Executes an external command
+    """Executes an external command.
 
     :param string cl: Command line to be executed (command + options and parameters)
     :param bool with_log_files: Create log files for stdout and stderr
@@ -44,7 +43,7 @@ def call_external_command(cl, with_log_files=False, prefix=None, log_dir=''):
     if with_log_files:
         if prefix:
             logFile = '{}_{}'.format(prefix, logFile)
-        #create log dir if it didn't exist in CWD
+        # Create log dir if it didn't exist in CWD
         if log_dir and not os.path.exists(log_dir):
             os.mkdir(log_dir)
         logFile = os.path.join(log_dir, logFile)
@@ -65,11 +64,11 @@ def call_external_command(cl, with_log_files=False, prefix=None, log_dir=''):
             stderr.close()
 
 def call_external_command_detached(cl, with_log_files=False, prefix=None):
-    """ Executes an external command
+    """Executes an external command.
 
-        :param string cl: Command line to be executed (command + options and parameters)
-        :param bool with_log_files: Create log files for stdout and stderr
-        """
+    :param string cl: Command line to be executed (command + options and parameters)
+    :param bool with_log_files: Create log files for stdout and stderr
+    """
     if type(cl) == str:
         cl = cl.split(' ')
     command = os.path.basename(cl[0])
@@ -97,12 +96,12 @@ def call_external_command_detached(cl, with_log_files=False, prefix=None):
     return p_handle
 
 def to_seconds(days=None, hours=None):
-    """ Convert given day/hours to seconds and return
+    """Convert given day/hours to seconds and return.
 
-        :param int days: days to be converted
-        :param int hours: hours to be converted
+    :param int days: days to be converted
+    :param int hours: hours to be converted
     """
-    #only either days or hours should be speciefied, but atleast one should be specified
+    # Only either days or hours should be speciefied, but atleast one should be specified
     if days and hours:
         raise SystemExit('Both "days" and "hours" were given, use only either of them')
     elif not days and not hours:
@@ -115,15 +114,15 @@ def to_seconds(days=None, hours=None):
         return 3600 * hours
 
 def hashfile(afile, hasher='sha1', blocksize=65536):
-    """ Calculate the hash digest of a file with the specified algorithm and
-        return it.
+    """Calculate the hash digest of a file with the specified algorithm and
+    return it.
 
-        This solution was adapted from http://stackoverflow.com/a/3431835
+    This solution was adapted from http://stackoverflow.com/a/3431835
 
-        :param string afile: the file to calculate the digest for
-        :param string hasher: the hashing algorithm to be used, default is sha1
-        :param int blocksize: the blocksize to use, default is 65536 bytes
-        :returns: the hexadecimal hash digest or None if input was not a file
+    :param string afile: the file to calculate the digest for
+    :param string hasher: the hashing algorithm to be used, default is sha1
+    :param int blocksize: the blocksize to use, default is 65536 bytes
+    :returns: the hexadecimal hash digest or None if input was not a file
     """
     if not os.path.isfile(afile):
         return None
@@ -185,18 +184,15 @@ def run_is_demuxed(run, couch_info=None):
     :param str run: run name
     :param dict couch_info: a dict with 'statusDB' info
     """
-    # check if statusdb info is given
     if not couch_info:
         raise SystemExit('To check for demultiplexing is enabled in config file but no "statusDB" info was given')
     run_terms = run.split('_')
     run_date = run_terms[0]
     run_fc = run_terms[-1]
-    run_name = "{}_{}".format(run_date, run_fc)
-    # connect to statusdb using info fectched from config file
+    run_name = '{}_{}'.format(run_date, run_fc)
     try:
-        server = 'http://{username}:{password}@{url}:{port}'.format(**couch_info)
-        couch = couchdb.Server(server)
-        fc_db = couch[couch_info['db']]
+        couch_connection = statusdb.StatusdbSession(couch_info).connection
+        fc_db = couch_connection[couch_info['db']]
         for fc in fc_db.view('names/name', reduce=False, descending=True):
             if fc.key != run_name:
                 continue
