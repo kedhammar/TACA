@@ -261,8 +261,9 @@ def archive_run(run_dir):
     # mv dir to nosync
     logger.info('Archiving run ' + run_dir)
     archive_dir = CONFIG.get('nanopore_analysis').get('finished_dir')
+    top_dir = '/'.join(run_dir.split('/')[0:-2]) # This is a bit hacky, happy for suggestions on better solutions
     try:
-        shutil.move(run_dir, archive_dir)
+        shutil.move(top_dir, archive_dir)
         logger.info('Successfully archived {}'.format(run_dir))
     except shutil.Error:
         logger.warn('An error occurred when archiving {}. Please check the logfile for more info.'.format(run_dir))

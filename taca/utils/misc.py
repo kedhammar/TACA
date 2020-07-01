@@ -1,5 +1,4 @@
-""" Miscellaneous or general-use methods
-"""
+""" Miscellaneous or general-use methods."""
 import couchdb
 import hashlib
 import os
@@ -133,16 +132,16 @@ def to_seconds(days=None, hours=None):
         return 3600 * hours
 
 def hashfile(afile, hasher='sha1', blocksize=65536):
-    """ Calculate the hash digest of a file with the specified algorithm and 
+    """ Calculate the hash digest of a file with the specified algorithm and
         return it.
-        
+
         This solution was adapted from http://stackoverflow.com/a/3431835
-    
+
         :param string afile: the file to calculate the digest for
         :param string hasher: the hashing algorithm to be used, default is sha1
         :param int blocksize: the blocksize to use, default is 65536 bytes
         :returns: the hexadecimal hash digest or None if input was not a file
-    """ 
+    """
     if not os.path.isfile(afile):
         return None
     hashobj = hashlib.new(hasher)
@@ -153,7 +152,7 @@ def hashfile(afile, hasher='sha1', blocksize=65536):
             buf = fh.read(blocksize)
     return hashobj.hexdigest()
 
-    
+
 def query_yes_no(question, default="yes", force=False):
     """Ask a yes/no question via raw_input() and return their answer.
     "question" is a string that is presented to the user. "default"
@@ -201,7 +200,7 @@ def return_unique(seq):
 
 def link_undet_to_sample(run, dmux_folder, lane, path_per_lane):
     """symlinks the undetermined file to the right sample folder with a RELATIVE path so it's carried over by rsync
-    
+
     :param run: path of the flowcell
     :type run: str
     :param lane: lane identifier
@@ -217,7 +216,7 @@ def link_undet_to_sample(run, dmux_folder, lane, path_per_lane):
 def run_is_demuxed(run, couch_info=None):
     """Check in StatusDB 'x_flowcells' database if the given run has an entry which means it was
     demultiplexed (as TACA only creates a document upon successfull demultiplexing)
-    
+
     :param str run: run name
     :param dict couch_info: a dict with 'statusDB' info
     """
