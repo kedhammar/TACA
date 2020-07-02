@@ -85,7 +85,7 @@ def update_statusdb(run_dir):
                                 logger.info('Updating {} {} {} {} {} as {}'.format(run_id, project,
                                 flowcell, lane, sample, sample_status))
                                 #Sorts timestamps
-                                obj['values'] = OrderedDict(sorted(obj['values'].iteritems(), key=lambda (k,v): k, reverse=True))
+                                obj['values'] = OrderedDict(sorted(obj['values'].iteritems(), key=lambda k_v: k_v[0], reverse=True))
                                 #Update record cluster
                                 obj['_rev'] = db[remote_id].rev
                                 obj['_id'] = remote_id
