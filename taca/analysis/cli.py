@@ -1,31 +1,29 @@
-""" CLI for the analysis subcommand
-"""
+"""CLI for the analysis subcommand."""
 import click
 from taca.analysis import analysis as an
 
 
 @click.group()
 def analysis():
-	""" Analysis methods entry point """
-	pass
+    """Analysis methods entry point."""
+    pass
 
 # analysis subcommands
 @analysis.command()
 @click.option('-r', '--run', type=click.Path(exists=True), default=None,
-				 help='Demultiplex only a particular run')
+              help='Demultiplex only a particular run')
 @click.option('--force', is_flag=True, help='If specified tranfers always the runs, despite they fail QC. Mail is sent anyway' )
 
 def demultiplex(run, force):
-	""" Demultiplex all runs present in the data directories
-	"""
-	an.run_preprocessing(run, force_trasfer=force)
+    """Demultiplex all runs present in the data directories."""
+    an.run_preprocessing(run, force_trasfer=force)
 
 @analysis.command()
 @click.option('--runfolder-project', is_flag=False, help='Project ID for runfolder transfer')
 @click.argument('rundir')
 
 def transfer(rundir, runfolder_project):
-    """Transfers the run without qc"""
+    """Transfers the run without qc."""
     if not runfolder_project:
         an.transfer_run(rundir)
     else:

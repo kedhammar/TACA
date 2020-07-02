@@ -4,8 +4,8 @@ import taca.utils.bioinfo_tab as bt
 
 @click.group(name='bioinfo_deliveries')
 def bioinfo_deliveries():
-	""" Update statusdb with information about FC entry point """
-	pass
+    """Update statusdb with information about FC entry point."""
+    pass
 
 # bioinfo subcommands
 @bioinfo_deliveries.command()

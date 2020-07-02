@@ -10,8 +10,8 @@ from taca.utils import misc
               envvar='STATUS_DB_CONFIG',
               help='Path to statusdb-configuration.')
 def cleanup(ctx, status_db_config):
-	"""Cleaning up servers - management methods and utilities."""
-	pass
+    """Cleaning up servers - management methods and utilities."""
+    pass
 
 # cleanup subcommands
 @cleanup.command()

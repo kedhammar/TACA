@@ -1,14 +1,12 @@
-""" CLI for the backup subcommand
-"""
+"""CLI for the backup subcommand."""
 import click
 from taca.backup.backup import backup_utils as bkut
 
 @click.group()
 @click.pass_context
 def backup(ctx):
-	""" Backup management methods and utilities """
-	pass
-
+    """ Backup management methods and utilities """
+    pass
 
 @backup.command()
 @click.option('-r', '--run', type=click.Path(exists=True), help="A run (directory or a zipped archive) to be encrypted")
