@@ -13,7 +13,7 @@ def _parse_crontab():
     logging.info('Getting crontab for user {}'.format(user))
     try:
         crontab = CronTab(user=user)
-    except Exception, e:
+    except Exception as e:
         logging.error('Cannot get a crontab for user: {}'.format(user))
         logging.error(e.message)
     else:
@@ -43,7 +43,7 @@ def update_cronjob_db():
     logging.info('Connecting to database: {}'.format(CONFIG.get('statusdb', {}).get('url')))
     try:
         couch_connection = statusdb.StatusdbSession(statusdb_conf).connection
-    except Exception, e:
+    except Exception as e:
         logging.error(e.message)
     else:
         # update document
@@ -68,7 +68,7 @@ def update_cronjob_db():
         if doc:
             try:
                 crontab_db.save(doc)
-            except Exception, e:
+            except Exception as e:
                 logging.error(e.message)
             else:
                 logging.info('{} has been successfully updated'.format(server))

@@ -499,7 +499,7 @@ def _remove_files(files):
     for fl in files:
         try:
             os.remove(fl)
-        except Exception, e:
+        except Exception as e:
             logger.warn('Could not remove file {} due to "{}"'.format(fl, e.message))
             status = False
     return status
@@ -508,5 +508,5 @@ def _touch_cleaned(path):
     """Touch a 'cleaned' file in a given path."""
     try:
         open(os.path.join(path, 'cleaned'), 'w').close()
-    except Exception, e:
+    except Exception as e:
         logger.warn('Could not create "cleaned" file in path {} due to "{}"'.format(path, e.message))

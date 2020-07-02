@@ -89,7 +89,7 @@ class backup_utils(object):
             df_proc = sp.Popen(['df', path], stdout=sp.PIPE, stderr=sp.PIPE)
             df_out, df_err = df_proc.communicate()
             available_size = int(df_out.strip().split('\n')[-1].strip().split()[2])/1024/1024
-        except Exception, e:
+        except Exception as e:
             logger.error('Evaluation of disk space failed with error {}'.format(e))
             raise SystemExit
         if available_size < required_size:
@@ -163,7 +163,7 @@ class backup_utils(object):
             if return_out:
                 return (True, p2_out) if cmd2 else (True, p1_out)
             return True
-        except Exception, e:
+        except Exception as e:
             raise e
         finally:
             if out_file:

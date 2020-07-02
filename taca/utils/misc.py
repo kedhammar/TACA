@@ -55,7 +55,7 @@ def call_external_command(cl, with_log_files=False, prefix=None, log_dir=''):
 
     try:
         subprocess.check_call(cl, stdout=stdout, stderr=stderr)
-    except subprocess.CalledProcessError, e:
+    except subprocess.CalledProcessError as e:
         e.message = 'The command {} failed.'.format(' '.join(cl))
         raise e
     finally:
@@ -86,7 +86,7 @@ def call_external_command_detached(cl, with_log_files=False, prefix=None):
 
     try:
         p_handle = subprocess.Popen(cl, stdout=stdout, stderr=stderr)
-    except subprocess.CalledProcessError, e:
+    except subprocess.CalledProcessError as e:
         e.message = 'The command {} failed.'.format(' '.join(cl))
         raise e
     finally:
@@ -200,5 +200,5 @@ def run_is_demuxed(run, couch_info=None):
             if not fc_doc or not fc_doc.get('illumina', {}).get('Demultiplex_Stats', {}):
                 return False
             return True
-    except Exception, e:
+    except Exception as e:
         raise e

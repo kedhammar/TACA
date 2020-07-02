@@ -285,7 +285,7 @@ def fail_run(runid, project):
     logger.info('Connecting to status db: {}:{}'.format(url, port))
     try:
         status_db = couchdb.Server(status_db_url)
-    except Exception, e:
+    except Exception as e:
         logger.error("Can't connect to status_db: {}".format(status_db_url))
         logger.error(e)
         raise e
@@ -308,7 +308,7 @@ def fail_run(runid, project):
         try:
             bioinfo_db.save(row.value)
             updated += 1
-        except Exception, e:
+        except Exception as e:
             logger.error('Cannot update object project-sample-run-lane: {}-{}-{}-{}'.format(row.value.get('project_id'), row.value.get('sample'), row.value.get('run_id'), row.value.get('lane')))
             logger.error(e)
             raise e
