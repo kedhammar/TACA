@@ -88,7 +88,7 @@ class HiSeq_Run(Run):
         for mask in different_masks:
             base_masks_complex_to_demux = {}
             for lane in complex_lanes:
-                if complex_lanes[lane].has_key(mask):
+                if mask in complex_lanes[lane]:
                     base_masks_complex_to_demux[lane] = {}
                     base_masks_complex_to_demux[lane][mask] = complex_lanes[lane][mask]
             #at this point base_masks_complex_to_demux contains only a base mask for lane. I can build the command
@@ -111,7 +111,7 @@ class HiSeq_Run(Run):
         """
         logger.info('Building bcl2fastq command')
         cl = [self.CONFIG.get('bcl2fastq')['bin']]
-        if self.CONFIG.get('bcl2fastq').has_key('options'):
+        if 'options' in self.CONFIG.get('bcl2fastq'):
             cl_options = self.CONFIG['bcl2fastq']['options']
             # Append all options that appear in the configuration file to the main command.
             for option in cl_options:

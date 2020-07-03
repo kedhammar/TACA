@@ -184,7 +184,7 @@ class HiSeqX_Run(Run):
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
             cl_options = []
-            if self.CONFIG.get('bcl2fastq').has_key('options'):
+            if 'options' in self.CONFIG.get('bcl2fastq'):
                 for option in self.CONFIG['bcl2fastq']['options']:
                     cl_options.extend([option])
                 # Add the extra 10X command options if we have a 10X run
