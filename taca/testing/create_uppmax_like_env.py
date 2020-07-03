@@ -209,7 +209,7 @@ def select_random_projects(projects_in, num_proj, application, projects_out, lab
     application_not_in_other = ['WG re-seq']
     while chosen_projects != num_proj and iterations < 4*len(projects_in):
         iterations += 1
-        selected_proj = random.choice(projects_in.keys())
+        selected_proj = random.choice(list(projects_in.keys()))
         # Check if I have already picked up this element
         already_chosen = False
         for project_pair in projects_out:

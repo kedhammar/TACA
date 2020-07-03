@@ -196,7 +196,7 @@ class HiSeqX_Run(Run):
                 # Append all options that appear in the configuration file to the main command.
                 for option in cl_options:
                     if isinstance(option, dict):
-                        opt, val = option.items()[0]
+                        opt, val = list(option.items())[0]
                         if "output-dir" not in opt:
                             cl.extend(['--{}'.format(opt), str(val)])
                     else:
@@ -204,7 +204,7 @@ class HiSeqX_Run(Run):
 
             cl.extend(["--sample-sheet",  os.path.join(os.path.join(self.run_dir, "SampleSheet_{}.csv".format(bcl2fastq_cmd_counter)))])
             #now add the base_mask for each lane
-            lanes = mask_table.keys()
+            lanes = list(mask_table.keys())
             for lane in sorted(lanes):
                 #Iterate thorugh each lane and add the correct --use-bases-mask for that lane
                 base_mask = [per_lane_base_masks[lane][bm]['base_mask'] for bm in per_lane_base_masks[lane]][0] # get the base_mask
@@ -317,7 +317,7 @@ def _generate_clean_samplesheet(ssparser, indexfile, fields_to_remove=None, rena
     index_dict=parse_10X_indexes(indexfile) #read the 10X indices
     # Replace 10X index with the 4 actual indicies.
     for sample in ssparser.data:
-        if sample['index'] in index_dict.keys():
+        if sample['index'] in list(index_dict.keys()):
             x=0
             while x<3:
                 new_sample=dict(sample)
@@ -441,7 +441,7 @@ def _generate_samplesheet_subset(ssparser, samples_to_include):
     for line in ssparser.data:
         sample_name = line.get('Sample_Name') or line.get('SampleName')
         lane = line['Lane']
-        if lane in samples_to_include.keys():
+        if lane in list(samples_to_include.keys()):
             if sample_name in samples_to_include.get(lane):
                 line_ar=[]
                 for field in datafields:

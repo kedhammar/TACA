@@ -7,6 +7,7 @@ from taca.illumina.Runs import Run
 from taca.utils import misc
 from flowcell_parser.classes import SampleSheetParser
 from io import open
+import six
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +84,7 @@ class HiSeq_Run(Run):
             bcl2fastq_commands.append(self._generate_bcl2fastq_command(simple_lanes, True, bcl2fastq_command_num))
             bcl2fastq_command_num += 1
         #compute the different masks, there will be one bcl2fastq command per mask
-        base_masks_complex = [complex_lanes[base_masks].keys() for base_masks in complex_lanes]
+        base_masks_complex = [list(complex_lanes[base_masks].keys()) for base_masks in complex_lanes]
         different_masks    = list(set([item for sublist in base_masks_complex for item in sublist]))
         for mask in different_masks:
             base_masks_complex_to_demux = {}
@@ -116,7 +117,7 @@ class HiSeq_Run(Run):
             # Append all options that appear in the configuration file to the main command.
             for option in cl_options:
                 if isinstance(option, dict):
-                    opt, val = option.items()[0]
+                    opt, val = list(option.items())[0]
                     #skip output-dir has I might need more than one
                     if "output-dir" not in opt:
                         cl.extend(['--{}'.format(opt), str(val)])
@@ -190,7 +191,7 @@ class HiSeq_Run(Run):
         data = []
         for line in ssparser.data:
             entry = {}
-            for field, value in line.iteritems():
+            for field, value in six.iteritems(line):
                 if 'SampleID' in field :
                     entry[_data_filed_conversion(field)] ='Sample_{}'.format(value)
                     entry['Sample_Name'] = value

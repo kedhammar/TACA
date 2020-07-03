@@ -9,6 +9,7 @@ from taca.utils.config import CONFIG
 from flowcell_parser.classes import SampleSheetParser, RunParametersParser
 from collections import defaultdict, OrderedDict
 from taca.utils.misc import send_mail
+import six
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +86,7 @@ def update_statusdb(run_dir):
                                 logger.info('Updating {} {} {} {} {} as {}'.format(run_id, project,
                                 flowcell, lane, sample, sample_status))
                                 #Sorts timestamps
-                                obj['values'] = OrderedDict(sorted(obj['values'].iteritems(), key=lambda k_v: k_v[0], reverse=True))
+                                obj['values'] = OrderedDict(sorted(six.iteritems(obj['values']), key=lambda k_v: k_v[0], reverse=True))
                                 #Update record cluster
                                 obj['_rev'] = db[remote_id].rev
                                 obj['_id'] = remote_id
@@ -226,7 +227,7 @@ def get_ss_projects(run_dir):
             proj_n_sample = False
             lane = False
 
-    if proj_tree.keys() == []:
+    if list(proj_tree.keys()) == []:
         logger.info('INCORRECTLY FORMATTED SAMPLESHEET, CHECK {}'.format(run_name))
     return proj_tree
 

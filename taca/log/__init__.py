@@ -26,7 +26,7 @@ def init_logger_file(log_file, log_level='INFO'):
     :param str log_level: Logging level
     """
     ROOT_LOG.handlers=[]
-    log_level = LOG_LEVELS[log_level] if log_level in LOG_LEVELS.keys() else logging.INFO
+    log_level = LOG_LEVELS[log_level] if log_level in list(LOG_LEVELS.keys()) else logging.INFO
 
     ROOT_LOG.setLevel(log_level)
 

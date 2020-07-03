@@ -1,6 +1,7 @@
 import os
 from taca.illumina.HiSeq_Runs import HiSeq_Run
 from flowcell_parser.classes import SampleSheetParser
+import six
 
 
 class MiSeq_Run(HiSeq_Run):
@@ -58,7 +59,7 @@ class MiSeq_Run(HiSeq_Run):
         data = []
         for line in ssparser.data:
             entry = {}
-            for field, value in line.iteritems():
+            for field, value in six.iteritems(line):
                 if ssparser.dfield_sid in field:
                     entry[field] ='Sample_{}'.format(value)
                 elif ssparser.dfield_proj in field:

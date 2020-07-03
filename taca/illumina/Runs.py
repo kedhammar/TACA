@@ -522,7 +522,7 @@ class Run(object):
                         lanes_in_sub_samplesheet.append(row[1])
             lanes_in_sub_samplesheet = list(set(lanes_in_sub_samplesheet))
             for lane in lanes_in_sub_samplesheet:
-                if lane in simple_lanes.keys():
+                if lane in list(simple_lanes.keys()):
                     undetermined_fastq_files = glob.glob(os.path.join(run_dir, "Demultiplexing_{}".format(demux_id), "Undetermined_S0_L00{}*.fastq*".format(lane))) #contains only simple lanes undetermined
                     for fastqfile in undetermined_fastq_files:
                         os.symlink(fastqfile, os.path.join(demux_folder,os.path.split(fastqfile)[1]))
@@ -555,7 +555,7 @@ class Run(object):
             Clusters_Raw += int(int(entry['PF Clusters'].replace(',',''))/float(entry['% PFClusters'])*100)
             Clusters_PF += int(entry['PF Clusters'].replace(',',''))
             Yield_Mbases += int(entry['Yield (Mbases)'].replace(',',''))
-            if entry['Lane'] in complex_lanes.keys():
+            if entry['Lane'] in list(complex_lanes.keys()):
                 entry['% Perfectbarcode']      = None
                 entry['% One mismatchbarcode'] = None
         # Now update the values in Flowcell Summary
@@ -581,7 +581,7 @@ class Run(object):
         positions_to_delete = [] #find all position that contain default as poriject nameand do not belong to a simple lane
         current_pos = 0
         for entry in html_report_laneBarcode_parser.sample_data:
-            if  entry['Lane'] in complex_lanes.keys() and entry['Project'] in "default":
+            if  entry['Lane'] in list(complex_lanes.keys()) and entry['Project'] in "default":
                 positions_to_delete = [current_pos] +  positions_to_delete # build the array in this way so that I can delete the elements without messing with the offsets
             current_pos += 1
         for position in positions_to_delete:
@@ -686,7 +686,7 @@ def _generate_lane_html(html_file, html_report_lane_parser):
         html.write("<h2>Flowcell Summary</h2>\n")
         html.write("<table border=\"1\" ID=\"ReportTable\">\n")
         html.write("<tr>\n")
-        keys = html_report_lane_parser.flowcell_data.keys()
+        keys = list(html_report_lane_parser.flowcell_data.keys())
         for key in keys:
             html.write("<th>{}</th>\n".format(key))
         html.write("</tr>\n")
@@ -699,7 +699,7 @@ def _generate_lane_html(html_file, html_report_lane_parser):
         html.write("<h2>Lane Summary</h2>\n")
         html.write("<table border=\"1\" ID=\"ReportTable\">\n")
         html.write("<tr>\n")
-        keys = html_report_lane_parser.sample_data[0].keys()
+        keys = list(html_report_lane_parser.sample_data[0].keys())
         for key in keys:
             html.write("<th>{}</th>\n".format(key))
         html.write("</tr>\n")

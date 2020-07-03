@@ -307,9 +307,9 @@ class backup_utils(object):
         for run in bk.runs:
             run.flag = '{}.archiving'.format(run.name)
             run.dst_key_encrypted = os.path.join(bk.keys_path, run.key_encrypted)
-            if run.path not in bk.archive_dirs.values():
+            if run.path not in list(bk.archive_dirs.values()):
                 logger.error(('Given run is not in one of the archive directories {}. Kindly move the run {} to appropriate '
-                              'archive dir before sending it to PDC'.format(','.join(bk.archive_dirs.values()), run.name)))
+                              'archive dir before sending it to PDC'.format(','.join(list(bk.archive_dirs.values())), run.name)))
                 continue
             if not os.path.exists(run.dst_key_encrypted):
                 logger.error('Encrypted key file {} is not found for file {}, skipping it'.format(run.dst_key_encrypted, run.zip_encrypted))
