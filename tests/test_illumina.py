@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import os
+import io
 import shutil
 import tempfile
 import unittest
@@ -11,6 +12,8 @@ import filecmp
 import subprocess
 from datetime import datetime
 
+
+
 from taca.analysis.analysis import *
 from taca.illumina.Runs import Run, _create_folder_structure, _generate_lane_html
 from taca.illumina.HiSeq_Runs import HiSeq_Run, _data_filed_conversion
@@ -20,7 +23,6 @@ from taca.illumina.NovaSeq_Runs import NovaSeq_Run
 from taca.illumina.NextSeq_Runs import NextSeq_Run
 from flowcell_parser.classes import LaneBarcodeParser, SampleSheetParser
 from taca.utils import config as conf
-
 
 # This is only run if TACA is called from the CLI, as this is a test, we need to
 # call it explicitely
@@ -127,11 +129,11 @@ class TestRuns(unittest.TestCase):
         open(os.path.join(completed, 'Demultiplexing', 'Undetermined_S0_L001_R1_001.fastq.gz'), 'w').close()
         open(os.path.join(complex_run_dir, 'Demultiplexing_0', 'N__One_20_01', 'Sample_P12345_1001', 'P16510_1001_S1_L001_R1_001.fastq.gz'), 'w').close()
         open(os.path.join(complex_run_dir, 'Demultiplexing_0', 'N__One_20_01', 'Sample_P12345_1001', 'P16510_1001_S1_L001_R2_001.fastq.gz'), 'w').close()
-        with open(os.path.join(completed, 'Demultiplexing', 'Stats', 'Stats.json'), 'w') as stats_json:
-            json.dump({'silly': 1}, stats_json)
+        with io.open(os.path.join(completed, 'Demultiplexing', 'Stats', 'Stats.json'), 'w', encoding="utf-8") as stats_json:
+            stats_json.write(unicode(json.dumps({'silly': 1}, ensure_ascii=False)))
 
         # Create transfer file and add the completed run
-        with open(self.transfer_file, 'w') as f:
+        with open(self.transfer_file, 'wb') as f:
             tsv_writer = csv.writer(f, delimiter='\t')
             tsv_writer.writerow([os.path.basename(completed), str(datetime.now())])
 

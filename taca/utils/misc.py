@@ -8,6 +8,7 @@ import sys
 from datetime import datetime
 from email.mime.text import MIMEText
 from taca.utils import statusdb
+from io import open
 
 def send_mail(subject, content, receiver):
     """Sends an email.
@@ -47,11 +48,11 @@ def call_external_command(cl, with_log_files=False, prefix=None, log_dir=''):
         if log_dir and not os.path.exists(log_dir):
             os.mkdir(log_dir)
         logFile = os.path.join(log_dir, logFile)
-        stdout = open(logFile + '.out', 'wa')
-        stderr = open(logFile + '.err', 'wa')
+        stdout = open(logFile + '.out', 'a')
+        stderr = open(logFile + '.err', 'a')
         started = 'Started command {} on {}'.format(' '.join(cl), datetime.now())
-        stdout.write(started + '\n')
-        stdout.write(''.join(['=']*len(cl)) + '\n')
+        stdout.write(started + u'\n')
+        stdout.write(''.join(['=']*len(cl)) + u'\n')
 
     try:
         subprocess.check_call(cl, stdout=stdout, stderr=stderr)
@@ -78,11 +79,11 @@ def call_external_command_detached(cl, with_log_files=False, prefix=None):
     if with_log_files:
         if prefix:
             command = '{}_{}'.format(prefix, command)
-        stdout = open(command + '.out', 'wa')
-        stderr = open(command + '.err', 'wa')
+        stdout = open(command + '.out', 'a')
+        stderr = open(command + '.err', 'a')
         started = 'Started command {} on {}'.format(' '.join(cl), datetime.now())
-        stdout.write(started + '\n')
-        stdout.write(''.join(['=']*len(cl)) + '\n')
+        stdout.write(started + u'\n')
+        stdout.write(''.join(['=']*len(cl)) + u'\n')
 
     try:
         p_handle = subprocess.Popen(cl, stdout=stdout, stderr=stderr)

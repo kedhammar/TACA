@@ -14,6 +14,7 @@ from glob import glob
 from taca.utils.config import CONFIG, load_config
 from taca.utils import filesystem, misc, statusdb
 from taca.illumina.MiSeq_Runs import MiSeq_Run
+from io import open
 
 logger = logging.getLogger(__name__)
 

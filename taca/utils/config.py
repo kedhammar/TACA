@@ -1,5 +1,6 @@
 """Load and parse configuration file."""
 import yaml
+from io import open
 
 CONFIG = {}
 

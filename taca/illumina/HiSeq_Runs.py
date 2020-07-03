@@ -6,6 +6,7 @@ from taca.utils.filesystem import chdir
 from taca.illumina.Runs import Run
 from taca.utils import misc
 from flowcell_parser.classes import SampleSheetParser
+from io import open
 
 logger = logging.getLogger(__name__)
 

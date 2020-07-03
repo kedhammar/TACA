@@ -11,6 +11,7 @@ from taca.utils.config import CONFIG
 from taca.utils import config as conf
 from taca.utils import filesystem as fs
 from taca.utils import statusdb
+from io import open
 
 
 logger = logging.getLogger(__name__)

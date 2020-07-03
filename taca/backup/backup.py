@@ -10,6 +10,7 @@ import time
 from datetime import datetime
 from taca.utils.config import CONFIG
 from taca.utils import filesystem, misc
+from io import open
 
 logger = logging.getLogger(__name__)
 
