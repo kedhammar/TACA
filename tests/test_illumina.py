@@ -197,7 +197,7 @@ class TestRuns(unittest.TestCase):
     def test_is_sequencing_done(self):
         """Is finished should be True only if "RTAComplete.txt" file is present."""
         self.assertFalse(self.running._is_sequencing_done())
-        self.assertTrue(all(map(lambda run: run._is_sequencing_done, self.finished_runs)))
+        self.assertTrue(all([run._is_sequencing_done for run in self.finished_runs]))
 
     def test_get_run_status(self):
         """Get the run status based on present files."""

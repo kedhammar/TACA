@@ -15,6 +15,7 @@ from taca.utils.config import CONFIG, load_config
 from taca.utils import filesystem, misc, statusdb
 from taca.illumina.MiSeq_Runs import MiSeq_Run
 from io import open
+from six.moves import map
 
 logger = logging.getLogger(__name__)
 
@@ -192,7 +193,7 @@ def cleanup_irma(days_fastq, days_analysis,
                     fc_undet_files = glob(os.path.join(flowcell_project_source, flowcell_undet_files))
                     if fc_undet_files:
                         logger.info('All projects was cleaned for FC {}, found {} undeterminded files'.format(fc, len(fc_undet_files)))
-                        all_undet_files.extend(map(os.path.abspath, fc_undet_files))
+                        all_undet_files.extend(list(map(os.path.abspath, fc_undet_files)))
         if all_undet_files:
             undet_size = _def_get_size_unit(sum(map(os.path.getsize, all_undet_files)))
             if misc.query_yes_no('In total found {} undetermined files which are {} in size, delete now ?'.format(len(all_undet_files),

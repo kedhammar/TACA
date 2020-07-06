@@ -11,6 +11,7 @@ import time
 import couchdb
 from collections import defaultdict
 from taca.utils import misc, filesystem, transfer, config, bioinfo_tab, statusdb
+from six.moves import map
 
 
 class TestMisc(unittest.TestCase):
@@ -429,8 +430,7 @@ class TestRsyncAgent(unittest.TestCase):
         cls.digestfile = os.path.join(cls.rootdir, 'digestfile.sha1')
         with open(cls.digestfile, 'w') as digesth:
             map(lambda x:
-                map(lambda y: _write_digest(cls.rootdir, digesth, os.path.join(x[0], y)),
-                    filter(lambda z: os.path.join(x[0], z) != cls.digestfile, x[2])),
+                [_write_digest(cls.rootdir, digesth, os.path.join(x[0], y)) for y in filter(lambda z: os.path.join(x[0], z) != cls.digestfile, x[2])],
                 os.walk(cls.rootdir))
 
     @classmethod
