@@ -7,7 +7,6 @@ from taca.illumina.Runs import Run
 from taca.utils import misc
 from flowcell_parser.classes import SampleSheetParser
 from io import open
-import six
 
 logger = logging.getLogger(__name__)
 
@@ -191,7 +190,7 @@ class HiSeq_Run(Run):
         data = []
         for line in ssparser.data:
             entry = {}
-            for field, value in six.iteritems(line):
+            for field, value in line.items():
                 if 'SampleID' in field :
                     entry[_data_filed_conversion(field)] ='Sample_{}'.format(value)
                     entry['Sample_Name'] = value

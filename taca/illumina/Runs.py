@@ -522,7 +522,7 @@ class Run(object):
                         lanes_in_sub_samplesheet.append(row[1])
             lanes_in_sub_samplesheet = list(set(lanes_in_sub_samplesheet))
             for lane in lanes_in_sub_samplesheet:
-                if lane in list(simple_lanes.keys()):
+                if lane in simple_lanes.keys():
                     undetermined_fastq_files = glob.glob(os.path.join(run_dir, "Demultiplexing_{}".format(demux_id), "Undetermined_S0_L00{}*.fastq*".format(lane))) #contains only simple lanes undetermined
                     for fastqfile in undetermined_fastq_files:
                         os.symlink(fastqfile, os.path.join(demux_folder,os.path.split(fastqfile)[1]))
@@ -555,7 +555,7 @@ class Run(object):
             Clusters_Raw += int(int(entry['PF Clusters'].replace(',',''))/float(entry['% PFClusters'])*100)
             Clusters_PF += int(entry['PF Clusters'].replace(',',''))
             Yield_Mbases += int(entry['Yield (Mbases)'].replace(',',''))
-            if entry['Lane'] in list(complex_lanes.keys()):
+            if entry['Lane'] in complex_lanes.keys():
                 entry['% Perfectbarcode']      = None
                 entry['% One mismatchbarcode'] = None
         # Now update the values in Flowcell Summary

@@ -15,7 +15,6 @@ from taca.utils.config import CONFIG, load_config
 from taca.utils import filesystem, misc, statusdb
 from taca.illumina.MiSeq_Runs import MiSeq_Run
 from io import open
-import six
 
 logger = logging.getLogger(__name__)
 
@@ -158,7 +157,7 @@ def cleanup_irma(days_fastq, days_analysis,
         else:
             exclude_list.extend(exclude_projects.split(','))
         # sanity check for mentioned project to exculde or valid
-        invalid_projects = filter(lambda p: p not in list(pcon.id_view.keys()) and p not in list(pcon.name_view.keys()), exclude_list)
+        invalid_projects = filter(lambda p: p not in list(pcon.id_view.keys()) and p not in pcon.name_view.keys(), exclude_list)
         if invalid_projects:
             logger.error('"--exclude_projects" was called with some invalid projects "{}", '
                          'provide valid project name/id'.format(','.join(invalid_projects)))
@@ -284,7 +283,7 @@ def cleanup_irma(days_fastq, days_analysis,
     if  misc.query_yes_no('Interactively filter projects for cleanup ?', default='yes'):
         filtered_project, proj_count = ([], 0)
         #go through complied project list and remove files
-        for proj, info in six.iteritems(project_clean_list):
+        for proj, info in project_clean_list.items():
             proj_count += 1
             if not misc.query_yes_no('{}Delete files for this project ({}/{})'.format(get_proj_meta_info(info, days_fastq),
                                                                                       proj_count, len(project_clean_list)), default='no'):
@@ -302,13 +301,13 @@ def cleanup_irma(days_fastq, days_analysis,
             return
     logger.info('Will start cleaning up project now')
 
-    for proj, info in six.iteritems(project_clean_list):
+    for proj, info in project_clean_list.items():
         fastq_info = info.get('fastq_to_remove')
         if fastq_info and isinstance(fastq_info, dict):
             logger.info('Cleaning fastq files for project {}'.format(proj))
             fastq_fc = fastq_info.get('flowcells', {})
             removed_fc = []
-            for fc, fc_info in six.iteritems(fastq_fc):
+            for fc, fc_info in fastq_fc.items():
                 proj_fc_root = fc_info['proj_root']
                 logger.info('Removing fastq files from {}'.format(proj_fc_root))
                 if not dry_run:
@@ -329,7 +328,7 @@ def cleanup_irma(days_fastq, days_analysis,
             proj_analysis_root = analysis_info['proj_analysis_root']
             logger.info('cleaning analysis data for project {}'.format(proj))
             removed_qc = []
-            for qc, files in six.iteritems(analysis_info['analysis_files']):
+            for qc, files in analysis_info['analysis_files'].items():
                 logger.info('Removing files of "{}" from {}'.format(qc, proj_analysis_root))
                 if not dry_run:
                     if _remove_files(files):
@@ -445,7 +444,7 @@ def get_proj_meta_info(info, days_fastq):
         template += 'Project analysis: Analysis directory already cleaned\n'
     elif isinstance(analysis_info, dict):
         f_stat = []
-        for qc_type, files in six.iteritems(analysis_info['analysis_files']):
+        for qc_type, files in analysis_info['analysis_files'].items():
             f_stat.append('{} ({} files)'.format(qc_type, len(files)))
         template += 'Project analyzed: {}\n'.format(', '.join(f_stat))
 
@@ -462,7 +461,7 @@ def get_proj_meta_info(info, days_fastq):
         elif isinstance(proj_fq_info, dict):
             template += 'Project organized: Project is organized with {} fastq files\n'.format(len(proj_fq_info['fastq_files']))
         fc_fq_info = fq_info.get('flowcells', {})
-        fc_num = len(list(fc_fq_info.keys()))
+        fc_num = len(fc_fq_info.keys())
         fc_files = sum(map(len, [fc_info.get('fq_files', [])for fc_info in fc_fq_info.values()]))
         template += 'Flowcells: There are {} FC with total {} fastq files\n'.format(fc_num, fc_files)
     template += 'Estimated data size: {}\n'.format(_def_get_size_unit(info.get('fastq_size',0) + info.get('fastq_size', 0)))

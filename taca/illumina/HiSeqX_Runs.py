@@ -317,7 +317,7 @@ def _generate_clean_samplesheet(ssparser, indexfile, fields_to_remove=None, rena
     index_dict=parse_10X_indexes(indexfile) #read the 10X indices
     # Replace 10X index with the 4 actual indicies.
     for sample in ssparser.data:
-        if sample['index'] in list(index_dict.keys()):
+        if sample['index'] in index_dict.keys():
             x=0
             while x<3:
                 new_sample=dict(sample)
@@ -441,7 +441,7 @@ def _generate_samplesheet_subset(ssparser, samples_to_include):
     for line in ssparser.data:
         sample_name = line.get('Sample_Name') or line.get('SampleName')
         lane = line['Lane']
-        if lane in list(samples_to_include.keys()):
+        if lane in samples_to_include.keys():
             if sample_name in samples_to_include.get(lane):
                 line_ar=[]
                 for field in datafields:
