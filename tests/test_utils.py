@@ -430,7 +430,7 @@ class TestRsyncAgent(unittest.TestCase):
         cls.digestfile = os.path.join(cls.rootdir, 'digestfile.sha1')
         with open(cls.digestfile, 'w') as digesth:
             map(lambda x:
-                [_write_digest(cls.rootdir, digesth, os.path.join(x[0], y)) for y in filter(lambda z: os.path.join(x[0], z) != cls.digestfile, x[2])],
+                [_write_digest(cls.rootdir, digesth, os.path.join(x[0], y)) for y in [z for z in x[2] if os.path.join(x[0], z) != cls.digestfile]],
                 os.walk(cls.rootdir))
 
     @classmethod

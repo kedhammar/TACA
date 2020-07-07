@@ -158,7 +158,7 @@ def cleanup_irma(days_fastq, days_analysis,
         else:
             exclude_list.extend(exclude_projects.split(','))
         # sanity check for mentioned project to exculde or valid
-        invalid_projects = filter(lambda p: p not in list(pcon.id_view.keys()) and p not in pcon.name_view.keys(), exclude_list)
+        invalid_projects = [p for p in exclude_list if p not in pcon.id_view.keys() and p not in pcon.name_view.keys()]
         if invalid_projects:
             logger.error('"--exclude_projects" was called with some invalid projects "{}", '
                          'provide valid project name/id'.format(','.join(invalid_projects)))

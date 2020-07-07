@@ -627,7 +627,7 @@ class Run(object):
                                 ConversionResults_lane['Undetermined']['ReadMetrics'][0]['TrimmedBases'] = 0
                                 ConversionResults_lane['Undetermined']['ReadMetrics'][0]['Yield'] = 0
                                 ConversionResults_lane['Undetermined']['ReadMetrics'][0]['YieldQ30'] = 0
-                                if len(filter(lambda r: r['IsIndexedRead'] == 'N', self.runParserObj.runinfo.data["Reads"])) == 2:
+                                if len([r for r in self.runParserObj.runinfo.data["Reads"] if r['IsIndexedRead'] == 'N']) == 2:
                                     ConversionResults_lane['Undetermined']['ReadMetrics'][1]['QualityScoreSum'] = 0
                                     ConversionResults_lane['Undetermined']['ReadMetrics'][1]['TrimmedBases'] = 0
                                     ConversionResults_lane['Undetermined']['ReadMetrics'][1]['Yield'] = 0
