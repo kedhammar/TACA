@@ -262,7 +262,7 @@ class TestSymlinkAgent(unittest.TestCase):
     def setUpClass(self):
         self.rootdir = tempfile.mkdtemp(prefix='test_taca_symlink_src')
         path = self.rootdir
-        for n in xrange(3):
+        for n in range(3):
             open(os.path.join(path, 'file{}'.format(n)), 'w').close()
             path = os.path.join(path, 'folder{}'.format(n))
             os.mkdir(path)
