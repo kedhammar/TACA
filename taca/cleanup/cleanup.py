@@ -1,4 +1,5 @@
 """Storage methods and utilities"""
+from __future__ import print_function
 import getpass
 import logging
 import os
@@ -273,11 +274,11 @@ def cleanup_irma(days_fastq, days_analysis,
 
     # list only the project and exit if 'list_only' option is selected
     if list_only:
-        print 'Project ID\tProject Name\tBioinfo resp.\tClosed Days\tClosed Date\tFastq size\tAnalysis size'
+        print('Project ID\tProject Name\tBioinfo resp.\tClosed Days\tClosed Date\tFastq size\tAnalysis size')
         for p_info in sorted(list(project_clean_list.values()), key=lambda d: d['closed_days'], reverse=True):
-            print '\t'.join([p_info['name'], p_info['pid'], p_info['bioinfo_responsible'],
+            print('\t'.join([p_info['name'], p_info['pid'], p_info['bioinfo_responsible'],
                              str(p_info['closed_days']), p_info['closed_date'],
-                             _def_get_size_unit(p_info['fastq_size']), _def_get_size_unit(p_info['analysis_size'])])
+                             _def_get_size_unit(p_info['fastq_size']), _def_get_size_unit(p_info['analysis_size'])]))
         raise SystemExit
 
     logger.info('Initial list is built with {} projects {}'.format(len(project_clean_list), get_files_size_text(project_clean_list)))

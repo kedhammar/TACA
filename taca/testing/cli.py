@@ -1,6 +1,7 @@
 
 """ CLI for the testing commands
 """
+from __future__ import print_function
 import os
 import click
 import taca.testing.create_uppmax_like_env as createupp
@@ -61,7 +62,7 @@ def create(projects, ngi_config, fastq_1, fastq_2):
     """creates a uppmax like env
     """
     if (fastq_1 is None and fastq_2 is not None) or (fastq_1 is not None and fastq_2 is None):
-        print "ERROR: either both fastq_1 and fastq_2 are specified or none of them"
+        print("ERROR: either both fastq_1 and fastq_2 are specified or none of them")
         return 1
     if fastq_1 is not None:
         fastq_1 = os.path.abspath(fastq_1)
@@ -70,7 +71,7 @@ def create(projects, ngi_config, fastq_1, fastq_2):
     if which("ngi_pipeline_start.py"):
         createupp.create(projects, ngi_config, fastq_1, fastq_2)
     else:
-        print "ERROR: ngi_pipeline_start.py needs to be available and properly installed"
+        print("ERROR: ngi_pipeline_start.py needs to be available and properly installed")
 
 
 def which(file):

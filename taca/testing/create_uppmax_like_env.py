@@ -1,5 +1,6 @@
 """ Load and parse configuration file."""
 
+from __future__ import print_function
 import logging
 import os
 import datetime
@@ -277,7 +278,7 @@ def create(projects, ngi_config_file, fastq_1, fastq_2):
                                                 'application': application,
                                                 'no_samples': row['value']['no_samples']}
         else:
-            print 'status {}'.format(project_status)
+            print('status {}'.format(project_status))
     ## Now I can parse the x_flowcell db to check what I can and cannot use
     whole_genome_projects = int(2*projects/3)
     projects_to_reproduce = []
@@ -325,16 +326,16 @@ def create(projects, ngi_config_file, fastq_1, fastq_2):
                            'noWGreseq_open')
 
     # Create ngi_pipeline enviroment
-    print '#NGI_CONFIG varaible is {}. This variable needs to be in the .bashrc file'.format(ngi_config_file)
-    print 'NGI_CONFIG={}'.format(ngi_config_file)
+    print('#NGI_CONFIG varaible is {}. This variable needs to be in the .bashrc file'.format(ngi_config_file))
+    print('NGI_CONFIG={}'.format(ngi_config_file))
     try:
         ngi_config = conf.load_config(ngi_config_file)
     except IOError as e:
-        print 'ERROR: {}'.format(e.message)
+        print('ERROR: {}'.format(e.message))
     # Create uppmax env
     paths = create_uppmax_env(ngi_config)
 
-    print '#Going to reproduce {} projects (if this number is different from the one you specified.... trust me... do not worry'.format(len(projects_to_reproduce))
+    print('#Going to reproduce {} projects (if this number is different from the one you specified.... trust me... do not worry'.format(len(projects_to_reproduce)))
     # Scan over x_flowcell and reproduce FCs
     flowcellDB = couch_connection['x_flowcells']
     reproduced_projects = {}
@@ -362,15 +363,15 @@ def create(projects, ngi_config_file, fastq_1, fastq_2):
                 if project not in reproduced_projects:
                     reproduced_projects[project] = []
                 reproduced_projects[project].append(flowcellDB[fc_doc]['RunInfo']['Id'])
-    print '#Reproduced {} project (if the numbers diffear do not worry, most likely we selected projects without runs)'.format(len(reproduced_projects))
+    print('#Reproduced {} project (if the numbers diffear do not worry, most likely we selected projects without runs)'.format(len(reproduced_projects)))
     for project in projects_to_reproduce:
         if project[0] in reproduced_projects:
-            print '#  {}: {}'.format(project[0], project[1])
+            print('#  {}: {}'.format(project[0], project[1]))
     # Need to output the command to organise
     to_be_deleted = []
     for project in reproduced_projects:
         for FC in reproduced_projects[project]:
-            print 'Running: ngi_pipeline_start.py organize flowcell {} -p {}'.format(FC, project)
+            print('Running: ngi_pipeline_start.py organize flowcell {} -p {}'.format(FC, project))
             with open('ngi_pipeline_local.logs', 'w') as NGILOGS:
                 return_value = subprocess.call(['ngi_pipeline_start.py',
                                                 'organize',
@@ -380,7 +381,7 @@ def create(projects, ngi_config_file, fastq_1, fastq_2):
                                                 '{}'.format(project)],
                                                stdout=NGILOGS, stderr=NGILOGS)
             if return_value > 0:
-                print '#project {} not organised: have a look to the logs, but most likely this projec is not in charon'.format(project)
+                print('#project {} not organised: have a look to the logs, but most likely this projec is not in charon'.format(project))
                 if project not in to_be_deleted:
                     to_be_deleted.append(project)
 
