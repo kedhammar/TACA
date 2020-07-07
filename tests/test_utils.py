@@ -92,13 +92,13 @@ class TestMisc(unittest.TestCase):
         self.assertEqual(misc.to_seconds(days=1), 86400)
         self.assertEqual(misc.to_seconds(hours=1), 3600)
 
-    @mock.patch('taca.utils.misc.raw_input', return_value='yes')
+    @mock.patch('taca.utils.misc.input', return_value='yes')
     def test_query_yes_no_true(self, mock_raw_input):
         """Return True from answer yes."""
         response = misc.query_yes_no('Some question')
         self.assertTrue(response)
 
-    @mock.patch('taca.utils.misc.raw_input', return_value='no')
+    @mock.patch('taca.utils.misc.input', return_value='no')
     def test_query_yes_no_false(self, mock_raw_input):
         """Return False from answer no."""
         response = misc.query_yes_no('Some question')

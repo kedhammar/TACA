@@ -9,6 +9,7 @@ from datetime import datetime
 from email.mime.text import MIMEText
 from taca.utils import statusdb
 from io import open
+from six.moves import input
 
 def send_mail(subject, content, receiver):
     """Sends an email.
@@ -162,7 +163,7 @@ def query_yes_no(question, default='yes', force=False):
     while True:
         sys.stdout.write(question + prompt)
         if not force:
-            choice = raw_input().lower()
+            choice = input().lower()
         else:
             choice = 'yes'
         if default is not None and choice == '':
