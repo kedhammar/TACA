@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 import unittest
 import mock
 import tempfile
@@ -129,7 +128,7 @@ class TestBackupUtils(unittest.TestCase):
         backup_object._clean_tmp_files(files)
         mock_remove.assert_called_once_with('data/nas/miseq.lab/190201_A00621_0032_BHHFCFDSXX/RTAComplete.txt')
 
-    @mock.patch('taca.backup.backup.couchdb', autospec=True)
+    @mock.patch('taca.backup.backup.statusdb', autospec=True)
     @mock.patch('taca.backup.backup.logger')
     def test_log_pdc_statusdb(self, mock_logger, mock_couch):
         """Update statusdb if transfer was successful."""
