@@ -1,5 +1,4 @@
 """Backup methods and utilities."""
-import couchdb
 import logging
 import os
 import re
@@ -9,6 +8,7 @@ import time
 
 from datetime import datetime
 from taca.utils.config import CONFIG
+from taca.utils import statusdb
 from taca.utils import filesystem, misc
 
 logger = logging.getLogger(__name__)
@@ -194,11 +194,9 @@ class backup_utils(object):
         """Log the time stamp in statusDB if a file is succussfully sent to PDC."""
         try:
             run_vals = run.split('_')
-            run_fc = '{}_{}'.format(run_vals[0],run_vals[-1])
-            server = 'http://{username}:{password}@{url}:{port}'.format(url=self.couch_info['url'],username=self.couch_info['username'],
-                                                                        password=self.couch_info['password'],port=self.couch_info['port'])
-            couch = couchdb.Server(server)
-            db = couch[self.couch_info['db']]
+            run_fc = '{}_{}'.format(run_vals[0], run_vals[-1])
+            couch_connection = statusdb.StatusdbSession(self.couch_info).connection
+            db = couch_connection[self.couch_info['db']]
             fc_names = {e.key:e.id for e in db.view('names/name', reduce=False)}
             d_id = fc_names[run_fc]
             doc = db.get(d_id)
