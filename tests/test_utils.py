@@ -635,16 +635,6 @@ class TestBioinfoTab(unittest.TestCase):
     def tearDownClass(self):
         shutil.rmtree(self.rootdir)
 
-    def test_setupServer(self):
-        """Set up server connection."""
-        config = {'statusdb':
-                  {'url': 'url',
-                   'username': 'username',
-                   'password': 'pwd',
-                   'port': '1234'}}
-        got_connection = bioinfo_tab.setupServer(config)
-        assert isinstance(got_connection, couchdb.Server)
-
     @mock.patch('taca.utils.bioinfo_tab.update_statusdb', return_value=None)
     def test_collect_runs(self, mock_update_statusdb):
         """Find runs in specified directory."""
@@ -666,12 +656,16 @@ class TestBioinfoTab(unittest.TestCase):
                                                                                                        {'P10000': defaultdict(bioinfo_tab.Tree, {})})})})})
         self.assertEqual(expected_info, got_info)
 
-    @mock.patch('taca.utils.bioinfo_tab.couchdb.Server')
+    @mock.patch('taca.utils.bioinfo_tab.statusdb')
     def test_update_statusdb(self, mock_couch):
         """Update statusdb."""
         run_dir = 'data/test_data/190201_A00621_0032_BHHFCFDSXX'
         bioinfo_tab.update_statusdb(run_dir)
-        mock_couch.assert_called_with('http://username:pwd@url:1234')
+        mock_couch.StatusdbSession.assert_called_with({'url': 'url',
+                                                       'username': 'username',
+                                                       'password': 'pwd',
+                                                       'port': 1234,
+                                                       'xten_db': 'x_flowcells'})
 
     def test_get_status_new(self):
         """Return status New."""
@@ -767,13 +761,18 @@ class TestBioinfoTab(unittest.TestCase):
         bioinfo_tab.error_emailer('weird_samplesheet', 'weird_samplesheet_run')
         mock_send_mail.assert_called_with(subject, body, 'some_user@some_email.com')
 
-    @mock.patch('taca.utils.bioinfo_tab.couchdb.Server')
+    @mock.patch('taca.utils.bioinfo_tab.statusdb')
     def test_fail_run(self, mock_couch):
         """Fail run in statusdb."""
         run_id = '190201_A00621_0032_BHHFCFDSXX'
         project = 'P0001'
         bioinfo_tab.fail_run(run_id, project)
-        mock_couch.assert_called_with('http://username:pwd@url:1234')
+        mock_couch.StatusdbSession.assert_called_with({'url': 'url',
+                                                       'username': 'username',
+                                                       'password': 'pwd',
+                                                       'port': 1234,
+                                                       'xten_db':
+                                                       'x_flowcells'})
 
 
 class TestStatusdb(unittest.TestCase):
