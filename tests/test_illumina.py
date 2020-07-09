@@ -337,7 +337,7 @@ class TestRuns(unittest.TestCase):
         """Return samples from samplesheet."""
         expected_samples = {'1': 'P10000_1001', '2': 'P10000_1005'}
         got_samples =  self.in_progress.get_samples_per_lane()
-        self.assertItemsEqual(expected_samples, got_samples)
+        self.assertEqual(expected_samples, got_samples)
 
     @mock.patch('taca.illumina.Runs.os.rename')
     def test_rename_undet(self, mock_rename):

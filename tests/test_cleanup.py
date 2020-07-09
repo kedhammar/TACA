@@ -78,7 +78,7 @@ class TestCleanup(unittest.TestCase):
                          'pid': 'P1234',
                          'name': 'A.Name_19_01',
                          'closed_days': 1}
-        self.assertItemsEqual(got_data, expected_data)
+        self.assertEqual(got_data, expected_data)
 
     def test_collect_analysis_data_irma(self):
         """Get analysis data on Irma."""
@@ -97,7 +97,7 @@ class TestCleanup(unittest.TestCase):
                           {'proj_root': 'data/test_data/190201_A00621_0032_BHHFCFDSXX/N.Owens_19_01',
                            'fq_files': ['data/test_data/190201_A00621_0032_BHHFCFDSXX/N.Owens_19_01/sample1.fastq.gz',
                                         'data/test_data/190201_A00621_0032_BHHFCFDSXX/N.Owens_19_01/sample2.fastq.gz']}}}
-        self.assertItemsEqual(file_list, expected_data)
+        self.assertEqual(file_list, expected_data)
         self.assertEqual(size, 0)
 
     def test_collect_files_by_ext(self):
@@ -107,7 +107,7 @@ class TestCleanup(unittest.TestCase):
         found_files = cleanup.collect_files_by_ext(path, ext)
         expected_files = ['data/test_data/nosync/190201_A00621_0032_BHHFCFDSXY/RTAComplete.txt',
                           'data/test_data/190201_A00621_0032_BHHFCFDSXX/RTAComplete.txt']
-        self.assertItemsEqual(found_files, expected_files)
+        self.assertEqual(found_files, expected_files)
 
     def test_get_proj_meta_info(self):
         """Get project metadata."""

@@ -596,7 +596,7 @@ class TestConfig(unittest.TestCase):
                                  'port': 'port'},
                                 'log':
                                 {'file': 'data/taca.log'}}
-        self.assertItemsEqual(expexted_config_data, got_config_data)
+        self.assertEqual(expexted_config_data, got_config_data)
         with self.assertRaises(IOError):
             missing_config_data = config.load_yaml_config('data/missing_file.yaml)')
 
@@ -610,7 +610,7 @@ class TestConfig(unittest.TestCase):
                                  'port': 'port'},
                                 'log':
                                 {'file': 'data/taca.log'}}
-        self.assertItemsEqual(expexted_config_data, got_config_data)
+        self.assertEqual(expexted_config_data, got_config_data)
         with self.assertRaises(IOError):
             missing_config_data = config.load_config('data/missing_file.yaml)')
 

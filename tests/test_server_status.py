@@ -30,7 +30,7 @@ class TestServerStatus(unittest.TestCase):
                            'filesystem': '393Gi',
                            'space_available': '4881390168'}
         got_result = server_status._parse_output(valid_disk_space)
-        self.assertItemsEqual(expected_result, got_result)
+        self.assertEqual(expected_result, got_result)
 
     def test_parse_output_invalid_case(self):
         """Parse invalid disk space output."""
@@ -45,7 +45,7 @@ class TestServerStatus(unittest.TestCase):
             'filesystem': 'NaN'
         }
         invalid_result = server_status._parse_output(invalid_disk_space)
-        self.assertItemsEqual(expected_invalid_result, invalid_result)
+        self.assertEqual(expected_invalid_result, invalid_result)
 
     @mock.patch('taca.server_status.server_status.statusdb')
     def test_update_status_db(self, mock_couchdb):
@@ -74,7 +74,7 @@ class TestCronjobs(unittest.TestCase):
         }
 
         got_crontab = cronjobs._parse_crontab()
-        self.assertItemsEqual(expected_crontab, got_crontab)
+        self.assertEqual(expected_crontab, got_crontab)
 
     @mock.patch('taca.server_status.cronjobs.statusdb')
     @mock.patch('taca.server_status.cronjobs.logging')
