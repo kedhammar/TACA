@@ -458,8 +458,8 @@ class TestHiSeqRuns(unittest.TestCase):
         ssparser = SampleSheetParser('data/samplesheet_dual_index.csv')
         expected_samplesheet = '''[Header]
 Date,None
-Investigator Name,Test
 Experiment Name,CIDXX
+Investigator Name,Test
 [Data]
 Lane,Sample_ID,Sample_Name,index,index2,Sample_Project,FCID,SampleRef,Description,Control,Recipe,Operator
 1,Sample_Sample_P10000_1001,Sample_P10000_1001,CGCGCAG,CTGCGCG,A_Test_18_01,HISEQFCIDXX,Human (Homo sapiens GRCh37),A_Test_18_01,N,2x50,Some_One
@@ -691,8 +691,8 @@ class TestHiSeqXRuns(unittest.TestCase):
         indexfile = 'data/test_10X_indexes'
         expected_samplesheet = '''[Header]
 Date,None
-Investigator Name,Test
 Experiment Name,CIDXX
+Investigator Name,Test
 [Data]
 Lane,SampleID,SampleName,SamplePlate,SampleWell,index,index2,Project,Description
 1,Sample_P10000_1001,P10000_1001,CIDXX,1:1,AACCGTAA,,A_Test_18_01,
@@ -807,8 +807,8 @@ Lane,SampleID,SampleName,SamplePlate,SampleWell,index,index2,Project,Description
         got_data = _generate_samplesheet_subset(ssparser, samples_to_include)
         expected_data = '''[Header]
 Date,None
-Investigator Name,Test
 Experiment Name,CIDXX
+Investigator Name,Test
 [Data]
 Lane,SampleID,SampleName,SamplePlate,SampleWell,index,index2,Project,Description
 1,Sample_P10000_1001,P10000_1001,CIDXX,1:1,SI-GA-A1,,A_Test_18_01,
