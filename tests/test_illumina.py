@@ -11,8 +11,7 @@ import mock
 import filecmp
 import subprocess
 from datetime import datetime
-
-
+import sys
 
 from taca.analysis.analysis import *
 from taca.illumina.Runs import Run, _create_folder_structure, _generate_lane_html
@@ -23,6 +22,9 @@ from taca.illumina.NovaSeq_Runs import NovaSeq_Run
 from taca.illumina.NextSeq_Runs import NextSeq_Run
 from flowcell_parser.classes import LaneBarcodeParser, SampleSheetParser
 from taca.utils import config as conf
+
+if sys.version_info[0] >= 3:
+    unicode = str
 
 # This is only run if TACA is called from the CLI, as this is a test, we need to
 # call it explicitely
@@ -132,10 +134,8 @@ class TestRuns(unittest.TestCase):
         with io.open(os.path.join(completed, 'Demultiplexing', 'Stats', 'Stats.json'), 'w', encoding="utf-8") as stats_json:
             stats_json.write(unicode(json.dumps({'silly': 1}, ensure_ascii=False)))
 
-        # Create transfer file and add the completed run
-        with open(self.transfer_file, 'wb') as f:
-            tsv_writer = csv.writer(f, delimiter='\t')
-            tsv_writer.writerow([os.path.basename(completed), str(datetime.now())])
+        # Copy transfer file with the completed run
+        shutil.copy('data/test_transfer.tsv', self.transfer_file)
 
         # Move sample RunInfo.xml file to every run directory
         for run in [running, to_start, in_progress, in_progress_done, completed, dummy, complex_run_dir]:
@@ -174,7 +174,6 @@ class TestRuns(unittest.TestCase):
                                           '141124_ST-DUMMY1_01_AFCIDXX'),
                              CONFIG['analysis']['HiSeq'])
         self.finished_runs = [self.to_start, self.in_progress, self.completed]
-        self.transfer_file = os.path.join(self.tmp_dir, 'transfer.tsv')
         self.complex_run = Run(os.path.join(self.tmp_dir, '141124_ST-COMPLEX1_01_AFCIDXX'),
                                CONFIG['analysis']['HiSeq'])
 

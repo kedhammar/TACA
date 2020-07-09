@@ -416,7 +416,7 @@ class TestRsyncAgent(unittest.TestCase):
         cls.rootdir = tempfile.mkdtemp(prefix='test_taca_transfer_src')
         (fh, cls.testfile) = tempfile.mkstemp(
             prefix='test_taca_transfer_file')
-        os.write(fh, 'this is some content')
+        os.write(fh, b'this is some content')
         os.close(fh)
         open(os.path.join(cls.rootdir, 'file0'), 'w').close()
         f = os.path.join(cls.rootdir, 'folder0')

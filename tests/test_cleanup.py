@@ -74,7 +74,7 @@ class TestCleanup(unittest.TestCase):
         tdate = datetime.strptime('2019-04-08', '%Y-%m-%d')
         got_data = cleanup.get_closed_proj_info(pid, pdoc, tdate)
         expected_data = {'closed_date': '2019-04-07',
-                         'bioinfo_responsible': 'O.B. One',
+                         'bioinfo_responsible': b'O.B. One',
                          'pid': 'P1234',
                          'name': 'A.Name_19_01',
                          'closed_days': 1}
