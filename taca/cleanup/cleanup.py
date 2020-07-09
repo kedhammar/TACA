@@ -485,15 +485,15 @@ def _def_get_size_unit(s):
     gb = mb * 1000
     tb = gb * 1000
     if s > tb:
-        s = '~{}tb'.format(s/tb)
+        s = '~{}tb'.format(int(s/tb))
     elif s > gb:
-        s = '~{}gb'.format(s/gb)
+        s = '~{}gb'.format(int(s/gb))
     elif s > mb:
-        s = '~{}mb'.format(s/mb)
+        s = '~{}mb'.format(int(s/mb))
     elif s > kb:
-        s = '~{}kb'.format(s/kb)
+        s = '~{}kb'.format(int(s/kb))
     elif s > 0:
-        s = '~{}b'.format(s/b)
+        s = '~{}b'.format(int(s/b))
     return str(s)
 
 def _remove_files(files):
