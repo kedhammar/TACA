@@ -46,7 +46,7 @@ class HiSeqX_Run(Run):
         # Check that the samplesheet is not already present. In this case go the next step
         if not os.path.exists(samplesheet_dest):
             try:
-                with open(samplesheet_dest, 'wb') as fcd:
+                with open(samplesheet_dest, 'w') as fcd:
                     fcd.write(_generate_clean_samplesheet(ssparser,
                                                           indexfile,
                                                           rename_samples=True,

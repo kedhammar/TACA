@@ -681,6 +681,7 @@ class TestHiSeqXRuns(unittest.TestCase):
 
     def test_copy_samplesheet(self):
         """Copy HiSeqX SampleSheet."""
+        os.remove(os.path.join(self.tmp_dir, '141124_ST-RUNNING1_03_AFCIDXX', 'SampleSheet.csv'))
         self.running._copy_samplesheet()
         self.assertTrue(os.path.isfile(os.path.join(self.tmp_dir, '141124_ST-RUNNING1_03_AFCIDXX', 'SampleSheet.csv')))
 
