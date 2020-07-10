@@ -6,63 +6,68 @@ from flowcell_parser.classes import SampleSheetParser
 class MiSeq_Run(HiSeq_Run):
 
     def __init__(self,  path_to_run, configuration):
-        #constructor, it returns a MiSeq object only if the MiSeq run belongs to NGI facility, i.e., contains
-        #Application or production in the Description
+        # Constructor, it returns a MiSeq object only if the MiSeq run belongs to NGI facility, i.e., contains
+        # Application or production in the Description
         super(MiSeq_Run, self).__init__( path_to_run, configuration)
         self._set_sequencer_type()
         self._set_run_type()
         self._copy_samplesheet()
 
     def _set_sequencer_type(self):
-        self.sequencer_type = "MiSeq"
+        self.sequencer_type = 'MiSeq'
 
     def _set_run_type(self):
-        ssname = os.path.join(self.run_dir, 'Data', 'Intensities', 'BaseCalls','SampleSheet.csv')
+        ssname = os.path.join(self.run_dir,
+                              'Data',
+                              'Intensities',
+                              'BaseCalls',
+                              'SampleSheet.csv')
         if not os.path.exists(ssname):
-            #case in which no samplesheet is found, assume it is a non NGI run
-            self.run_type = "NON-NGI-RUN"
+            # Case in which no samplesheet is found, assume it is a non NGI run
+            self.run_type = 'NON-NGI-RUN'
         else:
-            #it SampleSheet exists try to see if it is a NGI-run
+            # If SampleSheet exists try to see if it is a NGI-run
             ssparser = SampleSheetParser(ssname)
-            if ssparser.header['Description'] == "Production" or ssparser.header['Description'] == "Applications":
-                self.run_type = "NGI-RUN"
+            if ssparser.header['Description'] == 'Production' or ssparser.header['Description'] == 'Applications':
+                self.run_type = 'NGI-RUN'
             else:
-            #otherwise this is a non NGI run
-                self.run_type = "NON-NGI-RUN"
+                # Otherwise this is a non NGI run
+                self.run_type = 'NON-NGI-RUN'
 
     def _get_samplesheet(self):
-        """
-        Locate and parse the samplesheet for a run.
+        """Locate and parse the samplesheet for a run.
         In MiSeq case this is located in FC_DIR/Data/Intensities/BaseCalls/SampleSheet.csv
         """
-        ssname = os.path.join(self.run_dir, 'Data', 'Intensities', 'BaseCalls','SampleSheet.csv')
+        ssname = os.path.join(self.run_dir,
+                              'Data',
+                              'Intensities',
+                              'BaseCalls',
+                              'SampleSheet.csv')
         if os.path.exists(ssname):
-            #if exists parse the SampleSheet
+            # If exists parse the SampleSheet
             return ssname
         else:
-            #some MiSeq runs do not have the SampleSheet at all, in this case assume they are non NGI.
-            #not real clean solution but what else can be done if no samplesheet is provided?
+            # Some MiSeq runs do not have the SampleSheet at all, in this case assume they are non NGI.
+            # Not real clean solution but what else can be done if no samplesheet is provided?
             return None
 
     def _generate_clean_samplesheet(self, ssparser):
-        """
-        Will generate a 'clean' samplesheet, for bcl2fastq
-        """
-        output=""
-        #Header
-        output+="[Header]{}".format(os.linesep)
-        for field in ssparser.header:
-            output+="{},{}".format(field.rstrip(), ssparser.header[field].rstrip())
-            output+=os.linesep
-        #now parse the data section
+        """Will generate a 'clean' samplesheet, for bcl2fastq"""
+        output = ''
+        # Header
+        output += '[Header]{}'.format(os.linesep)
+        for field in sorted(ssparser.header):
+            output += '{},{}'.format(field.rstrip(), ssparser.header[field].rstrip())
+            output += os.linesep
+        # Parse the data section
         data = []
         for line in ssparser.data:
             entry = {}
             for field, value in line.items():
                 if ssparser.dfield_sid in field:
-                    entry[field] ='Sample_{}'.format(value)
+                    entry[field] = 'Sample_{}'.format(value)
                 elif ssparser.dfield_proj in field:
-                    entry[field] = value.replace(".", "__")
+                    entry[field] = value.replace('.', '__')
                 else:
                     entry[field] = value
             if 'Lane' not in entry:
@@ -77,19 +82,26 @@ class MiSeq_Run(HiSeq_Run):
                 entry['I5_Index_ID'] = ''
             data.append(entry)
 
-        fields_to_output = ['Lane', ssparser.dfield_sid, ssparser.dfield_snm, 'index', ssparser.dfield_proj, 'I7_Index_ID', 'index2', 'I5_Index_ID']
-        #now create the new SampleSheet data section
-        output+="[Data]{}".format(os.linesep)
+        fields_to_output = ['Lane',
+                            ssparser.dfield_sid,
+                            ssparser.dfield_snm,
+                            'index',
+                            ssparser.dfield_proj,
+                            'I7_Index_ID',
+                            'index2',
+                            'I5_Index_ID']
+        # Create the new SampleSheet data section
+        output += '[Data]{}'.format(os.linesep)
         for field in ssparser.datafields:
             if field not in fields_to_output:
                 fields_to_output.append(field)
-        output+=",".join(fields_to_output)
-        output+=os.linesep
-        #now process each data entry and output it
+        output += ','.join(fields_to_output)
+        output += os.linesep
+        # Process each data entry and output it
         for entry in data:
             line = []
             for field in fields_to_output:
                 line.append(entry[field])
-            output+=",".join(line)
-            output+=os.linesep
+            output += ','.join(line)
+            output += os.linesep
         return output

@@ -688,7 +688,7 @@ class TestHiSeqXRuns(unittest.TestCase):
         """Make clean HiSeqX sample sheet."""
         ssparser = SampleSheetParser('data/2014/FCIDXX.csv')
         indexfile = 'data/test_10X_indexes'
-        expected_samplesheet = '''[Header]
+        expected_samplesheet = u'''[Header]
 Date,None
 Experiment Name,CIDXX
 Investigator Name,Test
@@ -841,23 +841,8 @@ class TestMiSeqRuns(unittest.TestCase):
         os.makedirs(to_start)
         os.makedirs(os.path.join(self.tmp_dir, '141124_ST-TOSTART1_04_AMISEQFCIDXX', 'Data', 'Intensities', 'BaseCalls'))
 
-        samplesheet_data = '''[Header]
-Assay,null
-Description,Production
-Workflow,LibraryQC
-Project Name,A_Test_18_01
-Investigator Name,Test
-Experiment Name,A_Test_18_01
-Date,2019-01-23
-Chemistry,amplicon
-[Data]
-Lane,Sample_ID,Sample_Name,index,Sample_Project,I7_Index_ID,index2,I5_Index_ID,Sample_Plate,Sample_Well,Description,GenomeFolder
-1,Sample_Sample_P10000_1001,Sample_P10000_1001,TATAGCCT,A_Test_18_01,TATAGCCT,GCCTCTAT,GCCTCTAT,P10000P1-A1,A1,Production,/hg19/Sequence/Chromosomes
-1,Sample_Sample_P10000_1005,Sample_P10000_1005,TATAGCCT,A_Test_18_01,TATAGCCT,GCGCGAGA,GCGCGAGA,P10000P1-A1,A1,Production,/hg19/Sequence/Chromosomes
-'''
         sample_sheet_dest = os.path.join(self.tmp_dir, '141124_ST-TOSTART1_04_AMISEQFCIDXX', 'Data', 'Intensities', 'BaseCalls','SampleSheet.csv')
-        with open(sample_sheet_dest, 'wb') as f:
-                f.write(samplesheet_data)
+        shutil.copy('data/miseq_test_samplesheet.csv', sample_sheet_dest)
 
         # Create files indicating that the run is finished
         open(os.path.join(running, 'RTAComplete.txt'), 'w').close()
@@ -884,13 +869,13 @@ Lane,Sample_ID,Sample_Name,index,Sample_Project,I7_Index_ID,index2,I5_Index_ID,S
         ssparser = SampleSheetParser('data/2014/MISEQFCIDXX.csv')
         expected_samplesheet = '''[Header]
 Assay,null
-Description,Production
-Workflow,LibraryQC
-Project Name,A_Test_18_01
-Investigator Name,Test
-Experiment Name,A_Test_18_01
-Date,2019-01-23
 Chemistry,amplicon
+Date,2019-01-23
+Description,Production
+Experiment Name,A_Test_18_01
+Investigator Name,Test
+Project Name,A_Test_18_01
+Workflow,LibraryQC
 [Data]
 Lane,Sample_ID,Sample_Name,index,Sample_Project,I7_Index_ID,index2,I5_Index_ID,Sample_Plate,Sample_Well,Description,GenomeFolder
 1,Sample_Sample_P10000_1001,Sample_P10000_1001,TATAGCCT,A_Test_18_01,TATAGCCT,GCCTCTAT,GCCTCTAT,P10000P1-A1,A1,Production,/hg19/Sequence/Chromosomes

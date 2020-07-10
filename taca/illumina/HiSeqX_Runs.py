@@ -322,8 +322,8 @@ def _generate_clean_samplesheet(ssparser, indexfile, fields_to_remove=None, rena
     Will also replace 10X idicies like SI-GA-A3 with proper indicies like TGTGCGGG
     """
     output = ''
-    ## Expand the ssparser if there are 10X lanes
-    index_dict=parse_10X_indexes(indexfile) #read the 10X indices
+    # Expand the ssparser if there are 10X lanes
+    index_dict = parse_10X_indexes(indexfile)
     # Replace 10X index with the 4 actual indicies.
     for sample in ssparser.data:
         if sample['index'] in index_dict.keys():
@@ -337,7 +337,8 @@ def _generate_clean_samplesheet(ssparser, indexfile, fields_to_remove=None, rena
             sample['index'] = index_dict[sample['index']][x]
 
     # Sort to get the added indicies from 10x in the right place
-    ssparser.data.sort()
+    # Python 3 doesn't support sorting a list of dicts implicitly. Sort by lane and then index
+    ssparser.data.sort(key=lambda item: (item.get('Lane'), item.get('index')))
 
     if not fields_to_remove:
         fields_to_remove = []
