@@ -549,23 +549,42 @@ Lane,Sample_ID,Sample_Name,index,index2,Sample_Project,FCID,SampleRef,Descriptio
                                               'Operator': 'Some_One'}]}
                                   }}
         self.to_start.demultiplex_run()
-        calls = [mock.call(['path_to_bcl_to_fastq',
-                            '--some-opt', 'some_val',
-                            '--other-opt',
-                            '--output-dir', 'Demultiplexing_0',
-                            '--use-bases-mask', '1:Y150,I7N1,Y151',
-                            '--tiles', 's_1',
-                            '--sample-sheet', os.path.join(self.tmp_dir, '141124_ST-TOSTART1_04_AHISEQFCIDXX', 'SampleSheet_0.csv')],
-                           prefix='demux_0', with_log_files=True),
-                 mock.call(['path_to_bcl_to_fastq',
-                            '--some-opt', 'some_val',
-                            '--other-opt',
-                            '--output-dir', 'Demultiplexing_1',
-                            '--use-bases-mask', '1:Y151,I7N1,Y151',
-                            '--tiles', 's_1',
-                            '--sample-sheet', os.path.join(self.tmp_dir, '141124_ST-TOSTART1_04_AHISEQFCIDXX', 'SampleSheet_1.csv')],
-                           prefix='demux_1', with_log_files=True)]
-        mock_call_external.assert_has_calls(calls)
+        calls_alt_1 = [mock.call(['path_to_bcl_to_fastq',
+                                  '--some-opt', 'some_val',
+                                  '--other-opt',
+                                  '--output-dir', 'Demultiplexing_0',
+                                  '--use-bases-mask', '1:Y150,I7N1,Y151',
+                                  '--tiles', 's_1',
+                                  '--sample-sheet', os.path.join(self.tmp_dir, '141124_ST-TOSTART1_04_AHISEQFCIDXX', 'SampleSheet_0.csv')],
+                                 with_log_files=True, prefix='demux_0'),
+                       mock.call(['path_to_bcl_to_fastq',
+                                  '--some-opt', 'some_val',
+                                  '--other-opt',
+                                  '--output-dir', 'Demultiplexing_1',
+                                  '--use-bases-mask', '1:Y151,I7N1,Y151',
+                                  '--tiles', 's_1',
+                                  '--sample-sheet', os.path.join(self.tmp_dir, '141124_ST-TOSTART1_04_AHISEQFCIDXX', 'SampleSheet_1.csv')],
+                                 with_log_files=True, prefix='demux_1')]
+        calls_alt_2 = [mock.call(['path_to_bcl_to_fastq',
+                                  '--some-opt', 'some_val',
+                                  '--other-opt',
+                                  '--output-dir', 'Demultiplexing_0',
+                                  '--use-bases-mask', '1:Y151,I7N1,Y151',
+                                  '--tiles', 's_1',
+                                  '--sample-sheet', os.path.join(self.tmp_dir, '141124_ST-TOSTART1_04_AHISEQFCIDXX', 'SampleSheet_0.csv')],
+                                 with_log_files=True, prefix='demux_0'),
+                       mock.call(['path_to_bcl_to_fastq',
+                                  '--some-opt', 'some_val',
+                                  '--other-opt',
+                                  '--output-dir', 'Demultiplexing_1',
+                                  '--use-bases-mask', '1:Y150,I7N1,Y151',
+                                  '--tiles', 's_1',
+                                  '--sample-sheet', os.path.join(self.tmp_dir, '141124_ST-TOSTART1_04_AHISEQFCIDXX', 'SampleSheet_1.csv')],
+                                 with_log_files=True, prefix='demux_1')]
+        try:
+            mock_call_external.assert_has_calls(calls_alt_1)
+        except AssertionError as e:
+            mock_call_external.assert_has_calls(calls_alt_2)
 
     def test_generate_bcl2fastq_command(self):
         """Generate command to demultiplex HiSeq."""

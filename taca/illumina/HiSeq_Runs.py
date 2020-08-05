@@ -45,7 +45,7 @@ class HiSeq_Run(Run):
         if os.path.exists(samplesheet_dest):
             logger.info('SampleSheet.csv found ... overwriting it')
         try:
-            with open(samplesheet_dest, 'wb') as fcd:
+            with open(samplesheet_dest, 'w') as fcd:
                 fcd.write(self._generate_clean_samplesheet(ssparser))
         except Exception as e:
             logger.error(e)
@@ -137,11 +137,11 @@ class HiSeq_Run(Run):
         output_dir = 'Demultiplexing_{}'.format(suffix)
         cl.extend(['--output-dir', output_dir])
 
-        with open(samplesheetMaskSpecific, 'wb') as ssms:
-            ssms.write('[Header]\n')
-            ssms.write('[Data]\n')
-            ssms.write(','.join(self.runParserObj.samplesheet.datafields))
-            ssms.write('\n')
+        with open(samplesheetMaskSpecific, 'w') as ssms:
+            ssms.write(u'[Header]\n')
+            ssms.write(u'[Data]\n')
+            ssms.write(u','.join(self.runParserObj.samplesheet.datafields))
+            ssms.write(u'\n')
             for lane in sorted(base_masks):
                 # Iterate thorugh each lane and add the correct --use-bases-mask for that lane
                 # There is a single basemask for each lane, I checked it a couple of lines above
@@ -155,10 +155,10 @@ class HiSeq_Run(Run):
                 for sample in samples:
                     for field in self.runParserObj.samplesheet.datafields:
                         if field == 'index' and 'NOINDEX' in sample[field]:
-                            ssms.write(',') # This is emtpy due to NoIndex issue
+                            ssms.write(u',') # This is emtpy due to NoIndex issue
                         else:
-                            ssms.write('{},'.format(sample[field]))
-                    ssms.write('\n')
+                            ssms.write(u'{},'.format(sample[field]))
+                    ssms.write(u'\n')
             if strict:
                 cl.extend(['--tiles', ','.join(tiles)])
         cl.extend(['--sample-sheet', samplesheetMaskSpecific])
@@ -184,7 +184,7 @@ class HiSeq_Run(Run):
 
     def _generate_clean_samplesheet(self, ssparser):
         """Generate a 'clean' samplesheet, for bcl2fastq2.19."""
-        output = ''
+        output = u''
         # Header
         output += '[Header]{}'.format(os.linesep)
         for field in sorted(ssparser.header):
