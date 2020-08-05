@@ -13,7 +13,6 @@ from datetime import datetime
 from taca.utils import misc
 from taca.utils.misc import send_mail
 from flowcell_parser.classes import RunParser, LaneBarcodeParser
-#from io import open
 
 logger = logging.getLogger(__name__)
 
