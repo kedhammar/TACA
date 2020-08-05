@@ -126,7 +126,7 @@ class HiSeqX_Run(Run):
                 # Make sub-samplesheet
                 with chdir(self.run_dir):
                     samplesheet_dest='SampleSheet_{}.csv'.format(bcl2fastq_cmd_counter)
-                    with open(samplesheet_dest, 'wb') as fcd:
+                    with open(samplesheet_dest, 'w') as fcd:
                         fcd.write(_generate_samplesheet_subset(self.runParserObj.samplesheet,
                                                                samples_to_include))
 
@@ -433,7 +433,7 @@ def parse_10X_indexes(indexfile):
     return index_dict
 
 def _generate_samplesheet_subset(ssparser, samples_to_include):
-    output = ''
+    output = u''
 
     # Header
     output += '[Header]{}'.format(os.linesep)
