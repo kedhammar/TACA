@@ -321,7 +321,7 @@ def _generate_clean_samplesheet(ssparser, indexfile, fields_to_remove=None, rena
     If rename_samples is True, samples prepended with 'Sample_'  are renamed to match the sample name
     Will also replace 10X idicies like SI-GA-A3 with proper indicies like TGTGCGGG
     """
-    output = ''
+    output = u''
     # Expand the ssparser if there are 10X lanes
     index_dict = parse_10X_indexes(indexfile)
     # Replace 10X index with the 4 actual indicies.
