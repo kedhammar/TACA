@@ -53,7 +53,7 @@ class MiSeq_Run(HiSeq_Run):
 
     def _generate_clean_samplesheet(self, ssparser):
         """Will generate a 'clean' samplesheet, for bcl2fastq"""
-        output = ''
+        output = u''
         # Header
         output += '[Header]{}'.format(os.linesep)
         for field in sorted(ssparser.header):
