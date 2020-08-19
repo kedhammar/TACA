@@ -11,6 +11,7 @@ import time
 import couchdb
 from collections import defaultdict
 from taca.utils import misc, filesystem, transfer, config, bioinfo_tab, statusdb
+from six.moves import map
 
 
 class TestMisc(unittest.TestCase):
@@ -91,13 +92,13 @@ class TestMisc(unittest.TestCase):
         self.assertEqual(misc.to_seconds(days=1), 86400)
         self.assertEqual(misc.to_seconds(hours=1), 3600)
 
-    @mock.patch('taca.utils.misc.raw_input', return_value='yes')
+    @mock.patch('taca.utils.misc.input', return_value='yes')
     def test_query_yes_no_true(self, mock_raw_input):
         """Return True from answer yes."""
         response = misc.query_yes_no('Some question')
         self.assertTrue(response)
 
-    @mock.patch('taca.utils.misc.raw_input', return_value='no')
+    @mock.patch('taca.utils.misc.input', return_value='no')
     def test_query_yes_no_false(self, mock_raw_input):
         """Return False from answer no."""
         response = misc.query_yes_no('Some question')
@@ -261,7 +262,7 @@ class TestSymlinkAgent(unittest.TestCase):
     def setUpClass(self):
         self.rootdir = tempfile.mkdtemp(prefix='test_taca_symlink_src')
         path = self.rootdir
-        for n in xrange(3):
+        for n in range(3):
             open(os.path.join(path, 'file{}'.format(n)), 'w').close()
             path = os.path.join(path, 'folder{}'.format(n))
             os.mkdir(path)
@@ -415,7 +416,7 @@ class TestRsyncAgent(unittest.TestCase):
         cls.rootdir = tempfile.mkdtemp(prefix='test_taca_transfer_src')
         (fh, cls.testfile) = tempfile.mkstemp(
             prefix='test_taca_transfer_file')
-        os.write(fh, 'this is some content')
+        os.write(fh, b'this is some content')
         os.close(fh)
         open(os.path.join(cls.rootdir, 'file0'), 'w').close()
         f = os.path.join(cls.rootdir, 'folder0')
@@ -429,8 +430,7 @@ class TestRsyncAgent(unittest.TestCase):
         cls.digestfile = os.path.join(cls.rootdir, 'digestfile.sha1')
         with open(cls.digestfile, 'w') as digesth:
             map(lambda x:
-                map(lambda y: _write_digest(cls.rootdir, digesth, os.path.join(x[0], y)),
-                    filter(lambda z: os.path.join(x[0], z) != cls.digestfile, x[2])),
+                [_write_digest(cls.rootdir, digesth, os.path.join(x[0], y)) for y in [z for z in x[2] if os.path.join(x[0], z) != cls.digestfile]],
                 os.walk(cls.rootdir))
 
     @classmethod
@@ -596,7 +596,7 @@ class TestConfig(unittest.TestCase):
                                  'port': 'port'},
                                 'log':
                                 {'file': 'data/taca.log'}}
-        self.assertItemsEqual(expexted_config_data, got_config_data)
+        self.assertEqual(expexted_config_data, got_config_data)
         with self.assertRaises(IOError):
             missing_config_data = config.load_yaml_config('data/missing_file.yaml)')
 
@@ -610,7 +610,7 @@ class TestConfig(unittest.TestCase):
                                  'port': 'port'},
                                 'log':
                                 {'file': 'data/taca.log'}}
-        self.assertItemsEqual(expexted_config_data, got_config_data)
+        self.assertEqual(expexted_config_data, got_config_data)
         with self.assertRaises(IOError):
             missing_config_data = config.load_config('data/missing_file.yaml)')
 

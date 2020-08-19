@@ -93,7 +93,7 @@ class TestBackupUtils(unittest.TestCase):
         """Call expernal backup command."""
         backup_object = backup.backup_utils()
         got_output = backup_object._call_commands(cmd1='ls data/nas/miseq.lab', mail_failed=False, return_out=True)
-        expected_output = (True, '190201_A00621_0032_BHHFCFDSXX\nnosync\n')
+        expected_output = (True, b'190201_A00621_0032_BHHFCFDSXX\nnosync\n')
         self.assertEqual(got_output, expected_output)
 
     def test_call_commands_double(self):

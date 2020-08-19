@@ -10,6 +10,7 @@ from datetime import datetime
 from taca.utils.config import CONFIG
 from taca.utils import statusdb
 from taca.utils import filesystem, misc
+from io import open
 
 logger = logging.getLogger(__name__)
 
@@ -89,7 +90,7 @@ class backup_utils(object):
             df_proc = sp.Popen(['df', path], stdout=sp.PIPE, stderr=sp.PIPE)
             df_out, df_err = df_proc.communicate()
             available_size = int(df_out.strip().split('\n')[-1].strip().split()[2])/1024/1024
-        except Exception, e:
+        except Exception as e:
             logger.error('Evaluation of disk space failed with error {}'.format(e))
             raise SystemExit
         if available_size < required_size:
@@ -163,7 +164,7 @@ class backup_utils(object):
             if return_out:
                 return (True, p2_out) if cmd2 else (True, p1_out)
             return True
-        except Exception, e:
+        except Exception as e:
             raise e
         finally:
             if out_file:
@@ -306,7 +307,7 @@ class backup_utils(object):
             run.dst_key_encrypted = os.path.join(bk.keys_path, run.key_encrypted)
             if run.path not in bk.archive_dirs.values():
                 logger.error(('Given run is not in one of the archive directories {}. Kindly move the run {} to appropriate '
-                              'archive dir before sending it to PDC'.format(','.join(bk.archive_dirs.values()), run.name)))
+                              'archive dir before sending it to PDC'.format(','.join(list(bk.archive_dirs.values())), run.name)))
                 continue
             if not os.path.exists(run.dst_key_encrypted):
                 logger.error('Encrypted key file {} is not found for file {}, skipping it'.format(run.dst_key_encrypted, run.zip_encrypted))

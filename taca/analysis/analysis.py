@@ -15,6 +15,7 @@ from taca.utils.transfer import RsyncAgent
 from taca.utils import statusdb
 
 from flowcell_parser.classes import RunParametersParser
+from io import open
 
 logger = logging.getLogger(__name__)
 

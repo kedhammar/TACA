@@ -83,9 +83,9 @@ def update_statusdb(run_dir):
                                     obj['values'][k] = v
                                 logger.info('Updating {} {} {} {} {} as {}'.format(run_id, project,
                                 flowcell, lane, sample, sample_status))
-                                # Sorts timestamps
-                                obj['values'] = OrderedDict(sorted(obj['values'].iteritems(), key=lambda (k,v): k, reverse=True))
-                                # Update record cluster
+                                #Sorts timestamps
+                                obj['values'] = OrderedDict(sorted(obj['values'].items(), key=lambda k_v: k_v[0], reverse=True))
+                                #Update record cluster
                                 obj['_rev'] = db[remote_id].rev
                                 obj['_id'] = remote_id
                                 db.save(obj)
@@ -223,7 +223,7 @@ def get_ss_projects(run_dir):
             proj_n_sample = False
             lane = False
 
-    if proj_tree.keys() == []:
+    if list(proj_tree.keys()) == []:
         logger.info('INCORRECTLY FORMATTED SAMPLESHEET, CHECK {}'.format(run_name))
     return proj_tree
 
@@ -278,7 +278,7 @@ def fail_run(runid, project):
     logger.info('Connecting to status db: {}:{}'.format(statusdb_conf.get('url'), statusdb_conf.get('port')))
     try:
         status_db = statusdb.StatusdbSession(statusdb_conf).connection
-    except Exception, e:
+    except Exception as e:
         logger.error('Can not connect to status_db: http://{}:*****@{}:{}'.format(
             statusdb_conf.get('username'),
             statusdb_conf.get('url'),
@@ -304,7 +304,7 @@ def fail_run(runid, project):
         try:
             bioinfo_db.save(row.value)
             updated += 1
-        except Exception, e:
+        except Exception as e:
             logger.error('Cannot update object project-sample-run-lane: {}-{}-{}-{}'.format(row.value.get('project_id'), row.value.get('sample'), row.value.get('run_id'), row.value.get('lane')))
             logger.error(e)
             raise e

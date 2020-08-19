@@ -83,7 +83,7 @@ def update_status_db(data, server_type=None):
         raise RuntimeError('"statusdb" must be present in the config file!')
     try:
         couch_connection = statusdb.StatusdbSession(db_config).connection
-    except Exception, e:
+    except Exception as e:
         logging.error(e.message)
         raise
 
@@ -98,7 +98,7 @@ def update_status_db(data, server_type=None):
 
         try:
             db.save(server)
-        except Exception, e:
+        except Exception as e:
             logging.error(e.message)
             raise
         else:

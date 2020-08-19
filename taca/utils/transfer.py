@@ -7,6 +7,7 @@ import subprocess
 
 from taca.utils.filesystem import create_folder
 from taca.utils.misc import hashfile, call_external_command
+from io import open
 
 logger = logging.getLogger(__name__)
 
