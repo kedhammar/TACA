@@ -126,7 +126,7 @@ def parse_samplesheet(run_dir, lims_samplesheet):
         for line in f.readlines():
             sample_name = line.split(',')[0]
             nanoseq_barcode = line.split(',')[1]
-            if nanoseq_barcode in BARCODES:
+            if nanoseq_barcode and nanoseq_barcode in BARCODES:
                 barcode = BARCODES[nanoseq_barcode]
             else:
                 barcode = '0'
