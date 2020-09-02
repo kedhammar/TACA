@@ -129,7 +129,7 @@ def parse_samplesheet(run_dir, lims_samplesheet):
             if nanoseq_barcode in BARCODES:
                 barcode = BARCODES[nanoseq_barcode]
             else:
-                barcode = ''
+                barcode = '0'
             content += '\n' + sample_name + ',,' + barcode + ',,' # Only need sample and barcode for now.
     with open(nanoseq_samplesheet, 'w') as f:
         f.write(content)
@@ -188,7 +188,7 @@ def is_multiplexed(sample_sheet):
         for i, line in enumerate(f):
             if i == 1: # Only need to check first non-header line
                 line_entries = line.split(',')
-    if line_entries[2] == '':
+    if line_entries[2] == '0':
         return False
     else:
         return True
