@@ -1,12 +1,10 @@
 import logging
-import subprocess
-from crontab import CronTab
 import platform
 import getpass
 import datetime
 
-import couchdb
-
+from crontab import CronTab
+from taca.utils import statusdb
 from taca.utils.config import CONFIG
 
 def _parse_crontab():
@@ -15,7 +13,7 @@ def _parse_crontab():
     logging.info('Getting crontab for user {}'.format(user))
     try:
         crontab = CronTab(user=user)
-    except Exception, e:
+    except Exception as e:
         logging.error('Cannot get a crontab for user: {}'.format(user))
         logging.error(e.message)
     else:
@@ -41,19 +39,15 @@ def update_cronjob_db():
     # parse results
     result = _parse_crontab()
     # connect to db
-    url = "http://{username}:{password}@{url}:{port}".format(
-            url=CONFIG.get('statusdb', {}).get('url'),
-            username=CONFIG.get('statusdb', {}).get('username'),
-            password=CONFIG.get('statusdb', {}).get('password'),
-            port=CONFIG.get('statusdb', {}).get('port'))
+    statusdb_conf = CONFIG.get('statusdb')
     logging.info('Connecting to database: {}'.format(CONFIG.get('statusdb', {}).get('url')))
     try:
-        couch = couchdb.Server(url)
-    except Exception, e:
+        couch_connection = statusdb.StatusdbSession(statusdb_conf).connection
+    except Exception as e:
         logging.error(e.message)
     else:
         # update document
-        crontab_db = couch['cronjobs']
+        crontab_db = couch_connection['cronjobs']
         view = crontab_db.view('server/alias')
         # to be safe
         doc = {}
@@ -74,7 +68,7 @@ def update_cronjob_db():
         if doc:
             try:
                 crontab_db.save(doc)
-            except Exception, e:
+            except Exception as e:
                 logging.error(e.message)
             else:
                 logging.info('{} has been successfully updated'.format(server))

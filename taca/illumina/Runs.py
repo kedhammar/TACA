@@ -6,14 +6,13 @@ import subprocess
 import shutil
 import requests
 import glob
+import json
 
 from datetime import datetime
 
 from taca.utils import misc
 from taca.utils.misc import send_mail
-
 from flowcell_parser.classes import RunParser, LaneBarcodeParser
-import json
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +56,6 @@ class Run(object):
     def demultiplex_run(self):
         raise NotImplementedError("Please Implement this method")
 
-
     def check_run_status(self):
         """
         This function checks the status of a run while in progress.
@@ -96,7 +94,6 @@ class Run(object):
                 if self.is_unpooled_lane(lane):
                     self._rename_undet(lane, samples_per_lane)
 
-
     def _set_run_type(self):
         raise NotImplementedError("Please Implement this method")
 
@@ -108,12 +105,6 @@ class Run(object):
 
     def _set_sequencer_type(self, configuration):
         raise NotImplementedError("Please Implement this method")
-
-    def _get_sequencer_type(self):
-        if self.sequencer_type:
-            return self.sequencer_type
-        else:
-            raise RuntimeError("sequencer_type not yet available!!")
 
     def _set_run_parser_obj(self, configuration):
         self.runParserObj = RunParser(self.run_dir)
@@ -143,7 +134,6 @@ class Run(object):
             return ssname
         else:
             raise RuntimeError("not able to find samplesheet {}.csv in {}".format(self.flowcell_id, self.CONFIG['samplesheets_dir']))
-
 
     def _is_demultiplexing_done(self):
         return os.path.exists(os.path.join(self.run_dir,
@@ -283,12 +273,11 @@ class Run(object):
                         bm.append('N' + str(cycles))
         return bm
 
-    def transfer_run(self, t_file, analysis, mail_recipients=None):
+    def transfer_run(self, t_file, mail_recipients=None):
         """ Transfer a run to the analysis server. Will add group R/W permissions to
             the run directory in the destination server so that the run can be processed
             by any user/account in that group (i.e a functional account...).
             :param str t_file: File where to put the transfer information
-            :param bool analysis: Trigger analysis on remote server
         """
         # TODO: check the run type and build the correct rsync command
         # The option -a implies -o and -g which is not the desired behaviour
@@ -352,11 +341,6 @@ class Run(object):
         if mail_recipients:
             send_mail(sbt, msg, mail_recipients)
 
-
-        if analysis:
-            # This needs to pass the runtype (i.e., Xten or HiSeq) and start the correct pipeline
-            self.trigger_analysis()
-
     def archive_run(self, destination):
         """ Move run to the archive folder
             :param str destination: the destination folder
@@ -366,40 +350,6 @@ class Run(object):
             shutil.move(self.run_dir, os.path.join(destination, self.id))
         else:
             logger.warning("Cannot move run to archive, destination does not exist")
-
-    def trigger_analysis(self):
-        """ Trigger the analysis of the flowcell in the analysis sever.
-            :param str run_id: run/flowcell id
-        """
-        if not self.CONFIG.get('analysis_server', {}):
-            logger.warn(("No configuration found for remote analysis server. "
-                     "Not triggering analysis of {}"
-                     .format(os.path.basename(self.id))))
-        else:
-            url = ("http://{host}:{port}/flowcell_analysis/{dir}"
-                   .format(host=self.CONFIG['analysis_server']['host'],
-                           port=self.CONFIG['analysis_server']['port'],
-                           dir=os.path.basename(self.id)))
-            params = {'path': self.CONFIG['analysis_server']['sync']['data_archive']}
-            try:
-                r = requests.get(url, params=params)
-                if r.status_code != requests.status_codes.codes.OK:
-                    logger.warn(("Something went wrong when triggering the "
-                                 "analysis of {}. Please check the logfile "
-                                 "and make sure to start the analysis!"
-                                .format(os.path.basename(self.run_id))))
-                else:
-                    logger.info('Analysis of flowcell {} triggered in {}'
-                                .format(os.path.basename(self.run_id),
-                                self.CONFIG['analysis'][self.run_type]['analysis_server']['host']))
-                    a_file = os.path.join(self.CONFIG['analysis'][self.run_type]['status_dir'], 'analysis.tsv')
-                    with open(a_file, 'a') as analysis_file:
-                        tsv_writer = csv.writer(analysis_file, delimiter='\t')
-                        tsv_writer.writerow([os.path.basename(self.run_id), str(datetime.now())])
-            except requests.exceptions.ConnectionError:
-                logger.warn(("Something went wrong when triggering the analysis "
-                            "of {}. Please check the logfile and make sure to "
-                            "start the analysis!".format(os.path.basename(self.run_id))))
 
     def send_mail(self, msg, rcp):
         """ Sends mail about run completion
@@ -428,7 +378,6 @@ class Run(object):
         except IOError:
             return False
 
-
     def is_unpooled_lane(self, lane):
         """
             :param lane: lane identifier
@@ -441,18 +390,6 @@ class Run(object):
             if l['Lane'] == lane:
                 count += 1
         return count == 1
-
-    def is_unpooled_run(self):
-        """
-            :param ss: SampleSheet reader
-            :type ss: flowcell_parser.XTenSampleSheet
-            :rtype: boolean
-            :returns: True if the samplesheet has one entry per lane, False otherwise
-        """
-        ar = []
-        for l in self.runParserObj.samplesheet.data:
-            ar.append(l['Lane'])
-        return len(ar)==len(set(ar))
 
     def get_samples_per_lane(self):
         """
@@ -468,8 +405,6 @@ class Run(object):
             d[l['Lane']]=l[ss.dfield_snm]
 
         return d
-
-
 
     def _rename_undet(self, lane, samples_per_lane):
         """Renames the Undetermined fastq file by prepending the sample name in front of it
@@ -495,9 +430,6 @@ class Run(object):
             new_name="_".join(old_name_comps)
             logger.info("Renaming {} to {}".format(file, os.path.join(os.path.dirname(file), new_name)))
             os.rename(file, os.path.join(os.path.dirname(file), new_name))
-
-
-
 
     def _aggregate_demux_results_simple_complex(self, simple_lanes, complex_lanes):
         run_dir      =  self.run_dir
@@ -610,29 +542,29 @@ class Run(object):
                 lanesInReport = [Lane['Lane'] for Lane in html_report_lane_parser.sample_data]
                 next_html_report_lane_parser = LaneBarcodeParser(next_html_report_lane)
                 for entry in next_html_report_lane_parser.sample_data:
-                    if not entry["Lane"] in lanesInReport:
-                        #if this is a new lane not included before
+                    if not entry['Lane'] in lanesInReport:
+                        # If this is a new lane not included before
                         html_report_lane_parser.sample_data.append(entry)
-        # now all lanes have been inserted
+        # Now all lanes have been inserted
         # The numbers in Flowcell Summary also need to be aggregated if multiple demultiplexing is done
         Clusters_Raw = 0
         Clusters_PF = 0
         Yield_Mbases = 0
         for entry in html_report_lane_parser.sample_data:
-            Clusters_Raw += int(int(entry['PF Clusters'].replace(',',''))/float(entry['% PFClusters'])*100)
-            Clusters_PF += int(entry['PF Clusters'].replace(',',''))
-            Yield_Mbases += int(entry['Yield (Mbases)'].replace(',',''))
+            Clusters_Raw += int(int(entry['PF Clusters'].replace(',', '')) / float(entry['% PFClusters']) * 100)
+            Clusters_PF += int(entry['PF Clusters'].replace(',', ''))
+            Yield_Mbases += int(entry['Yield (Mbases)'].replace(',', ''))
             if entry['Lane'] in complex_lanes.keys():
-                entry['% Perfectbarcode']      = None
+                entry['% Perfectbarcode'] = None
                 entry['% One mismatchbarcode'] = None
         # Now update the values in Flowcell Summary
         html_report_lane_parser.flowcell_data['Clusters (Raw)'] = '{:,}'.format(Clusters_Raw)
         html_report_lane_parser.flowcell_data['Clusters(PF)'] = '{:,}'.format(Clusters_PF)
         html_report_lane_parser.flowcell_data['Yield (MBases)'] = '{:,}'.format(Yield_Mbases)
-        #now add lanes not present in this demux
-        #now I can create the new lane.html
-        new_html_report_lane_dir = _create_folder_structure(demux_folder, ["Reports", "html", self.flowcell_id, "all", "all", "all"])
-        new_html_report_lane = os.path.join(new_html_report_lane_dir, "lane.html")
+        # Add lanes not present in this demux
+        # Now I can create the new lane.html
+        new_html_report_lane_dir = _create_folder_structure(demux_folder, ['Reports', 'html', self.flowcell_id, 'all', 'all', 'all'])
+        new_html_report_lane = os.path.join(new_html_report_lane_dir, 'lane.html')
         _generate_lane_html(new_html_report_lane, html_report_lane_parser)
 
         #now generate the laneBarcode
@@ -648,7 +580,7 @@ class Run(object):
         positions_to_delete = [] #find all position that contain default as poriject nameand do not belong to a simple lane
         current_pos = 0
         for entry in html_report_laneBarcode_parser.sample_data:
-            if  entry['Lane'] in complex_lanes.keys() and entry['Project'] in "default":
+            if  entry['Lane'] in list(complex_lanes.keys()) and entry['Project'] in 'default':
                 positions_to_delete = [current_pos] +  positions_to_delete # build the array in this way so that I can delete the elements without messing with the offsets
             current_pos += 1
         for position in positions_to_delete:
@@ -658,14 +590,12 @@ class Run(object):
         html_report_laneBarcode_parser.flowcell_data['Clusters(PF)'] = '{:,}'.format(Clusters_PF)
         html_report_laneBarcode_parser.flowcell_data['Yield (MBases)'] = '{:,}'.format(Yield_Mbases)
         #now generate the new report for laneBarcode.html
-        new_html_report_laneBarcode = os.path.join(new_html_report_lane_dir, "laneBarcode.html")
+        new_html_report_laneBarcode = os.path.join(new_html_report_lane_dir, 'laneBarcode.html')
         _generate_lane_html(new_html_report_laneBarcode, html_report_laneBarcode_parser)
         #now create the DemultiplexingStats.xml (empty it is here only to say thay demux is done)
-        DemultiplexingStats_xml_dir = _create_folder_structure(demux_folder, ["Stats"])
+        DemultiplexingStats_xml_dir = _create_folder_structure(demux_folder, ['Stats'])
         #now generate the Stats.json
-        with open(os.path.join(DemultiplexingStats_xml_dir, "Stats.json"), 'w') as json_data_cumulative:
-            #import pdb
-            #pdb.set_trace()
+        with open(os.path.join(DemultiplexingStats_xml_dir, 'Stats.json'), 'w') as json_data_cumulative:
             stats_list = {}
             for stat_json in stats_json:
                 with open(stat_json) as json_data_partial:
@@ -683,7 +613,7 @@ class Run(object):
                             stats_list['UnknownBarcodes'].extend([unknown_barcode_lane])
                     else:
                         #I update only the importat fields
-                        lanes_present_in_stats_json = [entry["LaneNumber"] for entry in stats_list['ConversionResults']]
+                        lanes_present_in_stats_json = [entry['LaneNumber'] for entry in stats_list['ConversionResults']]
                         for ReadInfosForLanes_lane in data['ReadInfosForLanes']:
                             if ReadInfosForLanes_lane['LaneNumber'] not in lanes_present_in_stats_json:
                                 stats_list['ReadInfosForLanes'].extend([ReadInfosForLanes_lane])
@@ -696,95 +626,89 @@ class Run(object):
                                 ConversionResults_lane['Undetermined']['ReadMetrics'][0]['TrimmedBases'] = 0
                                 ConversionResults_lane['Undetermined']['ReadMetrics'][0]['Yield'] = 0
                                 ConversionResults_lane['Undetermined']['ReadMetrics'][0]['YieldQ30'] = 0
-                                if len(filter(lambda r: r['IsIndexedRead'] == 'N', self.runParserObj.runinfo.data["Reads"])) == 2:
+                                if len([r for r in self.runParserObj.runinfo.data['Reads'] if r['IsIndexedRead'] == 'N']) == 2:
                                     ConversionResults_lane['Undetermined']['ReadMetrics'][1]['QualityScoreSum'] = 0
                                     ConversionResults_lane['Undetermined']['ReadMetrics'][1]['TrimmedBases'] = 0
                                     ConversionResults_lane['Undetermined']['ReadMetrics'][1]['Yield'] = 0
                                     ConversionResults_lane['Undetermined']['ReadMetrics'][1]['YieldQ30'] = 0
                                 #find the list containing info for this lane
-                                lane_to_update = [entry for entry in stats_list['ConversionResults'] if entry["LaneNumber"] == ConversionResults_lane['LaneNumber']][0]
+                                lane_to_update = [entry for entry in stats_list['ConversionResults'] if entry['LaneNumber'] == ConversionResults_lane['LaneNumber']][0]
                                 lane_to_update['DemuxResults'].extend(ConversionResults_lane['DemuxResults'])
                                 lane_to_update['Undetermined'] = ConversionResults_lane['Undetermined']
                             else:
                                 stats_list['ConversionResults'].extend([ConversionResults_lane])
 
-                        lanes_present_in_stats_json = [entry["Lane"] for entry in stats_list['UnknownBarcodes']]
+                        lanes_present_in_stats_json = [entry['Lane'] for entry in stats_list['UnknownBarcodes']]
                         for unknown_barcode_lane in data['UnknownBarcodes']:
-                            if unknown_barcode_lane["Lane"] not in lanes_present_in_stats_json:
+                            if unknown_barcode_lane['Lane'] not in lanes_present_in_stats_json:
                                 stats_list['UnknownBarcodes'].extend([unknown_barcode_lane])
                             else:
                                 #find the index containing info for this lane
-                                index = [i for i,  entry in enumerate(stats_list['UnknownBarcodes']) if entry["Lane"] == unknown_barcode_lane["Lane"]][0]
-                                complex_lane_entry = {'Lane': unknown_barcode_lane["Lane"],
-                                                    'Barcodes': {"unknown": 1}}
+                                index = [i for i,  entry in enumerate(stats_list['UnknownBarcodes']) if entry['Lane'] == unknown_barcode_lane['Lane']][0]
+                                complex_lane_entry = {'Lane': unknown_barcode_lane['Lane'],
+                                                    'Barcodes': {'unknown': 1}}
                                 stats_list['UnknownBarcodes'][index] = complex_lane_entry
-#                        stats_list['UnknownBarcodes'].extend(data['UnknownBarcodes'])
             json.dump(stats_list, json_data_cumulative)
 
-        #now the run is formally COMPLETED
-        open(os.path.join(DemultiplexingStats_xml_dir, "DemultiplexingStats.xml"), 'a').close()
+        # Now the run is formally COMPLETED
+        open(os.path.join(DemultiplexingStats_xml_dir, 'DemultiplexingStats.xml'), 'a').close()
         return True
 
 
-
 def _create_folder_structure(root, dirs):
-    """
-    creates a fodler stucture rooted in root usinf all dirs listed in dirs (a list)
+    """Creates a fodler stucture rooted in root usinf all dirs listed in dirs (a list)
     returns the path to the deepest directory
     """
-    path=root
+    path = root
     for dir in dirs:
         path = os.path.join(path, dir)
         if not os.path.exists(path):
             os.makedirs(path)
     return path
 
-
-
-
 def _generate_lane_html(html_file, html_report_lane_parser):
-    with open(html_file, "w") as html:
-        #HEADER
-        html.write("<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\">\n")
-        html.write("<html xmlns:bcl2fastq>\n")
-        html.write("<link rel=\"stylesheet\" href=\"../../../../Report.css\" type=\"text/css\">\n")
-        html.write("<body>\n")
-        html.write("<table width=\"100%\"><tr>\n")
-        html.write("<td><p><p>C6L1WANXX /\n")
-        html.write("        [all projects] /\n")
-        html.write("        [all samples] /\n")
-        html.write("        [all barcodes]</p></p></td>\n")
-        html.write("<td><p align=\"right\"><a href=\"../../../../FAKE/all/all/all/laneBarcode.html\">show barcodes</a></p></td>\n")
-        html.write("</tr></table>\n")
-        #FLOWCELL SUMMARY TABLE
-        html.write("<h2>Flowcell Summary</h2>\n")
-        html.write("<table border=\"1\" ID=\"ReportTable\">\n")
-        html.write("<tr>\n")
-        keys = html_report_lane_parser.flowcell_data.keys()
-        for key in keys:
-            html.write("<th>{}</th>\n".format(key))
-        html.write("</tr>\n")
-        html.write("<tr>\n")
-        for key in keys:
-            html.write("<td>{}</td>\n".format(html_report_lane_parser.flowcell_data[key]))
-        html.write("</tr>\n")
-        html.write("</table>\n")
-        #LANE SUMMARY TABLE
-        html.write("<h2>Lane Summary</h2>\n")
-        html.write("<table border=\"1\" ID=\"ReportTable\">\n")
-        html.write("<tr>\n")
-        keys = html_report_lane_parser.sample_data[0].keys()
-        for key in keys:
-            html.write("<th>{}</th>\n".format(key))
-        html.write("</tr>\n")
+    with open(html_file, 'w') as html:
+        # HEADER
+        html.write('<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">\n')
+        html.write('<html xmlns:bcl2fastq>\n')
+        html.write('<link rel="stylesheet" href="../../../../Report.css" type="text/css">\n')
+        html.write('<body>\n')
+        html.write('<table width="100%"><tr>\n')
+        html.write('<td><p><p>C6L1WANXX /\n')
+        html.write('        [all projects] /\n')
+        html.write('        [all samples] /\n')
+        html.write('        [all barcodes]</p></p></td>\n')
+        html.write('<td><p align="right"><a href="../../../../FAKE/all/all/all/laneBarcode.html">show barcodes</a></p></td>\n')
+        html.write('</tr></table>\n')
+        # FLOWCELL SUMMARY TABLE
+        html.write('<h2>Flowcell Summary</h2>\n')
+        html.write('<table border="1" ID="ReportTable">\n')
+        html.write('<tr>\n')
+        fc_keys = sorted(list(html_report_lane_parser.flowcell_data.keys()))
+        for key in fc_keys:
+            html.write('<th>{}</th>\n'.format(key))
+        html.write('</tr>\n')
+        html.write('<tr>\n')
+        for key in fc_keys:
+            html.write('<td>{}</td>\n'.format(html_report_lane_parser.flowcell_data[key]))
+        html.write('</tr>\n')
+        html.write('</table>\n')
+        # LANE SUMMARY TABLE
+        html.write('<h2>Lane Summary</h2>\n')
+        html.write('<table border="1" ID="ReportTable">\n')
+        html.write('<tr>\n')
+        lane_keys = sorted(list(html_report_lane_parser.sample_data[0].keys()))
+        for key in lane_keys:
+            html.write('<th>{}</th>\n'.format(key))
+        html.write('</tr>\n')
 
         for sample in html_report_lane_parser.sample_data:
-            html.write("<tr>\n")
-            for key in keys:
-                html.write("<td>{}</td>\n".format(sample[key]))
-            html.write("</tr>\n")
-        html.write("</table>\n")
-        #FOOTER
-        html.write("<p></p>\n")
-        html.write("</body>\n")
-        html.write("</html>\n")
+            html.write('<tr>\n')
+            for key in lane_keys:
+                html.write('<td>{}</td>\n'.format(sample[key]))
+            html.write('</tr>\n')
+        html.write('</table>\n')
+        # FOOTER
+        html.write('<p></p>\n')
+        html.write('</body>\n')
+        html.write('</html>\n')

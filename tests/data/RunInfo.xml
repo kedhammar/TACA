@@ -7,7 +7,7 @@
     <Reads>
       <Read Number="1" NumCycles="151" IsIndexedRead="N" />
       <Read Number="2" NumCycles="8" IsIndexedRead="Y" />
-      <Read Number="3" NumCycles="151" IsIndexedRead="N" />
+      <Read Number="3" NumCycles="10" IsIndexedRead="Y" />
     </Reads>
     <FlowcellLayout LaneCount="8" SurfaceCount="2" SwathCount="2" TileCount="24">
       <TileSet TileNamingConvention="FourDigit">
