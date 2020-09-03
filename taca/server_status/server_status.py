@@ -1,8 +1,8 @@
 import subprocess
 import logging
-import couchdb
 import datetime
 
+from taca.utils import statusdb
 from taca.utils.config import CONFIG
 
 def get_nases_disk_space():
@@ -10,17 +10,17 @@ def get_nases_disk_space():
     config = CONFIG['server_status']
     servers = config.get('servers', [])
     for server_url in servers.keys():
-        # get path of disk
+        # Get path of disk
         path = servers[server_url]
 
-        # get command
-        command = "{command} {path}".format(command=config['command'], path=path)
+        # Get command
+        command = '{command} {path}'.format(command=config['command'], path=path)
 
-        # if localhost, don't connect to ssh
-        if server_url == "localhost":
+        # If localhost, don't connect to ssh
+        if server_url == 'localhost':
             proc = subprocess.Popen(command.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         else:
-            # connect via ssh to server and execute the command
+            # Connect via ssh to server and execute the command
             proc = subprocess.Popen(['ssh', '-t', '{}@{}'.format(config['user'], server_url), command],
                 stdout = subprocess.PIPE,
                 stderr = subprocess.PIPE)
@@ -57,7 +57,7 @@ def _parse_output(output): # for nases
             'filesystem': filesystem
         }
     except:
-        # sometimes it fails for whatever reason as Popen returns not what it is supposed to
+        # Sometimes it fails for whatever reason as Popen returns not what it is supposed to
         result = {
             'disk_size': 'NaN',
             'space_used': 'NaN',
@@ -67,32 +67,27 @@ def _parse_output(output): # for nases
             'mounted_on': 'NaN',
             'filesystem': 'NaN'
         }
-        logging.error("Can't parse the output: {}".format(output))
+        logging.error('Can not parse the output: {}'.format(output))
 
     return result
 
 def update_status_db(data, server_type=None):
-    """ Pushed the data to status db,
-        data can be from nases
-        server_type should be 'nas'
+    """ Pushed the data to status db.
+
+    data can be from nases
+    server_type should be 'nas'.
     """
     db_config = CONFIG.get('statusdb')
     if db_config is None:
-        logging.error("'statusdb' must be present in the config file!")
-        raise RuntimeError("'statusdb' must be present in the config file!")
-
-    server = "http://{username}:{password}@{url}:{port}".format(
-        url=db_config['url'],
-        username=db_config['username'],
-        password=db_config['password'],
-        port=db_config['port'])
+        logging.error('"statusdb" must be present in the config file!')
+        raise RuntimeError('"statusdb" must be present in the config file!')
     try:
-        couch = couchdb.Server(server)
-    except Exception, e:
+        couch_connection = statusdb.StatusdbSession(db_config).connection
+    except Exception as e:
         logging.error(e.message)
         raise
 
-    db = couch['server_status']
+    db = couch_connection['server_status']
     logging.info('Connection established')
     for key in data.keys(): # data is dict of dicts
         server = data[key] # data[key] is dictionary (the command output)
@@ -103,7 +98,7 @@ def update_status_db(data, server_type=None):
 
         try:
             db.save(server)
-        except Exception, e:
+        except Exception as e:
             logging.error(e.message)
             raise
         else:

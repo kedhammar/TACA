@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import os
+import io
 import shutil
 import tempfile
 import unittest
@@ -10,6 +11,7 @@ import mock
 import filecmp
 import subprocess
 from datetime import datetime
+import sys
 
 from taca.analysis.analysis import *
 from taca.illumina.Runs import Run, _create_folder_structure, _generate_lane_html
@@ -21,19 +23,13 @@ from taca.illumina.NextSeq_Runs import NextSeq_Run
 from flowcell_parser.classes import LaneBarcodeParser, SampleSheetParser
 from taca.utils import config as conf
 
+if sys.version_info[0] >= 3:
+    unicode = str
 
 # This is only run if TACA is called from the CLI, as this is a test, we need to
 # call it explicitely
 CONFIG = conf.load_yaml_config('data/taca_test_cfg.yaml')
 
-def processing_status(run_dir):
-    demux_dir = os.path.join(run_dir, 'Demultiplexing')
-    if not os.path.exists(demux_dir):
-        return 'TO_START'
-    elif os.path.exists(os.path.join(demux_dir, 'Stats', 'Stats.json')):
-        return 'COMPLETED'
-    else:
-        return 'IN_PROGRESS'
 
 class TestRuns(unittest.TestCase):
     """Tests for the Run base class."""
@@ -135,13 +131,11 @@ class TestRuns(unittest.TestCase):
         open(os.path.join(completed, 'Demultiplexing', 'Undetermined_S0_L001_R1_001.fastq.gz'), 'w').close()
         open(os.path.join(complex_run_dir, 'Demultiplexing_0', 'N__One_20_01', 'Sample_P12345_1001', 'P16510_1001_S1_L001_R1_001.fastq.gz'), 'w').close()
         open(os.path.join(complex_run_dir, 'Demultiplexing_0', 'N__One_20_01', 'Sample_P12345_1001', 'P16510_1001_S1_L001_R2_001.fastq.gz'), 'w').close()
-        with open(os.path.join(completed, 'Demultiplexing', 'Stats', 'Stats.json'), 'w') as stats_json:
-            json.dump({'silly': 1}, stats_json)
+        with io.open(os.path.join(completed, 'Demultiplexing', 'Stats', 'Stats.json'), 'w', encoding="utf-8") as stats_json:
+            stats_json.write(unicode(json.dumps({'silly': 1}, ensure_ascii=False)))
 
-        # Create transfer file and add the completed run
-        with open(self.transfer_file, 'w') as f:
-            tsv_writer = csv.writer(f, delimiter='\t')
-            tsv_writer.writerow([os.path.basename(completed), str(datetime.now())])
+        # Copy transfer file with the completed run
+        shutil.copy('data/test_transfer.tsv', self.transfer_file)
 
         # Move sample RunInfo.xml file to every run directory
         for run in [running, to_start, in_progress, in_progress_done, completed, dummy, complex_run_dir]:
@@ -180,7 +174,6 @@ class TestRuns(unittest.TestCase):
                                           '141124_ST-DUMMY1_01_AFCIDXX'),
                              CONFIG['analysis']['HiSeq'])
         self.finished_runs = [self.to_start, self.in_progress, self.completed]
-        self.transfer_file = os.path.join(self.tmp_dir, 'transfer.tsv')
         self.complex_run = Run(os.path.join(self.tmp_dir, '141124_ST-COMPLEX1_01_AFCIDXX'),
                                CONFIG['analysis']['HiSeq'])
 
@@ -203,7 +196,7 @@ class TestRuns(unittest.TestCase):
     def test_is_sequencing_done(self):
         """Is finished should be True only if "RTAComplete.txt" file is present."""
         self.assertFalse(self.running._is_sequencing_done())
-        self.assertTrue(all(map(lambda run: run._is_sequencing_done, self.finished_runs)))
+        self.assertTrue(all([run._is_sequencing_done for run in self.finished_runs]))
 
     def test_get_run_status(self):
         """Get the run status based on present files."""
@@ -343,7 +336,7 @@ class TestRuns(unittest.TestCase):
         """Return samples from samplesheet."""
         expected_samples = {'1': 'P10000_1001', '2': 'P10000_1005'}
         got_samples =  self.in_progress.get_samples_per_lane()
-        self.assertItemsEqual(expected_samples, got_samples)
+        self.assertEqual(expected_samples, got_samples)
 
     @mock.patch('taca.illumina.Runs.os.rename')
     def test_rename_undet(self, mock_rename):
@@ -464,8 +457,8 @@ class TestHiSeqRuns(unittest.TestCase):
         ssparser = SampleSheetParser('data/samplesheet_dual_index.csv')
         expected_samplesheet = '''[Header]
 Date,None
-Investigator Name,Test
 Experiment Name,CIDXX
+Investigator Name,Test
 [Data]
 Lane,Sample_ID,Sample_Name,index,index2,Sample_Project,FCID,SampleRef,Description,Control,Recipe,Operator
 1,Sample_Sample_P10000_1001,Sample_P10000_1001,CGCGCAG,CTGCGCG,A_Test_18_01,HISEQFCIDXX,Human (Homo sapiens GRCh37),A_Test_18_01,N,2x50,Some_One
@@ -556,23 +549,42 @@ Lane,Sample_ID,Sample_Name,index,index2,Sample_Project,FCID,SampleRef,Descriptio
                                               'Operator': 'Some_One'}]}
                                   }}
         self.to_start.demultiplex_run()
-        calls = [mock.call(['path_to_bcl_to_fastq',
-                            '--some-opt', 'some_val',
-                            '--other-opt',
-                            '--output-dir', 'Demultiplexing_0',
-                            '--use-bases-mask', '1:Y150,I7N1,Y151',
-                            '--tiles', 's_1',
-                            '--sample-sheet', os.path.join(self.tmp_dir, '141124_ST-TOSTART1_04_AHISEQFCIDXX', 'SampleSheet_0.csv')],
-                           prefix='demux_0', with_log_files=True),
-                 mock.call(['path_to_bcl_to_fastq',
-                            '--some-opt', 'some_val',
-                            '--other-opt',
-                            '--output-dir', 'Demultiplexing_1',
-                            '--use-bases-mask', '1:Y151,I7N1,Y151',
-                            '--tiles', 's_1',
-                            '--sample-sheet', os.path.join(self.tmp_dir, '141124_ST-TOSTART1_04_AHISEQFCIDXX', 'SampleSheet_1.csv')],
-                           prefix='demux_1', with_log_files=True)]
-        mock_call_external.assert_has_calls(calls)
+        calls_alt_1 = [mock.call(['path_to_bcl_to_fastq',
+                                  '--some-opt', 'some_val',
+                                  '--other-opt',
+                                  '--output-dir', 'Demultiplexing_0',
+                                  '--use-bases-mask', '1:Y150,I7N1,Y151',
+                                  '--tiles', 's_1',
+                                  '--sample-sheet', os.path.join(self.tmp_dir, '141124_ST-TOSTART1_04_AHISEQFCIDXX', 'SampleSheet_0.csv')],
+                                 with_log_files=True, prefix='demux_0'),
+                       mock.call(['path_to_bcl_to_fastq',
+                                  '--some-opt', 'some_val',
+                                  '--other-opt',
+                                  '--output-dir', 'Demultiplexing_1',
+                                  '--use-bases-mask', '1:Y151,I7N1,Y151',
+                                  '--tiles', 's_1',
+                                  '--sample-sheet', os.path.join(self.tmp_dir, '141124_ST-TOSTART1_04_AHISEQFCIDXX', 'SampleSheet_1.csv')],
+                                 with_log_files=True, prefix='demux_1')]
+        calls_alt_2 = [mock.call(['path_to_bcl_to_fastq',
+                                  '--some-opt', 'some_val',
+                                  '--other-opt',
+                                  '--output-dir', 'Demultiplexing_0',
+                                  '--use-bases-mask', '1:Y151,I7N1,Y151',
+                                  '--tiles', 's_1',
+                                  '--sample-sheet', os.path.join(self.tmp_dir, '141124_ST-TOSTART1_04_AHISEQFCIDXX', 'SampleSheet_0.csv')],
+                                 with_log_files=True, prefix='demux_0'),
+                       mock.call(['path_to_bcl_to_fastq',
+                                  '--some-opt', 'some_val',
+                                  '--other-opt',
+                                  '--output-dir', 'Demultiplexing_1',
+                                  '--use-bases-mask', '1:Y150,I7N1,Y151',
+                                  '--tiles', 's_1',
+                                  '--sample-sheet', os.path.join(self.tmp_dir, '141124_ST-TOSTART1_04_AHISEQFCIDXX', 'SampleSheet_1.csv')],
+                                 with_log_files=True, prefix='demux_1')]
+        try:
+            mock_call_external.assert_has_calls(calls_alt_1)
+        except AssertionError as e:
+            mock_call_external.assert_has_calls(calls_alt_2)
 
     def test_generate_bcl2fastq_command(self):
         """Generate command to demultiplex HiSeq."""
@@ -688,6 +700,7 @@ class TestHiSeqXRuns(unittest.TestCase):
 
     def test_copy_samplesheet(self):
         """Copy HiSeqX SampleSheet."""
+        os.remove(os.path.join(self.tmp_dir, '141124_ST-RUNNING1_03_AFCIDXX', 'SampleSheet.csv'))
         self.running._copy_samplesheet()
         self.assertTrue(os.path.isfile(os.path.join(self.tmp_dir, '141124_ST-RUNNING1_03_AFCIDXX', 'SampleSheet.csv')))
 
@@ -695,10 +708,10 @@ class TestHiSeqXRuns(unittest.TestCase):
         """Make clean HiSeqX sample sheet."""
         ssparser = SampleSheetParser('data/2014/FCIDXX.csv')
         indexfile = 'data/test_10X_indexes'
-        expected_samplesheet = '''[Header]
+        expected_samplesheet = u'''[Header]
 Date,None
-Investigator Name,Test
 Experiment Name,CIDXX
+Investigator Name,Test
 [Data]
 Lane,SampleID,SampleName,SamplePlate,SampleWell,index,index2,Project,Description
 1,Sample_P10000_1001,P10000_1001,CIDXX,1:1,AACCGTAA,,A_Test_18_01,
@@ -813,8 +826,8 @@ Lane,SampleID,SampleName,SamplePlate,SampleWell,index,index2,Project,Description
         got_data = _generate_samplesheet_subset(ssparser, samples_to_include)
         expected_data = '''[Header]
 Date,None
-Investigator Name,Test
 Experiment Name,CIDXX
+Investigator Name,Test
 [Data]
 Lane,SampleID,SampleName,SamplePlate,SampleWell,index,index2,Project,Description
 1,Sample_P10000_1001,P10000_1001,CIDXX,1:1,SI-GA-A1,,A_Test_18_01,
@@ -848,23 +861,8 @@ class TestMiSeqRuns(unittest.TestCase):
         os.makedirs(to_start)
         os.makedirs(os.path.join(self.tmp_dir, '141124_ST-TOSTART1_04_AMISEQFCIDXX', 'Data', 'Intensities', 'BaseCalls'))
 
-        samplesheet_data = '''[Header]
-Assay,null
-Description,Production
-Workflow,LibraryQC
-Project Name,A_Test_18_01
-Investigator Name,Test
-Experiment Name,A_Test_18_01
-Date,2019-01-23
-Chemistry,amplicon
-[Data]
-Lane,Sample_ID,Sample_Name,index,Sample_Project,I7_Index_ID,index2,I5_Index_ID,Sample_Plate,Sample_Well,Description,GenomeFolder
-1,Sample_Sample_P10000_1001,Sample_P10000_1001,TATAGCCT,A_Test_18_01,TATAGCCT,GCCTCTAT,GCCTCTAT,P10000P1-A1,A1,Production,/hg19/Sequence/Chromosomes
-1,Sample_Sample_P10000_1005,Sample_P10000_1005,TATAGCCT,A_Test_18_01,TATAGCCT,GCGCGAGA,GCGCGAGA,P10000P1-A1,A1,Production,/hg19/Sequence/Chromosomes
-'''
         sample_sheet_dest = os.path.join(self.tmp_dir, '141124_ST-TOSTART1_04_AMISEQFCIDXX', 'Data', 'Intensities', 'BaseCalls','SampleSheet.csv')
-        with open(sample_sheet_dest, 'wb') as f:
-                f.write(samplesheet_data)
+        shutil.copy('data/miseq_test_samplesheet.csv', sample_sheet_dest)
 
         # Create files indicating that the run is finished
         open(os.path.join(running, 'RTAComplete.txt'), 'w').close()
@@ -891,13 +889,13 @@ Lane,Sample_ID,Sample_Name,index,Sample_Project,I7_Index_ID,index2,I5_Index_ID,S
         ssparser = SampleSheetParser('data/2014/MISEQFCIDXX.csv')
         expected_samplesheet = '''[Header]
 Assay,null
-Description,Production
-Workflow,LibraryQC
-Project Name,A_Test_18_01
-Investigator Name,Test
-Experiment Name,A_Test_18_01
-Date,2019-01-23
 Chemistry,amplicon
+Date,2019-01-23
+Description,Production
+Experiment Name,A_Test_18_01
+Investigator Name,Test
+Project Name,A_Test_18_01
+Workflow,LibraryQC
 [Data]
 Lane,Sample_ID,Sample_Name,index,Sample_Project,I7_Index_ID,index2,I5_Index_ID,Sample_Plate,Sample_Well,Description,GenomeFolder
 1,Sample_Sample_P10000_1001,Sample_P10000_1001,TATAGCCT,A_Test_18_01,TATAGCCT,GCCTCTAT,GCCTCTAT,P10000P1-A1,A1,Production,/hg19/Sequence/Chromosomes

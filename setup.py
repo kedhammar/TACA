@@ -4,6 +4,7 @@ import os
 import sys
 
 from taca import __version__
+from io import open
 
 try:
     with open("requirements.txt", "r") as f:
