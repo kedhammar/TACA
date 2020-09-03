@@ -123,7 +123,7 @@ def parse_samplesheet(run_dir, lims_samplesheet):
     nanoseq_samplesheet = os.path.join(run_dir, nanopore_kit + '_sample_sheet.csv')
     content = 'sample,fastq,barcode,genome,transcriptome'
     with open(lims_samplesheet, 'r') as f:
-        for line in f.readlines():
+        for line in sorted(f.readlines()):
             sample_name = line.split(',')[0]
             nanoseq_barcode = line.split(',')[1]
             if nanoseq_barcode and nanoseq_barcode in BARCODES:
