@@ -20,14 +20,15 @@ def demultiplex(run, force):
 
 @analysis.command()
 @click.option('--runfolder-project', is_flag=False, help='Project ID for runfolder transfer')
+@click.option('--exclude-lane', default='', help='Lanes to exclude separated by comma')
 @click.argument('rundir')
 
-def transfer(rundir, runfolder_project):
+def transfer(rundir, runfolder_project, exclude_lane):
     """Transfers the run without qc."""
     if not runfolder_project:
         an.transfer_run(rundir)
     else:
-        an.transfer_runfolder(rundir, pid=runfolder_project)
+        an.transfer_runfolder(rundir, pid=runfolder_project, exclude_lane=exclude_lane)
 
 @analysis.command()
 @click.argument('rundir')
