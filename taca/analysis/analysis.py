@@ -193,7 +193,7 @@ def transfer_runfolder(run_dir, pid, exclude_lane):
         if exclude_lane != '':
             exclude_options_for_tar += dir_for_excluding_lane
 
-        subprocess.call(['tar']+exclude_options_for_tar+['-cvzf', archive,'-C', run_dir_path, dir_name])
+        subprocess.call(['tar'] + exclude_options_for_tar + ['-cvzf', archive, '-C', run_dir_path, dir_name])
     except subprocess.CalledProcessError as e:
         logger.error('Error creating tar archive')
         raise e
