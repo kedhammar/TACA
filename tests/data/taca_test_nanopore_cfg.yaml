@@ -4,13 +4,14 @@ log:
 nanopore_analysis:
   data_dir:
     - data/nanopore_data/
+  samplesheets_dir: data/nanopore_samplesheets
   transfer:
     transfer_file: data/nanopore_data/transfer.tsv
     analysis_server:
-      host:
-      port:
-      user:
-    destination: ~/
+      host: some_host
+      port: 
+      user: some_user
+    destination: some_dir
   finished_dir: data/nanopore_data/nosync
 
 mail:
