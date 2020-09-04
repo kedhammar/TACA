@@ -22,7 +22,7 @@ class TestNanoporeAnalysis(unittest.TestCase):
                          "data/nanopore_data/run7/done_no_sample_sheet/20200107_1412_MN19417_AAU645_68125dc2",
                          "data/nanopore_data/run8/demux_failed/20200108_1412_MN19414_AAU648_68125dc2"]
         found_dirs = find_runs_to_process()
-        self.assertItemsEqual(found_dirs, expected_dirs)
+        self.assertEqual(sorted(found_dirs), sorted(expected_dirs))
 
     @mock.patch('taca.analysis.analysis_nanopore.open')
     def test_parse_lims_sample_sheet(self, mock_write):
