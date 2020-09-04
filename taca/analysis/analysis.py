@@ -146,11 +146,13 @@ def transfer_run(run_dir):
     else:
         runObj.transfer_run(os.path.join('nosync', CONFIG['analysis']['status_dir'], 'transfer.tsv'), mail_recipients)
 
-def transfer_runfolder(run_dir, pid):
+def transfer_runfolder(run_dir, pid, exclude_lane):
     """Transfer the entire run folder for a specified project and run to uppmax.
 
     :param: string run_dir: the run to transfer
     :param: string pid: the project to include in the SampleSheet
+    :param: string exclude_lane: lanes to exclude separated by comma
+
     """
     original_sample_sheet = os.path.join(run_dir, 'SampleSheet.csv')
     new_sample_sheet = os.path.join(run_dir, pid + '_SampleSheet.txt')
@@ -169,14 +171,29 @@ def transfer_runfolder(run_dir, pid):
     archive = dir_name + '.tar.gz'
     run_dir_path = os.path.dirname(run_dir)
 
+    # Prepare the options for excluding lanes
+    if exclude_lane != '':
+        dir_for_excluding_lane = []
+        lane_to_exclude = exclude_lane.split(',')
+        for lane in lane_to_exclude:
+            if os.path.isdir('{}/{}/Thumbnail_Images/L00{}'.format(run_dir_path, dir_name, lane)):
+                dir_for_excluding_lane.extend(['--exclude', 'Thumbnail_Images/L00{}'.format(lane)])
+            if os.path.isdir('{}/{}/Images/Focus/L00{}'.format(run_dir_path, dir_name, lane)):
+                dir_for_excluding_lane.extend(['--exclude', 'Images/Focus/L00{}'.format(lane)])
+            if os.path.isdir('{}/{}/Data/Intensities/L00{}'.format(run_dir_path, dir_name, lane)):
+                dir_for_excluding_lane.extend(['--exclude', 'Data/Intensities/L00{}'.format(lane)])
+            if os.path.isdir('{}/{}/Data/Intensities/BaseCalls/L00{}'.format(run_dir_path, dir_name, lane)):
+                dir_for_excluding_lane.extend(['--exclude', 'Data/Intensities/BaseCalls/L00{}'.format(lane)])
+
     try:
-        subprocess.call(['tar',
-                         '--exclude', 'Demultiplexing*',
+        exclude_options_for_tar = ['--exclude', 'Demultiplexing*',
                          '--exclude', 'demux_*',
                          '--exclude', 'rsync*',
-                         '--exclude', '*.csv',
-                         '-cvzf', archive,
-                         '-C', run_dir_path, dir_name])
+                         '--exclude', '*.csv']
+        if exclude_lane != '':
+            exclude_options_for_tar += dir_for_excluding_lane
+
+        subprocess.call(['tar'] + exclude_options_for_tar + ['-cvzf', archive, '-C', run_dir_path, dir_name])
     except subprocess.CalledProcessError as e:
         logger.error('Error creating tar archive')
         raise e

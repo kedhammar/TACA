@@ -126,7 +126,8 @@ class TestAnalysis(unittest.TestCase):
         """Transfer runfolder to uppmax."""
         run_dir = (self.completed)
         pid = 'P1775'
-        an.transfer_runfolder(run_dir, pid)
+        exclude_lane = ''
+        an.transfer_runfolder(run_dir, pid, exclude_lane)
         mock_subprocess_call.assert_called()
         mock_transfer.assert_called()
 
