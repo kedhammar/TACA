@@ -209,18 +209,12 @@ def check_exit_status(status_file):
     # Read pipeline exit status file and return True if 0, False if anything else
     with open(status_file, 'r') as f:
         exit_status = f.readline().strip()
-    if exit_status == '0':
-        return True
-    else:
-        return False
+    return exit_status == '0'
 
 def is_not_transferred(run_id, transfer_log):
     # Return True if run id not in transfer.tsv, else False
         with open(transfer_log, 'r') as f:
-            if run_id not in f.read():
-                return True
-            else:
-                return False
+            return run_id not in f.read()
 
 def transfer_run(run_dir):
     #rsync dir to irma
@@ -260,7 +254,7 @@ def archive_run(run_dir):
     # mv dir to nosync
     logger.info('Archiving run ' + run_dir)
     archive_dir = CONFIG.get('nanopore_analysis').get('finished_dir')
-    top_dir = '/'.join(run_dir.split('/')[0:-2]) # This is a bit hacky, happy for suggestions on better solutions
+    top_dir = '/'.join(run_dir.split('/')[0:-2]) # Try pathlib (pathlib.Path(run_dir).parent.parent) when running completely on python3
     try:
         shutil.move(top_dir, archive_dir)
         logger.info('Successfully archived {}'.format(run_dir))
