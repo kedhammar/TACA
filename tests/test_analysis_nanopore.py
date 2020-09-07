@@ -128,9 +128,8 @@ class TestNanoporeAnalysis(unittest.TestCase):
         run_dir = 'data/nanopore_data/run4/done_demuxing/20200104_1412_MN19414_AAU644_68125dc2'
         transfer_run(run_dir)
         rsync_opts = {'-Lav': None,
-                      '--no-o' : None,
-                      '--no-g' : None,
-                      '--chmod' : 'g+rw',
+                      '--chown': ':ngi2016003',
+                      '--chmod' : 'Dg+s,g+rw',
                       '-r' : None,
                       '--exclude' : 'work'}
         mock_rsync.assert_called_with(run_dir,
