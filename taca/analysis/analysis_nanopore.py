@@ -227,9 +227,8 @@ def transfer_run(run_dir):
     logger.info('Transferring run {} to analysis cluster'.format(run_dir))
     destination = CONFIG.get('nanopore_analysis').get('transfer').get('destination')
     rsync_opts = {'-Lav': None,
-                  '--no-o' : None,
-                  '--no-g' : None,
-                  '--chmod' : 'g+rw',
+                  '--chown': ':ngi2016003',
+                  '--chmod' : 'Dg+s,g+rw',
                   '-r' : None,
                   '--exclude' : 'work'}
     connection_details = CONFIG.get('nanopore_analysis').get('transfer').get('analysis_server')
