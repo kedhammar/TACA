@@ -254,8 +254,8 @@ def archive_run(run_dir):
     # mv dir to nosync
     logger.info('Archiving run ' + run_dir)
     archive_dir = CONFIG.get('nanopore_analysis').get('finished_dir')
-    top_dir = '/'.join(run_dir.split('/')[0:-2]) # Try pathlib (pathlib.Path(run_dir).parent.parent) when running completely on python3
-    try:
+    top_dir = '/'.join(run_dir.split('/')[0:-2]) # Get the project folder to archive
+    try:                                         # Try pathlib (pathlib.Path(run_dir).parent.parent) when running completely on python3
         shutil.move(top_dir, archive_dir)
         logger.info('Successfully archived {}'.format(run_dir))
     except shutil.Error:
