@@ -51,9 +51,9 @@ class TestMisc(unittest.TestCase):
     @mock.patch('taca.utils.misc.smtplib.SMTP')
     def test_send_mail(self, mock_smtplib):
         """Test send email."""
-        mock_smtplib.sendmail()
-        mock_smtplib.quit()
         assert misc.send_mail('subject', 'content', 'receiver') is None
+        mock_smtplib.assert_called_with('localhost')
+        mock_smtplib().sendmail.assert_called_with('TACA', ['receiver'], mock.ANY)
         with self.assertRaises(SystemExit):
             misc.send_mail('subject', 'content', None)
 
