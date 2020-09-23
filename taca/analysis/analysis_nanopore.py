@@ -227,8 +227,8 @@ def start_nanoseq(run_dir, sample_sheet):
                             + ' --skip_alignment'
                             + ' --kit ' + kit_id
                             + ' --max_cpus 6'
-                            + '--max_memory 20.GB'
-                            + '-profile singularity; echo $? > .exitcode_for_nanoseq')
+                            + ' --max_memory 20.GB'
+                            + ' -profile singularity; echo $? > .exitcode_for_nanoseq')
 
     try:
         p_handle = subprocess.Popen(analysis_command, stdout=subprocess.PIPE, shell=True, cwd=run_dir)
