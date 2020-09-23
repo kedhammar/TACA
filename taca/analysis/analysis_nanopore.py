@@ -24,8 +24,8 @@ def find_runs_to_process():
                  if os.path.isdir(os.path.join(nanopore_data_dir, top_dir))
                  and top_dir != 'nosync']
     except OSError:
-        logger.warn('There was an issue locating the following directory: {}. \
-        Please check that it exists and try again.'.format(nanopore_data_dir))
+        logger.warn('There was an issue locating the following directory: {}. '
+                    'Please check that it exists and try again.'.format(nanopore_data_dir))
     # Get the actual location of the run directories in /var/lib/MinKnow/data/USERDETERMINEDNAME/USERDETSAMPLENAME/run
     if found_top_dirs:
         for top_dir in found_top_dirs:
@@ -77,8 +77,8 @@ def process_run(run_dir, nanoseq_sample_sheet, anglerfish_sample_sheet):
                     copy_results_to_lims(run_dir, anglerfish_dir)
                     logger.info('Anglerfish finished OK for run {}. Notifying operator.'.format(run_id))
                     email_subject = ('Anglerfish successfully processed run {}'.format(os.path.basename(run_id)))
-                    email_message = 'Anglerfish has successfully finished for run {}. Please \
-                    finish the QC step in lims.'.format(run_id)
+                    email_message = ('Anglerfish has successfully finished for run {}. Please '
+                                     'finish the QC step in lims.').format(run_id)
                     send_mail(email_subject, email_message, email_recipients)
                     if is_not_transferred(run_id, transfer_log):
                         if transfer_run(run_dir):
@@ -87,22 +87,25 @@ def process_run(run_dir, nanoseq_sample_sheet, anglerfish_sample_sheet):
                             archive_run(run_dir)
                             logger.info('Run {} is finished and has been archived. Notifying operator.'.format(run_id))
                             email_subject = ('Run successfully processed: {}'.format(os.path.basename(run_id)))
-                            email_message = 'Run {} has been analysed, transferred and archived \
-                            successfully.'.format(run_id)
+                            email_message = ('Run {} has been analysed, transferred and archived '
+                                             'successfully.').format(run_id)
                             send_mail(email_subject, email_message, email_recipients)
                         else:
-                            logger.warn('An error occurred during transfer of run {} \
-                            to Irma. Notifying operator.'.format(run_dir))
+                            logger.warn('An error occurred during transfer of run {} '
+                                        'to Irma. Notifying operator.'.format(run_dir))
                             email_subject = ('Run processed with errors: {}'.format(os.path.basename(run_id)))
-                            email_message = 'Run {} has been analysed, but an error occurred during \
-                            transfer.'.format(run_id)
+                            email_message = ('Run {} has been analysed, but an error occurred during '
+                                             'transfer.').format(run_id)
                             send_mail(email_subject, email_message, email_recipients)
+                    else:
+                        logger.warn('The following run has already been transferred, '
+                                    'skipping: {}'.format(run_dir))
                 else:
-                    logger.warn('Anglerfish exited with a non-zero exit status for run {}. \
-                    Notifying operator.'.format(run_dir))
+                    logger.warn('Anglerfish exited with a non-zero exit status for run {}. '
+                                'Notifying operator.'.format(run_dir))
                     email_subject = ('Run processed with errors: {}'.format(os.path.basename(run_id)))
-                    email_message = 'Anglerfish exited with errors for run {}. Please \
-                    check the log files and restart.'.format(run_id)
+                    email_message = ('Anglerfish exited with errors for run {}. Please '
+                                     'check the log files and restart.').format(run_id)
                     send_mail(email_subject, email_message, email_recipients)
             elif not qc_run:
                 if is_not_transferred(run_id, transfer_log):
@@ -112,22 +115,22 @@ def process_run(run_dir, nanoseq_sample_sheet, anglerfish_sample_sheet):
                         archive_run(run_dir)
                         logger.info('Run {} is finished and has been archived. Notifying operator.'.format(run_id))
                         email_subject = ('Run successfully processed: {}'.format(run_id))
-                        email_message = 'Run {} has been analysed, transferred and archived \
-                        successfully.'.format(run_id)
+                        email_message = ('Run {} has been analysed, transferred and archived '
+                                         'successfully.').format(run_id)
                         send_mail(email_subject, email_message, email_recipients)
                     else:
-                        logger.warn('An error occurred during transfer of run {} \
-                        to Irma. Notifying operator.'.format(run_dir))
+                        logger.warn('An error occurred during transfer of run {} '
+                                    'to Irma. Notifying operator.'.format(run_dir))
                         email_subject = ('Run processed with errors: {}'.format(run_id))
-                        email_message = 'Run {} has been analysed, but an error occurred during \
-                        transfer.'.format(run_id)
+                        email_message = ('Run {} has been analysed, but an error occurred during '
+                                         'transfer.').format(run_id)
                         send_mail(email_subject, email_message, email_recipients)
                 else:
-                    logger.warn('The following run has already been transferred, \
-                    skipping: {}'.format(run_id))
+                    logger.warn('The following run has already been transferred, '
+                                'skipping: {}'.format(run_id))
         else:
-            logger.warn('Nanoseq exited with a non-zero exit status for run {}. \
-            Notifying operator.'.format(run_dir))
+            logger.warn('Nanoseq exited with a non-zero exit status for run {}. '
+                        'Notifying operator.'.format(run_dir))
             email_subject = ('Analysis failed for run {}'.format(os.path.basename(run_dir)))
             email_message = 'The nanoseq analysis failed for run {}.'.format(run_dir)
             send_mail(email_subject, email_message, email_recipients)
@@ -169,15 +172,26 @@ def parse_samplesheet(run_dir, lims_samplesheet):
     nanoseq_content = 'sample,fastq,barcode,genome,transcriptome'
     anglerfish_content = ''
     with open(lims_samplesheet, 'r') as f:
-        for line in sorted(f.readlines()):
-            sample_name, nanoseq_barcode, run_type, illumina_barcode, fastq_location = line.split(',')
+        lines = sorted(f.readlines())
+        first_sample_name = lines[0].split(',')[0] # Get name of first sample
+        fastq_location = os.path.join(run_dir, 'nanoseq_output', 'guppy', 'fastq') # Set the location of the first sample
+        for line in lines:
+            sample_name, nanoseq_barcode, run_type, illumina_barcode, location = line.split(',') #TODO remove location once/if removed in lims
             if nanoseq_barcode and nanoseq_barcode in BARCODES:
                 barcode = BARCODES[nanoseq_barcode]
+                is_pool = False
             else:
                 barcode = '0'
+                is_pool = True
             nanoseq_content += '\n' + sample_name + ',,' + barcode + ',,' # Only need sample and barcode for now.
             if illumina_barcode:
-                anglerfish_content += sample_name + ',' + run_type + ',' + illumina_barcode + ',' + fastq_location + '\n' #TODO fix fastq_location in ss
+                # If there are no nanopore barcodes, the samples are from the same pool and will end up in
+                # the same nanoseq output file named after the firts sample in the sample sheet
+                if is_pool:
+                    anglerfish_content += sample_name + ',' + run_type + ',' + illumina_barcode + ',' + os.path.join(fastq_location, first_sample_name + '.fastq.gz') + '\n'
+                # If the samples are not the same pool, the nanoseq output is named by the barcode
+                else:
+                    anglerfish_content += sample_name + ',' + run_type + ',' + illumina_barcode + ',' + os.path.join(fastq_location, 'barcode' + barcode + '.fastq.gz') + '\n'
     with open(nanoseq_samplesheet, 'w') as f:
         f.write(nanoseq_content)
     if anglerfish_content:
@@ -192,35 +206,36 @@ def start_nanoseq(run_dir, sample_sheet):
     if is_multiplexed(sample_sheet):
         logger.info('Run {} is multiplexed. Starting nanoseq with --barcode_kit option'.format(run_dir))
         barcode_kit = get_barcode_kit(sample_sheet)
-        analysis_command = 'nextflow run nf-core/nanoseq --input ' + sample_sheet + \
-            ' --input_path ' + run_dir + '/fast5/ \
-            --outdir ' + run_dir + '/nanoseq_output \
-            --flowcell ' + flowcell_id + \
-            ' --guppy_gpu \
-            --skip_alignment \
-            --kit ' + kit_id + \
-            ' --max_cpus 6 \
-            --max_memory 20.GB \
-            --barcode_kit ' + barcode_kit + \
-            ' -profile singularity; echo $? > .exitcode_for_nanoseq'
+        analysis_command = ('nextflow run nf-core/nanoseq --input ' + sample_sheet
+                            + ' --input_path ' + os.path.join(run_dir, 'fast5')
+                            + ' --outdir ' + os.path.join(run_dir, 'nanoseq_output')
+                            + ' --flowcell ' + flowcell_id
+                            + ' --guppy_gpu'
+                            + ' --skip_alignment'
+                            + ' --kit ' + kit_id
+                            + ' --max_cpus 6'
+                            + ' --max_memory 20.GB'
+                            + ' --barcode_kit ' + barcode_kit
+                            + ' -profile singularity; echo $? > .exitcode_for_nanoseq')
     else:
         logger.info('Run {} is not multiplexed. Starting nanoseq without --barcode_kit option'.format(run_dir))
-        analysis_command = 'nextflow run nf-core/nanoseq --input ' + sample_sheet + \
-        ' --input_path ' + run_dir + '/fast5/ \
-        --outdir ' + run_dir + '/nanoseq_output \
-        --flowcell ' + flowcell_id + \
-        ' --guppy_gpu \
-        --skip_alignment \
-        --kit ' + kit_id + \
-        ' --max_cpus 6 \
-        --max_memory 20.GB \
-        -profile singularity; echo $? > .exitcode_for_nanoseq'
+        analysis_command = ('nextflow run nf-core/nanoseq --input ' + sample_sheet
+                            + ' --input_path ' + os.path.join(run_dir, 'fast5')
+                            + ' --outdir ' + os.path.join(run_dir, 'nanoseq_output')
+                            + ' --flowcell ' + flowcell_id
+                            + ' --guppy_gpu'
+                            + ' --skip_alignment'
+                            + ' --kit ' + kit_id
+                            + ' --max_cpus 6'
+                            + '--max_memory 20.GB'
+                            + '-profile singularity; echo $? > .exitcode_for_nanoseq')
 
     try:
         p_handle = subprocess.Popen(analysis_command, stdout=subprocess.PIPE, shell=True, cwd=run_dir)
         logger.info('Started Nanoseq for run {}'.format(run_dir))
     except subprocess.CalledProcessError:
-        logger.warn('An error occurred while starting the Nanoseq for run {}. Please check the logfile for info.'.format(run_dir))
+        logger.warn('An error occurred while starting the Nanoseq for run {}. '
+                    'Please check the logfile for info.'.format(run_dir))
     return
 
 def get_flowcell_id(run_dir):
@@ -264,18 +279,18 @@ def check_exit_status(status_file):
 def start_anglerfish(run_dir, af_sample_sheet, output_dir):
     """Start Anglerfish."""
     os.makedirs(output_dir)
-    anglerfish_command = 'anglerfish.py \
-    --samplesheet anglerfish_sample_sheet.csv \
-    --out_fastq anglerfish_output \
-    --threads 2 \
-    --skip_demux \
-    --skip_fastqc; echo $? > .exitcode_for_anglerfish'
+    anglerfish_command = ('anglerfish.py'
+                          + ' --samplesheet anglerfish_sample_sheet.csv'
+                          + ' --out_fastq anglerfish_output'
+                          + ' --threads 2'
+                          + ' --skip_demux'
+                          + ' --skip_fastqc; echo $? > .exitcode_for_anglerfish')
     try:
         p_handle = subprocess.Popen(anglerfish_command, stdout=subprocess.PIPE, shell=True, cwd=run_dir)
         logger.info('Started Anglerfish for run {} using: {}'.format(run_dir, anglerfish_command))
     except subprocess.CalledProcessError:
-        logger.warn('An error occurred while starting the Anglerfish for run {}. \
-        Please check the logfile for info.'.format(run_dir))
+        logger.warn('An error occurred while starting the Anglerfish for run {}. '
+                    'Please check the logfile for info.'.format(run_dir))
     return
 
 def copy_results_to_lims(run_dir, anglerfish_results):
@@ -312,8 +327,8 @@ def transfer_run(run_dir):
     logger.info('Transferring run {} to analysis cluster'.format(run_dir))
     destination = CONFIG.get('nanopore_analysis').get('transfer').get('destination')
     rsync_opts = {'-Lav': None,
-                  #'--chown': ':ngi2016003',
-                  #'--chmod' : 'Dg+s,g+rw',
+                  '--chown': ':ngi2016003',
+                  '--chmod' : 'Dg+s,g+rw',
                   '-r' : None,
                   '--exclude' : 'work'}
     connection_details = CONFIG.get('nanopore_analysis').get('transfer').get('analysis_server')
@@ -326,8 +341,8 @@ def transfer_run(run_dir):
     try:
         transfer_object.transfer()
     except RsyncError:
-        logger.warn('An error occurred while transferring {} to the \
-        ananlysis server. Please check the logfiles'.format(run_dir))
+        logger.warn('An error occurred while transferring {} to the '
+                    'ananlysis server. Please check the logfiles'.format(run_dir))
         return False
     return True
 
@@ -338,8 +353,8 @@ def update_transfer_log(run_id, transfer_log):
             tsv_writer = csv.writer(f, delimiter='\t')
             tsv_writer.writerow([run_id, str(datetime.now())])
     except IOError:
-        logger.warn('Could not update the transfer logfile for run {}. \
-        Please make sure gets updated.'.format(run_id, transfer_log))
+        logger.warn('Could not update the transfer logfile for run {}. '
+                    'Please make sure gets updated.'.format(run_id, transfer_log))
     return
 
 def archive_run(run_dir):
@@ -351,13 +366,14 @@ def archive_run(run_dir):
         shutil.move(top_dir, archive_dir)
         logger.info('Successfully archived {}'.format(run_dir))
     except shutil.Error:
-        logger.warn('An error occurred when archiving {}. Please check the logfile for more info.'.format(run_dir))
+        logger.warn('An error occurred when archiving {}. '
+                    'Please check the logfile for more info.'.format(run_dir))
     return
 
 def run_preprocessing(run, nanoseq_sample_sheet, anglerfish_sample_sheet):
     """Find runs and kick off processing."""
     if run:
-        process_run(os.path.normpath(run), nanoseq_sample_sheet, anglerfish_sample_sheet)
+        process_run(os.path.abspath(run), nanoseq_sample_sheet, anglerfish_sample_sheet)
     else:
         runs_to_process = find_runs_to_process()
         for run_dir in runs_to_process:
