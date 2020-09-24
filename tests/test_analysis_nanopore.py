@@ -122,6 +122,41 @@ class TestNanoporeAnalysis(unittest.TestCase):
         self.assertTrue(check_exit_status('data/nanopore_data/run4/done_demuxing/20200104_1412_MN19414_AAU644_68125dc2/.exitcode_for_nanoseq'))
         self.assertFalse(check_exit_status('data/nanopore_data/run8/demux_failed/20200108_1412_MN19414_AAU648_68125dc2/.exitcode_for_nanoseq'))
 
+    @mock.patch('taca.analysis.analysis_nanopore.os.makedirs')
+    @mock.patch('taca.analysis.analysis_nanopore.subprocess.Popen')
+    def test_start_anglerfish(self, mock_popen, mock_mkdir):
+        """Start Anglerfish."""
+        run_dir = 'data/nanopore_data/run4/done_demuxing/20200104_1412_MN19414_AAU644_68125dc2'
+        af_sample_sheet = 'anglerfish_sample_sheet.csv'
+        output_dir = 'anglerfish_output'
+        start_anglerfish(run_dir, af_sample_sheet, output_dir)
+        expected_parameters = ('anglerfish.py'
+                          + ' --samplesheet anglerfish_sample_sheet.csv'
+                          + ' --out_fastq anglerfish_output'
+                          + ' --threads 2'
+                          + ' --skip_demux'
+                          + ' --skip_fastqc; echo $? > .exitcode_for_anglerfish')
+        mock_popen.assert_called_once_with(expected_parameters, stdout=subprocess.PIPE, shell=True, cwd=run_dir)
+
+    @mock.patch('taca.analysis.analysis_nanopore.find_anglerfish_results')
+    @mock.patch('taca.analysis.analysis_nanopore.shutil.copyfile')
+    def test_copy_results_to_lims(self, mock_copy, mock_results):
+        """Copy Anglerfish results to lims."""
+        run = 'data/nanopore_data/run4/done_demuxing/20200104_1412_MN19414_AAU644_68125dc2'
+        anglerfish_results_path = 'anglerfish_output'
+        anglerfish_results_file = os.path.join(run, anglerfish_results_path, 'anglerfish_2020_09_23_141922', 'anglerfish_stats.txt')
+        lims_results_file = 'some/dir/2020/anglerfish_stats_AAU644.txt'
+        mock_results.return_value = anglerfish_results_file
+        copy_results_to_lims(run, anglerfish_results_path)
+        mock_copy.assert_called_once_with(anglerfish_results_file, lims_results_file)
+
+    def test_find_anglerfish_results(self):
+        """Locate Anglerfish results file."""
+        anglerfish_dir = 'data/nanopore_data/run4/done_demuxing/20200104_1412_MN19414_AAU644_68125dc2/anglerfish_output'
+        found_file = find_anglerfish_results(anglerfish_dir)
+        expected_file = os.path.join(anglerfish_dir, 'anglerfish_2020_09_23_141922', 'anglerfish_stats.txt')
+        self.assertEqual(expected_file, found_file)
+
     def test_is_not_transferred(self):
         """Check if nanopore run has been transferred."""
         self.assertTrue(is_not_transferred('20200104_1412_MN19414_AAU644_68125dc2', 'data/nanopore_data/transfer.tsv'))

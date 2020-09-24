@@ -280,8 +280,8 @@ def start_anglerfish(run_dir, af_sample_sheet, output_dir):
     """Start Anglerfish."""
     os.makedirs(output_dir)
     anglerfish_command = ('anglerfish.py'
-                          + ' --samplesheet anglerfish_sample_sheet.csv'
-                          + ' --out_fastq anglerfish_output'
+                          + ' --samplesheet ' + af_sample_sheet
+                          + ' --out_fastq ' + output_dir
                           + ' --threads 2'
                           + ' --skip_demux'
                           + ' --skip_fastqc; echo $? > .exitcode_for_anglerfish')
@@ -293,21 +293,21 @@ def start_anglerfish(run_dir, af_sample_sheet, output_dir):
                     'Please check the logfile for info.'.format(run_dir))
     return
 
-def copy_results_to_lims(run_dir, anglerfish_results):
+def copy_results_to_lims(run_dir, anglerfish_results_dir):
     """Find results and copy to lims directory."""
     run_id = os.path.basename(run_dir)
     year_processed = run_id[0:4]
     flowcell_id = run_id.split('_')[3]
     lims_result_file = os.path.join(CONFIG.get('nanopore_analysis').get('lims_results_dir'),
                                     year_processed, 'anglerfish_stats_' + flowcell_id + '.txt')
-    anglerfish_results = find_anglerfish_results(run_dir, anglerfish_results)
+    anglerfish_results = find_anglerfish_results(anglerfish_results_dir)
     try:
         shutil.copyfile(anglerfish_results, lims_result_file)
     except OSError as e:
         logger.warn('An error occurred while copying the Anglerfish results for {} to lims: {}'.format(run_id, e))
     return
 
-def find_anglerfish_results(run_dir, anglerfish_dir):
+def find_anglerfish_results(anglerfish_dir):
     """Return location of Anglerfish results."""
     results_file = ''
     for sub_dir in os.listdir(anglerfish_dir):
