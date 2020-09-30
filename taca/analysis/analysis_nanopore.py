@@ -312,7 +312,7 @@ def start_anglerfish(run_dir, af_sample_sheet, output_dir):
                     'Please check the logfile for info.'.format(run_dir))
     return
 
-def copy_results_to_lims(run_dir, anglerfish_results_dir):
+def copy_results_for_lims(run_dir, anglerfish_results_dir):
     """Find results and copy to lims directory."""
     run_id = os.path.basename(run_dir)
     year_processed = run_id[0:4]
