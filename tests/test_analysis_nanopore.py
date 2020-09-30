@@ -140,14 +140,14 @@ class TestNanoporeAnalysis(unittest.TestCase):
 
     @mock.patch('taca.analysis.analysis_nanopore.find_anglerfish_results')
     @mock.patch('taca.analysis.analysis_nanopore.shutil.copyfile')
-    def test_copy_results_to_lims(self, mock_copy, mock_results):
+    def test_copy_results_for_lims(self, mock_copy, mock_results):
         """Copy Anglerfish results to lims."""
         run = 'data/nanopore_data/run4/done_demuxing/20200104_1412_MN19414_AAU644_68125dc2'
         anglerfish_results_path = 'anglerfish_output'
         anglerfish_results_file = os.path.join(run, anglerfish_results_path, 'anglerfish_2020_09_23_141922', 'anglerfish_stats.txt')
         lims_results_file = 'some/dir/2020/anglerfish_stats_AAU644.txt'
         mock_results.return_value = anglerfish_results_file
-        copy_results_to_lims(run, anglerfish_results_path)
+        copy_results_for_lims(run, anglerfish_results_path)
         mock_copy.assert_called_once_with(anglerfish_results_file, lims_results_file)
 
     def test_find_anglerfish_results(self):

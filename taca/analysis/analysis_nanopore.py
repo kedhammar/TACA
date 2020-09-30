@@ -83,7 +83,7 @@ def process_run(run_dir, nanoseq_sample_sheet, anglerfish_sample_sheet):
             elif qc_run and os.path.isfile(anglerfish_exit_status_file):
                 anglerfish_successful = check_exit_status(anglerfish_exit_status_file)
                 if anglerfish_successful:
-                    copy_results_to_lims(run_dir, anglerfish_dir)
+                    copy_results_for_lims(run_dir, anglerfish_dir)
                     logger.info('Anglerfish finished OK for run {}. Notifying operator.'.format(run_id))
                     email_subject = ('Anglerfish successfully processed run {}'.format(os.path.basename(run_id)))
                     email_message = ('Anglerfish has successfully finished for run {}. Please '
@@ -312,7 +312,7 @@ def start_anglerfish(run_dir, af_sample_sheet, output_dir):
                     'Please check the logfile for info.'.format(run_dir))
     return
 
-def copy_results_to_lims(run_dir, anglerfish_results_dir):
+def copy_results_for_lims(run_dir, anglerfish_results_dir):
     """Find results and copy to lims directory."""
     run_id = os.path.basename(run_dir)
     year_processed = run_id[0:4]
