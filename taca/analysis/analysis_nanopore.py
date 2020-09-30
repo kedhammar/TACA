@@ -46,6 +46,7 @@ def process_run(run_dir, nanoseq_sample_sheet, anglerfish_sample_sheet):
     summary_file = os.path.join(run_dir, 'final_summary.txt')
     nanoseq_dir = os.path.join(run_dir, 'nanoseq_output')
     anglerfish_dir = os.path.join(run_dir, 'anglerfish_output')
+    anglerfish_sample_sheet = os.path.join(run_dir, 'anglerfish_sample_sheet.csv')
     nanoseq_exit_status_file = os.path.join(run_dir, '.exitcode_for_nanoseq')
     anglerfish_exit_status_file = os.path.join(run_dir, '.exitcode_for_anglerfish')
     email_recipients = CONFIG.get('mail').get('recipients')
@@ -53,7 +54,7 @@ def process_run(run_dir, nanoseq_sample_sheet, anglerfish_sample_sheet):
     if os.path.isfile(summary_file) and not os.path.isdir(nanoseq_dir):
         logger.info('Sequencing done for run {}. Attempting to start analysis.'.format(run_dir))
         if not nanoseq_sample_sheet:
-            nanoseq_sample_sheet, anglerfish_sample_sheet = parse_lims_sample_sheet(run_dir)
+            nanoseq_sample_sheet = parse_lims_sample_sheet(run_dir)
 
         if os.path.isfile(nanoseq_sample_sheet):
             start_nanoseq(run_dir, nanoseq_sample_sheet)
@@ -162,11 +163,11 @@ def parse_lims_sample_sheet(run_dir):
     run_id = os.path.basename(run_dir)
     lims_samplesheet = get_original_samplesheet(run_id)
     if lims_samplesheet:
-        nanoseq_samplesheet_location, anglerfish_samplesheet_location = parse_samplesheet(run_dir, lims_samplesheet)
+        nanoseq_samplesheet_location = parse_samplesheet(run_dir, lims_samplesheet)
     else:
         nanoseq_samplesheet_location = ''
         anglerfish_samplesheet_location = ''
-    return nanoseq_samplesheet_location, anglerfish_samplesheet_location
+    return nanoseq_samplesheet_location
 
 def get_original_samplesheet(run_id):
     """Find original lims sample sheet."""
@@ -216,7 +217,7 @@ def parse_samplesheet(run_dir, lims_samplesheet):
     if anglerfish_content:
         with open(anglerfish_samplesheet, 'w') as f:
             f.write(anglerfish_content)
-    return nanoseq_samplesheet, anglerfish_samplesheet
+    return nanoseq_samplesheet
 
 def start_nanoseq(run_dir, sample_sheet):
     """Start Nanoseq analysis."""
