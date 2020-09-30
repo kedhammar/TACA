@@ -40,7 +40,16 @@ def updatedb(rundir):
 @analysis.command()
 @click.option('-r', '--run', type=click.Path(exists=True), default=None,
               help='Demultiplex only a particular run')
+@click.option('--nanoseq_sample_sheet', type=click.Path(exists=True), default=None,
+              help='Sample sheet for running nanoseq')
+@click.option('--anglerfish_sample_sheet', type=click.Path(exists=True), default=None,
+              help='Sample sheet for running anglerfish. Also requires --nanoseq_sample_sheet')
 
-def demultiplex_nanopore(run):
-    """Basecall, demultiplex and transfer all runs present in the data directories."""
-    analysis_nanopore.run_preprocessing(run)
+def demultiplex_nanopore(run, nanoseq_sample_sheet, anglerfish_sample_sheet):
+    """Analyse and transfer all runs present in the data directories.
+    Assumes QC run per default. Use --nanoseq_sample_sheet without --anglerfish_sample_sheet
+    to manually start non-QC runs."""
+    if anglerfish_sample_sheet and not nanoseq_sample_sheet:
+        print('ERROR: Please specify --nanoseq_sample_sheet when using --anglerfish_sample_sheet')
+        return
+    analysis_nanopore.run_preprocessing(run, nanoseq_sample_sheet, anglerfish_sample_sheet)
