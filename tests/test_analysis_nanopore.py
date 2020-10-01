@@ -45,7 +45,8 @@ class TestNanoporeAnalysis(unittest.TestCase):
         """Make nanoseq sample sheet from lims sample sheet."""
         run_dir = 'data/nanopore_data/run4/done_demuxing/20200104_1412_MN19414_AAU644_68125dc2'
         lims_samplesheet = 'data/nanopore_samplesheets/2020/SQK-LSK109_AAU644_Samplesheet_24-594126.csv'
-        nanoseq_samplesheet, anglerfish_sample_sheet = parse_samplesheet(run_dir, lims_samplesheet)
+        anglerfish_sample_sheet = 'data/nanopore_data/run4/done_demuxing/20200104_1412_MN19414_AAU644_68125dc2/anglerfish_sample_sheet.csv'
+        nanoseq_samplesheet = parse_samplesheet(run_dir, lims_samplesheet)
         self.assertTrue(filecmp.cmp(nanoseq_samplesheet, 'data/nanopore_samplesheets/expected/SQK-LSK109_sample_sheet.csv'))
         self.assertTrue(filecmp.cmp(anglerfish_sample_sheet, 'data/nanopore_samplesheets/expected/anglerfish_sample_sheet.csv'))
 
@@ -193,7 +194,7 @@ class TestNanoporeAnalysis(unittest.TestCase):
         """Start nanoseq analysis."""
         nanoseq_sample_sheet = 'data/nanopore_data/run2/done_sequencing/20200102_1412_MN19414_AAU642_68125dc2/SQK-LSK109_sample_sheet.csv'
         anglerfish_sample_sheet = 'some/path'
-        mock_parse_ss.return_value = (nanoseq_sample_sheet, anglerfish_sample_sheet)
+        mock_parse_ss.return_value = nanoseq_sample_sheet
         mock_isfile.return_value = True
         run_dir = 'data/nanopore_data/run2/done_sequencing/20200102_1412_MN19414_AAU642_68125dc2'
         process_run(run_dir, None, None)
