@@ -43,7 +43,7 @@ def process_run(run_dir, nanoseq_sample_sheet, anglerfish_sample_sheet):
         qc_run = False
 
     logger.info('Processing run: {} as a {}'.format(run_dir, 'QC run' if qc_run else 'non-QC run'))
-    summary_file = os.path.join(run_dir, 'final_summary.txt')
+    summary_file = glob.glob(run_dir + '/final_summary*.txt')[0]
     nanoseq_dir = os.path.join(run_dir, 'nanoseq_output')
     anglerfish_dir = os.path.join(run_dir, 'anglerfish_output')
     anglerfish_sample_sheet = os.path.join(run_dir, 'anglerfish_sample_sheet.csv')
@@ -260,7 +260,7 @@ def start_nanoseq(run_dir, sample_sheet):
 
 def get_flowcell_id(run_dir):
     """Look for flow_cell_product_code in report.md and return the corresponding value."""
-    report_file = os.path.join(run_dir, 'report.md')
+    report_file = glob.glob(run_dir + '/report*.md')[0]
     with open(report_file, 'r') as f:
         for line in f.readlines():
             if 'flow_cell_product_code' in line:
