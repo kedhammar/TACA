@@ -1,4 +1,5 @@
 """Miscellaneous or general-use methods."""
+
 import hashlib
 import os
 import smtplib
