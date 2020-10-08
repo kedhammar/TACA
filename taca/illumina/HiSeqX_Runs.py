@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 TENX_GENO_PAT = re.compile('SI-GA-[A-H][1-9][0-2]?')
 TENX_ATAC_PAT = re.compile('SI-NA-[A-H][1-9][0-2]?')
+TENX_ST_PAT = re.compile('SI-TT-[A-H][1-9][0-2]?')
 IDT_UMI_PAT = re.compile('([ATCG]{4,}N+$)')
 
 
@@ -198,9 +199,12 @@ class HiSeqX_Run(Run):
             if 'options' in self.CONFIG.get('bcl2fastq'):
                 for option in self.CONFIG['bcl2fastq']['options']:
                     cl_options.extend([option])
-                # Add the extra 10X command options if we have a 10X run
+                # Add the extra 10X command options if we have 10X Genomic or ATAC samples
                 if sample_type == '10X_GENO' or sample_type == '10X_ATAC':
                     cl_options.extend(self.CONFIG['bcl2fastq']['options_10X'])
+                # Add the extra 10X command options if we have 10X ST samples
+                if sample_type == '10X_ST':
+                    cl_options.extend(self.CONFIG['bcl2fastq']['options_10X_ST'])
                 # Add the extra command option if we have samples with IDT UMI
                 if sample_type == 'IDT_UMI':
                     cl_options.extend(self.CONFIG['bcl2fastq']['options_IDT_UMI'])
@@ -327,14 +331,20 @@ def _generate_clean_samplesheet(ssparser, indexfile, fields_to_remove=None, rena
     # Replace 10X index with the 4 actual indicies.
     for sample in ssparser.data:
         if sample['index'] in index_dict.keys():
-            x = 0
-            while x < 3:
-                new_sample = dict(sample)
-                new_sample['index'] = index_dict[sample['index']][x]
-                ssparser.data.append(new_sample)
-                x += 1
-            # Set the original 10X index to the 4th correct index
-            sample['index'] = index_dict[sample['index']][x]
+            # In the case of 10X ST indexes, replace index and index2
+            if TENX_ST_PAT.findall(sample['index']):
+                sample['index'] = index_dict[sample['index']][0]
+                sample['index2'] = index_dict[sample['index']][1]
+            # In the case of 10X Genomic and ATAC samples, replace the index name with the 4 actual indicies
+            else:
+                x = 0
+                while x < 3:
+                    new_sample = dict(sample)
+                    new_sample['index'] = index_dict[sample['index']][x]
+                    ssparser.data.append(new_sample)
+                    x += 1
+                # Set the original 10X index to the 4th correct index
+                sample['index'] = index_dict[sample['index']][x]
 
     # Sort to get the added indicies from 10x in the right place
     # Python 3 doesn't support sorting a list of dicts implicitly. Sort by lane and then index
@@ -392,6 +402,10 @@ def _classify_samples(indexfile, ssparser):
         elif TENX_ATAC_PAT.findall(sample['index']):
             index_length = [len(index_dict[sample['index']][0]),16]
             sample_type = '10X_ATAC'
+        # 10X ST
+        elif TENX_ST_PAT.findall(sample['index']):
+            index_length = [len(index_dict[sample['index']][0]),len(index_dict[sample['index']][1])]
+            sample_type = '10X_ST'
         # IDT UMI samples
         elif IDT_UMI_PAT.findall(sample['index']) or IDT_UMI_PAT.findall(sample['index2']):
             # Index length after removing "N" part
