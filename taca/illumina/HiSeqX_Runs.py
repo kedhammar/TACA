@@ -360,15 +360,15 @@ def _generate_clean_samplesheet(ssparser, indexfile, fields_to_remove=None, rena
                 sample['index'] = index_dict_tenX[sample['index']][x]
         elif SMARTSEQ_PAT.findall(sample['index']):
             x = 0
-            indices_number = len(index_dict_smartseq[sample['index'].split('_')[1]])
+            indices_number = len(index_dict_smartseq[sample['index'].split('-')[1]])
             while x < indices_number - 1:
                 new_sample = dict(sample)
-                new_sample['index'] = index_dict_smartseq[sample['index'].split('_')[1]][x][0]
-                new_sample['index2'] = index_dict_smartseq[sample['index'].split('_')[1]][x][1]
+                new_sample['index'] = index_dict_smartseq[sample['index'].split('-')[1]][x][0]
+                new_sample['index2'] = index_dict_smartseq[sample['index'].split('-')[1]][x][1]
                 ssparser.data.append(new_sample)
                 x += 1
-            sample['index'] = index_dict_smartseq[sample['index'].split('_')[1]][x][0]
-            sample['index2'] = index_dict_smartseq[sample['index'].split('_')[1]][x][1]
+            sample['index'] = index_dict_smartseq[sample['index'].split('-')[1]][x][0]
+            sample['index2'] = index_dict_smartseq[sample['index'].split('-')[1]][x][1]
 
     # Sort to get the added indicies from 10x in the right place
     # Python 3 doesn't support sorting a list of dicts implicitly. Sort by lane and then index
@@ -439,7 +439,7 @@ def _classify_samples(indexfile, ssparser):
             sample_type = 'IDT_UMI'
         # Smart-seq
         elif SMARTSEQ_PAT.findall(sample['index']):
-            index_length = [len(index_dict_smartseq[sample['index'].split('_')[1]][0][0]),len(index_dict_smartseq[sample['index'].split('_')[1]][0][1])]
+            index_length = [len(index_dict_smartseq[sample['index'].split('-')[1]][0][0]),len(index_dict_smartseq[sample['index'].split('-')[1]][0][1])]
             sample_type = 'SMARTSEQ'
         # No Index case. Note that if both index 1 and 2 are empty, it will be the same index type but will be handled in the next case
         elif sample['index'].upper() == 'NOINDEX':
