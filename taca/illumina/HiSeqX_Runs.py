@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 TENX_GENO_PAT = re.compile('SI-GA-[A-H][1-9][0-2]?')
 TENX_ATAC_PAT = re.compile('SI-NA-[A-H][1-9][0-2]?')
 TENX_ST_PAT = re.compile('SI-TT-[A-H][1-9][0-2]?')
+SMARTSEQ_PAT = re.compile('SMARTSEQ[1-9]?-[1-9][0-9]?[A-P]')
 IDT_UMI_PAT = re.compile('([ATCG]{4,}N+$)')
 
 
@@ -34,10 +35,17 @@ class HiSeqX_Run(Run):
     def _copy_samplesheet(self):
         ssname   = self._get_samplesheet()
         ssparser = SampleSheetParser(ssname)
+        indexfile = dict()
+        # Loading index files
         try:
-            indexfile = self.CONFIG['bcl2fastq']['index_path']
+            indexfile['tenX'] = self.CONFIG['bcl2fastq']['tenX_index_path']
         except KeyError:
             logger.error('Path to index file (10X) not found in the config file')
+            raise RuntimeError
+        try:
+            indexfile['smartseq'] = self.CONFIG['bcl2fastq']['smartseq_index_path']
+        except KeyError:
+            logger.error('Path to index file (Smart-seq) not found in the config file')
             raise RuntimeError
         # Samplesheet need to be positioned in the FC directory with name SampleSheet.csv (Illumina default)
         # If this is not the case then create it and take special care of modification to be done on the SampleSheet
@@ -208,6 +216,9 @@ class HiSeqX_Run(Run):
                 # Add the extra command option if we have samples with IDT UMI
                 if sample_type == 'IDT_UMI':
                     cl_options.extend(self.CONFIG['bcl2fastq']['options_IDT_UMI'])
+                # Add the extra Smart-seq command options if we have 10X ST samples
+                if sample_type == 'SMARTSEQ':
+                    cl_options.extend(self.CONFIG['bcl2fastq']['options_SMARTSEQ'])
                 # Append all options that appear in the configuration file to the main command.
                 for option in cl_options:
                     if isinstance(option, dict):
@@ -323,28 +334,41 @@ class HiSeqX_Run(Run):
 def _generate_clean_samplesheet(ssparser, indexfile, fields_to_remove=None, rename_samples=True, rename_qPCR_suffix = False, fields_qPCR= None):
     """Generate a 'clean' samplesheet, the given fields will be removed.
     If rename_samples is True, samples prepended with 'Sample_'  are renamed to match the sample name
-    Will also replace 10X idicies like SI-GA-A3 with proper indicies like TGTGCGGG
+    Will also replace 10X or Smart-seq indicies (e.g. SI-GA-A3 into TGTGCGGG)
     """
     output = u''
-    # Expand the ssparser if there are 10X lanes
-    index_dict = parse_10X_indexes(indexfile)
-    # Replace 10X index with the 4 actual indicies.
+    # Expand the ssparser if there are lanes with 10X or Smart-seq samples
+    index_dict_tenX = parse_10X_indexes(indexfile['tenX'])
+    index_dict_smartseq = parse_smartseq_indexes(indexfile['smartseq'])
+    # Replace 10X or Smart-seq indices
     for sample in ssparser.data:
-        if sample['index'] in index_dict.keys():
+        if sample['index'] in index_dict_tenX.keys():
             # In the case of 10X ST indexes, replace index and index2
             if TENX_ST_PAT.findall(sample['index']):
-                sample['index'] = index_dict[sample['index']][0]
-                sample['index2'] = index_dict[sample['index']][1]
+                sample['index'] = index_dict_tenX[sample['index']][0]
+                sample['index2'] = index_dict_tenX[sample['index']][1]
             # In the case of 10X Genomic and ATAC samples, replace the index name with the 4 actual indicies
             else:
                 x = 0
-                while x < 3:
+                indices_number = len(index_dict_tenX[sample['index']])
+                while x < indices_number - 1:
                     new_sample = dict(sample)
-                    new_sample['index'] = index_dict[sample['index']][x]
+                    new_sample['index'] = index_dict_tenX[sample['index']][x]
                     ssparser.data.append(new_sample)
                     x += 1
                 # Set the original 10X index to the 4th correct index
-                sample['index'] = index_dict[sample['index']][x]
+                sample['index'] = index_dict_tenX[sample['index']][x]
+        elif SMARTSEQ_PAT.findall(sample['index']):
+            x = 0
+            indices_number = len(index_dict_smartseq[sample['index'].split('_')[1]])
+            while x < indices_number - 1:
+                new_sample = dict(sample)
+                new_sample['index'] = index_dict_smartseq[sample['index'].split('_')[1]][x][0]
+                new_sample['index2'] = index_dict_smartseq[sample['index'].split('_')[1]][x][1]
+                ssparser.data.append(new_sample)
+                x += 1
+            sample['index'] = index_dict_smartseq[sample['index'].split('_')[1]][x][0]
+            sample['index2'] = index_dict_smartseq[sample['index'].split('_')[1]][x][1]
 
     # Sort to get the added indicies from 10x in the right place
     # Python 3 doesn't support sorting a list of dicts implicitly. Sort by lane and then index
@@ -390,21 +414,22 @@ def _generate_clean_samplesheet(ssparser, indexfile, fields_to_remove=None, rena
 def _classify_samples(indexfile, ssparser):
     """Given an ssparser object, go through all samples and decide sample types."""
     sample_table = dict()
-    index_dict = parse_10X_indexes(indexfile)
+    index_dict_tenX = parse_10X_indexes(indexfile['tenX'])
+    index_dict_smartseq = parse_smartseq_indexes(indexfile['smartseq'])
     for sample in ssparser.data:
         lane = sample['Lane']
         sample_name = sample.get('Sample_Name') or sample.get('SampleName')
         # 10X Genomic DNA & RNA
         if TENX_GENO_PAT.findall(sample['index']):
-            index_length = [len(index_dict[sample['index']][0]),0]
+            index_length = [len(index_dict_tenX[sample['index']][0]),0]
             sample_type = '10X_GENO'
         # 10X scATAC
         elif TENX_ATAC_PAT.findall(sample['index']):
-            index_length = [len(index_dict[sample['index']][0]),16]
+            index_length = [len(index_dict_tenX[sample['index']][0]),16]
             sample_type = '10X_ATAC'
         # 10X ST
         elif TENX_ST_PAT.findall(sample['index']):
-            index_length = [len(index_dict[sample['index']][0]),len(index_dict[sample['index']][1])]
+            index_length = [len(index_dict_tenX[sample['index']][0]),len(index_dict_tenX[sample['index']][1])]
             sample_type = '10X_ST'
         # IDT UMI samples
         elif IDT_UMI_PAT.findall(sample['index']) or IDT_UMI_PAT.findall(sample['index2']):
@@ -412,6 +437,10 @@ def _classify_samples(indexfile, ssparser):
             index_length = [len(sample['index'].replace('N', '')),
                             len(sample['index2'].replace('N', ''))]
             sample_type = 'IDT_UMI'
+        # Smart-seq
+        elif SMARTSEQ_PAT.findall(sample['index']):
+            index_length = [len(index_dict_smartseq[sample['index'].split('_')[1]][0][0]),len(index_dict_smartseq[sample['index'].split('_')[1]][0][1])]
+            sample_type = 'SMARTSEQ'
         # No Index case. Note that if both index 1 and 2 are empty, it will be the same index type but will be handled in the next case
         elif sample['index'].upper() == 'NOINDEX':
             index_length = [0, 0]
@@ -444,6 +473,21 @@ def parse_10X_indexes(indexfile):
         for line in f:
             line_ = line.rstrip().split(',')
             index_dict[line_[0]] = line_[1:5]
+    return index_dict
+
+def parse_smartseq_indexes(indexfile):
+    """
+    Takes a file of Smart-seq indexes and returns them as a dict.
+    Todo: Set it up to take the file from config instead
+    """
+    index_dict = {}
+    with open(indexfile, 'r') as f:
+        for line in f:
+            line_ = line.rstrip().split(',')
+            if index_dict.get(line_[0]):
+                index_dict[line_[0]].append((line_[1],line_[2]))
+            else:
+                index_dict.update({line_[0]:[(line_[1],line_[2])]})
     return index_dict
 
 def _generate_samplesheet_subset(ssparser, samples_to_include):
