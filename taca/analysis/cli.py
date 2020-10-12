@@ -1,6 +1,6 @@
 """CLI for the analysis subcommand."""
 import click
-from taca.analysis import analysis
+from taca.analysis import analysis as an
 from taca.analysis import analysis_nanopore
 
 @click.group()
@@ -16,7 +16,7 @@ def analysis():
 
 def demultiplex(run, force):
 	"""Demultiplex and transfer all runs present in the data directories."""
-	analysis.run_preprocessing(run, force_trasfer=force)
+	an.run_preprocessing(run, force_trasfer=force)
 
 @analysis.command()
 @click.option('--runfolder-project', is_flag=False, help='Project ID for runfolder transfer')
@@ -26,15 +26,15 @@ def demultiplex(run, force):
 def transfer(rundir, runfolder_project, exclude_lane):
     """Transfers the run without qc."""
     if not runfolder_project:
-        analysis.transfer_run(rundir)
+        an.transfer_run(rundir)
     else:
-        analysis.transfer_runfolder(rundir, pid=runfolder_project, exclude_lane=exclude_lane)
+        an.transfer_runfolder(rundir, pid=runfolder_project, exclude_lane=exclude_lane)
 
 @analysis.command()
 @click.argument('rundir')
 def updatedb(rundir):
     """Save the run to statusdb."""
-    analysis.upload_to_statusdb(rundir)
+    an.upload_to_statusdb(rundir)
 
 # Nanopore analysis subcommans
 @analysis.command()
