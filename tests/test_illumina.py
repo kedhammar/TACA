@@ -839,7 +839,7 @@ Lane,SampleID,SampleName,SamplePlate,SampleWell,index,index2,Project,Description
 
     def test_parse_smartseq_indexes(self):
         """Parse SmartSeq indexes HiSeqX."""
-        got_index_dict = parse_10X_indexes('data/test_smartseq_indexes')
+        got_index_dict = parse_smartseq_indexes('data/test_smartseq_indexes')
         expected_index_dict = {'1A':
                                [('GAGCGCCTAT', 'TTGGTACGCG'), ('TAAGACGGTG', 'TTGGTACGCG'), ('GCTAGGTCAA', 'CACAGGTGAA'), ('TGTATCCGAA', 'CACAGGTGAA')],
                                '1B':

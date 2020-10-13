@@ -343,21 +343,23 @@ def _generate_clean_samplesheet(ssparser, indexfile, fields_to_remove=None, rena
     # Replace 10X or Smart-seq indices
     for sample in ssparser.data:
         if sample['index'] in index_dict_tenX.keys():
+            tenX_index = sample['index']
             # In the case of 10X ST indexes, replace index and index2
-            if TENX_ST_PAT.findall(sample['index']):
-                sample['index'] = index_dict_tenX[sample['index']][0]
-                sample['index2'] = index_dict_tenX[sample['index']][1]
+            if TENX_ST_PAT.findall(tenX_index):
+
+                sample['index'] = index_dict_tenX[tenX_index][0]
+                sample['index2'] = index_dict_tenX[tenX_index][1]
             # In the case of 10X Genomic and ATAC samples, replace the index name with the 4 actual indicies
             else:
                 x = 0
-                indices_number = len(index_dict_tenX[sample['index']])
+                indices_number = len(index_dict_tenX[tenX_index])
                 while x < indices_number - 1:
                     new_sample = dict(sample)
-                    new_sample['index'] = index_dict_tenX[sample['index']][x]
+                    new_sample['index'] = index_dict_tenX[tenX_index][x]
                     ssparser.data.append(new_sample)
                     x += 1
                 # Set the original 10X index to the 4th correct index
-                sample['index'] = index_dict_tenX[sample['index']][x]
+                sample['index'] = index_dict_tenX[tenX_index][x]
         elif SMARTSEQ_PAT.findall(sample['index']):
             x = 0
             smartseq_index = sample['index'].split('-')[1]
