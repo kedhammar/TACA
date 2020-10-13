@@ -16,7 +16,7 @@ import sys
 from taca.analysis.analysis import *
 from taca.illumina.Runs import Run, _create_folder_structure, _generate_lane_html
 from taca.illumina.HiSeq_Runs import HiSeq_Run, _data_filed_conversion
-from taca.illumina.HiSeqX_Runs import HiSeqX_Run, _generate_clean_samplesheet, _classify_samples, parse_10X_indexes, _generate_samplesheet_subset
+from taca.illumina.HiSeqX_Runs import HiSeqX_Run, _generate_clean_samplesheet, _classify_samples, parse_10X_indexes, parse_smartseq_indexes, _generate_samplesheet_subset
 from taca.illumina.MiSeq_Runs import MiSeq_Run
 from taca.illumina.NovaSeq_Runs import NovaSeq_Run
 from taca.illumina.NextSeq_Runs import NextSeq_Run
@@ -334,7 +334,7 @@ class TestRuns(unittest.TestCase):
 
     def test_get_samples_per_lane(self):
         """Return samples from samplesheet."""
-        expected_samples = {'1': 'P10000_1001', '2': 'P10000_1005'}
+        expected_samples = {'1': 'P10000_1001', '2': 'P10000_1005', '3': 'P10000_1006', '4': 'P10000_1007'}
         got_samples =  self.in_progress.get_samples_per_lane()
         self.assertEqual(expected_samples, got_samples)
 
@@ -728,6 +728,7 @@ Lane,SampleID,SampleName,SamplePlate,SampleWell,index,index2,Project,Description
 4,Sample_P10000_1007,P10000_1007,CIDXX,4:1,GTAACATGCG,AGTGTTACCT,A_Test_18_01,
 '''
         got_samplesheet = _generate_clean_samplesheet(ssparser, indexfile, rename_samples=True, rename_qPCR_suffix = True, fields_qPCR=[ssparser.dfield_snm])
+        self.maxDiff = None
         self.assertEqual(got_samplesheet, expected_samplesheet)
 
     @mock.patch('taca.illumina.HiSeqX_Runs.misc.call_external_command_detached')
