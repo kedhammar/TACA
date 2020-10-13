@@ -39,6 +39,7 @@ analysis:
         bcl2fastq:
             bin: path_to_bcl_to_fastq
             tenX_index_path: "data/test_10X_indexes"
+            smartseq_index_path: "data/test_smartseq_indexes"
             options_10X: a
             options:
                 - output-dir: Demultiplexing
@@ -98,6 +99,7 @@ analysis:
         bcl2fastq:
             bin: path_to_bcl_to_fastq
             tenX_index_path: "data/test_10X_indexes"
+            smartseq_index_path: "data/test_smartseq_indexes"
             options:
                 - output-dir: Demultiplexing
         analysis_server:
@@ -113,6 +115,7 @@ analysis:
         bcl2fastq:
             bin: path_to_bcl_to_fastq
             tenX_index_path: "data/test_10X_indexes"
+            smartseq_index_path: "data/test_smartseq_indexes"
             options:
                 - output-dir: Demultiplexing
         analysis_server:
