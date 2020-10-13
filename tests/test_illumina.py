@@ -707,6 +707,7 @@ class TestHiSeqXRuns(unittest.TestCase):
     def test_generate_clean_samplesheet(self):
         """Make clean HiSeqX sample sheet."""
         ssparser = SampleSheetParser('data/2014/FCIDXX.csv')
+        indexfile = dict()
         indexfile['tenX'] = 'data/test_10X_indexes'
         indexfile['smartseq'] = 'data/test_smartseq_indexes'
         expected_samplesheet = u'''[Header]
