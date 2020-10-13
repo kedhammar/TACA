@@ -707,7 +707,8 @@ class TestHiSeqXRuns(unittest.TestCase):
     def test_generate_clean_samplesheet(self):
         """Make clean HiSeqX sample sheet."""
         ssparser = SampleSheetParser('data/2014/FCIDXX.csv')
-        indexfile = 'data/test_10X_indexes'
+        indexfile['tenX'] = 'data/test_10X_indexes'
+        indexfile['smartseq'] = 'data/test_smartseq_indexes'
         expected_samplesheet = u'''[Header]
 Date,None
 Experiment Name,CIDXX
@@ -719,8 +720,13 @@ Lane,SampleID,SampleName,SamplePlate,SampleWell,index,index2,Project,Description
 1,Sample_P10000_1001,P10000_1001,CIDXX,1:1,GGTTTACT,,A_Test_18_01,
 1,Sample_P10000_1001,P10000_1001,CIDXX,1:1,TCGGCGTC,,A_Test_18_01,
 2,Sample_P10000_1005,P10000_1005,CIDXX,2:1,AGGTACC,,A_Test_18_01,
+3,Sample_P10000_1006,P10000_1006,CIDXX,3:1,GAGCGCCTAT,TTGGTACGCG,A_Test_18_01,
+3,Sample_P10000_1006,P10000_1006,CIDXX,3:1,TAAGACGGTG,TTGGTACGCG,A_Test_18_01,
+3,Sample_P10000_1006,P10000_1006,CIDXX,3:1,GCTAGGTCAA,CACAGGTGAA,A_Test_18_01,
+3,Sample_P10000_1006,P10000_1006,CIDXX,3:1,TGTATCCGAA,CACAGGTGAA,A_Test_18_01,
+4,Sample_P10000_1007,P10000_1007,CIDXX,4:1,GTAACATGCG,AGTGTTACCT,A_Test_18_01,
 '''
-        got_samplesheet = _generate_clean_samplesheet(ssparser,indexfile, rename_samples=True, rename_qPCR_suffix = True, fields_qPCR=[ssparser.dfield_snm])
+        got_samplesheet = _generate_clean_samplesheet(ssparser, indexfile, rename_samples=True, rename_qPCR_suffix = True, fields_qPCR=[ssparser.dfield_snm])
         self.assertEqual(got_samplesheet, expected_samplesheet)
 
     @mock.patch('taca.illumina.HiSeqX_Runs.misc.call_external_command_detached')
@@ -790,7 +796,10 @@ Lane,SampleID,SampleName,SamplePlate,SampleWell,index,index2,Project,Description
 
     def test_classify_samples(self):
         """Classify HiSeqX samples."""
-        got_sample_table = _classify_samples('data/test_10X_indexes', SampleSheetParser('data/samplesheet_sample_check.csv'))
+        indexfile = dict()
+        indexfile['tenX'] = 'data/test_10X_indexes'
+        indexfile['smartseq'] = 'data/test_smartseq_indexes'
+        got_sample_table = _classify_samples(indexfile, SampleSheetParser('data/samplesheet_sample_check.csv'))
         expected_sample_table = {'1': [('P10000_1001',
                                        {'sample_type': '10X_GENO',
                                         'index_length': [8, 0]})],
@@ -805,7 +814,13 @@ Lane,SampleID,SampleName,SamplePlate,SampleWell,index,index2,Project,Description
                                         'index_length': [0, 0]})],
                                 '4': [('P10000_1005',
                                        {'sample_type': 'IDT_UMI',
-                                        'index_length': [4, 0]})]}
+                                        'index_length': [4, 0]})],
+                                '6': [('P10000_1006',
+                                       {'sample_type': 'SMARTSEQ',
+                                        'index_length': [10, 10]})],
+                                '7': [('P10000_1007',
+                                       {'sample_type': '10X_ST',
+                                        'index_length': [10, 10]})]}
         self.assertEqual(got_sample_table, expected_sample_table)
 
     def test_parse_10X_indexes(self):
@@ -816,7 +831,22 @@ Lane,SampleID,SampleName,SamplePlate,SampleWell,index,index2,Project,Description
                                'SI-NA-A1':
                                ['AAACGGCG', 'CCTACCAT', 'GGCGTTTC', 'TTGTAAGA'],
                                'SI-GA-A2':
-                               ['TTTCATGA', 'ACGTCCCT', 'CGCATGTG', 'GAAGGAAC']}
+                               ['TTTCATGA', 'ACGTCCCT', 'CGCATGTG', 'GAAGGAAC'],
+                               'SI-TT-A1':
+                               ['GTAACATGCG', 'AGTGTTACCT']}
+        self.assertEqual(got_index_dict, expected_index_dict)
+
+    def test_parse_smartseq_indexes(self):
+        """Parse SmartSeq indexes HiSeqX."""
+        got_index_dict = parse_10X_indexes('data/test_smartseq_indexes')
+        expected_index_dict = {'1A':
+                               [('GAGCGCCTAT', 'TTGGTACGCG'), ('TAAGACGGTG', 'TTGGTACGCG'), ('GCTAGGTCAA', 'CACAGGTGAA'), ('TGTATCCGAA', 'CACAGGTGAA')],
+                               '1B':
+                               [('TGAGGTTGTA', 'TTGGTACGCG'), ('CGGTTGAACG', 'TTGGTACGCG'), ('CGGAATCCAA', 'CACAGGTGAA'), ('CGGTAACGGT', 'CACAGGTGAA')],
+                               '1C':
+                               [('TCCGATAACT', 'TTGGTACGCG'), ('TTCACCACGG', 'TTGGTACGCG'), ('GCACGGTACA', 'CACAGGTGAA'), ('TCTATAGCGG', 'CACAGGTGAA')],
+                               '1D':
+                               [('GGAAGCTCCT', 'TTGGTACGCG'), ('TACTTGTGCA', 'TTGGTACGCG'), ('TGTAACGAAG', 'CACAGGTGAA'), ('TTGTAATGCG', 'CACAGGTGAA')]}
         self.assertEqual(got_index_dict, expected_index_dict)
 
     def test_generate_samplesheet_subset(self):
