@@ -38,8 +38,11 @@ analysis:
             max_frequency_most_represented_und_index_unpooled_lane: 40
         bcl2fastq:
             bin: path_to_bcl_to_fastq
-            index_path: "data/test_10X_indexes"
+            tenX_index_path: "data/test_10X_indexes"
+            smartseq_index_path: "data/test_smartseq_indexes"
             options_10X: a
+            options_SMARTSEQ: d
+            options_10X_ST: e
             options:
                 - output-dir: Demultiplexing
                 - opt: b
@@ -97,7 +100,8 @@ analysis:
         samplesheets_dir: "data"
         bcl2fastq:
             bin: path_to_bcl_to_fastq
-            index_path: "data/test_10X_indexes"
+            tenX_index_path: "data/test_10X_indexes"
+            smartseq_index_path: "data/test_smartseq_indexes"
             options:
                 - output-dir: Demultiplexing
         analysis_server:
@@ -112,7 +116,8 @@ analysis:
         samplesheets_dir: "data"
         bcl2fastq:
             bin: path_to_bcl_to_fastq
-            index_path: "data/test_10X_indexes"
+            tenX_index_path: "data/test_10X_indexes"
+            smartseq_index_path: "data/test_smartseq_indexes"
             options:
                 - output-dir: Demultiplexing
         analysis_server:
@@ -134,4 +139,3 @@ bioinfo_tab:
 mail:
   recipients:
     some_user@some_email.com
-

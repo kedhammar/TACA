@@ -16,7 +16,7 @@ import sys
 from taca.analysis.analysis import *
 from taca.illumina.Runs import Run, _create_folder_structure, _generate_lane_html
 from taca.illumina.HiSeq_Runs import HiSeq_Run, _data_filed_conversion
-from taca.illumina.HiSeqX_Runs import HiSeqX_Run, _generate_clean_samplesheet, _classify_samples, parse_10X_indexes, _generate_samplesheet_subset
+from taca.illumina.HiSeqX_Runs import HiSeqX_Run, _generate_clean_samplesheet, _classify_samples, parse_10X_indexes, parse_smartseq_indexes, _generate_samplesheet_subset
 from taca.illumina.MiSeq_Runs import MiSeq_Run
 from taca.illumina.NovaSeq_Runs import NovaSeq_Run
 from taca.illumina.NextSeq_Runs import NextSeq_Run
@@ -51,8 +51,12 @@ class TestRuns(unittest.TestCase):
         |   |__ Demultiplexing
         |   |__ Demultiplexing_0
         |   |__ Demultiplexing_1
+        |   |__ Demultiplexing_2
+        |   |__ Demultiplexing_3
         |   |__ SampleSheet_0.csv
         |   |__ SampleSheet_1.csv
+        |   |__ SampleSheet_2.csv
+        |   |__ SampleSheet_3.csv
         |   |__ RTAComplete.txt
         |__ 141124_ST-INPROGRESSDONE_02_AFCIDXX
         |   |__ RunInfo.xml
@@ -64,8 +68,16 @@ class TestRuns(unittest.TestCase):
         |   |__ Demultiplexing_1
         |   |   |__Stats
         |   |      |__ DemultiplexingStats.xml
+        |   |__ Demultiplexing_2
+        |   |   |__Stats
+        |   |      |__ DemultiplexingStats.xml
+        |   |__ Demultiplexing_3
+        |   |   |__Stats
+        |   |      |__ DemultiplexingStats.xml
         |   |__ SampleSheet_0.csv
         |   |__ SampleSheet_1.csv
+        |   |__ SampleSheet_2.csv
+        |   |__ SampleSheet_3.csv
         |   |__ RTAComplete.txt
         |__ 141124_ST-RUNNING_03_AFCIDXX
         |   |__ RunInfo.xml
@@ -98,6 +110,8 @@ class TestRuns(unittest.TestCase):
         os.makedirs(os.path.join(in_progress, 'Demultiplexing'))
         os.makedirs(os.path.join(in_progress, 'Demultiplexing_0', 'Reports', 'html', 'FCIDXX', 'all', 'all', 'all'))
         os.makedirs(os.path.join(in_progress, 'Demultiplexing_1'))
+        os.makedirs(os.path.join(in_progress, 'Demultiplexing_2'))
+        os.makedirs(os.path.join(in_progress, 'Demultiplexing_3'))
         os.makedirs(os.path.join(in_progress_done, 'Demultiplexing'))
         os.makedirs(os.path.join(in_progress_done, 'Demultiplexing_0/Stats'))
         os.makedirs(os.path.join(completed, 'Demultiplexing', 'Stats'))
@@ -116,6 +130,8 @@ class TestRuns(unittest.TestCase):
         # Create sample sheets for running demultiplexing
         open(os.path.join(in_progress, 'SampleSheet_0.csv'), 'w').close()
         open(os.path.join(in_progress, 'SampleSheet_1.csv'), 'w').close()
+        open(os.path.join(in_progress, 'SampleSheet_2.csv'), 'w').close()
+        open(os.path.join(in_progress, 'SampleSheet_3.csv'), 'w').close()
         open(os.path.join(in_progress_done, 'SampleSheet_0.csv'), 'w').close()
         shutil.copy('data/samplesheet.csv', os.path.join(completed, 'SampleSheet.csv'))
         shutil.copy('data/samplesheet.csv', os.path.join(complex_run_dir, 'SampleSheet_0.csv'))
@@ -261,16 +277,16 @@ class TestRuns(unittest.TestCase):
 
         shutil.copy('data/samplesheet_dummy_run.csv', os.path.join(self.tmp_dir,'141124_ST-DUMMY1_01_AFCIDXX', 'SampleSheet.csv'))
         self.dummy_run._set_run_parser_obj(CONFIG['analysis']['HiSeq'])
-        expected_mask = {'1': {'Y151I7N1I7N3':
-                               {'base_mask': ['Y151', 'I7N1', 'I7N3'],
+        expected_mask = {'1': {'Y151I7N3I7N3':
+                               {'base_mask': ['Y151', 'I7N3', 'I7N3'],
                                 'data': [{'index': 'CGCGCAG',
                                           'Lane': '1',
                                           'Sample_ID': 'Sample_P10000_1001',
                                           'Sample_Project': 'A_Test_18_01',
                                           'Sample_Name': 'Sample_P10000_1001',
                                           'index2': 'CTGCGCG'}]},
-                               'Y151I7N1N10':
-                               {'base_mask': ['Y151', 'I7N1', 'N10'],
+                               'Y151I7N3N10':
+                               {'base_mask': ['Y151', 'I7N3', 'N10'],
                                 'data': [{'index': 'AGGTACC',
                                           'Lane': '1',
                                           'Sample_ID': 'Sample_P10000_1005',
@@ -334,7 +350,7 @@ class TestRuns(unittest.TestCase):
 
     def test_get_samples_per_lane(self):
         """Return samples from samplesheet."""
-        expected_samples = {'1': 'P10000_1001', '2': 'P10000_1005'}
+        expected_samples = {'1': 'P10000_1001', '2': 'P10000_1005', '3': 'P10000_1006', '4': 'P10000_1007'}
         got_samples =  self.in_progress.get_samples_per_lane()
         self.assertEqual(expected_samples, got_samples)
 
@@ -508,7 +524,7 @@ Lane,Sample_ID,Sample_Name,index,index2,Sample_Project,FCID,SampleRef,Descriptio
                                                     '--some-opt', 'some_val',
                                                     '--other-opt',
                                                     '--output-dir', 'Demultiplexing_0',
-                                                    '--use-bases-mask', '1:Y151,I7N1,N10',
+                                                    '--use-bases-mask', '1:Y151,I7N3,N10',
                                                     '--tiles', 's_1',
                                                     '--sample-sheet', os.path.join(self.tmp_dir, '141124_ST-TOSTART1_04_AHISEQFCIDXX', 'SampleSheet_0.csv')],
                                                    prefix='demux_0',
@@ -594,7 +610,7 @@ Lane,Sample_ID,Sample_Name,index,index2,Sample_Project,FCID,SampleRef,Descriptio
                             '--some-opt', 'some_val',
                             '--other-opt',
                             '--output-dir', 'Demultiplexing_0',
-                            '--use-bases-mask', '1:Y151,I7N1,N10',
+                            '--use-bases-mask', '1:Y151,I7N3,N10',
                             '--tiles', 's_1',
                             '--sample-sheet', os.path.join(self.tmp_dir, '141124_ST-TOSTART1_04_AHISEQFCIDXX', 'SampleSheet_0.csv'),
                             '--mask-short-adapter-reads', '0']
@@ -605,8 +621,8 @@ Lane,Sample_ID,Sample_Name,index,index2,Sample_Project,FCID,SampleRef,Descriptio
         """Aggregate the results from different demultiplexing steps HiSeq."""
         self.to_start._aggregate_demux_results()
         mock_aggregate_demux_results_simple_complex.assert_called_with({'1':
-                                                                       {'Y151I7N1N10':
-                                                                        {'base_mask': ['Y151', 'I7N1', 'N10'],
+                                                                       {'Y151I7N3N10':
+                                                                        {'base_mask': ['Y151', 'I7N3', 'N10'],
                                                                          'data': [{'Control': 'N',
                                                                                    'index': 'CGCGCAG',
                                                                                    'Lane': '1',
@@ -707,7 +723,9 @@ class TestHiSeqXRuns(unittest.TestCase):
     def test_generate_clean_samplesheet(self):
         """Make clean HiSeqX sample sheet."""
         ssparser = SampleSheetParser('data/2014/FCIDXX.csv')
-        indexfile = 'data/test_10X_indexes'
+        indexfile = dict()
+        indexfile['tenX'] = 'data/test_10X_indexes'
+        indexfile['smartseq'] = 'data/test_smartseq_indexes'
         expected_samplesheet = u'''[Header]
 Date,None
 Experiment Name,CIDXX
@@ -719,8 +737,13 @@ Lane,SampleID,SampleName,SamplePlate,SampleWell,index,index2,Project,Description
 1,Sample_P10000_1001,P10000_1001,CIDXX,1:1,GGTTTACT,,A_Test_18_01,
 1,Sample_P10000_1001,P10000_1001,CIDXX,1:1,TCGGCGTC,,A_Test_18_01,
 2,Sample_P10000_1005,P10000_1005,CIDXX,2:1,AGGTACC,,A_Test_18_01,
+3,Sample_P10000_1006,P10000_1006,CIDXX,3:1,GAGCGCCTAT,TTGGTACGCG,A_Test_18_01,
+3,Sample_P10000_1006,P10000_1006,CIDXX,3:1,GCTAGGTCAA,CACAGGTGAA,A_Test_18_01,
+3,Sample_P10000_1006,P10000_1006,CIDXX,3:1,TAAGACGGTG,TTGGTACGCG,A_Test_18_01,
+3,Sample_P10000_1006,P10000_1006,CIDXX,3:1,TGTATCCGAA,CACAGGTGAA,A_Test_18_01,
+4,Sample_P10000_1007,P10000_1007,CIDXX,4:1,GTAACATGCG,AGTGTTACCT,A_Test_18_01,
 '''
-        got_samplesheet = _generate_clean_samplesheet(ssparser,indexfile, rename_samples=True, rename_qPCR_suffix = True, fields_qPCR=[ssparser.dfield_snm])
+        got_samplesheet = _generate_clean_samplesheet(ssparser, indexfile, rename_samples=True, rename_qPCR_suffix = True, fields_qPCR=[ssparser.dfield_snm])
         self.assertEqual(got_samplesheet, expected_samplesheet)
 
     @mock.patch('taca.illumina.HiSeqX_Runs.misc.call_external_command_detached')
@@ -732,22 +755,39 @@ Lane,SampleID,SampleName,SamplePlate,SampleWell,index,index2,Project,Description
                             '--opt', 'b',
                             '--c', '--a',
                             '--sample-sheet', os.path.join(self.tmp_dir, '141124_ST-TOSTART1_04_AFCIDXX/SampleSheet_0.csv'),
-                            '--use-bases-mask', '1:Y151,I8,N10'],
+                            '--use-bases-mask', '1:Y151,I8N2,N10'],
                            prefix='demux_0', with_log_files=True),
                  mock.call(['path_to_bcl_to_fastq',
                             '--output-dir', 'Demultiplexing_1',
                             '--opt', 'b',
                             '--c',
+                            '--e',
                             '--sample-sheet', os.path.join(self.tmp_dir, '141124_ST-TOSTART1_04_AFCIDXX/SampleSheet_1.csv'),
-                            '--use-bases-mask', '2:Y151,I7N1,N10'],
-                           prefix='demux_1', with_log_files=True)]
+                            '--use-bases-mask', '4:Y151,I10,I10'],
+                           prefix='demux_1', with_log_files=True),
+                 mock.call(['path_to_bcl_to_fastq',
+                            '--output-dir', 'Demultiplexing_2',
+                            '--opt', 'b',
+                            '--c',
+                            '--d',
+                            '--sample-sheet', os.path.join(self.tmp_dir, '141124_ST-TOSTART1_04_AFCIDXX/SampleSheet_2.csv'),
+                            '--use-bases-mask', '3:Y151,I10,I10'],
+                           prefix='demux_2', with_log_files=True),
+                 mock.call(['path_to_bcl_to_fastq',
+                            '--output-dir', 'Demultiplexing_3',
+                            '--opt', 'b',
+                            '--c',
+                            '--sample-sheet', os.path.join(self.tmp_dir, '141124_ST-TOSTART1_04_AFCIDXX/SampleSheet_3.csv'),
+                            '--use-bases-mask', '2:Y151,I7N3,N10'],
+                           prefix='demux_3', with_log_files=True)]
+
         mock_call_external.assert_has_calls(calls)
 
     @mock.patch('taca.illumina.HiSeqX_Runs.HiSeqX_Run._aggregate_demux_results_simple_complex')
     def test_aggregate_demux_results(self, mockaggregate_demux_results_simple_complex):
         """Aggregate the results from different demultiplexing steps HiSeqX."""
         self.to_start._aggregate_demux_results()
-        mockaggregate_demux_results_simple_complex.assert_called_with({'1': 0, '2': 0}, {})
+        mockaggregate_demux_results_simple_complex.assert_called_with({'1': 0, '3': 0, '2': 0, '4': 0}, {})
 
     def test_generate_bcl_command(self):
         """Generate bcl command HiSeqX."""
@@ -759,8 +799,8 @@ Lane,SampleID,SampleName,SamplePlate,SampleWell,index,index2,Project,Description
                             '--c',
                             '--a',
                             '--sample-sheet', os.path.join(self.tmp_dir, '141124_ST-TOSTART1_04_AFCIDXX/SampleSheet_0.csv'),
-                            '--use-bases-mask', '1:Y151,I7N1,N10',
-                            '--use-bases-mask', '2:Y151,I7N1,N10']
+                            '--use-bases-mask', '1:Y151,I7N3,N10',
+                            '--use-bases-mask', '2:Y151,I7N3,N10']
         got_command = self.to_start.generate_bcl_command(sample_type, mask_table, 0)
         self.assertEqual(expected_command, got_command)
 
@@ -770,11 +810,11 @@ Lane,SampleID,SampleName,SamplePlate,SampleWell,index,index2,Project,Description
         mask_table = {'1': [7, 0], '2': [7, 0]}
         got_mask = self.to_start._generate_per_lane_base_mask(sample_type, mask_table)
         expected_mask = {'1':
-                         {'Y151I7N1N10':
-                          {'base_mask': ['Y151', 'I7N1', 'N10']}},
+                         {'Y151I7N3N10':
+                          {'base_mask': ['Y151', 'I7N3', 'N10']}},
                          '2':
-                         {'Y151I7N1N10':
-                          {'base_mask': ['Y151', 'I7N1', 'N10']}}}
+                         {'Y151I7N3N10':
+                          {'base_mask': ['Y151', 'I7N3', 'N10']}}}
         self.assertEqual(got_mask, expected_mask)
 
     def test_compute_base_mask(self):
@@ -785,12 +825,15 @@ Lane,SampleID,SampleName,SamplePlate,SampleWell,index,index2,Project,Description
         is_dual_index = True
         index2_size = 0
         got_mask = self.to_start._compute_base_mask(runSetup, sample_type, index1_size, is_dual_index, index2_size)
-        expected_mask = ['Y151', 'I7N1', 'N10']
+        expected_mask = ['Y151', 'I7N3', 'N10']
         self.assertEqual(got_mask, expected_mask)
 
     def test_classify_samples(self):
         """Classify HiSeqX samples."""
-        got_sample_table = _classify_samples('data/test_10X_indexes', SampleSheetParser('data/samplesheet_sample_check.csv'))
+        indexfile = dict()
+        indexfile['tenX'] = 'data/test_10X_indexes'
+        indexfile['smartseq'] = 'data/test_smartseq_indexes'
+        got_sample_table = _classify_samples(indexfile, SampleSheetParser('data/samplesheet_sample_check.csv'))
         expected_sample_table = {'1': [('P10000_1001',
                                        {'sample_type': '10X_GENO',
                                         'index_length': [8, 0]})],
@@ -805,7 +848,13 @@ Lane,SampleID,SampleName,SamplePlate,SampleWell,index,index2,Project,Description
                                         'index_length': [0, 0]})],
                                 '4': [('P10000_1005',
                                        {'sample_type': 'IDT_UMI',
-                                        'index_length': [4, 0]})]}
+                                        'index_length': [4, 0]})],
+                                '6': [('P10000_1006',
+                                       {'sample_type': 'SMARTSEQ',
+                                        'index_length': [10, 10]})],
+                                '7': [('P10000_1007',
+                                       {'sample_type': '10X_ST',
+                                        'index_length': [10, 10]})]}
         self.assertEqual(got_sample_table, expected_sample_table)
 
     def test_parse_10X_indexes(self):
@@ -816,7 +865,22 @@ Lane,SampleID,SampleName,SamplePlate,SampleWell,index,index2,Project,Description
                                'SI-NA-A1':
                                ['AAACGGCG', 'CCTACCAT', 'GGCGTTTC', 'TTGTAAGA'],
                                'SI-GA-A2':
-                               ['TTTCATGA', 'ACGTCCCT', 'CGCATGTG', 'GAAGGAAC']}
+                               ['TTTCATGA', 'ACGTCCCT', 'CGCATGTG', 'GAAGGAAC'],
+                               'SI-TT-A1':
+                               ['GTAACATGCG', 'AGTGTTACCT']}
+        self.assertEqual(got_index_dict, expected_index_dict)
+
+    def test_parse_smartseq_indexes(self):
+        """Parse SmartSeq indexes HiSeqX."""
+        got_index_dict = parse_smartseq_indexes('data/test_smartseq_indexes')
+        expected_index_dict = {'1A':
+                               [('GAGCGCCTAT', 'TTGGTACGCG'), ('TAAGACGGTG', 'TTGGTACGCG'), ('GCTAGGTCAA', 'CACAGGTGAA'), ('TGTATCCGAA', 'CACAGGTGAA')],
+                               '1B':
+                               [('TGAGGTTGTA', 'TTGGTACGCG'), ('CGGTTGAACG', 'TTGGTACGCG'), ('CGGAATCCAA', 'CACAGGTGAA'), ('CGGTAACGGT', 'CACAGGTGAA')],
+                               '1C':
+                               [('TCCGATAACT', 'TTGGTACGCG'), ('TTCACCACGG', 'TTGGTACGCG'), ('GCACGGTACA', 'CACAGGTGAA'), ('TCTATAGCGG', 'CACAGGTGAA')],
+                               '1D':
+                               [('GGAAGCTCCT', 'TTGGTACGCG'), ('TACTTGTGCA', 'TTGGTACGCG'), ('TGTAACGAAG', 'CACAGGTGAA'), ('TTGTAATGCG', 'CACAGGTGAA')]}
         self.assertEqual(got_index_dict, expected_index_dict)
 
     def test_generate_samplesheet_subset(self):
