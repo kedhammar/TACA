@@ -41,6 +41,8 @@ analysis:
             tenX_index_path: "data/test_10X_indexes"
             smartseq_index_path: "data/test_smartseq_indexes"
             options_10X: a
+            options_SMARTSEQ: d
+            options_10X_ST: e
             options:
                 - output-dir: Demultiplexing
                 - opt: b

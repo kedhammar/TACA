@@ -91,7 +91,7 @@ class HiSeqX_Run(Run):
 
         # Go through sample_table for demultiplexing
         bcl2fastq_cmd_counter = 0
-        for sample_type in sample_type_list:
+        for sample_type in sorted(sample_type_list):
             # Looking for lanes with multiple masks under the same sample type
             lane_table = dict()
             for lane, lane_contents in self.sample_table.items():
