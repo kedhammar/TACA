@@ -89,7 +89,7 @@ class backup_utils(object):
         try:
             df_proc = sp.Popen(['df', path], stdout=sp.PIPE, stderr=sp.PIPE)
             df_out, df_err = df_proc.communicate()
-            available_size = int(df_out.strip().split('\n')[-1].strip().split()[2])/1024/1024
+            available_size = int(df_out.strip().split('\n')[-1].strip().split()[3])/1024/1024
         except Exception as e:
             logger.error('Evaluation of disk space failed with error {}'.format(e))
             raise SystemExit
