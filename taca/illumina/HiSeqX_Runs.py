@@ -374,8 +374,8 @@ def _generate_clean_samplesheet(ssparser, indexfile, fields_to_remove=None, rena
             sample['index2'] = index_dict_smartseq[smartseq_index][x][1]
 
     # Sort to get the added indicies from 10x in the right place
-    # Python 3 doesn't support sorting a list of dicts implicitly. Sort by lane and then index
-    ssparser.data.sort(key=lambda item: (item.get('Lane'), item.get('index')))
+    # Python 3 doesn't support sorting a list of dicts implicitly. Sort by lane and then Sample_ID
+    ssparser.data.sort(key=lambda item: (item.get('Lane'), item.get('Sample_ID')))
 
     if not fields_to_remove:
         fields_to_remove = []

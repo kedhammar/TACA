@@ -731,16 +731,16 @@ Date,None
 Experiment Name,CIDXX
 Investigator Name,Test
 [Data]
-Lane,SampleID,SampleName,SamplePlate,SampleWell,index,index2,Project,Description
+Lane,Sample_ID,Sample_Name,Sample_Plate,Sample_Well,index,index2,Project,Description
 1,Sample_P10000_1001,P10000_1001,CIDXX,1:1,AACCGTAA,,A_Test_18_01,
-1,Sample_P10000_1001,P10000_1001,CIDXX,1:1,CTAAACGG,,A_Test_18_01,
 1,Sample_P10000_1001,P10000_1001,CIDXX,1:1,GGTTTACT,,A_Test_18_01,
+1,Sample_P10000_1001,P10000_1001,CIDXX,1:1,CTAAACGG,,A_Test_18_01,
 1,Sample_P10000_1001,P10000_1001,CIDXX,1:1,TCGGCGTC,,A_Test_18_01,
 2,Sample_P10000_1005,P10000_1005,CIDXX,2:1,AGGTACC,,A_Test_18_01,
-3,Sample_P10000_1006,P10000_1006,CIDXX,3:1,GAGCGCCTAT,TTGGTACGCG,A_Test_18_01,
-3,Sample_P10000_1006,P10000_1006,CIDXX,3:1,GCTAGGTCAA,CACAGGTGAA,A_Test_18_01,
-3,Sample_P10000_1006,P10000_1006,CIDXX,3:1,TAAGACGGTG,TTGGTACGCG,A_Test_18_01,
 3,Sample_P10000_1006,P10000_1006,CIDXX,3:1,TGTATCCGAA,CACAGGTGAA,A_Test_18_01,
+3,Sample_P10000_1006,P10000_1006,CIDXX,3:1,GAGCGCCTAT,TTGGTACGCG,A_Test_18_01,
+3,Sample_P10000_1006,P10000_1006,CIDXX,3:1,TAAGACGGTG,TTGGTACGCG,A_Test_18_01,
+3,Sample_P10000_1006,P10000_1006,CIDXX,3:1,GCTAGGTCAA,CACAGGTGAA,A_Test_18_01,
 4,Sample_P10000_1007,P10000_1007,CIDXX,4:1,GTAACATGCG,AGTGTTACCT,A_Test_18_01,
 '''
         got_samplesheet = _generate_clean_samplesheet(ssparser, indexfile, rename_samples=True, rename_qPCR_suffix = True, fields_qPCR=[ssparser.dfield_snm])
@@ -893,7 +893,7 @@ Date,None
 Experiment Name,CIDXX
 Investigator Name,Test
 [Data]
-Lane,SampleID,SampleName,SamplePlate,SampleWell,index,index2,Project,Description
+Lane,Sample_ID,Sample_Name,Sample_Plate,Sample_Well,index,index2,Project,Description
 1,Sample_P10000_1001,P10000_1001,CIDXX,1:1,SI-GA-A1,,A_Test_18_01,
 '''
         self.assertEqual(got_data, expected_data)
