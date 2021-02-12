@@ -61,6 +61,9 @@ def get_runObj(run):
                 # so that it doesn't raise an exception in the next lines
                 # (in case ApplicationName is not found, get returns None)
                 runtype = rp.data['RunParameters']['Setup'].get('ApplicationName', '')
+        else:
+            # This is the case for NextSeq 2000
+            runtype = rp.data['RunParameters'].get('ApplicationName', '')
 
         if 'HiSeq X' in runtype:
             return HiSeqX_Run(run, CONFIG['analysis']['HiSeqX'])
