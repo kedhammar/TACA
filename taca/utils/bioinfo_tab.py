@@ -148,17 +148,21 @@ def get_ss_projects(run_dir):
         logger.error('Cannot find RunParameters.xml or runParameters.xml in the run folder for run {}'.format(run_dir))
         return []
     rp = RunParametersParser(os.path.join(run_dir, run_parameters_file))
-    try:
-        runtype = rp.data['RunParameters']['Setup']['Flowcell']
-    except KeyError:
-        logger.warn('Parsing runParameters to fetch instrument type, '
-                    'not found Flowcell information in it. Using ApplicationName')
+    if 'Setup' in rp.data['RunParameters']:
         try:
-            runtype = rp.data['RunParameters']['Setup'].get('ApplicationName', '')
+            runtype = rp.data['RunParameters']['Setup']['Flowcell']
         except KeyError:
-            logger.warn("Couldn't find 'Setup' or 'ApplicationName' could be Novaseq. Trying 'Application'")
-            runtype = rp.data['RunParameters']['Application']
-
+            logger.warn('Parsing runParameters to fetch instrument type, '
+                        'not found Flowcell information in it. Using ApplicationName')
+            try:
+                runtype = rp.data['RunParameters']['Setup'].get('ApplicationName', '')
+            except KeyError:
+                logger.warn("Couldn't find 'Setup' or 'ApplicationName' could be Novaseq. Trying 'Application'")
+                runtype = rp.data['RunParameters']['Application']
+    else:
+        # This is the case for NextSeq 2000
+        runtype = rp.data['RunParameters'].get('ApplicationName', '')
+            
     # Miseq case
     if 'MiSeq' in runtype:
         if os.path.exists(os.path.join(run_dir, 'Data', 'Intensities', 'BaseCalls', 'SampleSheet.csv')):
