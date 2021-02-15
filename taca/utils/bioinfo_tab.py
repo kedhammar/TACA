@@ -161,7 +161,7 @@ def get_ss_projects(run_dir):
                     logger.warn("Couldn't find 'Application', could be NextSeq. Trying 'ApplicationName'")
                     runtype = rp.data['RunParameters'].get('ApplicationName', '')
                         if not runtype:
-                        logger.warn("Couldn't find 'ApplicationName'")
+                            logger.warn("Couldn't find 'ApplicationName'")
 
     # Miseq case
     if 'MiSeq' in runtype:
