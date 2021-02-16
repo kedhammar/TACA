@@ -154,14 +154,11 @@ def get_ss_projects(run_dir):
             logger.warn('Parsing runParameters to fetch instrument type, '
                         'not found Flowcell information in it. Using ApplicationName')
             runtype = rp.data['RunParameters']['Setup'].get('ApplicationName', '')
-            if not runtype:
-                logger.warn("Couldn't find 'Setup' or 'ApplicationName' could be Novaseq. Trying 'Application'")
-                runtype = rp.data['RunParameters'].get('Application', '')
-                if not runtype:
-                    logger.warn("Couldn't find 'Application', could be NextSeq. Trying 'ApplicationName'")
-                    runtype = rp.data['RunParameters'].get('ApplicationName', '')
-                        if not runtype:
-                            logger.warn("Couldn't find 'ApplicationName'")
+    else:
+        runtype = rp.data['RunParameters'].get('Application', '')
+        if not runtype:
+            logger.warn("Couldn't find 'Application', could be NextSeq. Trying 'ApplicationName'")
+            runtype = rp.data['RunParameters'].get('ApplicationName', '')
 
     # Miseq case
     if 'MiSeq' in runtype:
