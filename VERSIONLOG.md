@@ -1,5 +1,8 @@
 # TACA Version Log
 
+## 20210313.1
+Support addtional 10X index types
+
 ## 20210303.1
 Fix bug that runtype was overwritten
 
