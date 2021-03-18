@@ -7,7 +7,9 @@ class NextSeq_Run(HiSeqX_Run):
         super(HiSeqX_Run, self).__init__(run_dir, samplesheet_folders)
         self._set_sequencer_type()
         self._set_run_type()
-        self.flowcell_id = self.position + self.flowcell_id
+        # NextSeq2000 has a different FC ID pattern that ID contains the first letter for position
+        if "VH" in self.instrument:
+            self.flowcell_id = self.position + self.flowcell_id
         self._copy_samplesheet()
 
     def _set_sequencer_type(self):
