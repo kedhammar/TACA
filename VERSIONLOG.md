@@ -1,5 +1,8 @@
 # TACA Version Log
 
+## 20210318.1
+Support different FC ID pattern for NextSeq2000
+
 ## 20210313.1
 Support addtional 10X index types
 
