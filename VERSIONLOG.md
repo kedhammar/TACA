@@ -1,5 +1,8 @@
 # TACA Version Log
 
+## 20210323.1
+Support different FC ID pattern for NextSeq2000 in bioinfo_tab.py
+
 ## 20210318.1
 Support different FC ID pattern for NextSeq2000
 
