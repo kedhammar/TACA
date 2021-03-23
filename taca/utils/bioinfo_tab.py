@@ -136,7 +136,10 @@ def get_ss_projects(run_dir):
     run_name = os.path.basename(os.path.abspath(run_dir))
     current_year = '20' + run_name[0:2]
     run_name_components = run_name.split('_')
-    FCID = run_name_components[3][1:]
+    if 'VH' in run_name_components[1]:
+        FCID = run_name_components[3]
+    else:
+        FCID = run_name_components[3][1:]
     newData = False
     miseq = False
     # FIXME: this check breaks if the system is case insensitive
