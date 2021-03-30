@@ -311,8 +311,8 @@ class HiSeqX_Run(Run):
                 else:
                 # When working on the second read index I need to know if the sample is dual index or not
                     if is_dual_index:
-                        if sample_type == '10X_ATAC': # Case of 10X scATACseq
-                            bm.append('Y' + str(index2_size))
+                        if sample_type == '10X_ATAC': # Case of 10X scATACseq, demultiplex the whole index 2 cycles as FastQ
+                            bm.append('Y' + str(cycles))
                         else:
                             i_remainder = cycles - index2_size
                             if i_remainder > 0:
@@ -426,7 +426,8 @@ def _classify_samples(indexfile, ssparser):
         if TENX_GENO_PAT.findall(sample['index']):
             index_length = [len(index_dict_tenX[sample['index']][0]),0]
             sample_type = '10X_GENO'
-        # 10X scATAC
+        # 10X scATAC, Note that the number '16' is only a preset value.
+        # When preparing masks, the whole index 2 will be multiplexed as FastQ
         elif TENX_ATAC_PAT.findall(sample['index']):
             index_length = [len(index_dict_tenX[sample['index']][0]),16]
             sample_type = '10X_ATAC'

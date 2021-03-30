@@ -1,5 +1,8 @@
 # TACA Version Log
 
+## 20210330.1
+Small adjust of 10X ATACseq masks
+
 ## 20210323.1
 Support different FC ID pattern for NextSeq2000 in bioinfo_tab.py
 
