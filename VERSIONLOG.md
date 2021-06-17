@@ -1,5 +1,8 @@
 # TACA Version Log
 
+## 20210617.1
+Support addtional 10X index types
+
 ## 20210604.1
 Handle special case with index 2 only
 
