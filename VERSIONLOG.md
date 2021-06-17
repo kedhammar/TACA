@@ -1,5 +1,8 @@
 # TACA Version Log
 
+## 20210604.1
+Handle special case with index 2 only
+
 ## 20210330.1
 Small adjust of 10X ATACseq masks
 

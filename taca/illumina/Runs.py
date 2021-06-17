@@ -204,9 +204,9 @@ class Run(object):
                 if index in "NoIndex": #special case for HiSeq when one sample is alone in a lane
                     index = ""
                 is_dual_index = False # default for Xten
-                if data_entry.get('index2'):
-                    index2 = data_entry['index2']
-                    is_dual_index = True
+            if data_entry.get('index2'):
+                index2 = data_entry['index2']
+                is_dual_index = True
                 #specific for HiSeq, will disapper once we will use bcl2fastq_2.17
                 #index = data_entry['Index'].replace('-', '').replace('NoIndex', '')
             index_size  = len(index)
