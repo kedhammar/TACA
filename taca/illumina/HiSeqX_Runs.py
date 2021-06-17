@@ -346,7 +346,6 @@ def _generate_clean_samplesheet(ssparser, indexfile, fields_to_remove=None, rena
             tenX_index = sample['index']
             # In the case of 10X ST indexes, replace index and index2
             if TENX_ST_PAT.findall(tenX_index):
-
                 sample['index'] = index_dict_tenX[tenX_index][0]
                 sample['index2'] = index_dict_tenX[tenX_index][1]
             # In the case of 10X Genomic and ATAC samples, replace the index name with the 4 actual indicies
