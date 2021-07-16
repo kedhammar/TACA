@@ -1,5 +1,8 @@
 # TACA Version Log
 
+## 20210716.1
+Handle special case with index 2 only for NovaSeq
+
 ## 20210617.1
 Support addtional 10X index types
 

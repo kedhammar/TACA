@@ -263,7 +263,7 @@ class HiSeqX_Run(Run):
             index1_size = lane_contents[0]
             index2_size = lane_contents[1]
             is_dual_index = False
-            if index1_size != 0 and index2_size != 0:
+            if (index1_size != 0 and index2_size != 0) or (index1_size == 0 and index2_size != 0):
                 is_dual_index = True
             # Compute the basemask
             base_mask = self._compute_base_mask(runSetup, sample_type, index1_size, is_dual_index, index2_size)
