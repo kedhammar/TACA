@@ -1,5 +1,8 @@
 # TACA Version Log
 
+## 20210819.1
+Allow 0 mismatch in demux for short single index
+
 ## 20210716.1
 Handle special case with index 2 only for NovaSeq
 

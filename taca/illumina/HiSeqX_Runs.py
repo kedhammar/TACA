@@ -219,6 +219,9 @@ class HiSeqX_Run(Run):
                 # Add the extra Smart-seq command options if we have 10X ST samples
                 if sample_type == 'SMARTSEQ':
                     cl_options.extend(self.CONFIG['bcl2fastq']['options_SMARTSEQ'])
+                # Add the extra command option if we have samples with single short index
+                if sample_type == 'short_single_index':
+                    cl_options.extend(self.CONFIG['bcl2fastq']['options_short_single_index'])
                 # Append all options that appear in the configuration file to the main command.
                 for option in cl_options:
                     if isinstance(option, dict):
@@ -452,7 +455,11 @@ def _classify_samples(indexfile, ssparser):
         # Ordinary samples
         else:
             index_length = [len(sample['index']),len(sample['index2'])]
-            sample_type = 'ordinary'
+            # Short single index (<=6nt)
+            if (index_length[0] <= 6 and index_length[1] == 0) or (index_length[0] == 0 and index_length[1] <= 6):
+                sample_type = 'short_single_index'
+            else:
+                sample_type = 'ordinary'
 
         # Write in sample table
         # {'1': [('101', {'sample_type': 'ordinary', 'index_length': [8, 8]}), ('102', {'sample_type': 'ordinary', 'index_length': [8, 8]})]}
