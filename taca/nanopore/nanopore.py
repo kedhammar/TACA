@@ -2,6 +2,7 @@ import os
 import logging
 import csv
 import shutil
+import glob
 
 from datetime import datetime
 from taca.utils.config import CONFIG
@@ -15,7 +16,7 @@ class Nanopore(object):
         self.run_dir = run_dir
         self.run_id = os.path.basename(run_dir)
         self.transfer_log = CONFIG.get('nanopore_analysis').get('transfer').get('transfer_file')
-        self.summary_file = glob.glob(run_dir + '/final_summary*.txt')[0]
+        self.summary_file = glob.glob(run_dir + '/final_summary*.txt')
 
     def is_not_transferred(self):
         """Return True if run id not in transfer.tsv, else False."""
@@ -27,6 +28,9 @@ class Nanopore(object):
         logger.info('Transferring run {} to analysis cluster'.format(self.run_dir))
         destination = CONFIG.get('nanopore_analysis').get('transfer').get('destination')
         rsync_opts = CONFIG.get('nanopore_analysis').get('transfer').get('rsync_options')
+        for k, v in rsync_opts.items():
+            if v == 'None':
+                rsync_opts[k] = None
         connection_details = CONFIG.get('nanopore_analysis').get('transfer').get('analysis_server')
         transfer_object = RsyncAgent(self.run_dir,
                                     dest_path=destination,

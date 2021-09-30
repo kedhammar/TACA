@@ -12,7 +12,8 @@ logger = logging.getLogger(__name__)
 
 class MinION(Nanopore):
     """Minion run"""
-    def __init__(self, nanoseq_sample_sheet, anglerfish_sample_sheet):
+    def __init__(self, run_dir, nanoseq_sample_sheet, anglerfish_sample_sheet):
+        super(MinION, self).__init__(run_dir)
         self.nanoseq_sample_sheet = nanoseq_sample_sheet
         self.anglerfish_sample_sheet = anglerfish_sample_sheet
         self.nanoseq_dir = os.path.join(self.run_dir, 'nanoseq_output')
@@ -38,9 +39,11 @@ class MinION(Nanopore):
         found_samplesheets = glob.glob(lims_samplesheet_dir + '/*'+ self.flowcell_id + '*')
         if not found_samplesheets:
             logger.warn('No Lims sample sheets found for run {}'.format(self.run_id))
+            self.lims_samplesheet = None
             return
         elif len(found_samplesheets) > 1:
             logger.warn('Found more than one Lims sample sheets for run {}'.format(self.run_id))
+            self.lims_samplesheet = None
             return
         self.lims_samplesheet = found_samplesheets[0]
         return

@@ -10,7 +10,7 @@ from taca.nanopore.promethion import PromethION
 
 logger = logging.getLogger(__name__)
 
-def find_runs_to_process(): #TODO: generalise to work with minion and promethion
+def find_runs_to_process():
     """Find nanopore runs to process."""
     nanopore_data_dir = CONFIG.get('nanopore_analysis').get('data_dir')[0]
     found_run_dirs = []
@@ -40,7 +40,7 @@ def process_minion_run(MinionRun):
     logger.info('Processing run: {} as a {}'.format(MinionRun.run_dir, 'QC run' if qc_run else 'non-QC run'))
     email_recipients = CONFIG.get('mail').get('recipients')
 
-    if os.path.isfile(MinionRun.summary_file) and not os.path.isdir(MinionRun.nanoseq_dir):
+    if MinionRun.summary_file and os.path.isfile(MinionRun.summary_file[0]) and not os.path.isdir(MinionRun.nanoseq_dir):
         logger.info('Sequencing done for run {}. Attempting to start analysis.'.format(MinionRun.run_dir))
         if not MinionRun.nanoseq_sample_sheet:
             MinionRun.parse_lims_sample_sheet()
@@ -62,6 +62,8 @@ def process_minion_run(MinionRun):
         if nanoseq_successful:
             if qc_run and not os.path.isdir(MinionRun.anglerfish_dir):
                 logger.info('Nanoseq done for run {}. Attempting to start Anglerfish.'.format(MinionRun.run_id))
+                if not MinionRun.anglerfish_sample_sheet:
+                    MinionRun.anglerfish_sample_sheet = os.path.join(MinionRun.run_dir, 'anglerfish_sample_sheet.csv')
                 MinionRun.start_anglerfish()
 
             elif qc_run and not os.path.isfile(MinionRun.anglerfish_exit_status_file):
