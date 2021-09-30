@@ -1,26 +1,34 @@
+import os
+import logging
+import csv
+import shutil
 
+from datetime import datetime
+from taca.utils.config import CONFIG
+from taca.utils.transfer import RsyncAgent, RsyncError
+
+logger = logging.getLogger(__name__)
 
 class Nanopore(object):
     """General Nanopore run"""
-    def __init__(self):
-        pass
+    def __init__(self, run_dir):
+        self.run_dir = run_dir
+        self.run_id = os.path.basename(run_dir)
+        self.transfer_log = CONFIG.get('nanopore_analysis').get('transfer').get('transfer_file')
+        self.summary_file = glob.glob(run_dir + '/final_summary*.txt')[0]
 
-    def is_not_transferred(run_id, transfer_log):
+    def is_not_transferred(self):
         """Return True if run id not in transfer.tsv, else False."""
-        with open(transfer_log, 'r') as f:
-            return run_id not in f.read()
+        with open(self.transfer_log, 'r') as f:
+            return self.run_id not in f.read()
 
-    def transfer_run(run_dir):
+    def transfer_run(self):
         """rsync dir to Irma."""
-        logger.info('Transferring run {} to analysis cluster'.format(run_dir))
+        logger.info('Transferring run {} to analysis cluster'.format(self.run_dir))
         destination = CONFIG.get('nanopore_analysis').get('transfer').get('destination')
-        rsync_opts = {'-Lav': None,
-                    '--chown': ':ngi2016003',
-                    '--chmod' : 'Dg+s,g+rw',
-                    '-r' : None,
-                    '--exclude' : 'work'}
+        rsync_opts = CONFIG.get('nanopore_analysis').get('transfer').get('rsync_options')
         connection_details = CONFIG.get('nanopore_analysis').get('transfer').get('analysis_server')
-        transfer_object = RsyncAgent(run_dir,
+        transfer_object = RsyncAgent(self.run_dir,
                                     dest_path=destination,
                                     remote_host=connection_details['host'],
                                     remote_user=connection_details['user'],
@@ -30,30 +38,30 @@ class Nanopore(object):
             transfer_object.transfer()
         except RsyncError:
             logger.warn('An error occurred while transferring {} to the '
-                        'ananlysis server. Please check the logfiles'.format(run_dir))
+                        'ananlysis server. Please check the logfiles'.format(self.run_dir))
             return False
         return True
 
-    def update_transfer_log(run_id, transfer_log):
+    def update_transfer_log(self):
         """Update transfer log with run id and date."""
         try:
-            with open(transfer_log, 'a') as f:
+            with open(self.transfer_log, 'a') as f:
                 tsv_writer = csv.writer(f, delimiter='\t')
-                tsv_writer.writerow([run_id, str(datetime.now())])
+                tsv_writer.writerow([self.run_id, str(datetime.now())])
         except IOError:
             logger.warn('Could not update the transfer logfile for run {}. '
-                        'Please make sure gets updated.'.format(run_id, transfer_log))
+                        'Please make sure it gets updated.'.format(self.run_id, self.transfer_log))
         return
 
-    def archive_run(run_dir):
+    def archive_run(self):
         """Move directory to nosync."""
-        logger.info('Archiving run ' + run_dir)
+        logger.info('Archiving run ' + self.run_dir)
         archive_dir = CONFIG.get('nanopore_analysis').get('finished_dir')
         top_dir = '/'.join(run_dir.split('/')[0:-2]) # Get the project folder to archive
-        try:                                         # Try pathlib (pathlib.Path(run_dir).parent.parent) when running completely on python3
+        try:                                         #TODO: Try pathlib (pathlib.Path(run_dir).parent.parent)
             shutil.move(top_dir, archive_dir)
-            logger.info('Successfully archived {}'.format(run_dir))
+            logger.info('Successfully archived {}'.format(self.run_dir))
         except shutil.Error:
             logger.warn('An error occurred when archiving {}. '
-                        'Please check the logfile for more info.'.format(run_dir))
+                        'Please check the logfile for more info.'.format(self.run_dir))
         return
