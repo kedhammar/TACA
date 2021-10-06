@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 # This is used by many of the functions in this module
 finished_run_indicator = CONFIG.get('storage', {}).get('finished_run_indicator', 'RTAComplete.txt')
+copy_complete_indicator = CONFIG.get('storage', {}).get('copy_complete_indicator', 'CopyComplete.txt')
 
 def cleanup_nas(seconds):
     """Will move the finished runs in NASes to nosync directory.
@@ -39,31 +40,37 @@ def cleanup_nas(seconds):
         logger.info('Moving old runs in {}'.format(data_dir))
         with filesystem.chdir(data_dir):
             for run in [r for r in os.listdir(data_dir) if re.match(filesystem.RUN_RE, r)]:
-                rta_file = os.path.join(run, finished_run_indicator)
-                if os.path.exists(rta_file):
-                    if check_demux:
-                        if misc.run_is_demuxed(run, couch_info):
-                            logger.info('Moving run {} to nosync directory'.format(os.path.basename(run)))
-                            shutil.move(run, 'nosync')
-                        elif 'miseq' in data_dir:
-                            miseq_run = MiSeq_Run(run, CONFIG)
-                            if miseq_run.get_run_type() == 'NON-NGI-RUN':
-                                logger.info('Run {} is a non-platform run, so moving it to nosync directory'.format(os.path.basename(run)))
+                if 'novaseq' in data_dir:
+                    cp_file = os.path.join(run, copy_complete_indicator)
+                    if os.path.exists(cp_file):
+                        logger.info('Moving run {} to nosync directory'.format(os.path.basename(run)))
+                        shutil.move(run, 'nosync')
+                else:
+                    rta_file = os.path.join(run, finished_run_indicator)
+                    if os.path.exists(rta_file):
+                        if check_demux:
+                            if misc.run_is_demuxed(run, couch_info):
+                                logger.info('Moving run {} to nosync directory'.format(os.path.basename(run)))
                                 shutil.move(run, 'nosync')
-                        elif os.stat(rta_file).st_mtime < time.time() - seconds:
-                            logger.warn('Run {} is older than given time, but it is not demultiplexed yet'
-                                        .format(run))
-                            sbt = 'Run not demultiplexed - {}'.format(run)
-                            msg = ('Run "{}" in "{}" is older then given threshold, but seems like it is not '
-                            'yet demultiplexed'.format(os.path.join(data_dir, run), host_name))
-                            misc.send_mail(sbt, msg, mail_recipients)
-                    else:
-                        if os.stat(rta_file).st_mtime < time.time() - seconds:
-                            logger.info('Moving run {} to nosync directory'.format(os.path.basename(run)))
-                            shutil.move(run, 'nosync')
+                            elif 'miseq' in data_dir:
+                                miseq_run = MiSeq_Run(run, CONFIG)
+                                if miseq_run.get_run_type() == 'NON-NGI-RUN':
+                                    logger.info('Run {} is a non-platform run, so moving it to nosync directory'.format(os.path.basename(run)))
+                                    shutil.move(run, 'nosync')
+                            elif os.stat(rta_file).st_mtime < time.time() - seconds:
+                                logger.warn('Run {} is older than given time, but it is not demultiplexed yet'
+                                            .format(run))
+                                sbt = 'Run not demultiplexed - {}'.format(run)
+                                msg = ('Run "{}" in "{}" is older then given threshold, but seems like it is not '
+                                'yet demultiplexed'.format(os.path.join(data_dir, run), host_name))
+                                misc.send_mail(sbt, msg, mail_recipients)
                         else:
-                            logger.info('{} file exists but is not older than given time, skipping run {}'
-                                        .format(finished_run_indicator, run))
+                            if os.stat(rta_file).st_mtime < time.time() - seconds:
+                                logger.info('Moving run {} to nosync directory'.format(os.path.basename(run)))
+                                shutil.move(run, 'nosync')
+                            else:
+                                logger.info('{} file exists but is not older than given time, skipping run {}'
+                                            .format(finished_run_indicator, run))
 
 def cleanup_processing(seconds):
     """Cleanup runs in processing server.
