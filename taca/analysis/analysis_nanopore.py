@@ -42,10 +42,11 @@ def check_ongoing_sequencing(run_dir):
     else:
         return False
 
-def process_minion_run(MinionRun, sequencing_ongoing=False): 
+def process_minion_run(MinionRun, sequencing_ongoing=False, nanoseq_ongoing=False): 
     """Process minion runs.
     
     Will not start nanoseq if a sequencing run is ongoing, to limit memory usage.
+    Will also maximum start one nanoseq run at once, for the same reason.
     """
     qc_run = True
     if MinionRun.nanoseq_sample_sheet and not MinionRun.anglerfish_sample_sheet:
@@ -60,10 +61,13 @@ def process_minion_run(MinionRun, sequencing_ongoing=False):
             MinionRun.parse_lims_sample_sheet()
 
         if os.path.isfile(MinionRun.nanoseq_sample_sheet):
-            if sequencing_ongoing:
+            if nanoseq_ongoing:
+                logger.warn('Nanoseq already started, will not attempt to start for {}'.format(MinionRun.run_dir))
+            elif sequencing_ongoing:
                 logger.warn('Sequencing ongoing, will not attempt to start Nanoseq for {}'.format(MinionRun.run_dir))
             else:
                 MinionRun.start_nanoseq()
+                nanoseq_ongoing = True
 
         else:
             logger.warn('Samplesheet not found for run {}. Operator notified. Skipping.'.format(MinionRun.run_dir))
@@ -161,7 +165,7 @@ def process_minion_run(MinionRun, sequencing_ongoing=False):
     else:
         logger.info('Run {} not finished sequencing yet. Skipping.'.format(MinionRun.run_id))
 
-    return
+    return nanoseq_ongoing
 
     def process_promethion_run(run_dir):
         """Process promethion runs."""
@@ -170,25 +174,25 @@ def process_minion_run(MinionRun, sequencing_ongoing=False):
 
 
 def process_minion_runs(run, nanoseq_sample_sheet, anglerfish_sample_sheet):
-    """Find runs and kick off processing."""
-    #TODO: make sure it only starts nanoseq if no sequencing is running
-    #TODO: make sure it only starts one nanoseq run
+    """Find minion runs and kick off processing."""
     if run:
         MinionRun = MinION(os.path.abspath(run), nanoseq_sample_sheet, anglerfish_sample_sheet)
         process_minion_run(MinionRun)
     else:
         runs_to_process = find_runs_to_process()
-        sequencing_ongoing = False
+        sequencing_ongoing, nanoseq_ongoing = False, False
         for run_dir in runs_to_process:
             if check_ongoing_sequencing(run_dir):
                 sequencing_ongoing = True
                 break
         for run_dir in runs_to_process:
             MinionRun = MinION(run_dir, nanoseq_sample_sheet, anglerfish_sample_sheet)
-            process_minion_run(MinionRun, sequencing_ongoing=sequencing_ongoing)
+            nanoseq_ongoing = process_minion_run(MinionRun,
+                                                 sequencing_ongoing=sequencing_ongoing, 
+                                                 nanoseq_ongoing=nanoseq_ongoing)
 
 def process_promethion_runs(run):
-    """Find runs and kick off processing."""
+    """Find promethion runs and kick off processing."""
     if run:
         PromethionRun = PromethION(os.path.abspath(run))
         process_promethion_run(PromethionRun)
