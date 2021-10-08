@@ -32,8 +32,21 @@ def find_runs_to_process():
         logger.warn('Could not find any run directories in {}'.format(nanopore_data_dir))
     return found_run_dirs
 
-def process_minion_run(MinionRun): 
-    """Process minion runs."""
+def check_ongoing_sequencing(run_dir):
+    """Check if sequencing is ongoing for the given run dir """
+    summary_file = glob.glob(run_dir + '/final_summary*.txt')
+
+    if not len(summary_file):
+        logger.info('Sequencing ongoing for run {}. Will not start nanoseq at this time'.format(run_dir))
+        return True
+    else:
+        return False
+
+def process_minion_run(MinionRun, sequencing_ongoing=False): 
+    """Process minion runs.
+    
+    Will not start nanoseq if a sequencing run is ongoing, to limit memory usage.
+    """
     qc_run = True
     if MinionRun.nanoseq_sample_sheet and not MinionRun.anglerfish_sample_sheet:
         qc_run = False
@@ -41,13 +54,16 @@ def process_minion_run(MinionRun):
     logger.info('Processing run: {} as a {}'.format(MinionRun.run_dir, 'QC run' if qc_run else 'non-QC run'))
     email_recipients = CONFIG.get('mail').get('recipients')
 
-    if MinionRun.summary_file and os.path.isfile(MinionRun.summary_file[0]) and not os.path.isdir(MinionRun.nanoseq_dir):
+    if len(MinionRun.summary_file) and os.path.isfile(MinionRun.summary_file[0]) and not os.path.isdir(MinionRun.nanoseq_dir):
         logger.info('Sequencing done for run {}. Attempting to start analysis.'.format(MinionRun.run_dir))
         if not MinionRun.nanoseq_sample_sheet:
             MinionRun.parse_lims_sample_sheet()
 
         if os.path.isfile(MinionRun.nanoseq_sample_sheet):
-            MinionRun.start_nanoseq()
+            if sequencing_ongoing:
+                logger.warn('Sequencing ongoing, will not attempt to start Nanoseq for {}'.format(MinionRun.run_dir))
+            else:
+                MinionRun.start_nanoseq()
 
         else:
             logger.warn('Samplesheet not found for run {}. Operator notified. Skipping.'.format(MinionRun.run_dir))
@@ -162,9 +178,14 @@ def process_minion_runs(run, nanoseq_sample_sheet, anglerfish_sample_sheet):
         process_minion_run(MinionRun)
     else:
         runs_to_process = find_runs_to_process()
+        sequencing_ongoing = False
+        for run_dir in runs_to_process:
+            if check_ongoing_sequencing(run_dir):
+                sequencing_ongoing = True
+                break
         for run_dir in runs_to_process:
             MinionRun = MinION(run_dir, nanoseq_sample_sheet, anglerfish_sample_sheet)
-            process_minion_run(MinionRun)
+            process_minion_run(MinionRun, sequencing_ongoing=sequencing_ongoing)
 
 def process_promethion_runs(run):
     """Find runs and kick off processing."""

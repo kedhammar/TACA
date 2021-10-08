@@ -36,7 +36,7 @@ class MinION(Nanopore):
         """Find original lims sample sheet."""
         lims_samplesheet_dir = os.path.join(CONFIG.get('nanopore_analysis').get('samplesheets_dir'),
                                             self.year_processed)
-        found_samplesheets = glob.glob(lims_samplesheet_dir + '/*'+ self.flowcell_id + '*')
+        found_samplesheets = glob.glob(lims_samplesheet_dir + '/*' + self.flowcell_id + '*')
         if not found_samplesheets:
             logger.warn('No Lims sample sheets found for run {}'.format(self.run_id))
             self.lims_samplesheet = None
@@ -60,14 +60,14 @@ class MinION(Nanopore):
             first_sample_name = lines[0].split(',')[0]
             fastq_location = os.path.join(self.run_dir, 'nanoseq_output', 'guppy', 'fastq')
             for line in lines:
-                sample_name, nanoseq_barcode, run_type, illumina_barcode, location = line.split(',') #TODO: remove location once/if removed in lims
+                sample_name, nanoseq_barcode, run_type, illumina_barcode, location = line.split(',')  #TODO: remove location once/if removed in lims
                 if nanoseq_barcode and nanoseq_barcode in BARCODES:
                     barcode = BARCODES[nanoseq_barcode]
                     is_pool = False
                 else:
                     barcode = '0'
                     is_pool = True
-                nanoseq_content += '\n' + sample_name + ',,' + barcode + ',,' # Only need sample and barcode for now.
+                nanoseq_content += '\n' + sample_name + ',,' + barcode + ',,'  # Only need sample and barcode for now.
                 if illumina_barcode:
                     # If there are no nanopore barcodes, the samples are from the same pool and will end up in
                     # the same nanoseq output file named after the firts sample in the sample sheet
@@ -135,7 +135,7 @@ class MinION(Nanopore):
         Assumes that a run that has not been multiplexed has the barcode 0."""
         with open(self.nanoseq_sample_sheet, 'r') as f:
             for i, line in enumerate(f):
-                if i == 1: # Only need to check first non-header line
+                if i == 1:  # Only need to check first non-header line
                     line_entries = line.split(',')
         if line_entries[2] == '0':
             return False
@@ -146,7 +146,7 @@ class MinION(Nanopore):
         """Figure out which barcode kit was used. Assumes only one kit is ever used."""
         with open(self.nanoseq_sample_sheet, 'r') as f:
             for i, line in enumerate(f):
-                if i == 1: # Only need to check first non-header line
+                if i == 1:  # Only need to check first non-header line
                     line_entries = line.split(',')
         if int(line_entries[2]) <= 12:
             return 'EXP-NBD104'
