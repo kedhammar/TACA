@@ -3,6 +3,7 @@ import logging
 import csv
 import shutil
 import glob
+import pathlib
 
 from datetime import datetime
 from taca.utils.config import CONFIG
@@ -61,8 +62,8 @@ class Nanopore(object):
         """Move directory to nosync."""
         logger.info('Archiving run ' + self.run_dir)
         archive_dir = CONFIG.get('nanopore_analysis').get('finished_dir')
-        top_dir = '/'.join(run_dir.split('/')[0:-2])  # Get the project folder to archive
-        try:                                          #TODO: Try pathlib (pathlib.Path(run_dir).parent.parent)
+        top_dir = pathlib.Path(self.run_dir).parent.parent  # Get the project folder to archive
+        try:
             shutil.move(top_dir, archive_dir)
             logger.info('Successfully archived {}'.format(self.run_dir))
         except shutil.Error:
