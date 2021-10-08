@@ -14,10 +14,11 @@ def find_runs_to_process():
     """Find nanopore runs to process."""
     nanopore_data_dir = CONFIG.get('nanopore_analysis').get('data_dir')[0]
     found_run_dirs = []
+    skip_dirs = ['core-dump-db', 'intermediate', 'nosync', 'queued_reads', 'reads', 'user_scripts']
     try:
         found_top_dirs = [os.path.join(nanopore_data_dir, top_dir) for top_dir in os.listdir(nanopore_data_dir)
-                 if os.path.isdir(os.path.join(nanopore_data_dir, top_dir))
-                 and top_dir != 'nosync']
+                            if os.path.isdir(os.path.join(nanopore_data_dir, top_dir))
+                            and top_dir not in skip_dirs]
     except OSError:
         logger.warn('There was an issue locating the following directory: {}. '
                     'Please check that it exists and try again.'.format(nanopore_data_dir))

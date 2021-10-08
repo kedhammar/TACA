@@ -21,7 +21,7 @@ class MinION(Nanopore):
         self.nanoseq_exit_status_file = os.path.join(self.run_dir, '.exitcode_for_nanoseq')
         self.anglerfish_exit_status_file = os.path.join(self.run_dir, '.exitcode_for_anglerfish')
         self.year_processed = self.run_id[0:4]
-        self.flowcell_id = self.run_id.split('_')[3] #TODO: is this the same flowcell id as in the report file?
+        self.flowcell_id = self.run_id.split('_')[3]
 
     def parse_lims_sample_sheet(self):
         """Generate nanoseq samplesheet based on Lims original."""
@@ -85,7 +85,7 @@ class MinION(Nanopore):
 
     def start_nanoseq(self):
         """Start Nanoseq analysis."""
-        flowcell_product_code = self._get_flowcell_product_code() #TODO: flowcell id?
+        flowcell_product_code = self._get_flowcell_product_code() 
         kit_id = os.path.basename(self.nanoseq_sample_sheet).split('_')[0]
         if self._is_multiplexed():
             logger.info('Run {} is multiplexed. Starting nanoseq with --barcode_kit option'.format(self.run_dir))
@@ -93,7 +93,7 @@ class MinION(Nanopore):
             analysis_command = ('nextflow run nf-core/nanoseq --input ' + self.nanoseq_sample_sheet
                                 + ' --input_path ' + os.path.join(self.run_dir, 'fast5')
                                 + ' --outdir ' + os.path.join(self.run_dir, 'nanoseq_output')
-                                + ' --flowcell ' + flowcell_product_code #TODO: flowcell id?
+                                + ' --flowcell ' + flowcell_product_code
                                 + ' --guppy_gpu'
                                 + ' --skip_alignment'
                                 + ' --kit ' + kit_id
@@ -106,7 +106,7 @@ class MinION(Nanopore):
             analysis_command = ('nextflow run nf-core/nanoseq --input ' + self.nanoseq_sample_sheet
                                 + ' --input_path ' + os.path.join(self.run_dir, 'fast5')
                                 + ' --outdir ' + os.path.join(self.run_dir, 'nanoseq_output')
-                                + ' --flowcell ' + flowcell_product_code #TODO: flowcell id?
+                                + ' --flowcell ' + flowcell_product_code
                                 + ' --guppy_gpu'
                                 + ' --skip_alignment'
                                 + ' --kit ' + kit_id
@@ -180,7 +180,7 @@ class MinION(Nanopore):
         """Find results and copy to lims directory."""
         year_processed = self.run_id[0:4]
         lims_result_file = os.path.join(CONFIG.get('nanopore_analysis').get('lims_results_dir'),
-                                        year_processed, 'anglerfish_stats_' + self.flowcell_id + '.txt') #TODO: flowcell id?
+                                        year_processed, 'anglerfish_stats_' + self.flowcell_id + '.txt')
         anglerfish_results = self._find_anglerfish_results()
         try:
             shutil.copyfile(anglerfish_results, lims_result_file)
