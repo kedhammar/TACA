@@ -1,5 +1,8 @@
 # TACA Version Log
 
+## 20211005.1
+Specify CopyComplete.txt as indicator for cleaning NovaSeq runs
+
 ## 20210819.1
 Allow 0 mismatch in demux for short single index
 
