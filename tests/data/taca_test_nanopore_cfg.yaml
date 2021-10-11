@@ -13,6 +13,12 @@ nanopore_analysis:
       port: 
       user: some_user
     destination: some_dir
+    rsync_options:
+      '-Lav': None
+      '--chown': ':ngi2016003'
+      '--chmod' : 'Dg+s,g+rw'
+      '-r' : None
+      '--exclude' : 'work'
   finished_dir: data/nanopore_data/nosync
 
 mail:
