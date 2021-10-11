@@ -1,5 +1,8 @@
 # TACA Version Log
 
+## 20211011.1
+Refactor of MinION code
+
 ## 20211005.1
 Specify CopyComplete.txt as indicator for cleaning NovaSeq runs
 
