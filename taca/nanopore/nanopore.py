@@ -26,7 +26,7 @@ class Nanopore(object):
 
     def transfer_run(self):
         """rsync dir to Irma."""
-        logger.info('Transferring run {} to analysis cluster'.format(self.run_dir))
+        logger.info('Transferring run {} to analysis cluster'.format(self.run_id))
         destination = CONFIG.get('nanopore_analysis').get('transfer').get('destination')
         rsync_opts = CONFIG.get('nanopore_analysis').get('transfer').get('rsync_options')
         for k, v in rsync_opts.items():
@@ -60,12 +60,12 @@ class Nanopore(object):
 
     def archive_run(self):
         """Move directory to nosync."""
-        logger.info('Archiving run ' + self.run_dir)
+        logger.info('Archiving run ' + self.run_id)
         archive_dir = CONFIG.get('nanopore_analysis').get('finished_dir')
-        top_dir = pathlib.Path(self.run_dir).parent.parent  # Get the project folder to archive
+        top_dir = str(pathlib.Path(self.run_dir).parent.parent)  # Get the project folder to archive
         try:
             shutil.move(top_dir, archive_dir)
-            logger.info('Successfully archived {}'.format(self.run_dir))
+            logger.info('Successfully archived {}'.format(self.run_id))
         except shutil.Error:
             logger.warn('An error occurred when archiving {}. '
                         'Please check the logfile for more info.'.format(self.run_dir))

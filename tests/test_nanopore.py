@@ -196,9 +196,3 @@ class TestMinION(unittest.TestCase):
         found_file = run._find_anglerfish_results()
         expected_file = os.path.join(anglerfish_dir, 'anglerfish_2020_09_23_141922', 'anglerfish_stats.txt')
         self.assertEqual(expected_file, found_file)
-
-#TODO: write us!
-class TestPromethION(unittest.TestCase):
-    """Test Promethion class"""
-    def SetUpClass(self):
-        pass

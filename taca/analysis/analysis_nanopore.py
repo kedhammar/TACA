@@ -167,10 +167,38 @@ def process_minion_run(MinionRun, sequencing_ongoing=False, nanoseq_ongoing=Fals
 
     return nanoseq_ongoing
 
-    def process_promethion_run(run_dir):
-        """Process promethion runs."""
-        #TODO: write me!
-        pass
+def process_promethion_run(promethion_run):
+    """Process promethion runs."""
+    # WIP - please ignore
+    email_recipients = CONFIG.get('mail').get('recipients')
+    logger.info('Processing run {}'.format(promethion_run.run_id))
+    
+    if len(promethion_run.summary_file) and os.path.isfile(promethion_run.summary_file[0]):
+        logger.info('Sequencing done for run {}. Attempting to start processing.'.format(promethion_run.run_id))
+        if promethion_run.is_not_transferred():
+            if promethion_run.transfer_run():
+                promethion_run.update_transfer_log()
+                logger.info('Run {} has been synced to the analysis cluster.'.format(promethion_run.run_id))
+            
+                promethion_run.archive_run()
+                logger.info('Run {} is finished and has been archived. '
+                            'Notifying operator.'.format(promethion_run.run_id))
+                email_subject = ('Run successfully processed: {}'.format(promethion_run.run_id))
+                email_message = ('Run {} has been transferred and archived '
+                                'successfully.').format(promethion_run.run_id)
+                send_mail(email_subject, email_message, email_recipients)
+
+            else:
+                email_subject = ('Run processed with errors: {}'.format(promethion_run.run_id))
+                email_message = ('An error occurred during transfer of run {} '
+                                'to the analysis cluster.').format(promethion_run.run_id)
+                send_mail(email_subject, email_message, email_recipients)
+
+        else:
+            logger.warn('The following run has already been transferred, '
+                        'skipping: {}'.format(promethion_run.run_id))
+    else:
+        logger.info('Run {} not finished sequencing yet. Skipping.'.format(promethion_run.run_id))
 
 
 def process_minion_runs(run, nanoseq_sample_sheet, anglerfish_sample_sheet):
@@ -194,10 +222,11 @@ def process_minion_runs(run, nanoseq_sample_sheet, anglerfish_sample_sheet):
 def process_promethion_runs(run):
     """Find promethion runs and kick off processing."""
     if run:
-        PromethionRun = PromethION(os.path.abspath(run))
-        process_promethion_run(PromethionRun)
+        promethion_run = PromethION(os.path.abspath(run))
+        process_promethion_run(promethion_run)
     else:
+        # Locate all runs in /srv/ngi_data
         runs_to_process = find_runs_to_process()
         for run_dir in runs_to_process:
-            PromethionRun = PromethION(run_dir)
-            process_promethion_run(PromethionRun)
+            promethion_run = PromethION(run_dir)
+            process_promethion_run(promethion_run)
