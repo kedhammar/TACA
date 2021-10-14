@@ -169,7 +169,6 @@ def process_minion_run(MinionRun, sequencing_ongoing=False, nanoseq_ongoing=Fals
 
 def process_promethion_run(promethion_run):
     """Process promethion runs."""
-    # WIP - please ignore
     email_recipients = CONFIG.get('mail').get('recipients')
     logger.info('Processing run {}'.format(promethion_run.run_id))
     
@@ -225,7 +224,7 @@ def process_promethion_runs(run):
         promethion_run = PromethION(os.path.abspath(run))
         process_promethion_run(promethion_run)
     else:
-        # Locate all runs in /srv/ngi_data
+        # Locate all runs in /srv/ngi_data/sequencing/promethion
         runs_to_process = find_runs_to_process()
         for run_dir in runs_to_process:
             promethion_run = PromethION(run_dir)
