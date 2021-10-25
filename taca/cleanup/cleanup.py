@@ -369,7 +369,7 @@ def get_closed_proj_info(prj, pdoc, tdate=None):
                      'pid' : pdoc.get('project_id'),
                      'closed_date' : closed_date,
                      'closed_days' : closed_days.days,
-                     'bioinfo_responsible' : pdoc.get('project_summary',{}).get('bioinfo_responsible','').encode('ascii', 'ignore')}
+                     'bioinfo_responsible' : pdoc.get('project_summary',{}).get('bioinfo_responsible','')}
         except:
             logger.warn('Problem calculating closed days for project {} with close date {}. Skipping it'.format(
                         pdoc.get('project_name'), closed_date))
