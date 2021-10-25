@@ -60,18 +60,23 @@ class MinION(Nanopore):
             first_sample_name = lines[0].split(',')[0]
             fastq_location = os.path.join(self.run_dir, 'nanoseq_output', 'guppy', 'fastq')
             for line in lines:
-                sample_name, nanoseq_barcode, run_type, illumina_barcode = line.split(',')
+                sample_name, nanoseq_barcode, run_type, illumina_barcode, fastq_path = line.split(',')
                 if nanoseq_barcode and nanoseq_barcode in BARCODES:
                     barcode = BARCODES[nanoseq_barcode]
-                    is_pool = False
+                    is_single_pool = False
                 else:
                     barcode = '0'
-                    is_pool = True
-                nanoseq_content += '\n' + sample_name + ',,' + barcode + ',,'  # Only need sample and barcode for now.
+                    is_single_pool = True
+                
+                pool_barcodes = []
+                if barcode not in pool_barcodes:  # If there are multiple pools they should be treated like one sample each in nanoseq
+                    nanoseq_content += '\n' + sample_name + ',,' + barcode + ',,'  # Only need sample and barcode for now
+                    pool_barcodes.append(barcode)
+                
                 if illumina_barcode:
                     # If there are no nanopore barcodes, the samples are from the same pool and will end up in
-                    # the same nanoseq output file named after the firts sample in the sample sheet
-                    if is_pool:
+                    # the same nanoseq output file named after the first sample in the sample sheet
+                    if is_single_pool:
                         anglerfish_content += sample_name + ',' + run_type + ',' + illumina_barcode + ',' + os.path.join(fastq_location, first_sample_name + '.fastq.gz') + '\n'
                     # If the samples are not the same pool, the nanoseq output is named by the barcode
                     else:
