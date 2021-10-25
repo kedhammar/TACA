@@ -59,6 +59,7 @@ class MinION(Nanopore):
             lines = sorted(f.readlines())
             first_sample_name = lines[0].split(',')[0]
             fastq_location = os.path.join(self.run_dir, 'nanoseq_output', 'guppy', 'fastq')
+            pool_barcodes = []
             for line in lines:
                 sample_name, nanoseq_barcode, run_type, illumina_barcode = line.split(',')
                 if nanoseq_barcode and nanoseq_barcode in BARCODES:
@@ -68,7 +69,6 @@ class MinION(Nanopore):
                     barcode = '0'
                     is_single_pool = True
                 
-                pool_barcodes = []
                 if barcode not in pool_barcodes:  # If there are multiple pools they should be treated like one sample each in nanoseq
                     nanoseq_content += '\n' + sample_name + ',,' + barcode + ',,'  # Only need sample and barcode for now
                     pool_barcodes.append(barcode)
