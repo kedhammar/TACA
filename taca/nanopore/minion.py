@@ -60,7 +60,7 @@ class MinION(Nanopore):
             first_sample_name = lines[0].split(',')[0]
             fastq_location = os.path.join(self.run_dir, 'nanoseq_output', 'guppy', 'fastq')
             for line in lines:
-                sample_name, nanoseq_barcode, run_type, illumina_barcode, fastq_path = line.split(',')
+                sample_name, nanoseq_barcode, run_type, illumina_barcode = line.split(',')
                 if nanoseq_barcode and nanoseq_barcode in BARCODES:
                     barcode = BARCODES[nanoseq_barcode]
                     is_single_pool = False
