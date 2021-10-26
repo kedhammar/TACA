@@ -102,14 +102,25 @@ def process_minion_run(minion_run, sequencing_ongoing=False, nanoseq_ongoing=Fal
 
                     if minion_run.is_not_transferred():
                         if minion_run.transfer_run():
-                            minion_run.update_transfer_log()
-                            logger.info('Run {} has been synced to the analysis cluster.'.format(minion_run.run_id))
-                            minion_run.archive_run()
-                            logger.info('Run {} is finished and has been archived. Notifying operator.'.format(minion_run.run_id))
-                            email_subject = ('Run successfully processed: {}'.format(minion_run.run_id))
-                            email_message = ('Run {} has been analysed, transferred and archived '
-                                             'successfully.').format(minion_run.run_id)
-                            send_mail(email_subject, email_message, email_recipients)
+                            if minion_run.update_transfer_log():
+                                logger.info('Run {} has been synced to the analysis cluster.'.format(minion_run.run_id))
+                            else:
+                                email_subject = ('Run processed with errors: {}'.format(minion_run.run_id))
+                                email_message = ('Run {} has been transferred, but an error occurred while updating '
+                                                 'the transfer log').format(minion_run.run_id)
+                                send_mail(email_subject, email_message, email_recipients)
+
+                            if minion_run.archive_run():
+                                logger.info('Run {} is finished and has been archived. Notifying operator.'.format(minion_run.run_id))
+                                email_subject = ('Run successfully processed: {}'.format(minion_run.run_id))
+                                email_message = ('Run {} has been analysed, transferred and archived '
+                                                 'successfully.').format(minion_run.run_id)
+                                send_mail(email_subject, email_message, email_recipients)
+                            else:
+                                email_subject = ('Run processed with errors: {}'.format(minion_run.run_id))
+                                email_message = ('Run {} has been analysed, but an error occurred during '
+                                                 'archiving').format(minion_run.run_id)
+                                send_mail(email_subject, email_message, email_recipients)
 
                         else:
                             logger.warn('An error occurred during transfer of run {} '
@@ -134,14 +145,24 @@ def process_minion_run(minion_run, sequencing_ongoing=False, nanoseq_ongoing=Fal
             elif not qc_run:
                 if minion_run.is_not_transferred():
                     if minion_run.transfer_run():
-                        minion_run.update_transfer_log()
-                        logger.info('Run {} has been synced to the analysis cluster.'.format(minion_run.run_id))
-                        minion_run.archive_run()
-                        logger.info('Run {} is finished and has been archived. Notifying operator.'.format(minion_run.run_id))
-                        email_subject = ('Run successfully processed: {}'.format(minion_run.run_id))
-                        email_message = ('Run {} has been analysed, transferred and archived '
-                                         'successfully.').format(minion_run.run_id)
-                        send_mail(email_subject, email_message, email_recipients)
+                        if minion_run.update_transfer_log():
+                            logger.info('Run {} has been synced to the analysis cluster.'.format(minion_run.run_id))
+                        else:
+                            email_subject = ('Run processed with errors: {}'.format(minion_run.run_id))
+                            email_message = ('Run {} has been transferred, but an error occurred while updating '
+                                            'the transfer log').format(minion_run.run_id)
+                            send_mail(email_subject, email_message, email_recipients)
+                        if minion_run.archive_run():
+                            logger.info('Run {} is finished and has been archived. Notifying operator.'.format(minion_run.run_id))
+                            email_subject = ('Run successfully processed: {}'.format(minion_run.run_id))
+                            email_message = ('Run {} has been analysed, transferred and archived '
+                                             'successfully.').format(minion_run.run_id)
+                            send_mail(email_subject, email_message, email_recipients)
+                        else:
+                            email_subject = ('Run processed with errors: {}'.format(minion_run.run_id))
+                            email_message = ('Run {} has been analysed, but an error occurred during '
+                                            'archiving').format(minion_run.run_id)
+                            send_mail(email_subject, email_message, email_recipients)
 
                     else:
                         logger.warn('An error occurred during transfer of run {} '
@@ -176,16 +197,26 @@ def process_promethion_run(promethion_run):
         logger.info('Sequencing done for run {}. Attempting to start processing.'.format(promethion_run.run_id))
         if promethion_run.is_not_transferred():
             if promethion_run.transfer_run():
-                promethion_run.update_transfer_log()
-                logger.info('Run {} has been synced to the analysis cluster.'.format(promethion_run.run_id))
+                if promethion_run.update_transfer_log():
+                    logger.info('Run {} has been synced to the analysis cluster.'.format(promethion_run.run_id))
+                else:
+                    email_subject = ('Run processed with errors: {}'.format(promethion_run.run_id))
+                    email_message = ('Run {} has been transferred, but an error occurred while updating '
+                                        'the transfer log').format(promethion_run.run_id)
+                    send_mail(email_subject, email_message, email_recipients)
             
-                promethion_run.archive_run()
-                logger.info('Run {} is finished and has been archived. '
-                            'Notifying operator.'.format(promethion_run.run_id))
-                email_subject = ('Run successfully processed: {}'.format(promethion_run.run_id))
-                email_message = ('Run {} has been transferred and archived '
-                                'successfully.').format(promethion_run.run_id)
-                send_mail(email_subject, email_message, email_recipients)
+                if promethion_run.archive_run():
+                    logger.info('Run {} is finished and has been archived. '
+                                'Notifying operator.'.format(promethion_run.run_id))
+                    email_subject = ('Run successfully processed: {}'.format(promethion_run.run_id))
+                    email_message = ('Run {} has been transferred and archived '
+                                    'successfully.').format(promethion_run.run_id)
+                    send_mail(email_subject, email_message, email_recipients)
+                else:
+                    email_subject = ('Run processed with errors: {}'.format(promethion_run.run_id))
+                    email_message = ('Run {} has been analysed, but an error occurred during '
+                                    'archiving').format(promethion_run.run_id)
+                    send_mail(email_subject, email_message, email_recipients)
 
             else:
                 email_subject = ('Run processed with errors: {}'.format(promethion_run.run_id))

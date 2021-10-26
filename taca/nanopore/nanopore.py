@@ -53,10 +53,11 @@ class Nanopore(object):
             with open(self.transfer_log, 'a') as f:
                 tsv_writer = csv.writer(f, delimiter='\t')
                 tsv_writer.writerow([self.run_id, str(datetime.now())])
+                return True
         except IOError:
             logger.warn('Could not update the transfer logfile for run {}. '
                         'Please make sure it gets updated.'.format(self.run_id, self.transfer_log))
-        return
+            return False
 
     def archive_run(self):
         """Move directory to nosync."""
@@ -66,7 +67,8 @@ class Nanopore(object):
         try:
             shutil.move(top_dir, archive_dir)
             logger.info('Successfully archived {}'.format(self.run_id))
+            return True
         except shutil.Error:
             logger.warn('An error occurred when archiving {}. '
                         'Please check the logfile for more info.'.format(self.run_dir))
-        return
+            return False
