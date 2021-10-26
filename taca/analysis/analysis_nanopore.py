@@ -93,12 +93,17 @@ def process_minion_run(minion_run, sequencing_ongoing=False, nanoseq_ongoing=Fal
             elif qc_run and os.path.isfile(minion_run.anglerfish_exit_status_file):
                 anglerfish_successful = minion_run.check_exit_status(minion_run.anglerfish_exit_status_file)
                 if anglerfish_successful:
-                    minion_run.copy_results_for_lims()
-                    logger.info('Anglerfish finished OK for run {}. Notifying operator.'.format(minion_run.run_id))
-                    email_subject = ('Anglerfish successfully processed run {}'.format(minion_run.run_id))
-                    email_message = ('Anglerfish has successfully finished for run {}. Please '
-                                     'finish the QC step in lims.').format(minion_run.run_id)
-                    send_mail(email_subject, email_message, email_recipients)
+                    if minion_run.copy_results_for_lims():
+                        logger.info('Anglerfish finished OK for run {}. Notifying operator.'.format(minion_run.run_id))
+                        email_subject = ('Anglerfish successfully processed run {}'.format(minion_run.run_id))
+                        email_message = ('Anglerfish has successfully finished for run {}. Please '
+                                         'finish the QC step in lims.').format(minion_run.run_id)
+                        send_mail(email_subject, email_message, email_recipients)
+                    else:
+                        email_subject = ('Run processed with errors: {}'.format(minion_run.run_id))
+                        email_message = ('Anglerfish has successfully finished for run {} but an error '
+                                         'occurred while transferring the results to lims.').format(minion_run.run_id)
+                        send_mail(email_subject, email_message, email_recipients)
 
                     if minion_run.is_not_transferred():
                         if minion_run.transfer_run():

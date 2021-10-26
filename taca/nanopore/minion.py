@@ -186,8 +186,10 @@ class MinION(Nanopore):
         anglerfish_results = self._find_anglerfish_results()
         try:
             shutil.copyfile(anglerfish_results, lims_result_file)
+            return True
         except OSError as e:
             logger.warn('An error occurred while copying the Anglerfish results for {} to lims: {}'.format(self.run_id, e))
+            return False
 
     def _find_anglerfish_results(self):
         """Return location of Anglerfish results."""
