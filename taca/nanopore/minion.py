@@ -30,7 +30,6 @@ class MinION(Nanopore):
             self._parse_samplesheet()
         else:
             self.nanoseq_sample_sheet = ''
-        return 
 
     def _get_original_samplesheet(self):
         """Find original lims sample sheet."""
@@ -46,7 +45,6 @@ class MinION(Nanopore):
             self.lims_samplesheet = None
             return
         self.lims_samplesheet = found_samplesheets[0]
-        return
 
     def _parse_samplesheet(self):
         """Parse Lims samplesheet into one suitable for nanoseq and anglerfish."""
@@ -89,7 +87,6 @@ class MinION(Nanopore):
         if anglerfish_content:
             with open(self.anglerfish_sample_sheet, 'w') as f:
                 f.write(anglerfish_content)
-        return
 
     def start_nanoseq(self):
         """Start Nanoseq analysis."""
@@ -128,7 +125,6 @@ class MinION(Nanopore):
         except subprocess.CalledProcessError:
             logger.warn('An error occurred while starting the Nanoseq for run {}. '
                         'Please check the logfile for info.'.format(self.run_dir))
-        return
 
     def _get_flowcell_product_code(self):
         """Look for flow_cell_product_code in report.md and return the corresponding value."""
@@ -182,7 +178,6 @@ class MinION(Nanopore):
         except subprocess.CalledProcessError:
             logger.warn('An error occurred while starting the Anglerfish for run {}. '
                         'Please check the logfile for info.'.format(self.run_dir))
-        return
 
     def copy_results_for_lims(self):
         """Find results and copy to lims directory."""
@@ -194,7 +189,6 @@ class MinION(Nanopore):
             shutil.copyfile(anglerfish_results, lims_result_file)
         except OSError as e:
             logger.warn('An error occurred while copying the Anglerfish results for {} to lims: {}'.format(self.run_id, e))
-        return
 
     def _find_anglerfish_results(self):
         """Return location of Anglerfish results."""
