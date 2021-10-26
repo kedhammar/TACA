@@ -39,12 +39,11 @@ class MinION(Nanopore):
         if not found_samplesheets:
             logger.warn('No Lims sample sheets found for run {}'.format(self.run_id))
             self.lims_samplesheet = None
-            return
         elif len(found_samplesheets) > 1:
             logger.warn('Found more than one Lims sample sheets for run {}'.format(self.run_id))
             self.lims_samplesheet = None
-            return
-        self.lims_samplesheet = found_samplesheets[0]
+        else:
+            self.lims_samplesheet = found_samplesheets[0]
 
     def _parse_samplesheet(self):
         """Parse Lims samplesheet into one suitable for nanoseq and anglerfish."""
