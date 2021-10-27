@@ -65,7 +65,6 @@ class TestMinION(unittest.TestCase):
     def test_parse_samplesheet(self):
         """Make nanoseq sample sheet from lims sample sheet."""
         run_dir = 'data/nanopore_data/run4/done_demuxing/20200104_1412_MN19414_AAU644_68125dc2'
-        #anglerfish_sample_sheet = 'data/nanopore_data/run4/done_demuxing/20200104_1412_MN19414_AAU644_68125dc2/anglerfish_sample_sheet.csv'
         run = MinION(run_dir, None, None)
         run.lims_samplesheet = 'data/nanopore_samplesheets/2020/SQK-LSK109_AAU644_Samplesheet_24-594126.csv'
         run._parse_samplesheet()
