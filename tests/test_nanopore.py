@@ -55,18 +55,17 @@ class TestMinION(unittest.TestCase):
 
     def test_get_original_samplesheet(self):
         """Get location of lims sample sheet."""
-        run_id = '20200102_1412_MN19414_AAU642_68125dc2'
         run_dir = 'data/nanopore_data/run2/done_sequencing/20200102_1412_MN19414_AAU642_68125dc2'
         run = MinION(run_dir, None, None)
         run._get_original_samplesheet()
-        expected_sample_sheet = 'data/nanopore_samplesheets/2020/SQK-LSK109_AAU642_Samplesheet_22-594126.csv'
+        expected_sample_sheet = 'data/nanopore_samplesheets/2020/QC_SQK-LSK109_AAU642_Samplesheet_22-594126.csv'
         self.assertEqual(run.lims_samplesheet, expected_sample_sheet)
 
     def test_parse_samplesheet(self):
         """Make nanoseq sample sheet from lims sample sheet."""
         run_dir = 'data/nanopore_data/run4/done_demuxing/20200104_1412_MN19414_AAU644_68125dc2'
         run = MinION(run_dir, None, None)
-        run.lims_samplesheet = 'data/nanopore_samplesheets/2020/SQK-LSK109_AAU644_Samplesheet_24-594126.csv'
+        run.lims_samplesheet = 'data/nanopore_samplesheets/2020/DELIVERY_SQK-LSK109_AAU644_Samplesheet_24-594126.csv'
         run._parse_samplesheet()
         self.assertTrue(filecmp.cmp(run.nanoseq_sample_sheet, 'data/nanopore_samplesheets/expected/SQK-LSK109_sample_sheet.csv'))
         self.assertTrue(filecmp.cmp(run.anglerfish_sample_sheet, 'data/nanopore_samplesheets/expected/anglerfish_sample_sheet.csv'))

@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 import unittest
 import logging
-import filecmp
 import mock
 import os
 
@@ -56,6 +55,7 @@ class TestNanoporeAnalysis(unittest.TestCase):
         """Send email to operator if nanoseq analysis failed."""
         run_dir = 'data/nanopore_data/run8/demux_failed/20200108_1412_MN19414_AAU648_68125dc2'
         minion_run = MinION(run_dir, None, None)
+        minion_run.qc_run = True
         process_minion_run(minion_run)
         email_subject = ('Analysis failed for run 20200108_1412_MN19414_AAU648_68125dc2')
         email_message = 'The nanoseq analysis failed for run {}.'.format(minion_run.run_id)
