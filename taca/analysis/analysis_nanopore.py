@@ -236,7 +236,8 @@ def process_minion_runs(run, nanoseq_sample_sheet, anglerfish_sample_sheet):
     """Find minion runs and kick off processing."""
     if run:
         minion_run = MinION(os.path.abspath(run), nanoseq_sample_sheet, anglerfish_sample_sheet)
-        process_minion_run(minion_run)
+        if minion_run.lims_samplesheet:
+            process_minion_run(minion_run)
     else:
         runs_to_process = find_runs_to_process()
         sequencing_ongoing, nanoseq_ongoing = False, False
@@ -246,9 +247,10 @@ def process_minion_runs(run, nanoseq_sample_sheet, anglerfish_sample_sheet):
                 break
         for run_dir in runs_to_process:
             minion_run = MinION(run_dir, nanoseq_sample_sheet, anglerfish_sample_sheet)
-            nanoseq_ongoing = process_minion_run(minion_run,
-                                                 sequencing_ongoing=sequencing_ongoing, 
-                                                 nanoseq_ongoing=nanoseq_ongoing)
+            if minion_run.lims_samplesheet:
+                nanoseq_ongoing = process_minion_run(minion_run,
+                                                     sequencing_ongoing=sequencing_ongoing, 
+                                                     nanoseq_ongoing=nanoseq_ongoing)
 
 def process_promethion_runs(run):
     """Find promethion runs and kick off processing."""

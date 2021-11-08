@@ -25,7 +25,8 @@ class MinION(Nanopore):
         self.year_processed = self.run_id[0:4]
         self.flowcell_id = self.run_id.split('_')[3]
         self._get_original_samplesheet()
-        self._set_run_type()
+        if self.lims_samplesheet:
+            self._set_run_type()
 
     def _get_original_samplesheet(self):
         """Find original lims sample sheet."""
@@ -33,10 +34,10 @@ class MinION(Nanopore):
                                             self.year_processed)
         found_samplesheets = glob.glob(lims_samplesheet_dir + '/*' + self.flowcell_id + '*')
         if not found_samplesheets:
-            logger.warn('No Lims sample sheets found for run {}'.format(self.run_id))
+            logger.warn('No Lims sample sheets found for run {}. Skipping it.'.format(self.run_id))
             self.lims_samplesheet = None
         elif len(found_samplesheets) > 1:
-            logger.warn('Found more than one Lims sample sheets for run {}'.format(self.run_id))
+            logger.warn('Found more than one Lims sample sheets for run {}. Skipping it.'.format(self.run_id))
             self.lims_samplesheet = None
         else:
             self.lims_samplesheet = found_samplesheets[0]
