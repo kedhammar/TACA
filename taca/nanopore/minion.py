@@ -16,20 +16,17 @@ class MinION(Nanopore):
         super(MinION, self).__init__(run_dir)
         self.nanoseq_sample_sheet = nanoseq_sample_sheet
         self.anglerfish_sample_sheet = anglerfish_sample_sheet
+               
         self.nanoseq_dir = os.path.join(self.run_dir, 'nanoseq_output')
         self.anglerfish_dir = os.path.join(self.run_dir, 'anglerfish_output')
         self.nanoseq_exit_status_file = os.path.join(self.run_dir, '.exitcode_for_nanoseq')
         self.anglerfish_exit_status_file = os.path.join(self.run_dir, '.exitcode_for_anglerfish')
+
         self.year_processed = self.run_id[0:4]
         self.flowcell_id = self.run_id.split('_')[3]
-
-    def parse_lims_sample_sheet(self):
-        """Generate nanoseq samplesheet based on Lims original."""
         self._get_original_samplesheet()
         if self.lims_samplesheet:
-            self._parse_samplesheet()
-        else:
-            self.nanoseq_sample_sheet = ''
+            self._set_run_type()
 
     def _get_original_samplesheet(self):
         """Find original lims sample sheet."""
@@ -37,17 +34,32 @@ class MinION(Nanopore):
                                             self.year_processed)
         found_samplesheets = glob.glob(lims_samplesheet_dir + '/*' + self.flowcell_id + '*')
         if not found_samplesheets:
-            logger.warn('No Lims sample sheets found for run {}'.format(self.run_id))
+            logger.warn('No Lims sample sheets found for run {}. Skipping it.'.format(self.run_id))
             self.lims_samplesheet = None
         elif len(found_samplesheets) > 1:
-            logger.warn('Found more than one Lims sample sheets for run {}'.format(self.run_id))
+            logger.warn('Found more than one Lims sample sheets for run {}. Skipping it.'.format(self.run_id))
             self.lims_samplesheet = None
         else:
             self.lims_samplesheet = found_samplesheets[0]
 
+    def _set_run_type(self):
+        """Determine if run is a QC run or not."""
+        run_type = os.path.basename(self.lims_samplesheet).split('_')[0]
+        if run_type == 'QC':
+            self.qc_run = True
+        elif run_type == 'DELIVERY':
+            self.qc_run = False
+   
+    def parse_lims_sample_sheet(self):
+        """Generate nanoseq samplesheet based on Lims original."""
+        if self.lims_samplesheet:
+            self._parse_samplesheet()
+        else:
+            self.nanoseq_sample_sheet = ''
+
     def _parse_samplesheet(self):
         """Parse Lims samplesheet into one suitable for nanoseq and anglerfish."""
-        nanopore_kit = os.path.basename(self.lims_samplesheet).split('_')[0]
+        nanopore_kit = os.path.basename(self.lims_samplesheet).split('_')[1]
         self.nanoseq_sample_sheet = os.path.join(self.run_dir, nanopore_kit + '_sample_sheet.csv')
         self.anglerfish_sample_sheet = os.path.join(self.run_dir, 'anglerfish_sample_sheet.csv')
         nanoseq_content = 'sample,fastq,barcode,genome,transcriptome'

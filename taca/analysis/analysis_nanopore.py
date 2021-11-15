@@ -48,11 +48,7 @@ def process_minion_run(minion_run, sequencing_ongoing=False, nanoseq_ongoing=Fal
     Will not start nanoseq if a sequencing run is ongoing, to limit memory usage.
     Will also maximum start one nanoseq run at once, for the same reason.
     """
-    qc_run = True
-    if minion_run.nanoseq_sample_sheet and not minion_run.anglerfish_sample_sheet:
-        qc_run = False
-
-    logger.info('Processing run: {} as a {}'.format(minion_run.run_dir, 'QC run' if qc_run else 'non-QC run'))
+    logger.info('Processing run: {} as a {}'.format(minion_run.run_dir, 'QC run' if minion_run.qc_run else 'non-QC run'))
     email_recipients = CONFIG.get('mail').get('recipients')
 
     if len(minion_run.summary_file) and os.path.isfile(minion_run.summary_file[0]) and not os.path.isdir(minion_run.nanoseq_dir):
@@ -81,16 +77,16 @@ def process_minion_run(minion_run, sequencing_ongoing=False, nanoseq_ongoing=Fal
     elif os.path.isdir(minion_run.nanoseq_dir) and os.path.isfile(minion_run.nanoseq_exit_status_file):
         nanoseq_successful = minion_run.check_exit_status(minion_run.nanoseq_exit_status_file)
         if nanoseq_successful:
-            if qc_run and not os.path.isdir(minion_run.anglerfish_dir):
+            if minion_run.qc_run and not os.path.isdir(minion_run.anglerfish_dir):
                 logger.info('Nanoseq done for run {}. Attempting to start Anglerfish.'.format(minion_run.run_id))
                 if not minion_run.anglerfish_sample_sheet:
                     minion_run.anglerfish_sample_sheet = os.path.join(minion_run.run_dir, 'anglerfish_sample_sheet.csv')
                 minion_run.start_anglerfish()
 
-            elif qc_run and not os.path.isfile(minion_run.anglerfish_exit_status_file):
+            elif minion_run.qc_run and not os.path.isfile(minion_run.anglerfish_exit_status_file):
                 logger.info('Anglerfish has started for run {} but is not yet done. Skipping.'.format(minion_run.run_id))
 
-            elif qc_run and os.path.isfile(minion_run.anglerfish_exit_status_file):
+            elif minion_run.qc_run and os.path.isfile(minion_run.anglerfish_exit_status_file):
                 anglerfish_successful = minion_run.check_exit_status(minion_run.anglerfish_exit_status_file)
                 if anglerfish_successful:
                     if minion_run.copy_results_for_lims():
@@ -147,7 +143,7 @@ def process_minion_run(minion_run, sequencing_ongoing=False, nanoseq_ongoing=Fal
                                      'check the log files and restart.').format(minion_run.run_id)
                     send_mail(email_subject, email_message, email_recipients)
 
-            elif not qc_run:
+            elif not minion_run.qc_run:
                 if minion_run.is_not_transferred():
                     if minion_run.transfer_run():
                         if minion_run.update_transfer_log():
@@ -240,7 +236,8 @@ def process_minion_runs(run, nanoseq_sample_sheet, anglerfish_sample_sheet):
     """Find minion runs and kick off processing."""
     if run:
         minion_run = MinION(os.path.abspath(run), nanoseq_sample_sheet, anglerfish_sample_sheet)
-        process_minion_run(minion_run)
+        if minion_run.lims_samplesheet:
+            process_minion_run(minion_run)
     else:
         runs_to_process = find_runs_to_process()
         sequencing_ongoing, nanoseq_ongoing = False, False
@@ -250,9 +247,10 @@ def process_minion_runs(run, nanoseq_sample_sheet, anglerfish_sample_sheet):
                 break
         for run_dir in runs_to_process:
             minion_run = MinION(run_dir, nanoseq_sample_sheet, anglerfish_sample_sheet)
-            nanoseq_ongoing = process_minion_run(minion_run,
-                                                 sequencing_ongoing=sequencing_ongoing, 
-                                                 nanoseq_ongoing=nanoseq_ongoing)
+            if minion_run.lims_samplesheet:
+                nanoseq_ongoing = process_minion_run(minion_run,
+                                                     sequencing_ongoing=sequencing_ongoing, 
+                                                     nanoseq_ongoing=nanoseq_ongoing)
 
 def process_promethion_runs(run):
     """Find promethion runs and kick off processing."""
