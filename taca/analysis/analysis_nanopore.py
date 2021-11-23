@@ -1,5 +1,4 @@
 """Nanopore analysis methods for TACA."""
-from genericpath import isdir
 import os
 import logging
 import glob
@@ -26,12 +25,11 @@ def find_runs_to_process():
     # Get the actual location of the run directories in /var/lib/MinKnow/data/USERDETERMINEDNAME/USERDETSAMPLENAME/run
     if found_top_dirs:
         for top_dir in found_top_dirs:
-            for sample_dir in [sub for sub in os.listdir(top_dir)
-                               if os.path.isdir(top_dir)]:
-                for run_dir in [sub for sub 
-                                in os.listdir(os.path.join(top_dir, sample_dir))
-                                if os.path.isdir(os.path.join(top_dir, sample_dir))]:
-                    found_run_dirs.append(os.path.join(top_dir, sample_dir, run_dir))
+            if os.path.isdir(top_dir):
+                for sample_dir in os.listdir(top_dir):
+                    if os.path.isdir(os.path.join(top_dir, sample_dir)):
+                        for run_dir in os.listdir(os.path.join(top_dir, sample_dir)):
+                            found_run_dirs.append(os.path.join(top_dir, sample_dir, run_dir))
     else:
         logger.warn('Could not find any run directories in {}'.format(nanopore_data_dir))
     return found_run_dirs
