@@ -14,7 +14,7 @@ def find_runs_to_process():
     """Find nanopore runs to process."""
     nanopore_data_dir = CONFIG.get('nanopore_analysis').get('data_dir')[0]
     found_run_dirs = []
-    skip_dirs = ['core-dump-db', 'intermediate', 'nosync', 'queued_reads', 'reads', 'user_scripts']
+    skip_dirs = ['core-dump-db', 'intermediate', 'nosync', 'queued_reads', 'reads', 'user_scripts', '.nextflow']
     try:
         found_top_dirs = [os.path.join(nanopore_data_dir, top_dir) for top_dir in os.listdir(nanopore_data_dir)
                             if os.path.isdir(os.path.join(nanopore_data_dir, top_dir))
@@ -25,9 +25,11 @@ def find_runs_to_process():
     # Get the actual location of the run directories in /var/lib/MinKnow/data/USERDETERMINEDNAME/USERDETSAMPLENAME/run
     if found_top_dirs:
         for top_dir in found_top_dirs:
-            for sample_dir in os.listdir(top_dir):
-                for run_dir in os.listdir(os.path.join(top_dir, sample_dir)):
-                    found_run_dirs.append(os.path.join(top_dir, sample_dir, run_dir))
+            if os.path.isdir(top_dir):
+                for sample_dir in os.listdir(top_dir):
+                    if os.path.isdir(os.path.join(top_dir, sample_dir)):
+                        for run_dir in os.listdir(os.path.join(top_dir, sample_dir)):
+                            found_run_dirs.append(os.path.join(top_dir, sample_dir, run_dir))
     else:
         logger.warn('Could not find any run directories in {}'.format(nanopore_data_dir))
     return found_run_dirs
