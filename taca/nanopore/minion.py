@@ -52,7 +52,7 @@ class MinION(Nanopore):
         nanopore_kit = os.path.basename(self.lims_samplesheet).split('_')[1]
         self.nanoseq_sample_sheet = os.path.join(self.run_dir, nanopore_kit + '_sample_sheet.csv')
         self.anglerfish_sample_sheet = os.path.join(self.run_dir, 'anglerfish_sample_sheet.csv')
-        nanoseq_content = 'sample,fastq,barcode,genome,transcriptome'
+        nanoseq_content = 'group,replicate,barcode,input_file,genome,transcriptome' #'sample,fastq,barcode,genome,transcriptome'
         anglerfish_content = ''
         with open(self.lims_samplesheet, 'r') as f:
             lines = sorted(f.readlines())
@@ -70,10 +70,10 @@ class MinION(Nanopore):
                     is_single_pool = True
 
                 if barcode not in pool_barcodes:  # If there are multiple pools they should be treated like one sample each in nanoseq
-                    nanoseq_content += '\n' + sample_name + ',,' + barcode + ',,'  # Only need sample and barcode for now
+                    nanoseq_content += '\n' + sample_name + ',,' + barcode + ',,,'  # Only need sample and barcode for now
                     pool_barcodes.append(barcode)
 
-                if illumina_barcode:
+                if illumina_barcode: #TODO: check that the output structure from nanoseq is still the same
                     # If there are no nanopore barcodes, the samples are from the same pool and will end up in
                     # the same nanoseq output file named after the first sample in the sample sheet
                     if is_single_pool:
@@ -89,13 +89,13 @@ class MinION(Nanopore):
             with open(self.anglerfish_sample_sheet, 'w') as f:
                 f.write(anglerfish_content)
 
-    def start_nanoseq(self):
+    def start_nanoseq(self): #TODO: check that the options are still the same
         """Start Nanoseq analysis."""
         flowcell_product_code = self._get_flowcell_product_code() 
         kit_id = os.path.basename(self.nanoseq_sample_sheet).split('_')[0]
         if self._is_multiplexed():
             logger.info('Run {} is multiplexed. Starting nanoseq with --barcode_kit option'.format(self.run_dir))
-            barcode_kit = self._get_barcode_kit()
+            barcode_kit = self._get_barcode_kit() #TODO: specify nanoseq version (in conf)?
             analysis_command = ('nextflow run nf-core/nanoseq --input ' + self.nanoseq_sample_sheet
                                 + ' --input_path ' + os.path.join(self.run_dir, 'fast5')
                                 + ' --outdir ' + os.path.join(self.run_dir, 'nanoseq_output')
