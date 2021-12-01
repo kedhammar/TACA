@@ -36,21 +36,18 @@ def updatedb(rundir):
     """Save the run to statusdb."""
     an.upload_to_statusdb(rundir)
 
-# Nanopore analysis subcommans
+# Nanopore analysis subcommands
 @analysis.command()
 @click.option('-r', '--run', type=click.Path(exists=True), default=None,
-              help='Demultiplex only a particular run')
+              help='Process only a particular run')
 @click.option('--nanoseq_sample_sheet', type=click.Path(exists=True), default=None,
-              help='Sample sheet for running nanoseq')
+              help='Manually edited sample sheet for running nanoseq')
 @click.option('--anglerfish_sample_sheet', type=click.Path(exists=True), default=None,
-              help='Sample sheet for running anglerfish. Also requires --nanoseq_sample_sheet')
+              help='Manually edited sample sheet for running anglerfish')
 
 def minion(run, nanoseq_sample_sheet, anglerfish_sample_sheet):
-    """Analyse and transfer all runs present in the data directories.
+    """Process MinION QC runs
     """
-    if anglerfish_sample_sheet and not nanoseq_sample_sheet:
-        print('ERROR: Please specify --nanoseq_sample_sheet when using --anglerfish_sample_sheet')
-        return
     analysis_nanopore.process_minion_runs(run, nanoseq_sample_sheet, anglerfish_sample_sheet)
 
 @analysis.command()
