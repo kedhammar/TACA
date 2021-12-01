@@ -82,7 +82,7 @@ def process_minion_run(minion_run, sequencing_ongoing=False, nanoseq_ongoing=Fal
             if not os.path.isdir(minion_run.anglerfish_dir):
                 logger.info('Nanoseq done for run {}. Attempting to start Anglerfish.'.format(minion_run.run_id))
                 if not minion_run.anglerfish_sample_sheet:
-                    minion_run.anglerfish_sample_sheet = os.path.join(minion_run.run_dir, 'anglerfish_sample_sheet.csv')  # For cronjob, AF sample sheet was generated at previous run. Consider parsing AF sample sheet separately here instead?
+                    minion_run.anglerfish_sample_sheet = os.path.join(minion_run.run_dir, 'anglerfish_sample_sheet.csv')  # For cronjob, AF sample sheet was generated at previous run
                 if os.path.isfile(minion_run.anglerfish_sample_sheet):
                     minion_run.start_anglerfish()
                 else:
