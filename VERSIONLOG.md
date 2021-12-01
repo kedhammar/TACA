@@ -1,5 +1,8 @@
 # TACA Version Log
 
+## 20211201.1
+Only process MinION QC runs
+
 ## 20211011.1
 Refactor of MinION code
 
