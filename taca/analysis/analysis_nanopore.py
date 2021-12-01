@@ -50,7 +50,7 @@ def process_minion_run(minion_run, sequencing_ongoing=False, nanoseq_ongoing=Fal
     Will not start nanoseq if a sequencing run is ongoing, to limit memory usage.
     Will also maximum start one nanoseq run at once, for the same reason.
     """
-    logger.info('Processing run: {}'.format(minion_run.run_dir))
+    logger.info('Processing QC run: {}'.format(minion_run.run_dir))
     email_recipients = CONFIG.get('mail').get('recipients')
 
     if len(minion_run.summary_file) and os.path.isfile(minion_run.summary_file[0]) and not os.path.isdir(minion_run.nanoseq_dir):
