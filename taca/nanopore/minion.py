@@ -24,9 +24,14 @@ class MinION(Nanopore):
 
         self.year_processed = self.run_id[0:4]
         self.flowcell_id = self.run_id.split('_')[3]
+   
+    def parse_lims_sample_sheet(self):
+        """Generate nanoseq samplesheet based on Lims original."""
         self._get_original_samplesheet()
         if self.lims_samplesheet:
-            self._set_run_type()
+            self._parse_samplesheet()
+        else:
+            self.nanoseq_sample_sheet = ''
 
     def _get_original_samplesheet(self):
         """Find original lims sample sheet."""
@@ -41,21 +46,6 @@ class MinION(Nanopore):
             self.lims_samplesheet = None
         else:
             self.lims_samplesheet = found_samplesheets[0]
-
-    def _set_run_type(self):
-        """Determine if run is a QC run or not."""
-        run_type = os.path.basename(self.lims_samplesheet).split('_')[0]
-        if run_type == 'QC':
-            self.qc_run = True
-        elif run_type == 'DELIVERY':
-            self.qc_run = False
-   
-    def parse_lims_sample_sheet(self):
-        """Generate nanoseq samplesheet based on Lims original."""
-        if self.lims_samplesheet:
-            self._parse_samplesheet()
-        else:
-            self.nanoseq_sample_sheet = ''
 
     def _parse_samplesheet(self):
         """Parse Lims samplesheet into one suitable for nanoseq and anglerfish."""

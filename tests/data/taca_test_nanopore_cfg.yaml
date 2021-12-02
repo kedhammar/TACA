@@ -4,6 +4,9 @@ log:
 nanopore_analysis:
   data_dir:
     - data/nanopore_data/
+  ignore_dirs:
+    - 'nosync'
+    - '.nextflow'
   samplesheets_dir: data/nanopore_samplesheets
   lims_results_dir: some/dir
   transfer:

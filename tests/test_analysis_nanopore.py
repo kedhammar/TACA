@@ -35,20 +35,28 @@ class TestNanoporeAnalysis(unittest.TestCase):
         process_minion_run(minion_run)
         mock_start.assert_called_once()
 
+    @mock.patch('taca.nanopore.minion.MinION.copy_results_for_lims')
     @mock.patch('taca.nanopore.minion.Nanopore.transfer_run')
     @mock.patch('taca.nanopore.minion.Nanopore.update_transfer_log')
     @mock.patch('taca.nanopore.minion.Nanopore.archive_run')
     @mock.patch('taca.analysis.analysis_nanopore.send_mail')
-    def test_process_minion_run_transfer(self, mock_mail, mock_archive, mock_update, mock_transfer):
+    def test_process_minion_run_transfer(self, mock_mail, mock_archive, mock_update, mock_transfer, mock_cp):
         """Start transfer of run directory."""
         mock_transfer.return_value = True
+        mock_cp.return_value = True
         run_dir = 'data/nanopore_data/run4/done_demuxing/20200104_1412_MN19414_AAU644_68125dc2'
         minion_run = MinION(run_dir, 'dummy/path', None)
         email_subject = ('Run successfully processed: 20200104_1412_MN19414_AAU644_68125dc2')
         email_message = 'Run 20200104_1412_MN19414_AAU644_68125dc2 has been analysed, transferred and archived successfully.'
         email_recipients = 'test@test.com'
         process_minion_run(minion_run)
-        mock_mail.assert_called_once_with(email_subject, email_message, email_recipients)
+        expected_calls = [mock.call('Anglerfish successfully processed run 20200104_1412_MN19414_AAU644_68125dc2', 
+                           'Anglerfish has successfully finished for run 20200104_1412_MN19414_AAU644_68125dc2. Please finish the QC step in lims.', 
+                           'test@test.com'),
+                          mock.call('Run successfully processed: 20200104_1412_MN19414_AAU644_68125dc2', 
+                           'Run 20200104_1412_MN19414_AAU644_68125dc2 has been analysed, transferred and archived successfully.', 
+                           'test@test.com')]
+        mock_mail.assert_has_calls(expected_calls)
 
     @mock.patch('taca.analysis.analysis_nanopore.send_mail')
     def test_process_minion_run_fail_analysis(self, mock_mail):
