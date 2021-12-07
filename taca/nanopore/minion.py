@@ -70,10 +70,10 @@ class MinION(Nanopore):
                     is_single_pool = True
 
                 if barcode not in pool_barcodes:  # If there are multiple pools they should be treated like one sample each in nanoseq
-                    nanoseq_content += '\n' + sample_name + ',,' + barcode + ',,,'  # Only need sample and barcode for now
+                    nanoseq_content += '\n' + sample_name + ',1,' + barcode + ',,,'
                     pool_barcodes.append(barcode)
 
-                if illumina_barcode: #TODO: check that the output structure from nanoseq is still the same
+                if illumina_barcode:
                     # If there are no nanopore barcodes, the samples are from the same pool and will end up in
                     # the same nanoseq output file named after the first sample in the sample sheet
                     if is_single_pool:
@@ -89,19 +89,23 @@ class MinION(Nanopore):
             with open(self.anglerfish_sample_sheet, 'w') as f:
                 f.write(anglerfish_content)
 
-    def start_nanoseq(self): #TODO: check that the options are still the same
+    def start_nanoseq(self):
         """Start Nanoseq analysis."""
         flowcell_product_code = self._get_flowcell_product_code() 
         kit_id = os.path.basename(self.nanoseq_sample_sheet).split('_')[0]
+        nanoseq_version = CONFIG.get('nanopore_analysis').get('nanoseq_version')
         if self._is_multiplexed():
             logger.info('Run {} is multiplexed. Starting nanoseq with --barcode_kit option'.format(self.run_dir))
-            barcode_kit = self._get_barcode_kit() #TODO: specify nanoseq version (in conf)?
-            analysis_command = ('nextflow run nf-core/nanoseq --input ' + self.nanoseq_sample_sheet
+            barcode_kit = self._get_barcode_kit()
+            analysis_command = ('nextflow run nf-core/nanoseq'
+                                + ' -r' + nanoseq_version
+                                + ' --input ' + self.nanoseq_sample_sheet
                                 + ' --input_path ' + os.path.join(self.run_dir, 'fast5')
                                 + ' --outdir ' + os.path.join(self.run_dir, 'nanoseq_output')
                                 + ' --flowcell ' + flowcell_product_code
                                 + ' --guppy_gpu'
                                 + ' --skip_alignment'
+                                + ' --skip_quantification'
                                 + ' --kit ' + kit_id
                                 + ' --max_cpus 6'
                                 + ' --max_memory 20.GB'
@@ -109,12 +113,15 @@ class MinION(Nanopore):
                                 + ' -profile singularity; echo $? > .exitcode_for_nanoseq')
         else:
             logger.info('Run {} is not multiplexed. Starting nanoseq without --barcode_kit option'.format(self.run_dir))
-            analysis_command = ('nextflow run nf-core/nanoseq --input ' + self.nanoseq_sample_sheet
+            analysis_command = ('nextflow run nf-core/nanoseq'
+                                + ' -r' + nanoseq_version
+                                + ' --input ' + self.nanoseq_sample_sheet
                                 + ' --input_path ' + os.path.join(self.run_dir, 'fast5')
                                 + ' --outdir ' + os.path.join(self.run_dir, 'nanoseq_output')
                                 + ' --flowcell ' + flowcell_product_code
                                 + ' --guppy_gpu'
                                 + ' --skip_alignment'
+                                + ' --skip_quantification'
                                 + ' --kit ' + kit_id
                                 + ' --max_cpus 6'
                                 + ' --max_memory 20.GB'
