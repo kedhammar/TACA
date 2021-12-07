@@ -98,7 +98,7 @@ class MinION(Nanopore):
             logger.info('Run {} is multiplexed. Starting nanoseq with --barcode_kit option'.format(self.run_dir))
             barcode_kit = self._get_barcode_kit()
             analysis_command = ('nextflow run nf-core/nanoseq'
-                                + ' -r' + nanoseq_version
+                                + ' -r ' + nanoseq_version
                                 + ' --input ' + self.nanoseq_sample_sheet
                                 + ' --input_path ' + os.path.join(self.run_dir, 'fast5')
                                 + ' --outdir ' + os.path.join(self.run_dir, 'nanoseq_output')
@@ -114,7 +114,7 @@ class MinION(Nanopore):
         else:
             logger.info('Run {} is not multiplexed. Starting nanoseq without --barcode_kit option'.format(self.run_dir))
             analysis_command = ('nextflow run nf-core/nanoseq'
-                                + ' -r' + nanoseq_version
+                                + ' -r ' + nanoseq_version
                                 + ' --input ' + self.nanoseq_sample_sheet
                                 + ' --input_path ' + os.path.join(self.run_dir, 'fast5')
                                 + ' --outdir ' + os.path.join(self.run_dir, 'nanoseq_output')
