@@ -100,6 +100,7 @@ class MinION(Nanopore):
             analysis_command = ('nextflow run nf-core/nanoseq'
                                 + ' -r ' + nanoseq_version
                                 + ' --input ' + self.nanoseq_sample_sheet
+                                + ' --protocol DNA'
                                 + ' --input_path ' + os.path.join(self.run_dir, 'fast5')
                                 + ' --outdir ' + os.path.join(self.run_dir, 'nanoseq_output')
                                 + ' --flowcell ' + flowcell_product_code
@@ -116,6 +117,7 @@ class MinION(Nanopore):
             analysis_command = ('nextflow run nf-core/nanoseq'
                                 + ' -r ' + nanoseq_version
                                 + ' --input ' + self.nanoseq_sample_sheet
+                                + ' --protocol DNA'
                                 + ' --input_path ' + os.path.join(self.run_dir, 'fast5')
                                 + ' --outdir ' + os.path.join(self.run_dir, 'nanoseq_output')
                                 + ' --flowcell ' + flowcell_product_code
