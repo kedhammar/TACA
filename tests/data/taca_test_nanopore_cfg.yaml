@@ -2,6 +2,7 @@ log:
     file: "data/taca.log"
 
 nanopore_analysis:
+  nanoseq_version: 2.0.1
   data_dir:
     - data/nanopore_data/
   ignore_dirs:

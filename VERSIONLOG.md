@@ -1,5 +1,8 @@
 # TACA Version Log
 
+## 20211208.1
+Updates for compability with nanoseq v2.0.1
+
 ## 20211201.1
 Only process MinION QC runs
 

@@ -81,12 +81,16 @@ class TestMinION(unittest.TestCase):
         sample_sheet = 'data/nanopore_data/run4/done_demuxing/20200104_1412_MN19414_AAU644_68125dc2/SQK-LSK109_sample_sheet.csv'
         run = MinION(run_dir, sample_sheet, None)
         run.start_nanoseq()
-        expected_parameters = ('nextflow run nf-core/nanoseq --input ' + sample_sheet
+        expected_parameters = ('nextflow run nf-core/nanoseq'
+                               + ' -r ' + CONFIG.get('nanopore_analysis').get('nanoseq_version')
+                               + ' --input ' + sample_sheet
+                               + ' --protocol DNA'
                                + ' --input_path ' + os.path.join(run_dir, 'fast5')
                                + ' --outdir ' + os.path.join(run_dir, 'nanoseq_output')
                                + ' --flowcell FLO-FLG001'
                                + ' --guppy_gpu'
                                + ' --skip_alignment'
+                               + ' --skip_quantification'
                                + ' --kit SQK-LSK109'
                                + ' --max_cpus 6'
                                + ' --max_memory 20.GB'
@@ -105,12 +109,16 @@ class TestMinION(unittest.TestCase):
         sample_sheet = 'data/nanopore_data/run4/done_demuxing/20200104_1412_MN19414_AAU644_68125dc2/SQK-LSK109_sample_sheet.csv'
         run = MinION(run_dir, sample_sheet, None)
         run.start_nanoseq()
-        expected_parameters = ('nextflow run nf-core/nanoseq --input ' + sample_sheet
+        expected_parameters = ('nextflow run nf-core/nanoseq'
+                               + ' -r ' + CONFIG.get('nanopore_analysis').get('nanoseq_version')
+                               + ' --input ' + sample_sheet
+                               + ' --protocol DNA'
                                + ' --input_path ' + os.path.join(run_dir, 'fast5')
                                + ' --outdir ' + os.path.join(run_dir, 'nanoseq_output')
                                + ' --flowcell FLO-FLG001'
                                + ' --guppy_gpu'
                                + ' --skip_alignment'
+                               + ' --skip_quantification'
                                + ' --kit SQK-LSK109'
                                + ' --max_cpus 6'
                                + ' --max_memory 20.GB'
