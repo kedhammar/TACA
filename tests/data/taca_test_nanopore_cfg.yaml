@@ -2,8 +2,12 @@ log:
     file: "data/taca.log"
 
 nanopore_analysis:
+  nanoseq_version: 2.0.1
   data_dir:
     - data/nanopore_data/
+  ignore_dirs:
+    - 'nosync'
+    - '.nextflow'
   samplesheets_dir: data/nanopore_samplesheets
   lims_results_dir: some/dir
   transfer:
@@ -13,6 +17,12 @@ nanopore_analysis:
       port: 
       user: some_user
     destination: some_dir
+    rsync_options:
+      '-Lav': None
+      '--chown': ':ngi2016003'
+      '--chmod' : 'Dg+s,g+rw'
+      '-r' : None
+      '--exclude' : 'work'
   finished_dir: data/nanopore_data/nosync
 
 mail:

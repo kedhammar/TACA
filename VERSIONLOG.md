@@ -1,5 +1,14 @@
 # TACA Version Log
 
+## 20211208.1
+Updates for compability with nanoseq v2.0.1
+
+## 20211201.1
+Only process MinION QC runs
+
+## 20211011.1
+Refactor of MinION code
+
 ## 20211005.1
 Specify CopyComplete.txt as indicator for cleaning NovaSeq runs
 
