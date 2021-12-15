@@ -31,9 +31,8 @@ class Nanopore(object):
             if v == 'None':
                 rsync_opts[k] = None
         connection_details = transfer_details.get('analysis_server')
-        
         logger.info('Transferring run {} to {}'.format(self.run_id, connection_details.get('host')))
-        transfer_object = RsyncAgent(self.run_dir, #TODO: for minion delivery, /srv/ngi_data/sequencing/minion is mounded so no host is needed. does this work?
+        transfer_object = RsyncAgent(self.run_dir,
                                     dest_path=destination,
                                     remote_host=connection_details['host'],
                                     remote_user=connection_details['user'],
