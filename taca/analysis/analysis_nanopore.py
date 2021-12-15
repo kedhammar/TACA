@@ -5,16 +5,14 @@ import glob
 
 from taca.utils.config import CONFIG
 from taca.utils.misc import send_mail
-from taca.nanopore.minion import MinION
+from taca.nanopore.minion import MinIONdelivery, MinIONqc
 from taca.nanopore.promethion import PromethION
 
 logger = logging.getLogger(__name__)
 
-def find_runs_to_process():
+def find_runs_to_process(nanopore_data_dir, skip_dirs):
     """Find nanopore runs to process."""
-    nanopore_data_dir = CONFIG.get('nanopore_analysis').get('data_dir')[0]
     found_run_dirs = []
-    skip_dirs = CONFIG.get('nanopore_analysis').get('ignore_dirs')
     try:
         found_top_dirs = [os.path.join(nanopore_data_dir, top_dir) for top_dir in os.listdir(nanopore_data_dir)
                             if os.path.isdir(os.path.join(nanopore_data_dir, top_dir))
@@ -44,7 +42,7 @@ def check_ongoing_sequencing(run_dir):
     else:
         return False
 
-def process_minion_run(minion_run, sequencing_ongoing=False, nanoseq_ongoing=False):
+def process_minion_qc_run(minion_run, sequencing_ongoing=False, nanoseq_ongoing=False):
     """Process MinION QC runs.
     
     Will not start nanoseq if a sequencing run is ongoing, to limit memory usage.
@@ -109,7 +107,8 @@ def process_minion_run(minion_run, sequencing_ongoing=False, nanoseq_ongoing=Fal
                         send_mail(email_subject, email_message, email_recipients)
 
                     if minion_run.is_not_transferred():
-                        if minion_run.transfer_run():
+                        transfer_details = CONFIG.get('nanopore_analysis').get('minion_qc_run').get('transfer')
+                        if minion_run.transfer_run(transfer_details):
                             if minion_run.update_transfer_log():
                                 logger.info('Run {} has been synced to the analysis cluster.'.format(minion_run.run_id))
                             else:
@@ -162,6 +161,30 @@ def process_minion_run(minion_run, sequencing_ongoing=False, nanoseq_ongoing=Fal
 
     return nanoseq_ongoing
 
+def process_minion_delivery_run(minion_run):
+    """Process minion delivery runs."""
+    email_recipients = CONFIG.get('mail').get('recipients')
+    logger.info('Processing run {}'.format(minion_run.run_id))
+    transfer_details = CONFIG.get('nanopore_analysis').get('minion_delivery_run').get('transfer')
+    if not os.path.exists(minion_run.summary_file):
+        minion_run.transfer_run(transfer_details)
+    else:
+        if minion_run.transfer_run(transfer_details):
+            minion_run.archive_run
+            logger.info('Run {} has been fully transferred.'.format(minion_run.run_id))
+            email_subject = ('Run successfully processed: {}'.format(minion_run.run_id))
+            email_message = ('Run {} has been transferred and archived '
+                            'successfully.').format(minion_run.run_id)
+            send_mail(email_subject, email_message, email_recipients)
+        else:
+            logger.warn('An error occurred during transfer of run {}.'.format(minion_run.run_id))
+            email_subject = ('Run processed with errors: {}'.format(minion_run.run_id))
+            email_message = ('An error occurred during the '
+                            'transfer of run {}.').format(minion_run.run_id)
+            send_mail(email_subject, email_message, email_recipients)
+            
+
+
 def process_promethion_run(promethion_run):
     """Process promethion runs."""
     email_recipients = CONFIG.get('mail').get('recipients')
@@ -170,7 +193,8 @@ def process_promethion_run(promethion_run):
     if len(promethion_run.summary_file) and os.path.isfile(promethion_run.summary_file[0]):
         logger.info('Sequencing done for run {}. Attempting to start processing.'.format(promethion_run.run_id))
         if promethion_run.is_not_transferred():
-            if promethion_run.transfer_run():
+            transfer_details = CONFIG.get('nanopore_analysis').get('promethion_run').get('transfer')
+            if promethion_run.transfer_run(transfer_details):
                 if promethion_run.update_transfer_log():
                     logger.info('Run {} has been synced to the analysis cluster.'.format(promethion_run.run_id))
                 else:
@@ -205,23 +229,38 @@ def process_promethion_run(promethion_run):
         logger.info('Run {} not finished sequencing yet. Skipping.'.format(promethion_run.run_id))
 
 
-def process_minion_runs(run, nanoseq_sample_sheet, anglerfish_sample_sheet):
+def process_minion_qc_runs(run, nanoseq_sample_sheet, anglerfish_sample_sheet):
     """Find MinION QC runs and kick off processing."""
     if run:
-        minion_run = MinION(os.path.abspath(run), nanoseq_sample_sheet, anglerfish_sample_sheet)
-        process_minion_run(minion_run)
+        minion_run = MinIONqc(os.path.abspath(run), nanoseq_sample_sheet, anglerfish_sample_sheet)
+        process_minion_qc_run(minion_run)
     else:
-        runs_to_process = find_runs_to_process()
+        nanopore_data_dir = CONFIG.get('nanopore_analysis').get('minion_qc_run').get('data_dir')[0]
+        skip_dirs = CONFIG.get('nanopore_analysis').get('minion_qc_run').get('ignore_dirs')
+        runs_to_process = find_runs_to_process(nanopore_data_dir, skip_dirs)
         sequencing_ongoing, nanoseq_ongoing = False, False
         for run_dir in runs_to_process:
             if check_ongoing_sequencing(run_dir):
                 sequencing_ongoing = True
                 break
         for run_dir in runs_to_process:
-            minion_run = MinION(run_dir, nanoseq_sample_sheet, anglerfish_sample_sheet)
-            nanoseq_ongoing = process_minion_run(minion_run,
-                                                 sequencing_ongoing=sequencing_ongoing,
-                                                 nanoseq_ongoing=nanoseq_ongoing)
+            minion_run = MinIONqc(run_dir, nanoseq_sample_sheet, anglerfish_sample_sheet)
+            nanoseq_ongoing = process_minion_qc_run(minion_run,
+                                                    sequencing_ongoing=sequencing_ongoing,
+                                                    nanoseq_ongoing=nanoseq_ongoing)
+
+def process_minion_delivery_runs(run):
+    """Find MinION delivery runs and transfer them."""
+    if run:
+        minion_run = MinIONdelivery(os.path.abspath(run))
+        process_minion_delivery_run(minion_run)
+    else:
+        nanopore_data_dir = CONFIG.get('nanopore_analysis').get('minion_delivery_run').get('data_dir')[0]
+        skip_dirs = CONFIG.get('nanopore_analysis').get('minion_delivery_run').get('ignore_dirs')
+        runs_to_process = find_runs_to_process(nanopore_data_dir, skip_dirs)
+        for run_dir in runs_to_process:
+            minion_run = MinIONdelivery(run_dir)
+            process_minion_delivery_run(minion_run)
 
 def process_promethion_runs(run):
     """Find promethion runs and kick off processing."""
@@ -230,7 +269,9 @@ def process_promethion_runs(run):
         process_promethion_run(promethion_run)
     else:
         # Locate all runs in /srv/ngi_data/sequencing/promethion
-        runs_to_process = find_runs_to_process()
+        nanopore_data_dir = CONFIG.get('nanopore_analysis').get('promethion_run').get('data_dir')[0]
+        skip_dirs = CONFIG.get('nanopore_analysis').get('promethion_run').get('ignore_dirs')
+        runs_to_process = find_runs_to_process(nanopore_data_dir, skip_dirs) 
         for run_dir in runs_to_process:
             promethion_run = PromethION(run_dir)
             process_promethion_run(promethion_run)

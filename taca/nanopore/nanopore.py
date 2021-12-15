@@ -16,7 +16,6 @@ class Nanopore(object):
     def __init__(self, run_dir):
         self.run_dir = run_dir
         self.run_id = os.path.basename(run_dir)
-        self.transfer_log = CONFIG.get('nanopore_analysis').get('transfer').get('transfer_file')
         self.summary_file = glob.glob(run_dir + '/final_summary*.txt')
 
     def is_not_transferred(self):
@@ -24,16 +23,17 @@ class Nanopore(object):
         with open(self.transfer_log, 'r') as f:
             return self.run_id not in f.read()
 
-    def transfer_run(self):
-        """rsync dir to Irma."""
-        logger.info('Transferring run {} to analysis cluster'.format(self.run_id))
-        destination = CONFIG.get('nanopore_analysis').get('transfer').get('destination')
-        rsync_opts = CONFIG.get('nanopore_analysis').get('transfer').get('rsync_options')
+    def transfer_run(self, transfer_details):
+        """rsync dir to destination specified in config file."""
+        destination = transfer_details.get('destination')
+        rsync_opts = transfer_details.get('rsync_options')
         for k, v in rsync_opts.items():
             if v == 'None':
                 rsync_opts[k] = None
-        connection_details = CONFIG.get('nanopore_analysis').get('transfer').get('analysis_server')
-        transfer_object = RsyncAgent(self.run_dir,
+        connection_details = transfer_details.get('analysis_server')
+        
+        logger.info('Transferring run {} to {}'.format(self.run_id, connection_details.get('host')))
+        transfer_object = RsyncAgent(self.run_dir, #TODO: for minion delivery, /srv/ngi_data/sequencing/minion is mounded so no host is needed. does this work?
                                     dest_path=destination,
                                     remote_host=connection_details['host'],
                                     remote_user=connection_details['user'],
@@ -62,10 +62,9 @@ class Nanopore(object):
     def archive_run(self):
         """Move directory to nosync."""
         logger.info('Archiving run ' + self.run_id)
-        archive_dir = CONFIG.get('nanopore_analysis').get('finished_dir')
         top_dir = str(pathlib.Path(self.run_dir).parent.parent)  # Get the project folder to archive
         try:
-            shutil.move(top_dir, archive_dir)
+            shutil.move(top_dir, self.archive_dir)
             logger.info('Successfully archived {}'.format(self.run_id))
             return True
         except shutil.Error:

@@ -10,10 +10,12 @@ from taca.utils.minion_barcodes import BARCODES
 
 logger = logging.getLogger(__name__)
 
-class MinION(Nanopore):
-    """Minion run"""
+class MinIONqc(Nanopore):
+    """Minion QC run"""
     def __init__(self, run_dir, nanoseq_sample_sheet, anglerfish_sample_sheet):
-        super(MinION, self).__init__(run_dir)
+        super(MinIONqc, self).__init__(run_dir)
+        self.transfer_log = CONFIG.get('nanopore_analysis').get('minion_qc_run').get('transfer').get('transfer_file')
+        self.archive_dir = CONFIG.get('nanopore_analysis').get('minion_qc_run').get('finished_dir')
         self.nanoseq_sample_sheet = nanoseq_sample_sheet
         self.anglerfish_sample_sheet = anglerfish_sample_sheet
                
@@ -35,7 +37,7 @@ class MinION(Nanopore):
 
     def _get_original_samplesheet(self):
         """Find original lims sample sheet."""
-        lims_samplesheet_dir = os.path.join(CONFIG.get('nanopore_analysis').get('samplesheets_dir'),
+        lims_samplesheet_dir = os.path.join(CONFIG.get('nanopore_analysis').get('minion_qc_run').get('samplesheets_dir'),
                                             self.year_processed)
         found_samplesheets = glob.glob(lims_samplesheet_dir + '/*' + self.flowcell_id + '*')
         if not found_samplesheets:
@@ -93,7 +95,7 @@ class MinION(Nanopore):
         """Start Nanoseq analysis."""
         flowcell_product_code = self._get_flowcell_product_code() 
         kit_id = os.path.basename(self.nanoseq_sample_sheet).split('_')[0]
-        nanoseq_version = CONFIG.get('nanopore_analysis').get('nanoseq_version')
+        nanoseq_version = CONFIG.get('nanopore_analysis').get('minion_qc_run').get('nanoseq_version')
         if self._is_multiplexed():
             logger.info('Run {} is multiplexed. Starting nanoseq with --barcode_kit option'.format(self.run_dir))
             barcode_kit = self._get_barcode_kit()
@@ -192,7 +194,7 @@ class MinION(Nanopore):
     def copy_results_for_lims(self):
         """Find results and copy to lims directory."""
         year_processed = self.run_id[0:4]
-        lims_result_file = os.path.join(CONFIG.get('nanopore_analysis').get('lims_results_dir'),
+        lims_result_file = os.path.join(CONFIG.get('nanopore_analysis').get('minion_qc_run').get('lims_results_dir'),
                                         year_processed, 'anglerfish_stats_' + self.flowcell_id + '.txt')
         anglerfish_results = self._find_anglerfish_results()
         try:
@@ -211,3 +213,10 @@ class MinION(Nanopore):
                 return results_file
         if not results_file:
             logger.warn('Could not find any Anglerfish results in {}'.format(self.anglerfish_dir))
+
+class MinIONdelivery(Nanopore):
+    """Minion delivery run"""
+    def __init__(self, run_dir, nanoseq_sample_sheet, anglerfish_sample_sheet):
+        super(MinIONdelivery, self).__init__(run_dir)
+        self.transfer_log = CONFIG.get('nanopore_analysis').get('minion_delivery_run').get('transfer').get('transfer_file')
+        self.archive_dir = CONFIG.get('nanopore_analysis').get('minion_delivery_run').get('finished_dir')
