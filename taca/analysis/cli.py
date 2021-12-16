@@ -1,11 +1,8 @@
 """CLI for the analysis subcommand."""
 import click
-import logging
 
 from taca.analysis import analysis as an
 from taca.analysis import analysis_nanopore
-
-logger = logging.getLogger(__name__)
 
 @click.group()
 def analysis():
@@ -59,7 +56,7 @@ def minion(runtype, run, nanoseq_sample_sheet, anglerfish_sample_sheet):
     elif runtype == 'delivery':
         analysis_nanopore.process_minion_delivery_runs(run)
     else:
-        logger.warn('Please specify the MinION runtype (qc or delivery)')
+        print('Please specify the MinION runtype (qc or delivery)')
 
 @analysis.command()
 @click.option('-r', '--run', type=click.Path(exists=True), default=None,

@@ -200,7 +200,7 @@ class MinIONqc(Nanopore):
         try:
             shutil.copyfile(anglerfish_results, lims_result_file)
             return True
-        except OSError as e:
+        except TypeError as e:
             logger.warn('An error occurred while copying the Anglerfish results for {} to lims: {}'.format(self.run_id, e))
             return False
 
@@ -216,7 +216,7 @@ class MinIONqc(Nanopore):
 
 class MinIONdelivery(Nanopore):
     """Minion delivery run"""
-    def __init__(self, run_dir, nanoseq_sample_sheet, anglerfish_sample_sheet):
+    def __init__(self, run_dir):
         super(MinIONdelivery, self).__init__(run_dir)
         self.transfer_log = CONFIG.get('nanopore_analysis').get('minion_delivery_run').get('transfer').get('transfer_file')
         self.archive_dir = CONFIG.get('nanopore_analysis').get('minion_delivery_run').get('finished_dir')

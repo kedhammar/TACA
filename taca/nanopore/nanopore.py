@@ -31,7 +31,7 @@ class Nanopore(object):
             if v == 'None':
                 rsync_opts[k] = None
         connection_details = transfer_details.get('analysis_server')
-        logger.info('Transferring run {} to {}'.format(self.run_id, connection_details.get('host')))
+        logger.info('Transferring run {} to {}'.format(self.run_id, connection_details['host'] if connection_details['host'] else destination)) #TODO: make this line work for local transfer, where host is None
         transfer_object = RsyncAgent(self.run_dir,
                                     dest_path=destination,
                                     remote_host=connection_details['host'],

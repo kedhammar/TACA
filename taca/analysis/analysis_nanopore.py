@@ -166,11 +166,11 @@ def process_minion_delivery_run(minion_run):
     email_recipients = CONFIG.get('mail').get('recipients')
     logger.info('Processing run {}'.format(minion_run.run_id))
     transfer_details = CONFIG.get('nanopore_analysis').get('minion_delivery_run').get('transfer')
-    if not os.path.exists(minion_run.summary_file):
+    if not len(minion_run.summary_file):  # Run not finished, only rsync
         minion_run.transfer_run(transfer_details)
-    else:
+    else:  # Run finished, rsync and archive
         if minion_run.transfer_run(transfer_details):
-            minion_run.archive_run
+            minion_run.archive_run()
             logger.info('Run {} has been fully transferred.'.format(minion_run.run_id))
             email_subject = ('Run successfully processed: {}'.format(minion_run.run_id))
             email_message = ('Run {} has been transferred and archived '
@@ -235,7 +235,7 @@ def process_minion_qc_runs(run, nanoseq_sample_sheet, anglerfish_sample_sheet):
         minion_run = MinIONqc(os.path.abspath(run), nanoseq_sample_sheet, anglerfish_sample_sheet)
         process_minion_qc_run(minion_run)
     else:
-        nanopore_data_dir = CONFIG.get('nanopore_analysis').get('minion_qc_run').get('data_dir')[0]
+        nanopore_data_dir = CONFIG.get('nanopore_analysis').get('minion_qc_run').get('data_dir')
         skip_dirs = CONFIG.get('nanopore_analysis').get('minion_qc_run').get('ignore_dirs')
         runs_to_process = find_runs_to_process(nanopore_data_dir, skip_dirs)
         sequencing_ongoing, nanoseq_ongoing = False, False
@@ -255,7 +255,7 @@ def process_minion_delivery_runs(run):
         minion_run = MinIONdelivery(os.path.abspath(run))
         process_minion_delivery_run(minion_run)
     else:
-        nanopore_data_dir = CONFIG.get('nanopore_analysis').get('minion_delivery_run').get('data_dir')[0]
+        nanopore_data_dir = CONFIG.get('nanopore_analysis').get('minion_delivery_run').get('data_dir')
         skip_dirs = CONFIG.get('nanopore_analysis').get('minion_delivery_run').get('ignore_dirs')
         runs_to_process = find_runs_to_process(nanopore_data_dir, skip_dirs)
         for run_dir in runs_to_process:
@@ -269,7 +269,7 @@ def process_promethion_runs(run):
         process_promethion_run(promethion_run)
     else:
         # Locate all runs in /srv/ngi_data/sequencing/promethion
-        nanopore_data_dir = CONFIG.get('nanopore_analysis').get('promethion_run').get('data_dir')[0]
+        nanopore_data_dir = CONFIG.get('nanopore_analysis').get('promethion_run').get('data_dir')
         skip_dirs = CONFIG.get('nanopore_analysis').get('promethion_run').get('ignore_dirs')
         runs_to_process = find_runs_to_process(nanopore_data_dir, skip_dirs) 
         for run_dir in runs_to_process:
