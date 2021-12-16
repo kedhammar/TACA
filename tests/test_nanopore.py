@@ -18,9 +18,11 @@ class TestNanopore(unittest.TestCase):
         """Check if nanopore run has been transferred."""
         run_dir = 'data/nanopore_data/run4/done_demuxing/20200104_1412_MN19414_AAU644_68125dc2'
         np_run = Nanopore(run_dir)
+        np_run.transfer_log = CONFIG.get('nanopore_analysis').get('minion_qc_run').get('transfer').get('transfer_file')
         self.assertTrue(np_run.is_not_transferred())
         run_dir_transf = 'data/nanopore_data/run4/done_demuxing/20200105_1412_MN19414_AAU645_68125dc2'
         np_run_transf = Nanopore(run_dir_transf)
+        np_run_transf.transfer_log = CONFIG.get('nanopore_analysis').get('minion_qc_run').get('transfer').get('transfer_file')
         self.assertFalse(np_run_transf.is_not_transferred())
 
     @mock.patch('taca.nanopore.nanopore.RsyncAgent')
@@ -28,7 +30,8 @@ class TestNanopore(unittest.TestCase):
         """Start rsync of finished run."""
         run_dir = 'data/nanopore_data/run4/done_demuxing/20200104_1412_MN19414_AAU644_68125dc2'
         np_run = Nanopore(run_dir)
-        np_run.transfer_run()
+        transfer_details = CONFIG.get('nanopore_analysis').get('minion_qc_run').get('transfer')
+        np_run.transfer_run(transfer_details)
         rsync_opts = {'-Lav': None,
                       '--chown': ':ngi2016003',
                       '--chmod' : 'Dg+s,g+rw',
@@ -46,6 +49,7 @@ class TestNanopore(unittest.TestCase):
         """Move directory to archive."""
         run_dir = 'data/nanopore_data/run4/done_demuxing/20200104_1412_MN19414_AAU644_68125dc2'
         np_run = Nanopore(run_dir)
+        np_run.archive_dir = '/some/dir'
         np_run.archive_run()
         mock_move.assert_called_once()
 
@@ -70,8 +74,8 @@ class TestMinION(unittest.TestCase):
         self.assertTrue(filecmp.cmp(run.nanoseq_sample_sheet, 'data/nanopore_samplesheets/expected/SQK-LSK109_sample_sheet.csv'))
         self.assertTrue(filecmp.cmp(run.anglerfish_sample_sheet, 'data/nanopore_samplesheets/expected/anglerfish_sample_sheet.csv'))
 
-    @mock.patch('taca.nanopore.minion.MinION._get_flowcell_product_code')
-    @mock.patch('taca.nanopore.minion.MinION._is_multiplexed')
+    @mock.patch('taca.nanopore.minion.MinIONqc._get_flowcell_product_code')
+    @mock.patch('taca.nanopore.minion.MinIONqc._is_multiplexed')
     @mock.patch('taca.nanopore.minion.subprocess.Popen')
     def test_start_analysis_pipeline_multiplexed(self, mock_popen, mock_is_multiplexed, mock_get_fc_code):
         """Submit detached nanoseq job for multiplexed data."""
@@ -82,7 +86,7 @@ class TestMinION(unittest.TestCase):
         run = MinIONqc(run_dir, sample_sheet, None)
         run.start_nanoseq()
         expected_parameters = ('nextflow run nf-core/nanoseq'
-                               + ' -r ' + CONFIG.get('nanopore_analysis').get('nanoseq_version')
+                               + ' -r ' + CONFIG.get('nanopore_analysis').get('minion_qc_run').get('nanoseq_version')
                                + ' --input ' + sample_sheet
                                + ' --protocol DNA'
                                + ' --input_path ' + os.path.join(run_dir, 'fast5')
@@ -98,8 +102,8 @@ class TestMinION(unittest.TestCase):
                                + ' -profile singularity; echo $? > .exitcode_for_nanoseq')
         mock_popen.assert_called_once_with(expected_parameters, stdout=subprocess.PIPE, shell=True, cwd=run_dir)
 
-    @mock.patch('taca.nanopore.minion.MinION._get_flowcell_product_code')
-    @mock.patch('taca.nanopore.minion.MinION._is_multiplexed')
+    @mock.patch('taca.nanopore.minion.MinIONqc._get_flowcell_product_code')
+    @mock.patch('taca.nanopore.minion.MinIONqc._is_multiplexed')
     @mock.patch('taca.nanopore.minion.subprocess.Popen')
     def test_start_analysis_pipeline_not_multiplexed(self, mock_popen, mock_is_multiplexed, mock_get_fc_code):
         """Submit detached nanoseq job for non multiplexed data."""
@@ -110,7 +114,7 @@ class TestMinION(unittest.TestCase):
         run = MinIONqc(run_dir, sample_sheet, None)
         run.start_nanoseq()
         expected_parameters = ('nextflow run nf-core/nanoseq'
-                               + ' -r ' + CONFIG.get('nanopore_analysis').get('nanoseq_version')
+                               + ' -r ' + CONFIG.get('nanopore_analysis').get('minion_qc_run').get('nanoseq_version')
                                + ' --input ' + sample_sheet
                                + ' --protocol DNA'
                                + ' --input_path ' + os.path.join(run_dir, 'fast5')
@@ -181,7 +185,7 @@ class TestMinION(unittest.TestCase):
                           + ' --skip_fastqc; echo $? > .exitcode_for_anglerfish')
         mock_popen.assert_called_once_with(expected_parameters, stdout=subprocess.PIPE, shell=True, cwd=run_dir)
 
-    @mock.patch('taca.nanopore.minion.MinION._find_anglerfish_results')
+    @mock.patch('taca.nanopore.minion.MinIONqc._find_anglerfish_results')
     @mock.patch('taca.nanopore.minion.shutil.copyfile')
     def test_copy_results_for_lims(self, mock_copy, mock_results):
         """Copy Anglerfish results to lims."""
