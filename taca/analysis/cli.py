@@ -1,5 +1,6 @@
 """CLI for the analysis subcommand."""
 import click
+
 from taca.analysis import analysis as an
 from taca.analysis import analysis_nanopore
 
@@ -38,6 +39,8 @@ def updatedb(rundir):
 
 # Nanopore analysis subcommands
 @analysis.command()
+@click.option('--runtype', type=click.Choice(['qc', 'delivery']),
+              help='Required. Specify if MinION run is for QC or delivery.')
 @click.option('-r', '--run', type=click.Path(exists=True), default=None,
               help='Process only a particular run')
 @click.option('--nanoseq_sample_sheet', type=click.Path(exists=True), default=None,
@@ -45,10 +48,15 @@ def updatedb(rundir):
 @click.option('--anglerfish_sample_sheet', type=click.Path(exists=True), default=None,
               help='Manually edited sample sheet for running anglerfish')
 
-def minion(run, nanoseq_sample_sheet, anglerfish_sample_sheet):
+def minion(runtype, run, nanoseq_sample_sheet, anglerfish_sample_sheet):
     """Process MinION QC runs
     """
-    analysis_nanopore.process_minion_runs(run, nanoseq_sample_sheet, anglerfish_sample_sheet)
+    if runtype == 'qc':
+        analysis_nanopore.process_minion_qc_runs(run, nanoseq_sample_sheet, anglerfish_sample_sheet)
+    elif runtype == 'delivery':
+        analysis_nanopore.process_minion_delivery_runs(run)
+    else:
+        print('Please specify the MinION runtype (qc or delivery)')
 
 @analysis.command()
 @click.option('-r', '--run', type=click.Path(exists=True), default=None,

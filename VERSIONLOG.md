@@ -1,5 +1,8 @@
 # TACA Version Log
 
+## 20211216.1
+Add option for syncing MinION delivery data to storage
+
 ## 20211208.1
 Updates for compability with nanoseq v2.0.1
 
