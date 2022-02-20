@@ -1,5 +1,8 @@
 # TACA Version Log
 
+## 20220220.1
+Change samplesheet location for MiSeq
+
 ## 20211216.1
 Add option for syncing MinION delivery data to storage
 

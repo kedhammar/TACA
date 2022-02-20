@@ -18,9 +18,6 @@ class MiSeq_Run(HiSeq_Run):
 
     def _set_run_type(self):
         ssname = os.path.join(self.run_dir,
-                              'Data',
-                              'Intensities',
-                              'BaseCalls',
                               'SampleSheet.csv')
         if not os.path.exists(ssname):
             # Case in which no samplesheet is found, assume it is a non NGI run
@@ -36,12 +33,9 @@ class MiSeq_Run(HiSeq_Run):
 
     def _get_samplesheet(self):
         """Locate and parse the samplesheet for a run.
-        In MiSeq case this is located in FC_DIR/Data/Intensities/BaseCalls/SampleSheet.csv
+        In MiSeq case this is located in FC_DIR/SampleSheet.csv
         """
         ssname = os.path.join(self.run_dir,
-                              'Data',
-                              'Intensities',
-                              'BaseCalls',
                               'SampleSheet.csv')
         if os.path.exists(ssname):
             # If exists parse the SampleSheet
