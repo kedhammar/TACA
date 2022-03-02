@@ -1,5 +1,8 @@
 # TACA Version Log
 
+## 20220302.1
+Fix bug that samplesheet of MiSeq is overwritten
+
 ## 20220220.1
 Change samplesheet location for MiSeq
 
