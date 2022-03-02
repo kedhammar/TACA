@@ -1,7 +1,10 @@
 import os
+import shutil
+import logging
 from taca.illumina.HiSeq_Runs import HiSeq_Run
 from flowcell_parser.classes import SampleSheetParser
 
+logger = logging.getLogger(__name__)
 
 class MiSeq_Run(HiSeq_Run):
 
@@ -44,6 +47,39 @@ class MiSeq_Run(HiSeq_Run):
             # Some MiSeq runs do not have the SampleSheet at all, in this case assume they are non NGI.
             # Not real clean solution but what else can be done if no samplesheet is provided?
             return None
+
+    def _copy_samplesheet(self):
+        ssname = self._get_samplesheet()
+        if ssname is None:
+            return None
+        ssparser = SampleSheetParser(ssname)
+        # Copy the original samplesheet locally.
+        # Copy again if already done as there might have been changes to the samplesheet
+        try:
+            shutil.copy(ssname, os.path.join(self.run_dir, '{}.csv'.format(self.flowcell_id)))
+            ssname = os.path.join(self.run_dir, os.path.split(ssname)[1])
+        except:
+            raise RuntimeError('unable to copy file {} to destination {}'.format(ssname, self.run_dir))
+
+        # This sample sheet has been created by the LIMS and copied by a sequencing operator. It is not ready
+        # to be used it needs some editing.
+        # This will contain the samplesheet with all the renaiming to be used with bcl2fastq
+        samplesheet_dest = os.path.join(self.run_dir, 'SampleSheet_copy.csv')
+        # Check that the samplesheet is not already present. In this case go the next step
+        if os.path.exists(samplesheet_dest):
+            logger.info('SampleSheet_copy.csv found ... overwriting it')
+        try:
+            with open(samplesheet_dest, 'w') as fcd:
+                fcd.write(self._generate_clean_samplesheet(ssparser))
+        except Exception as e:
+            logger.error(e)
+            return False
+        logger.info(('Created SampleSheet_copy.csv for Flowcell {} in {} '.format(self.id, samplesheet_dest)))
+        # SampleSheet.csv generated
+        # When demultiplexing SampleSheet.csv is the one I need to use
+        self.runParserObj.samplesheet  = SampleSheetParser(os.path.join(self.run_dir, 'SampleSheet_copy.csv'))
+        if not self.runParserObj.obj.get('samplesheet_csv'):
+            self.runParserObj.obj['samplesheet_csv'] = self.runParserObj.samplesheet.data
 
     def _generate_clean_samplesheet(self, ssparser):
         """Will generate a 'clean' samplesheet, for bcl2fastq"""
