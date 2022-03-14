@@ -1,5 +1,8 @@
 # TACA Version Log
 
+## 20220314.1
+Refactor cleanup_nas
+
 ## 20220302.1
 Fix bug that samplesheet of MiSeq is overwritten
 

@@ -33,6 +33,7 @@ def cleanup_nas(seconds):
     mail_recipients = CONFIG.get('mail', {}).get('recipients')
     check_demux = CONFIG.get('storage', {}).get('check_demux', False)
     host_name = os.getenv('HOSTNAME', os.uname()[1]).split('.', 1)[0]
+    run_types = ['novaseq', 'miseq', 'nextseq']
     for data_dir in CONFIG.get('storage').get('data_dirs'):
         if not os.path.exists(data_dir) or not os.path.isdir(data_dir):
             logger.warn('Data directory "{}" does not exist or not a directory'.format(data_dir))
@@ -40,9 +41,10 @@ def cleanup_nas(seconds):
         logger.info('Moving old runs in {}'.format(data_dir))
         with filesystem.chdir(data_dir):
             for run in [r for r in os.listdir(data_dir) if re.match(filesystem.RUN_RE, r)]:
-                if 'novaseq' in data_dir:
+                if any(run_type in data_dir for run_type in run_types):
+                    rta_file = os.path.join(run, finished_run_indicator)
                     cp_file = os.path.join(run, copy_complete_indicator)
-                    if os.path.exists(cp_file):
+                    if os.path.exists(rta_file) and os.path.exists(cp_file):
                         logger.info('Moving run {} to nosync directory'.format(os.path.basename(run)))
                         shutil.move(run, 'nosync')
                 else:
@@ -52,11 +54,6 @@ def cleanup_nas(seconds):
                             if misc.run_is_demuxed(run, couch_info):
                                 logger.info('Moving run {} to nosync directory'.format(os.path.basename(run)))
                                 shutil.move(run, 'nosync')
-                            elif 'miseq' in data_dir:
-                                miseq_run = MiSeq_Run(run, CONFIG)
-                                if miseq_run.get_run_type() == 'NON-NGI-RUN':
-                                    logger.info('Run {} is a non-platform run, so moving it to nosync directory'.format(os.path.basename(run)))
-                                    shutil.move(run, 'nosync')
                             elif os.stat(rta_file).st_mtime < time.time() - seconds:
                                 logger.warn('Run {} is older than given time, but it is not demultiplexed yet'
                                             .format(run))
