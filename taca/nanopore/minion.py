@@ -178,7 +178,7 @@ class MinIONqc(Nanopore):
     def start_anglerfish(self):
         """Start Anglerfish."""
         os.makedirs(self.anglerfish_dir)
-        anglerfish_command = ('anglerfish.py'
+        anglerfish_command = ('anglerfish'
                             + ' --samplesheet ' + self.anglerfish_sample_sheet
                             + ' --out_fastq ' + self.anglerfish_dir
                             + ' --threads 2'
