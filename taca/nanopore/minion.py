@@ -178,12 +178,11 @@ class MinIONqc(Nanopore):
     def start_anglerfish(self):
         """Start Anglerfish."""
         os.makedirs(self.anglerfish_dir)
-        anglerfish_command = ('anglerfish.py'
+        anglerfish_command = ('anglerfish'
                             + ' --samplesheet ' + self.anglerfish_sample_sheet
                             + ' --out_fastq ' + self.anglerfish_dir
                             + ' --threads 2'
-                            + ' --skip_demux'
-                            + ' --skip_fastqc; echo $? > .exitcode_for_anglerfish')
+                            + ' --skip_demux; echo $? > .exitcode_for_anglerfish')
         try:
             p_handle = subprocess.Popen(anglerfish_command, stdout=subprocess.PIPE, shell=True, cwd=self.run_dir)
             logger.info('Started Anglerfish for run {} using: {}'.format(self.run_dir, anglerfish_command))
