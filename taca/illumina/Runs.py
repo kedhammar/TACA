@@ -145,7 +145,7 @@ class Run(object):
         return os.path.exists(os.path.join(self.run_dir, self._get_demux_folder()))
 
     def _is_sequencing_done(self):
-        return os.path.exists(os.path.join(self.run_dir, 'RTAComplete.txt'))
+        return os.path.exists(os.path.join(self.run_dir, 'RTAComplete.txt')) and os.path.exists(os.path.join(self.run_dir, 'CopyComplete.txt'))
 
     def get_run_status(self):
         """ Return the status of the run, that is the trello card where it needs to be placed
