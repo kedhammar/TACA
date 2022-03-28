@@ -1,5 +1,8 @@
 # TACA Version Log
 
+## 20220328.1
+Re-define signal for sequencing done
+
 ## 20220314.1
 Refactor cleanup_nas
 
