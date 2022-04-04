@@ -98,13 +98,13 @@ def cleanup_processing(seconds):
         logger.error(msg)
         misc.send_mail(sbj, msg, cnt)
 
-def cleanup_irma(days_fastq, days_analysis,
+def cleanup_miarka(days_fastq, days_analysis,
                  only_fastq, only_analysis,
                  clean_undetermined, status_db_config,
                  exclude_projects, list_only,
                  date, dry_run=False):
     """Remove fastq/analysis data for projects that have been closed more than given
-    days (as days_fastq/days_analysis) from the given 'irma' cluster.
+    days (as days_fastq/days_analysis) from the given 'miarka' cluster.
 
     :param int days_fastq: Days to consider to remove fastq files for project
     :param int days_analysis: Days to consider to remove analysis data for project
@@ -114,7 +114,7 @@ def cleanup_irma(days_fastq, days_analysis,
 
     Example format for entry in the taca config file
     cleanup:
-        irma:
+        miarka:
             flowcell:
                 ##this path is nothing but incoming directory, can given multiple paths
                 root:
@@ -133,7 +133,7 @@ def cleanup_irma(days_fastq, days_analysis,
                         - "*.bam"
     """
     try:
-        config = CONFIG['cleanup']['irma']
+        config = CONFIG['cleanup']['miarka']
         flowcell_dir_root = config['flowcell']['root']
         flowcell_project_source = config['flowcell']['relative_project_source']
         flowcell_undet_files = config['flowcell']['undet_file_pattern']
@@ -214,7 +214,7 @@ def cleanup_irma(days_fastq, days_analysis,
                 # move on if this project has to be excluded
                 if proj_info['name'] in exclude_list or proj_info['pid'] in exclude_list:
                     continue
-                analysis_data, analysis_size = collect_analysis_data_irma(pid, analysis_dir, analysis_data_to_remove)
+                analysis_data, analysis_size = collect_analysis_data_miarka(pid, analysis_dir, analysis_data_to_remove)
                 proj_info['analysis_to_remove'] = analysis_data
                 proj_info['analysis_size'] = analysis_size
                 proj_info['fastq_to_remove'] = 'not_selected'
@@ -238,7 +238,7 @@ def cleanup_irma(days_fastq, days_analysis,
                             # if the project is closed more than threshold days collect the fastq files from FC
                             # no need of looking for analysis data as they would have been collected in the first time
                             if proj in project_clean_list and project_clean_list[proj]['closed_days'] >= days_fastq:
-                                fc_fq_files, fq_size = collect_fastq_data_irma(fc_abs_path, os.path.join(flowcell_project_source, _proj))
+                                fc_fq_files, fq_size = collect_fastq_data_miarka(fc_abs_path, os.path.join(flowcell_project_source, _proj))
                                 project_clean_list[proj]['fastq_to_remove']['flowcells'][fc] = fc_fq_files['flowcells'][fc]
                                 project_clean_list[proj]['fastq_size'] += fq_size
                             continue
@@ -253,12 +253,12 @@ def cleanup_irma(days_fastq, days_analysis,
                                 continue
                             # if project not old enough for fastq files and only fastq files selected move on to next project
                             if proj_info['closed_days'] >= days_fastq:
-                                fastq_data, fastq_size = collect_fastq_data_irma(fc_abs_path, os.path.join(flowcell_project_source, _proj),
+                                fastq_data, fastq_size = collect_fastq_data_miarka(fc_abs_path, os.path.join(flowcell_project_source, _proj),
                                                                                  data_dir, proj_info['pid'])
                             if not only_fastq:
                                 # if project is old enough for fastq files and not 'only_fastq' try collect analysis files
                                 if proj_info['closed_days'] >= days_analysis:
-                                    analysis_data, analysis_size = collect_analysis_data_irma(proj_info['pid'], analysis_dir, analysis_data_to_remove)
+                                    analysis_data, analysis_size = collect_analysis_data_miarka(proj_info['pid'], analysis_dir, analysis_data_to_remove)
                                 # if both fastq and analysis files are not old enough move on
                                 if (analysis_data == fastq_data) or ((not analysis_data or analysis_data == 'cleaned') and fastq_data == 'young'):
                                     continue
@@ -372,8 +372,8 @@ def get_closed_proj_info(prj, pdoc, tdate=None):
                         pdoc.get('project_name'), closed_date))
     return pdict
 
-def collect_analysis_data_irma(pid, analysis_root, files_ext_to_remove={}):
-    """Collect the analysis files that have to be removed from IRMA
+def collect_analysis_data_miarka(pid, analysis_root, files_ext_to_remove={}):
+    """Collect the analysis files that have to be removed from Miarka
     return a tuple with files and total size of collected files."""
     size = 0
     proj_abs_path = os.path.join(analysis_root, pid)
@@ -394,8 +394,8 @@ def collect_analysis_data_irma(pid, analysis_root, files_ext_to_remove={}):
         pass
     return (file_list, size)
 
-def collect_fastq_data_irma(fc_root, fc_proj_src, proj_root=None, pid=None):
-    """Collect the fastq files that have to be removed from IRMA.
+def collect_fastq_data_miarka(fc_root, fc_proj_src, proj_root=None, pid=None):
+    """Collect the fastq files that have to be removed from Miarka.
     Return a tuple with files and total size of collected files."""
     size = 0
     file_list = {'flowcells': defaultdict(dict)}
