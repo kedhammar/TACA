@@ -131,7 +131,7 @@ def process_minion_qc_run(minion_run, sequencing_ongoing=False, nanoseq_ongoing=
 
                         else:
                             logger.warn('An error occurred during transfer of run {} '
-                                        'to analysis cluster. Notifying operator.'.format(minion_run.run_id))
+                                        'to the analysis cluster. Notifying operator.'.format(minion_run.run_id))
                             email_subject = ('Run processed with errors: {}'.format(minion_run.run_id))
                             email_message = ('Run {} has been analysed, but an error occurred during '
                                              'transfer.').format(minion_run.run_id)
