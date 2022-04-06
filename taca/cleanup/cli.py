@@ -42,9 +42,9 @@ def preproc(ctx, days, hours):
 @click.option('--days_analysis', type=click.IntRange(min=1),
               help='Days to consider as thershold for removing analysis data')
 @click.option('--only_fastq', is_flag=True,
-              help='Clean only fastq data in "irma"')
+              help='Clean only fastq data in "miarka"')
 @click.option('--only_analysis', is_flag=True,
-              help='Clean only analysis data in "irma"')
+              help='Clean only analysis data in "miarka"')
 @click.option('--date', type=click.STRING,
               help='Consider the given date instead of today while collecting closed projects. '
               'Date format should be "YYYY-MM-DD", ex: "2016-01-31"')
@@ -62,8 +62,8 @@ def preproc(ctx, days, hours):
 @click.option('-n', '--dry_run', is_flag=True,
               help='Perform dry run i.e. execute nothing but log')
 @click.pass_context
-def irma(ctx, days_fastq, days_analysis, only_fastq, only_analysis, clean_undetermined, date, exclude_projects, list_only, dry_run):
-    """Do appropriate cleanup on IRMA."""
+def miarka(ctx, days_fastq, days_analysis, only_fastq, only_analysis, clean_undetermined, date, exclude_projects, list_only, dry_run):
+    """Do appropriate cleanup on Miarka."""
     status_db_config = ctx.parent.params['status_db_config']
     if only_fastq and only_analysis:
         raise SystemExit('ERROR: Both option "only_fastq" and "only_analysis" is given, should only give either one')
@@ -71,7 +71,7 @@ def irma(ctx, days_fastq, days_analysis, only_fastq, only_analysis, clean_undete
         raise SystemExit('ERROR: "days_fastq" is not given while not selecting "only_analysis" option')
     if not days_analysis and not only_fastq and not clean_undetermined:
         raise SystemExit('ERROR: "days_analysis" is not given while not selecting "only_fastq" option')
-    cln.cleanup_irma(days_fastq, days_analysis,
+    cln.cleanup_miarka(days_fastq, days_analysis,
                      only_fastq, only_analysis,
                      clean_undetermined, status_db_config,
                      exclude_projects, list_only,
