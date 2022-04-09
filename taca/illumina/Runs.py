@@ -201,7 +201,7 @@ class Run(object):
             is_dual_index = False
             if data_entry.get('index'):
                 index = data_entry['index']
-                if index in "NoIndex": #special case for HiSeq when one sample is alone in a lane
+                if index in ["NoIndex", "NOINDEX"]: #special case for HiSeq when one sample is alone in a lane
                     index = ""
                 is_dual_index = False # default for Xten
             if data_entry.get('index2'):
@@ -447,7 +447,7 @@ class Run(object):
                     os.symlink(source, dest)
             os.makedirs(os.path.join(self.run_dir, "Demultiplexing", "Stats"))
             #now fetch the lanes that have NoIndex
-            noIndexLanes = [Sample["Lane"] for Sample in  self.runParserObj.samplesheet.data if "NOINDEX" in Sample["index"]]
+            noIndexLanes = [Sample["Lane"] for Sample in  self.runParserObj.samplesheet.data if "NOINDEX" in Sample["index"].upper()]
             statsFiles = glob.glob(os.path.join(demux_folder_tmp, "Stats", "*" ))
             for source in statsFiles:
                 source_name = os.path.split(source)[1]

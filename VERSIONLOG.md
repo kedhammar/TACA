@@ -1,5 +1,8 @@
 # TACA Version Log
 
+## 20220409.1
+Small refactor for NoIndex
+
 ## 20220404.1
 Change cleanup irma to cleanup miarka
 
