@@ -1,4 +1,4 @@
-click==7.1.2
+click
 requests
 pyyaml
 flowcell_parser

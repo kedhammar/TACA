@@ -41,8 +41,8 @@ class TestCleanup(unittest.TestCase):
     @mock.patch('taca.cleanup.cleanup.misc.query_yes_no')
     @mock.patch('taca.cleanup.cleanup._remove_files')
     @mock.patch('taca.cleanup.cleanup._touch_cleaned')
-    def test_cleanup_irma(self, mock_touch, mock_rm, mock_query, mock_info,  mock_statusdb):
-        """Locate and move old data on Irma."""
+    def test_cleanup_miarka(self, mock_touch, mock_rm, mock_query, mock_info,  mock_statusdb):
+        """Locate and move old data on Miarka."""
         mock_info.return_value = {'closed_date': '2019-04-07',
                                   'bioinfo_responsible': 'O.B. One',
                                   'pid': 'P1234',
@@ -59,9 +59,9 @@ class TestCleanup(unittest.TestCase):
         exclude_projects = False
         list_only = False
         date = '2016-01-31'
-        calls = [mock.call('data/irma/incoming/190201_A00621_0032_BHHFCFDSXX/Demultiplexing/N.Owens_19_01'),
+        calls = [mock.call('data/miarka/incoming/190201_A00621_0032_BHHFCFDSXX/Demultiplexing/N.Owens_19_01'),
                  mock.call('../../nobackup/NGI/ANALYSIS/P1234')]
-        cleanup.cleanup_irma(days_fastq, days_analysis, only_fastq, only_analysis, clean_undetermined, status_db_config, exclude_projects, list_only, date, dry_run=False)
+        cleanup.cleanup_miarka(days_fastq, days_analysis, only_fastq, only_analysis, clean_undetermined, status_db_config, exclude_projects, list_only, date, dry_run=False)
         mock_touch.assert_has_calls(calls)
 
     def test_get_closed_proj_info(self):
@@ -80,18 +80,18 @@ class TestCleanup(unittest.TestCase):
                          'closed_days': 1}
         self.assertEqual(got_data, expected_data)
 
-    def test_collect_analysis_data_irma(self):
-        """Get analysis data on Irma."""
+    def test_collect_analysis_data_miarka(self):
+        """Get analysis data on Miarka."""
         pid = 'P1234'
         analysis_root = 'data/test_data/analysis'
-        file_list, size = cleanup.collect_analysis_data_irma(pid, analysis_root, files_ext_to_remove={})
+        file_list, size = cleanup.collect_analysis_data_miarka(pid, analysis_root, files_ext_to_remove={})
         self.assertEqual(file_list, 'cleaned')
 
-    def test_collect_fastq_data_irma(self):
+    def test_collect_fastq_data_miarka(self):
         """Collect removed files."""
         fc_root = 'data/test_data/190201_A00621_0032_BHHFCFDSXX'
         fc_proj_src = 'N.Owens_19_01'
-        file_list, size = cleanup.collect_fastq_data_irma(fc_root, fc_proj_src)
+        file_list, size = cleanup.collect_fastq_data_miarka(fc_root, fc_proj_src)
         expected_data = {'flowcells':
                          {'190201_A00621_0032_BHHFCFDSXX':
                           {'proj_root': 'data/test_data/190201_A00621_0032_BHHFCFDSXX/N.Owens_19_01',
