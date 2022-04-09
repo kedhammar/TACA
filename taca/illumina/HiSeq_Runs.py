@@ -154,7 +154,7 @@ class HiSeq_Run(Run):
                 samples   = [base_masks[lane][bm]['data'] for bm in base_masks[lane]][0]
                 for sample in samples:
                     for field in self.runParserObj.samplesheet.datafields:
-                        if field == 'index' and 'NOINDEX' in sample[field]:
+                        if field == 'index' and 'NOINDEX' in sample[field].upper():
                             ssms.write(u',') # This is emtpy due to NoIndex issue
                         else:
                             ssms.write(u'{},'.format(sample[field]))
