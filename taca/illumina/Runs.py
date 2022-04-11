@@ -333,8 +333,8 @@ class Run(object):
 
         #Send an email notifying that the transfer was successful
         runname = self.id
-        sbt = ("Rsync of data for run {} to Irma has finished".format(runname))
-        msg= """ Rsync of data for run {run} to Irma has finished!
+        sbt = ("Rsync of data for run {} to the analysis cluster has finished".format(runname))
+        msg= """ Rsync of data for run {run} to the analysis cluster has finished!
 
         The run is available at : https://genomics-status.scilifelab.se/flowcells/{run}
         """.format(run=runname)

@@ -6,6 +6,9 @@ Small refactor for NoIndex
 ## 20220404.1
 Change cleanup irma to cleanup miarka
 
+## 20220330.1
+Remove "Irma" from email/log
+
 ## 20220328.1
 Re-define signal for sequencing done
 
