@@ -99,12 +99,13 @@ class HiSeqX_Run(Run):
                     sample_detail = sample[1]
                     sample_type_t = sample_detail['sample_type']
                     sample_index_length = sample_detail['index_length']
+                    sample_umi_length = sample_detail['umi_length']
                     if sample_type_t == sample_type:
                         if lane_table.get(lane):
-                            if sample_index_length not in lane_table[lane]:
-                                lane_table[lane].append(sample_index_length)
+                            if (sample_index_length, sample_umi_length) not in lane_table[lane]:
+                                lane_table[lane].append((sample_index_length, sample_umi_length))
                         else:
-                            lane_table.update({lane:[sample_index_length]})
+                            lane_table.update({lane:[(sample_index_length, sample_umi_length)]})
             # Determine the number of demux needed for the same sample type
             demux_number_with_the_same_sample_type = len(max([v for k, v in lane_table.items()],key=len))
             # Prepare sub-samplesheets, masks and commands
@@ -116,14 +117,15 @@ class HiSeqX_Run(Run):
                 mask_table = dict()
                 for lane, lane_contents in self.sample_table.items():
                     try:
-                        index_length = lane_table[lane][i]
-                        mask_table.update({lane:index_length})
+                        (index_length, umi_length) = lane_table[lane][i]
+                        mask_table.update({lane: (index_length, umi_length)})
                         for sample in lane_contents:
                             sample_name = sample[0]
                             sample_detail = sample[1]
                             sample_type_t = sample_detail['sample_type']
                             sample_index_length = sample_detail['index_length']
-                            if sample_type_t == sample_type and sample_index_length == index_length:
+                            sample_umi_length = sample_detail['umi_length']
+                            if sample_type_t == sample_type and sample_index_length == index_length and sample_umi_length == umi_length:
                                 if samples_to_include.get(lane):
                                     samples_to_include[lane].append(sample_name)
                                 else:
@@ -263,20 +265,22 @@ class HiSeqX_Run(Run):
         for lane, lane_contents in mask_table.items():
             if lane not in base_masks:
                 base_masks[lane] = {}
-            index1_size = lane_contents[0]
-            index2_size = lane_contents[1]
+            index1_size = lane_contents[0][0]
+            index2_size = lane_contents[0][1]
+            umi1_size = lane_contents[1][0]
+            umi2_size = lane_contents[1][1]
             is_dual_index = False
             if (index1_size != 0 and index2_size != 0) or (index1_size == 0 and index2_size != 0):
                 is_dual_index = True
             # Compute the basemask
-            base_mask = self._compute_base_mask(runSetup, sample_type, index1_size, is_dual_index, index2_size)
+            base_mask = self._compute_base_mask(runSetup, sample_type, index1_size, is_dual_index, index2_size, umi1_size, umi2_size)
             base_mask_string = ''.join(base_mask)
 
             base_masks[lane][base_mask_string] = {'base_mask':base_mask}
 
         return base_masks
 
-    def _compute_base_mask(self, runSetup, sample_type, index1_size, is_dual_index, index2_size):
+    def _compute_base_mask(self, runSetup, sample_type, index1_size, is_dual_index, index2_size, umi1_size, umi2_size):
         """
             Assumptions:
                 - if runSetup is of size 3, then single index run
@@ -293,7 +297,7 @@ class HiSeqX_Run(Run):
             if read['IsIndexedRead'] == 'N':
                 bm.append('Y' + str(cycles))
             else:
-                if index1_size > cycles:
+                if index1_size > cycles or index2_size > cycles:
                     # The size of the index of the sample sheet is larger than the
                     # one specified by RunInfo.xml, somethig must be wrong
                     raise RuntimeError('when generating base_masks found index in' \
@@ -304,7 +308,13 @@ class HiSeqX_Run(Run):
                     i_remainder = cycles - index1_size
                     if i_remainder > 0:
                         if sample_type == 'IDT_UMI': # Case of IDT UMI
-                            bm.append('I' + str(index1_size) + 'y*')
+                            if i_remainder - umi1_size > 0:
+                                bm.append('I' + str(index1_size) + 'Y' + str(umi1_size) + 'N' + str(i_remainder - umi1_size))
+                            elif i_remainder - umi1_size == 0:
+                                bm.append('I' + str(index1_size) + 'Y' + str(umi1_size))
+                            else:
+                                raise RuntimeError('when generating base_masks for UMI samples' \
+                                                   ' some UMI1 length is longer than specified in RunInfo.xml')
                         elif index1_size == 0:
                             bm.append('N' + str(cycles)) # Case of NoIndex
                         else:
@@ -320,7 +330,13 @@ class HiSeqX_Run(Run):
                             i_remainder = cycles - index2_size
                             if i_remainder > 0:
                                 if sample_type == 'IDT_UMI': # Case of IDT UMI
-                                    bm.append('I' + str(index2_size) + 'y*')
+                                    if i_remainder - umi2_size > 0:
+                                        bm.append('I' + str(index2_size) + 'Y' + str(umi2_size) + 'N' + str(i_remainder - umi2_size))
+                                    elif i_remainder - umi2_size == 0:
+                                        bm.append('I' + str(index2_size) + 'Y' + str(umi2_size))
+                                    else:
+                                        raise RuntimeError('when generating base_masks for UMI samples' \
+                                                           ' some UMI2 length is longer than specified in RunInfo.xml')
                                 elif index2_size == 0:
                                     bm.append('N' + str(cycles))
                                 else:
@@ -424,6 +440,7 @@ def _classify_samples(indexfile, ssparser):
     for sample in ssparser.data:
         lane = sample['Lane']
         sample_name = sample.get('Sample_Name') or sample.get('SampleName')
+        umi_length = [0, 0]
         # 10X Genomic DNA & RNA
         if TENX_GENO_PAT.findall(sample['index']):
             index_length = [len(index_dict_tenX[sample['index']][0]),0]
@@ -443,6 +460,7 @@ def _classify_samples(indexfile, ssparser):
             index_length = [len(sample['index'].replace('N', '')),
                             len(sample['index2'].replace('N', ''))]
             sample_type = 'IDT_UMI'
+            umi_length = [sample['index'].upper().count('N'), sample['index2'].upper().count('N')]
         # Smart-seq
         elif SMARTSEQ_PAT.findall(sample['index']):
             smartseq_index = sample['index'].split('-')[1]
@@ -466,11 +484,13 @@ def _classify_samples(indexfile, ssparser):
         if sample_table.get(lane):
             sample_table[lane].append((sample_name,
                                        {'sample_type': sample_type,
-                                        'index_length': index_length}))
+                                        'index_length': index_length,
+                                        'umi_length': umi_length}))
         else:
             sample_table.update({lane:[(sample_name,
                                         {'sample_type': sample_type,
-                                         'index_length': index_length})]})
+                                         'index_length': index_length,
+                                         'umi_length': umi_length})]})
 
     return sample_table
 

@@ -1,5 +1,8 @@
 # TACA Version Log
 
+## 20220412.2
+Handle cases with different UMI lengths
+
 ## 20220412.1
 Add promethion to server_status
 
