@@ -1,5 +1,8 @@
 # TACA Version Log
 
+## 20220412.1
+Handle cases with different UMI lengths
+
 ## 20220409.1
 Small refactor for NoIndex
 
