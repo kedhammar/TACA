@@ -1,13 +1,19 @@
 # TACA Version Log
 
-## 20220412.1
+## 20220412.2
 Handle cases with different UMI lengths
+
+## 20220412.1
+Add promethion to server_status
 
 ## 20220409.1
 Small refactor for NoIndex
 
 ## 20220404.1
 Change cleanup irma to cleanup miarka
+
+## 20220330.1
+Remove "Irma" from email/log
 
 ## 20220328.1
 Re-define signal for sequencing done
