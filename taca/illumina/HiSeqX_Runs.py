@@ -11,9 +11,8 @@ from io import open
 
 logger = logging.getLogger(__name__)
 
-TENX_GENO_PAT = re.compile('SI-GA-[A-H][1-9][0-2]?')
-TENX_ATAC_PAT = re.compile('SI-NA-[A-H][1-9][0-2]?')
-TENX_ST_PAT = re.compile('SI-(?:TT|NT|NN|TN)-[A-H][1-9][0-2]?')
+TENX_SINGLE_PAT = re.compile('SI-(?:GA|NA)-[A-H][1-9][0-2]?')
+TENX_DUAL_PAT = re.compile('SI-(?:TT|NT|NN|TN)-[A-H][1-9][0-2]?')
 SMARTSEQ_PAT = re.compile('SMARTSEQ[1-9]?-[1-9][0-9]?[A-P]')
 IDT_UMI_PAT = re.compile('([ATCG]{4,}N+$)')
 
@@ -209,12 +208,12 @@ class HiSeqX_Run(Run):
             if 'options' in self.CONFIG.get('bcl2fastq'):
                 for option in self.CONFIG['bcl2fastq']['options']:
                     cl_options.extend([option])
-                # Add the extra 10X command options if we have 10X Genomic or ATAC samples
-                if sample_type == '10X_GENO' or sample_type == '10X_ATAC':
-                    cl_options.extend(self.CONFIG['bcl2fastq']['options_10X'])
+                # Add the extra 10X command options if we have 10X single indexes
+                if sample_type == '10X_SINGLE':
+                    cl_options.extend(self.CONFIG['bcl2fastq']['options_10X_SINGLE'])
                 # Add the extra 10X command options if we have 10X ST samples
-                if sample_type == '10X_ST':
-                    cl_options.extend(self.CONFIG['bcl2fastq']['options_10X_ST'])
+                if sample_type == '10X_DUAL':
+                    cl_options.extend(self.CONFIG['bcl2fastq']['options_10X_DUAL'])
                 # Add the extra command option if we have samples with IDT UMI
                 if sample_type == 'IDT_UMI':
                     cl_options.extend(self.CONFIG['bcl2fastq']['options_IDT_UMI'])
@@ -308,13 +307,16 @@ class HiSeqX_Run(Run):
                     i_remainder = cycles - index1_size
                     if i_remainder > 0:
                         if sample_type == 'IDT_UMI': # Case of IDT UMI
-                            if i_remainder - umi1_size > 0:
-                                bm.append('I' + str(index1_size) + 'Y' + str(umi1_size) + 'N' + str(i_remainder - umi1_size))
-                            elif i_remainder - umi1_size == 0:
-                                bm.append('I' + str(index1_size) + 'Y' + str(umi1_size))
+                            if umi1_size != 0:
+                                if i_remainder - umi1_size > 0:
+                                    bm.append('I' + str(index1_size) + 'Y' + str(umi1_size) + 'N' + str(i_remainder - umi1_size))
+                                elif i_remainder - umi1_size == 0:
+                                    bm.append('I' + str(index1_size) + 'Y' + str(umi1_size))
+                                else:
+                                    raise RuntimeError('when generating base_masks for UMI samples' \
+                                                       ' some UMI1 length is longer than specified in RunInfo.xml')
                             else:
-                                raise RuntimeError('when generating base_masks for UMI samples' \
-                                                   ' some UMI1 length is longer than specified in RunInfo.xml')
+                                bm.append('I' + str(index1_size) + 'N' + str(i_remainder))
                         elif index1_size == 0:
                             bm.append('N' + str(cycles)) # Case of NoIndex
                         else:
@@ -324,19 +326,22 @@ class HiSeqX_Run(Run):
                 else:
                 # When working on the second read index I need to know if the sample is dual index or not
                     if is_dual_index:
-                        if sample_type == '10X_ATAC': # Case of 10X scATACseq, demultiplex the whole index 2 cycles as FastQ
+                        if sample_type == '10X_SINGLE': # Case of 10X single indexes, demultiplex the whole index 2 cycles as FastQ
                             bm.append('Y' + str(cycles))
                         else:
                             i_remainder = cycles - index2_size
                             if i_remainder > 0:
                                 if sample_type == 'IDT_UMI': # Case of IDT UMI
-                                    if i_remainder - umi2_size > 0:
-                                        bm.append('I' + str(index2_size) + 'Y' + str(umi2_size) + 'N' + str(i_remainder - umi2_size))
-                                    elif i_remainder - umi2_size == 0:
-                                        bm.append('I' + str(index2_size) + 'Y' + str(umi2_size))
+                                    if umi2_size != 0:
+                                        if i_remainder - umi2_size > 0:
+                                            bm.append('I' + str(index2_size) + 'Y' + str(umi2_size) + 'N' + str(i_remainder - umi2_size))
+                                        elif i_remainder - umi2_size == 0:
+                                            bm.append('I' + str(index2_size) + 'Y' + str(umi2_size))
+                                        else:
+                                            raise RuntimeError('when generating base_masks for UMI samples' \
+                                                               ' some UMI2 length is longer than specified in RunInfo.xml')
                                     else:
-                                        raise RuntimeError('when generating base_masks for UMI samples' \
-                                                           ' some UMI2 length is longer than specified in RunInfo.xml')
+                                        bm.append('I' + str(index2_size) + 'N' + str(i_remainder))
                                 elif index2_size == 0:
                                     bm.append('N' + str(cycles))
                                 else:
@@ -364,7 +369,7 @@ def _generate_clean_samplesheet(ssparser, indexfile, fields_to_remove=None, rena
         if sample['index'] in index_dict_tenX.keys():
             tenX_index = sample['index']
             # In the case of 10X ST indexes, replace index and index2
-            if TENX_ST_PAT.findall(tenX_index):
+            if TENX_DUAL_PAT.findall(tenX_index):
                 sample['index'] = index_dict_tenX[tenX_index][0]
                 sample['index2'] = index_dict_tenX[tenX_index][1]
             # In the case of 10X Genomic and ATAC samples, replace the index name with the 4 actual indicies
@@ -441,19 +446,14 @@ def _classify_samples(indexfile, ssparser):
         lane = sample['Lane']
         sample_name = sample.get('Sample_Name') or sample.get('SampleName')
         umi_length = [0, 0]
-        # 10X Genomic DNA & RNA
-        if TENX_GENO_PAT.findall(sample['index']):
+        # 10X single index
+        if TENX_SINGLE_PAT.findall(sample['index']):
             index_length = [len(index_dict_tenX[sample['index']][0]),0]
-            sample_type = '10X_GENO'
-        # 10X scATAC, Note that the number '16' is only a preset value.
-        # When preparing masks, the whole index 2 will be multiplexed as FastQ
-        elif TENX_ATAC_PAT.findall(sample['index']):
-            index_length = [len(index_dict_tenX[sample['index']][0]),16]
-            sample_type = '10X_ATAC'
+            sample_type = '10X_SINGLE'
         # 10X ST
-        elif TENX_ST_PAT.findall(sample['index']):
+        elif TENX_DUAL_PAT.findall(sample['index']):
             index_length = [len(index_dict_tenX[sample['index']][0]),len(index_dict_tenX[sample['index']][1])]
-            sample_type = '10X_ST'
+            sample_type = '10X_DUAL'
         # IDT UMI samples
         elif IDT_UMI_PAT.findall(sample['index']) or IDT_UMI_PAT.findall(sample['index2']):
             # Index length after removing "N" part

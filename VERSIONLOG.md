@@ -1,7 +1,13 @@
 # TACA Version Log
 
-## 20220412.1
+## 20220412.3
+Bug fix and refactor handling for 10X indexes
+
+## 20220412.2
 Handle cases with different UMI lengths
+
+## 20220412.1
+Add promethion to server_status
 
 ## 20220409.1
 Small refactor for NoIndex
