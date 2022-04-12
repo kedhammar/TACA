@@ -211,13 +211,13 @@ class HiSeqX_Run(Run):
                 # Add the extra 10X command options if we have 10X single indexes
                 if sample_type == '10X_SINGLE':
                     cl_options.extend(self.CONFIG['bcl2fastq']['options_10X_SINGLE'])
-                # Add the extra 10X command options if we have 10X ST samples
+                # Add the extra 10X command options if we have 10X dual indexes
                 if sample_type == '10X_DUAL':
                     cl_options.extend(self.CONFIG['bcl2fastq']['options_10X_DUAL'])
                 # Add the extra command option if we have samples with IDT UMI
                 if sample_type == 'IDT_UMI':
                     cl_options.extend(self.CONFIG['bcl2fastq']['options_IDT_UMI'])
-                # Add the extra Smart-seq command options if we have 10X ST samples
+                # Add the extra Smart-seq command options if we have SMARTSEQ indexes
                 if sample_type == 'SMARTSEQ':
                     cl_options.extend(self.CONFIG['bcl2fastq']['options_SMARTSEQ'])
                 # Add the extra command option if we have samples with single short index
@@ -373,11 +373,11 @@ def _generate_clean_samplesheet(ssparser, indexfile, fields_to_remove=None, rena
     for sample in ssparser.data:
         if sample['index'] in index_dict_tenX.keys():
             tenX_index = sample['index']
-            # In the case of 10X ST indexes, replace index and index2
+            # In the case of 10X dual indexes, replace index and index2
             if TENX_DUAL_PAT.findall(tenX_index):
                 sample['index'] = index_dict_tenX[tenX_index][0]
                 sample['index2'] = index_dict_tenX[tenX_index][1]
-            # In the case of 10X Genomic and ATAC samples, replace the index name with the 4 actual indicies
+            # In the case of 10X single indexes, replace the index name with the 4 actual indicies
             else:
                 x = 0
                 indices_number = len(index_dict_tenX[tenX_index])
@@ -455,7 +455,7 @@ def _classify_samples(indexfile, ssparser):
         if TENX_SINGLE_PAT.findall(sample['index']):
             index_length = [len(index_dict_tenX[sample['index']][0]),0]
             sample_type = '10X_SINGLE'
-        # 10X ST
+        # 10X dual index
         elif TENX_DUAL_PAT.findall(sample['index']):
             index_length = [len(index_dict_tenX[sample['index']][0]),len(index_dict_tenX[sample['index']][1])]
             sample_type = '10X_DUAL'
