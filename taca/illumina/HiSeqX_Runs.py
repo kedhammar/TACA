@@ -296,14 +296,14 @@ class HiSeqX_Run(Run):
             if read['IsIndexedRead'] == 'N':
                 bm.append('Y' + str(cycles))
             else:
-                if index1_size > cycles or index2_size > cycles:
-                    # The size of the index of the sample sheet is larger than the
-                    # one specified by RunInfo.xml, somethig must be wrong
-                    raise RuntimeError('when generating base_masks found index in' \
-                                       ' samplesheet larger than the index specifed in RunInfo.xml')
                 is_first_index_read = int(read['Number']) == 2
                 # Prepare the base mask for the 1st index read
                 if is_first_index_read:
+                    # The size of the index of the sample sheet is larger than the
+                    # one specified by RunInfo.xml, somethig must be wrong
+                    if index1_size > cycles:
+                        raise RuntimeError('when generating base_masks found index 1 in' \
+                                           ' samplesheet larger than the index specifed in RunInfo.xml')
                     i_remainder = cycles - index1_size
                     if i_remainder > 0:
                         if sample_type == 'IDT_UMI': # Case of IDT UMI
@@ -324,8 +324,13 @@ class HiSeqX_Run(Run):
                     else:
                         bm.append('I' + str(cycles))
                 else:
-                # When working on the second read index I need to know if the sample is dual index or not
-                    if is_dual_index:
+                    # The size of the index of the sample sheet is larger than the
+                    # one specified by RunInfo.xml, somethig must be wrong
+                    if index2_size > cycles:
+                        raise RuntimeError('when generating base_masks found index 2 in' \
+                                           ' samplesheet larger than the index specifed in RunInfo.xml')
+                    # When working on the second read index I need to know if the sample is dual index or not
+                    if is_dual_index or sample_type == '10X_SINGLE':
                         if sample_type == '10X_SINGLE': # Case of 10X single indexes, demultiplex the whole index 2 cycles as FastQ
                             bm.append('Y' + str(cycles))
                         else:
