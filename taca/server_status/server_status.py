@@ -20,11 +20,11 @@ def get_nases_disk_space():
         if server_url == 'localhost':
             proc = subprocess.Popen(command.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         else:
-            # Connect via ssh to server and execute the command
-            if server_url == 'ngi-giggle.scilifelab.se':
+            if 'promethion' in server_url:
                 user = 'prom'
             else:
                 user = config['user']
+            # Connect via ssh to server and execute the command
             proc = subprocess.Popen(['ssh', '-t', '{}@{}'.format(user, server_url), command],
                 stdout = subprocess.PIPE,
                 stderr = subprocess.PIPE)
