@@ -184,7 +184,7 @@ class TestAnalysis(unittest.TestCase):
         mock_get_run_status.return_value = 'COMPLETED'
         an.run_preprocessing(run, force_trasfer=True, statusdb=True)
         mock_upload_to_statusdb.assert_called_once()
-        message = 'The run 141124_ST-COMPLETED1_01_AFCIDXX has been demultiplexed.\n                The Run will be transferred to Irma for further analysis.\n\n             \
+        message = 'The run 141124_ST-COMPLETED1_01_AFCIDXX has been demultiplexed.\n                The Run will be transferred to the analysis cluster for further analysis.\n\n             \
    The run is available at : https://genomics-status.scilifelab.se/flowcells/141124_ST-COMPLETED1_01_AFCIDXX\n\n                '
         mock_send_mail.assert_called_once_with(message, rcp='some_user@some_email.com')
         mock_transfer_run.assert_called_once_with('data/transfer.tsv', 'some_user@some_email.com')

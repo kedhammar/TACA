@@ -208,7 +208,7 @@ def transfer_runfolder(run_dir, pid, exclude_lane):
         logger.error('Error creating md5 file')
         raise e
 
-    # Rsync the files to irma
+    # Rsync the files to the analysis cluster
     destination = CONFIG['analysis']['deliver_runfolder'].get('destination')
     rsync_opts = {'-Lav': None,
                   '--no-o': None,
@@ -316,7 +316,7 @@ def run_preprocessing(run, force_trasfer=True, statusdb=True):
                 _upload_to_statusdb(run)
                 # Notify with a mail run completion and stats uploaded
                 msg = """The run {run} has been demultiplexed.
-                The Run will be transferred to Irma for further analysis.
+                The Run will be transferred to the analysis cluster for further analysis.
 
                 The run is available at : https://genomics-status.scilifelab.se/flowcells/{run}
 
