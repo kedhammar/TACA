@@ -1,5 +1,8 @@
 # TACA Version Log
 
+## 20220412.1
+Add promethion to server_status
+
 ## 20220409.1
 Small refactor for NoIndex
 
