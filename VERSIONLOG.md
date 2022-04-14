@@ -1,5 +1,8 @@
 # TACA Version Log
 
+## 20220414.1
+Allow 0 mismatch in demux for short single index for MiSeq
+
 ## 20220412.3
 Bug fix and refactor handling for 10X indexes
 
