@@ -176,7 +176,7 @@ class MiSeq_Run(HiSeq_Run):
                 # Add the extra command option if we have samples with single short index
                 idx_bm = [x[0] for x in [IDX_BM_PAT.findall(bm) for bm in base_mask] if len(x)>0]
                 if len(idx_bm)==1:
-                    if int(re.findall('\d+',idx_bm[0])[0]) < 6:
+                    if int(re.findall('\d+',idx_bm[0])[0]) <= 6:
                          cl_options.extend(self.CONFIG['bcl2fastq']['options_short_single_index'])
                 base_mask_expr = '{}:'.format(lane) + ','.join(base_mask)
                 cl.extend(['--use-bases-mask', base_mask_expr])
