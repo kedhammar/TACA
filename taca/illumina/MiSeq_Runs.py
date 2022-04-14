@@ -1,10 +1,13 @@
 import os
+import re
 import shutil
 import logging
 from taca.illumina.HiSeq_Runs import HiSeq_Run
 from flowcell_parser.classes import SampleSheetParser
 
 logger = logging.getLogger(__name__)
+
+IDX_BM_PAT = re.compile('I[0-9]*')
 
 class MiSeq_Run(HiSeq_Run):
 
@@ -135,3 +138,64 @@ class MiSeq_Run(HiSeq_Run):
             output += ','.join(line)
             output += os.linesep
         return output
+
+
+    def _generate_bcl2fastq_command(self, base_masks, strict=True, suffix=0, mask_short_adapter_reads=False):
+        """Generates the command to demultiplex with the given base_masks.
+        If strict is set to true demultiplex only lanes in base_masks
+        """
+        logger.info('Building bcl2fastq command')
+        cl = [self.CONFIG.get('bcl2fastq')['bin']]
+        if 'options' in self.CONFIG.get('bcl2fastq'):
+            cl_options = self.CONFIG['bcl2fastq']['options']
+            # Append all options that appear in the configuration file to the main command.
+            for option in cl_options:
+                if isinstance(option, dict):
+                    opt, val = list(option.items())[0]
+                    # Skip output-dir has I might need more than one
+                    if 'output-dir' not in opt:
+                        cl.extend(['--{}'.format(opt), str(val)])
+                else:
+                    cl.append('--{}'.format(option))
+
+        # Add the base_mask for each lane
+        tiles = []
+        samplesheetMaskSpecific = os.path.join(os.path.join(self.run_dir, 'SampleSheet_{}.csv'.format(suffix)))
+        output_dir = 'Demultiplexing_{}'.format(suffix)
+        cl.extend(['--output-dir', output_dir])
+
+        with open(samplesheetMaskSpecific, 'w') as ssms:
+            ssms.write(u'[Header]\n')
+            ssms.write(u'[Data]\n')
+            ssms.write(u','.join(self.runParserObj.samplesheet.datafields))
+            ssms.write(u'\n')
+            for lane in sorted(base_masks):
+                # Iterate thorugh each lane and add the correct --use-bases-mask for that lane
+                # There is a single basemask for each lane, I checked it a couple of lines above
+                base_mask = [base_masks[lane][bm]['base_mask'] for bm in base_masks[lane]][0] # Get the base_mask
+                # Add the extra command option if we have samples with single short index
+                idx_bm = [x[0] for x in [IDX_BM_PAT.findall(bm) for bm in base_mask] if len(x)>0]
+                if len(idx_bm)==1:
+                    if int(re.findall('\d+',idx_bm[0])[0]) < 6:
+                         cl_options.extend(self.CONFIG['bcl2fastq']['options_short_single_index'])
+                base_mask_expr = '{}:'.format(lane) + ','.join(base_mask)
+                cl.extend(['--use-bases-mask', base_mask_expr])
+                if strict:
+                    tiles.extend(['s_{}'.format(lane)])
+                # These are all the samples that need to be demux with this samplemask in this lane
+                samples   = [base_masks[lane][bm]['data'] for bm in base_masks[lane]][0]
+                for sample in samples:
+                    for field in self.runParserObj.samplesheet.datafields:
+                        if field == 'index' and 'NOINDEX' in sample[field].upper():
+                            ssms.write(u',') # This is emtpy due to NoIndex issue
+                        else:
+                            ssms.write(u'{},'.format(sample[field]))
+                    ssms.write(u'\n')
+            if strict:
+                cl.extend(['--tiles', ','.join(tiles)])
+        cl.extend(['--sample-sheet', samplesheetMaskSpecific])
+        if mask_short_adapter_reads:
+            cl.extend(['--mask-short-adapter-reads', '0'])
+
+        logger.info(('BCL to FASTQ command built {} '.format(' '.join(cl))))
+        return cl
