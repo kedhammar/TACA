@@ -12,7 +12,7 @@ from io import open
 logger = logging.getLogger(__name__)
 
 TENX_SINGLE_PAT = re.compile('SI-(?:GA|NA)-[A-H][1-9][0-2]?')
-TENX_DUAL_PAT = re.compile('SI-(?:TT|NT|NN|TN)-[A-H][1-9][0-2]?')
+TENX_DUAL_PAT = re.compile('SI-(?:TT|NT|NN|TN|TS)-[A-H][1-9][0-2]?')
 SMARTSEQ_PAT = re.compile('SMARTSEQ[1-9]?-[1-9][0-9]?[A-P]')
 IDT_UMI_PAT = re.compile('([ATCG]{4,}N+$)')
 
