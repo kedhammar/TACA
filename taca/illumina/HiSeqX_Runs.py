@@ -167,32 +167,7 @@ class HiSeqX_Run(Run):
         """Take the Stats.json files from the different
         demultiplexing folders and merges them into one
         """
-        # Define lanes as simple or complex
-        # Simple lanes include samples with only one type and one type of index length
-        simple_lanes = {}
-        complex_lanes = {}
-        for lane, lane_contents in self.sample_table.items():
-            sample_type_list_per_lane = []
-            for sample in lane_contents:
-                sample_detail = sample[1]
-                sample_type = sample_detail['sample_type']
-                if sample_type not in sample_type_list_per_lane:
-                    sample_type_list_per_lane.append(sample_type)
-            if len(sample_type_list_per_lane) > 1:
-                complex_lanes[lane] = 0
-            else:
-                sample_index_length_list_per_lane = [] # Note that there is only one sample type in this case
-                for sample in lane_contents:
-                    sample_detail = sample[1]
-                    sample_index_length = sample_detail['index_length']
-                    if sample_index_length not in sample_index_length_list_per_lane:
-                        sample_index_length_list_per_lane.append(sample_index_length)
-                if len(sample_index_length_list_per_lane) > 1:
-                    complex_lanes[lane] = 0
-                else:
-                    simple_lanes[lane] = 0
-
-        self._aggregate_demux_results_simple_complex(simple_lanes, complex_lanes)
+        self._aggregate_demux_results_simple_complex()
 
     def generate_bcl_command(self, sample_type, mask_table, bcl2fastq_cmd_counter):
         # I have everything to run demultiplexing now.

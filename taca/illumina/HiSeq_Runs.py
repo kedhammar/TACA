@@ -170,17 +170,7 @@ class HiSeq_Run(Run):
 
     def _aggregate_demux_results(self):
         """Aggregate the results from different demultiplexing steps."""
-        per_lane_base_masks = self._generate_per_lane_base_mask()
-        max_different_base_masks =  max([len(per_lane_base_masks[base_masks]) for base_masks in per_lane_base_masks])
-        simple_lanes = {}
-        complex_lanes = {}
-        for lane in per_lane_base_masks:
-            if len(per_lane_base_masks[lane]) == 1:
-                simple_lanes[lane] = per_lane_base_masks[lane]
-            else:
-                complex_lanes[lane] = per_lane_base_masks[lane]
-        # Complex lanes contains the lanes such that there is more than one base mask
-        self._aggregate_demux_results_simple_complex(simple_lanes, complex_lanes)
+        self._aggregate_demux_results_simple_complex()
 
     def _generate_clean_samplesheet(self, ssparser):
         """Generate a 'clean' samplesheet, for bcl2fastq2.19."""

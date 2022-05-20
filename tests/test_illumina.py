@@ -367,9 +367,7 @@ class TestRuns(unittest.TestCase):
     @mock.patch('taca.illumina.Runs.os.symlink')
     def test_aggregate_demux_results_simple_complex(self, mock_symlink):
         """Aggregare demux results simple case."""
-        simple_lanes = {'141124_ST-INPROGRESSDONE1_02_AFCIDXX': 0}
-        complex_lanes = {}
-        self.assertTrue(self.in_progress_done._aggregate_demux_results_simple_complex(simple_lanes, complex_lanes))
+        self.assertTrue(self.in_progress_done._aggregate_demux_results_simple_complex())
         calls = [mock.call(os.path.join(self.tmp_dir, '141124_ST-INPROGRESSDONE1_02_AFCIDXX/Demultiplexing_0/Stats/DemultiplexingStats.xml'),
                            os.path.join(self.tmp_dir, '141124_ST-INPROGRESSDONE1_02_AFCIDXX/Demultiplexing/Stats/DemultiplexingStats.xml')),
                  mock.call(os.path.join(self.tmp_dir, '141124_ST-INPROGRESSDONE1_02_AFCIDXX/Demultiplexing_0/Stats/AdapterTrimming.txt'),
@@ -383,17 +381,13 @@ class TestRuns(unittest.TestCase):
     @mock.patch('taca.illumina.Runs.json.dump')
     def test_aggregate_demux_results_simple_complex_complex(self, mock_json_dump):
         """Aggregare demux results complex case."""
-        complex_lanes = {'141124_ST-COMPLEX1_01_AFCIDXX': 0}
-        simple_lanes = {}
-        self.assertTrue(self.complex_run._aggregate_demux_results_simple_complex(simple_lanes, complex_lanes))
+        self.assertTrue(self.complex_run._aggregate_demux_results_simple_complex())
         mock_json_dump.assert_called_once()
 
     def test_aggregate_demux_results_simple_complex_fail(self):
         """Aggregate_demux_results_simple_complex should raise error if files are missing."""
-        complex_lanes = {'1': 0}
-        simple_lanes = {}
         with self.assertRaises(RuntimeError):
-            self.in_progress_done._aggregate_demux_results_simple_complex(simple_lanes, complex_lanes)
+            self.in_progress_done._aggregate_demux_results_simple_complex()
 
     def test_create_folder_structure(self):
         """Make directory structure."""
