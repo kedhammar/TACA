@@ -636,6 +636,8 @@ class Run(object):
         _generate_lane_html(new_html_report_laneBarcode, html_report_laneBarcode_parser)
         #now create the DemultiplexingStats.xml (empty it is here only to say thay demux is done)
         DemultiplexingStats_xml_dir = _create_folder_structure(demux_folder, ['Stats'])
+        # For creating DemuxSummary.txt files for complex lanes
+        DemuxSummaryFiles_complex_lanes = dict()
         #now generate the Stats.json
         with open(os.path.join(DemultiplexingStats_xml_dir, 'Stats.json'), 'w') as json_data_cumulative:
             stats_list = {}
@@ -712,10 +714,20 @@ class Run(object):
                                                     if comparepart_idx1 == unknownbarcode_idx1[:len(comparepart_idx2)]:
                                                         del full_list_unknownbarcodes['Barcodes'][idx]
                                 stats_list['UnknownBarcodes'].extend([full_list_unknownbarcodes])
+                                DemuxSummaryFiles_complex_lanes[str(unknown_barcode_lane['Lane'])] = full_list_unknownbarcodes
                             else:
                                 pass
 
             json.dump(stats_list, json_data_cumulative)
+
+        # Create DemuxSummary.txt files for complex lanes
+        if len(DemuxSummaryFiles_complex_lanes) > 0:
+            for key, value in DemuxSummaryFiles_complex_lanes.items():
+                with open(os.path.join(DemultiplexingStats_xml_dir, 'DemuxSummaryF1L{}.txt'.format(key)), 'w') as DemuxSummaryFile:
+                    DemuxSummaryFile.write('### Most Popular Unknown Index Sequences\n')
+                    DemuxSummaryFile.write('### Columns: Index_Sequence Hit_Count\n')
+                    for idx, count in value['Barcodes'].items():
+                        DemuxSummaryFile.write('{}\t{}\n'.format(idx, count))
 
         # Now the run is formally COMPLETED
         open(os.path.join(DemultiplexingStats_xml_dir, 'DemultiplexingStats.xml'), 'a').close()
