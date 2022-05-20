@@ -624,6 +624,8 @@ class Run(object):
                     modified_complex_lanes.append(entry['Lane'])
                 else:
                     html_report_laneBarcode_parser.sample_data.remove(entry)
+        # Sort sample_data: first by lane then by sample ID
+        html_report_laneBarcode_parser.sample_data = sorted(html_report_laneBarcode_parser.sample_data, key=lambda k: (k['Lane'].lower(), k['Sample']))
 
         # Now update the values in Flowcell Summary
         html_report_laneBarcode_parser.flowcell_data['Clusters (Raw)'] = '{:,}'.format(Clusters_Raw)
