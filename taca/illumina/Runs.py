@@ -581,11 +581,16 @@ class Run(object):
                         # If this is a new lane not included before
                         html_report_lane_parser.sample_data.append(entry)
         # Now all lanes have been inserted
+
+        # NumberReads for total lane cluster/yields and total sample cluster/yields
+        NumberReads_Summary = dict()
         # The numbers in Flowcell Summary also need to be aggregated if multiple demultiplexing is done
         Clusters_Raw = 0
         Clusters_PF = 0
         Yield_Mbases = 0
         for entry in html_report_lane_parser.sample_data:
+            # Update NumberReads for total lane clusters
+            NumberReads_Summary[entry['Lane']] = {'total_lane_cluster': int(entry['PF Clusters'].replace(',', '')), 'total_lane_yield': int(entry['Yield (Mbases)'].replace(',', ''))}
             Clusters_Raw += int(int(entry['PF Clusters'].replace(',', '')) / float(entry['% PFClusters']) * 100)
             Clusters_PF += int(entry['PF Clusters'].replace(',', ''))
             Yield_Mbases += int(entry['Yield (Mbases)'].replace(',', ''))
@@ -627,6 +632,30 @@ class Run(object):
         # Sort sample_data: first by lane then by sample ID
         html_report_laneBarcode_parser.sample_data = sorted(html_report_laneBarcode_parser.sample_data, key=lambda k: (k['Lane'].lower(), k['Sample']))
 
+        # # Update NumberReads for total sample yields
+        for entry in html_report_laneBarcode_parser.sample_data:
+            if 'total_sample_cluster' not in NumberReads_Summary[entry['Lane']].keys():
+                NumberReads_Summary[entry['Lane']]['total_sample_cluster'] = 0
+                NumberReads_Summary[entry['Lane']]['total_sample_yield'] = 0
+                if entry['Project'] != 'default':
+                    NumberReads_Summary[entry['Lane']]['total_sample_cluster'] += int(entry['PF Clusters'].replace(',', ''))
+                    NumberReads_Summary[entry['Lane']]['total_sample_yield'] += int(entry['Yield (Mbases)'].replace(',', ''))
+            else:
+                if entry['Project'] != 'default':
+                    NumberReads_Summary[entry['Lane']]['total_sample_cluster'] += int(entry['PF Clusters'].replace(',', ''))
+                    NumberReads_Summary[entry['Lane']]['total_sample_yield'] += int(entry['Yield (Mbases)'].replace(',', ''))
+
+        # Calculate the numbers clusters/yields of undet reads
+        for key, value in NumberReads_Summary.items():
+            value['undet_cluster'] = value['total_lane_cluster'] - value['total_sample_cluster']
+            value['undet_yield'] = value['total_lane_yield'] - value['total_sample_yield']
+
+        # Update the cluster/yield info of undet for complex lanes
+        for entry in html_report_laneBarcode_parser.sample_data:
+            if entry['Project'] == 'default' and entry['Lane'] in complex_lanes.keys():
+                entry['PF Clusters'] = '{:,}'.format(NumberReads_Summary[entry['Lane']]['undet_cluster'])
+                entry['Yield (Mbases)'] = '{:,}'.format(NumberReads_Summary[entry['Lane']]['undet_yield'])
+
         # Now update the values in Flowcell Summary
         html_report_laneBarcode_parser.flowcell_data['Clusters (Raw)'] = '{:,}'.format(Clusters_Raw)
         html_report_laneBarcode_parser.flowcell_data['Clusters(PF)'] = '{:,}'.format(Clusters_PF)
@@ -660,10 +689,10 @@ class Run(object):
                             if ReadInfosForLanes_lane['LaneNumber'] not in lanes_present_in_stats_json:
                                 stats_list['ReadInfosForLanes'].extend([ReadInfosForLanes_lane])
                         for ConversionResults_lane in data['ConversionResults']:
-                            if ConversionResults_lane['LaneNumber'] in lanes_present_in_stats_json:
+                            if ConversionResults_lane['LaneNumber'] in lanes_present_in_stats_json and ConversionResults_lane['LaneNumber'] in complex_lanes.keys():
                                 #i have found the same lane, all these things do not make sense because I have demuxed the lane twice
-                                ConversionResults_lane['Undetermined']['NumberReads'] = 0
-                                ConversionResults_lane['Undetermined']['Yield'] = 0
+                                ConversionResults_lane['Undetermined']['NumberReads'] = NumberReads_Summary[ConversionResults_lane['LaneNumber']]['undet_cluster']
+                                ConversionResults_lane['Undetermined']['Yield'] = NumberReads_Summary[ConversionResults_lane['LaneNumber']]['undet_yield']*1000000
                                 ConversionResults_lane['Undetermined']['ReadMetrics'][0]['QualityScoreSum'] = 0
                                 ConversionResults_lane['Undetermined']['ReadMetrics'][0]['TrimmedBases'] = 0
                                 ConversionResults_lane['Undetermined']['ReadMetrics'][0]['Yield'] = 0
