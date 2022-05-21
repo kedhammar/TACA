@@ -689,7 +689,7 @@ class Run(object):
                             if ReadInfosForLanes_lane['LaneNumber'] not in lanes_present_in_stats_json:
                                 stats_list['ReadInfosForLanes'].extend([ReadInfosForLanes_lane])
                         for ConversionResults_lane in data['ConversionResults']:
-                            if ConversionResults_lane['LaneNumber'] in lanes_present_in_stats_json and ConversionResults_lane['LaneNumber'] in complex_lanes.keys():
+                            if ConversionResults_lane['LaneNumber'] in lanes_present_in_stats_json and str(ConversionResults_lane['LaneNumber']) in complex_lanes.keys():
                                 #i have found the same lane, all these things do not make sense because I have demuxed the lane twice
                                 ConversionResults_lane['Undetermined']['NumberReads'] = NumberReads_Summary[ConversionResults_lane['LaneNumber']]['undet_cluster']
                                 ConversionResults_lane['Undetermined']['Yield'] = NumberReads_Summary[ConversionResults_lane['LaneNumber']]['undet_yield']*1000000
