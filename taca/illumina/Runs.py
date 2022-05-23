@@ -445,11 +445,10 @@ class Run(object):
             for row in ssparser.data:
                 if row['Lane'] not in lane_demuxid_indexlength.keys():
                     lane_demuxid_indexlength[row['Lane']] = {demux_id: [len(row.get('index','')), len(row.get('index2',''))]}
+                elif demux_id not in lane_demuxid_indexlength[row['Lane']].keys():
+                    lane_demuxid_indexlength[row['Lane']][demux_id] = [len(row.get('index','')), len(row.get('index2',''))]
                 else:
-                    if demux_id not in lane_demuxid_indexlength[row['Lane']].keys():
-                        lane_demuxid_indexlength[row['Lane']][demux_id] = [len(row.get('index','')), len(row.get('index2',''))]
-                    else:
-                        pass
+                    pass
 
         simple_lanes = dict()
         complex_lanes = dict()
@@ -690,7 +689,7 @@ class Run(object):
                                 stats_list['ReadInfosForLanes'].extend([ReadInfosForLanes_lane])
                         for ConversionResults_lane in data['ConversionResults']:
                             if ConversionResults_lane['LaneNumber'] in lanes_present_in_stats_json and str(ConversionResults_lane['LaneNumber']) in complex_lanes.keys():
-                                #i have found the same lane, all these things do not make sense because I have demuxed the lane twice
+                                # For complex lanes, we set all stats to 0, except for read number and yield which will use values from NumberReads_Summary
                                 ConversionResults_lane['Undetermined']['NumberReads'] = NumberReads_Summary[str(ConversionResults_lane['LaneNumber'])]['undet_cluster']
                                 ConversionResults_lane['Undetermined']['Yield'] = NumberReads_Summary[str(ConversionResults_lane['LaneNumber'])]['undet_yield']*1000000
                                 ConversionResults_lane['Undetermined']['ReadMetrics'][0]['QualityScoreSum'] = 0
