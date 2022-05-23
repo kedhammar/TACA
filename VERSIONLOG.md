@@ -1,5 +1,8 @@
 # TACA Version Log
 
+## 20220520.1
+Include index list from undet of complex lanes
+
 ## 20220427.1
 Support addtional 10X index types
 

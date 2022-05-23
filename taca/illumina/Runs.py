@@ -12,7 +12,7 @@ from datetime import datetime
 
 from taca.utils import misc
 from taca.utils.misc import send_mail
-from flowcell_parser.classes import RunParser, LaneBarcodeParser
+from flowcell_parser.classes import RunParser, LaneBarcodeParser, SampleSheetParser
 
 logger = logging.getLogger(__name__)
 
@@ -431,10 +431,44 @@ class Run(object):
             logger.info("Renaming {} to {}".format(file, os.path.join(os.path.dirname(file), new_name)))
             os.rename(file, os.path.join(os.path.dirname(file), new_name))
 
-    def _aggregate_demux_results_simple_complex(self, simple_lanes, complex_lanes):
+    def _aggregate_demux_results_simple_complex(self):
         run_dir      =  self.run_dir
         demux_folder =  os.path.join(self.run_dir , self.demux_dir)
         samplesheets =  glob.glob(os.path.join(run_dir, "*_[0-9].csv")) # a single digit... this hipotesis should hold for a while
+
+        # Prepare a dict with the lane, demux_id and index_length info based on the sub-samplesheets
+        # This is for the purpose of deciding simple_lanes and complex_lanes, plus we should start with the Stats.json file from which demux_id for each lane
+        lane_demuxid_indexlength = dict()
+        for samplesheet in samplesheets:
+            demux_id = os.path.splitext(os.path.split(samplesheet)[1])[0].split("_")[1]
+            ssparser = SampleSheetParser(samplesheet)
+            for row in ssparser.data:
+                if row['Lane'] not in lane_demuxid_indexlength.keys():
+                    lane_demuxid_indexlength[row['Lane']] = {demux_id: [len(row.get('index','')), len(row.get('index2',''))]}
+                elif demux_id not in lane_demuxid_indexlength[row['Lane']].keys():
+                    lane_demuxid_indexlength[row['Lane']][demux_id] = [len(row.get('index','')), len(row.get('index2',''))]
+                else:
+                    pass
+
+        simple_lanes = dict()
+        complex_lanes = dict()
+        for key, value in lane_demuxid_indexlength.items():
+            if len(value) == 1:
+                simple_lanes[key] = list(value.keys())[0]
+            else:
+                for vk, vv in value.items():
+                    if key not in complex_lanes.keys():
+                        complex_lanes[key] = {vk: vv}
+                    else:
+                        # Dual and longer indexes have higher priority
+                        if 0 in list(complex_lanes[key].values())[0] and 0 not in vv:
+                            complex_lanes[key] = {vk: vv}
+                        elif (0 in list(complex_lanes[key].values())[0] and 0 in vv) or (0 not in list(complex_lanes[key].values())[0] and 0 not in vv):
+                            if sum(vv) > sum(list(complex_lanes[key].values())[0]):
+                                complex_lanes[key] = {vk: vv}
+                        else:
+                            pass
+
         if len(complex_lanes) == 0 and len(samplesheets) == 1:
             #it means that each lane had only one type of index size, so no need to do super tricky stuff
             demux_folder_tmp_name = "Demultiplexing_0" # in this case this is the only demux dir
@@ -546,11 +580,16 @@ class Run(object):
                         # If this is a new lane not included before
                         html_report_lane_parser.sample_data.append(entry)
         # Now all lanes have been inserted
+
+        # NumberReads for total lane cluster/yields and total sample cluster/yields
+        NumberReads_Summary = dict()
         # The numbers in Flowcell Summary also need to be aggregated if multiple demultiplexing is done
         Clusters_Raw = 0
         Clusters_PF = 0
         Yield_Mbases = 0
         for entry in html_report_lane_parser.sample_data:
+            # Update NumberReads for total lane clusters
+            NumberReads_Summary[entry['Lane']] = {'total_lane_cluster': int(entry['PF Clusters'].replace(',', '')), 'total_lane_yield': int(entry['Yield (Mbases)'].replace(',', ''))}
             Clusters_Raw += int(int(entry['PF Clusters'].replace(',', '')) / float(entry['% PFClusters']) * 100)
             Clusters_PF += int(entry['PF Clusters'].replace(',', ''))
             Yield_Mbases += int(entry['Yield (Mbases)'].replace(',', ''))
@@ -577,14 +616,45 @@ class Run(object):
                 next_html_report_laneBarcode_parser = LaneBarcodeParser(next_html_report_laneBarcode)
                 for entry in next_html_report_laneBarcode_parser.sample_data:
                     html_report_laneBarcode_parser.sample_data.append(entry)
-        positions_to_delete = [] #find all position that contain default as poriject nameand do not belong to a simple lane
-        current_pos = 0
+        # For complex lanes, set all numbers of undetermined to 0. And only keep one such entry
+        constant_keys = ['Lane', 'Barcode sequence', 'Project', 'Sample']
+        modified_complex_lanes = []
         for entry in html_report_laneBarcode_parser.sample_data:
-            if  entry['Lane'] in list(complex_lanes.keys()) and entry['Project'] in 'default':
-                positions_to_delete = [current_pos] +  positions_to_delete # build the array in this way so that I can delete the elements without messing with the offsets
-            current_pos += 1
-        for position in positions_to_delete:
-            del html_report_laneBarcode_parser.sample_data[position]
+            if entry['Lane'] in list(complex_lanes.keys()) and entry['Project'] in 'default':
+                if entry['Lane'] not in modified_complex_lanes:
+                    for key in entry.keys():
+                        if key not in constant_keys:
+                            entry[key] = '0'
+                    modified_complex_lanes.append(entry['Lane'])
+                else:
+                    html_report_laneBarcode_parser.sample_data.remove(entry)
+        # Sort sample_data: first by lane then by sample ID
+        html_report_laneBarcode_parser.sample_data = sorted(html_report_laneBarcode_parser.sample_data, key=lambda k: (k['Lane'].lower(), k['Sample']))
+
+        # # Update NumberReads for total sample yields
+        for entry in html_report_laneBarcode_parser.sample_data:
+            if 'total_sample_cluster' not in NumberReads_Summary[entry['Lane']].keys():
+                NumberReads_Summary[entry['Lane']]['total_sample_cluster'] = 0
+                NumberReads_Summary[entry['Lane']]['total_sample_yield'] = 0
+                if entry['Project'] != 'default':
+                    NumberReads_Summary[entry['Lane']]['total_sample_cluster'] += int(entry['PF Clusters'].replace(',', ''))
+                    NumberReads_Summary[entry['Lane']]['total_sample_yield'] += int(entry['Yield (Mbases)'].replace(',', ''))
+            else:
+                if entry['Project'] != 'default':
+                    NumberReads_Summary[entry['Lane']]['total_sample_cluster'] += int(entry['PF Clusters'].replace(',', ''))
+                    NumberReads_Summary[entry['Lane']]['total_sample_yield'] += int(entry['Yield (Mbases)'].replace(',', ''))
+
+        # Calculate the numbers clusters/yields of undet reads
+        for key, value in NumberReads_Summary.items():
+            value['undet_cluster'] = value['total_lane_cluster'] - value['total_sample_cluster']
+            value['undet_yield'] = value['total_lane_yield'] - value['total_sample_yield']
+
+        # Update the cluster/yield info of undet for complex lanes
+        for entry in html_report_laneBarcode_parser.sample_data:
+            if entry['Project'] == 'default' and entry['Lane'] in complex_lanes.keys():
+                entry['PF Clusters'] = '{:,}'.format(NumberReads_Summary[entry['Lane']]['undet_cluster'])
+                entry['Yield (Mbases)'] = '{:,}'.format(NumberReads_Summary[entry['Lane']]['undet_yield'])
+
         # Now update the values in Flowcell Summary
         html_report_laneBarcode_parser.flowcell_data['Clusters (Raw)'] = '{:,}'.format(Clusters_Raw)
         html_report_laneBarcode_parser.flowcell_data['Clusters(PF)'] = '{:,}'.format(Clusters_PF)
@@ -594,10 +664,13 @@ class Run(object):
         _generate_lane_html(new_html_report_laneBarcode, html_report_laneBarcode_parser)
         #now create the DemultiplexingStats.xml (empty it is here only to say thay demux is done)
         DemultiplexingStats_xml_dir = _create_folder_structure(demux_folder, ['Stats'])
+        # For creating DemuxSummary.txt files for complex lanes
+        DemuxSummaryFiles_complex_lanes = dict()
         #now generate the Stats.json
         with open(os.path.join(DemultiplexingStats_xml_dir, 'Stats.json'), 'w') as json_data_cumulative:
             stats_list = {}
             for stat_json in stats_json:
+                demux_id = re.findall('Demultiplexing_([0-9])',stat_json)[0]
                 with open(stat_json) as json_data_partial:
                     data = json.load(json_data_partial)
                     if len(stats_list) == 0:
@@ -607,21 +680,18 @@ class Run(object):
                         stats_list['RunId']             = data['RunId']
                         stats_list['ConversionResults'] = data['ConversionResults']
                         stats_list['ReadInfosForLanes'] = data['ReadInfosForLanes']
-
                         stats_list['UnknownBarcodes']   = []
-                        for unknown_barcode_lane in data['UnknownBarcodes']:
-                            stats_list['UnknownBarcodes'].extend([unknown_barcode_lane])
                     else:
                         #I update only the importat fields
                         lanes_present_in_stats_json = [entry['LaneNumber'] for entry in stats_list['ConversionResults']]
                         for ReadInfosForLanes_lane in data['ReadInfosForLanes']:
                             if ReadInfosForLanes_lane['LaneNumber'] not in lanes_present_in_stats_json:
                                 stats_list['ReadInfosForLanes'].extend([ReadInfosForLanes_lane])
-                        for ConversionResults_lane  in data['ConversionResults']:
-                            if ConversionResults_lane['LaneNumber'] in lanes_present_in_stats_json:
-                                #i have found the same lane, all these things do not make sense because I have demuxed the lane twice
-                                ConversionResults_lane['Undetermined']['NumberReads'] = 0
-                                ConversionResults_lane['Undetermined']['Yield'] = 0
+                        for ConversionResults_lane in data['ConversionResults']:
+                            if ConversionResults_lane['LaneNumber'] in lanes_present_in_stats_json and str(ConversionResults_lane['LaneNumber']) in complex_lanes.keys():
+                                # For complex lanes, we set all stats to 0, except for read number and yield which will use values from NumberReads_Summary
+                                ConversionResults_lane['Undetermined']['NumberReads'] = NumberReads_Summary[str(ConversionResults_lane['LaneNumber'])]['undet_cluster']
+                                ConversionResults_lane['Undetermined']['Yield'] = NumberReads_Summary[str(ConversionResults_lane['LaneNumber'])]['undet_yield']*1000000
                                 ConversionResults_lane['Undetermined']['ReadMetrics'][0]['QualityScoreSum'] = 0
                                 ConversionResults_lane['Undetermined']['ReadMetrics'][0]['TrimmedBases'] = 0
                                 ConversionResults_lane['Undetermined']['ReadMetrics'][0]['Yield'] = 0
@@ -638,17 +708,54 @@ class Run(object):
                             else:
                                 stats_list['ConversionResults'].extend([ConversionResults_lane])
 
-                        lanes_present_in_stats_json = [entry['Lane'] for entry in stats_list['UnknownBarcodes']]
-                        for unknown_barcode_lane in data['UnknownBarcodes']:
-                            if unknown_barcode_lane['Lane'] not in lanes_present_in_stats_json:
-                                stats_list['UnknownBarcodes'].extend([unknown_barcode_lane])
+                    for unknown_barcode_lane in data['UnknownBarcodes']:
+                        if str(unknown_barcode_lane['Lane']) in simple_lanes.keys():
+                            stats_list['UnknownBarcodes'].extend([unknown_barcode_lane])
+                        elif str(unknown_barcode_lane['Lane']) in complex_lanes.keys():
+                            if list(complex_lanes[str(unknown_barcode_lane['Lane'])].keys())[0] == demux_id:
+                                # First have the list of unknown indexes from the top priority demux run
+                                full_list_unknownbarcodes = unknown_barcode_lane
+                                # Remove the samples involved in the other samplesheets
+                                for samplesheet in samplesheets:
+                                    demux_id_ss = os.path.splitext(os.path.split(samplesheet)[1])[0].split("_")[1]
+                                    if demux_id_ss != demux_id:
+                                        ssparser = SampleSheetParser(samplesheet)
+                                        ssparser_data_lane = [row for row in ssparser.data if row['Lane'] == str(unknown_barcode_lane['Lane'])]
+                                        for row in ssparser_data_lane:
+                                            sample_idx1 = row.get('index','')
+                                            sample_idx2 = row.get('index2','')
+                                            idx_copy = tuple(full_list_unknownbarcodes['Barcodes'].keys())
+                                            for idx in idx_copy:
+                                                unknownbarcode_idx1 = idx.split('+')[0] if '+' in idx else idx
+                                                unknownbarcode_idx2 = idx.split('+')[1] if '+' in idx else ''
+                                                if sample_idx1 and sample_idx2:
+                                                    comparepart_idx1 = sample_idx1 if len(sample_idx1) <= len(unknownbarcode_idx1) else sample_idx1[:len(unknownbarcode_idx1)]
+                                                    comparepart_idx2 = sample_idx2 if len(sample_idx2) <= len(unknownbarcode_idx2) else sample_idx2[:len(unknownbarcode_idx2)]
+                                                    if comparepart_idx1 == unknownbarcode_idx1[:len(comparepart_idx1)] and comparepart_idx2 == unknownbarcode_idx2[:len(comparepart_idx2)]:
+                                                        del full_list_unknownbarcodes['Barcodes'][idx]
+                                                elif sample_idx1 and not sample_idx2:
+                                                    comparepart_idx1 = sample_idx1 if len(sample_idx1) <= len(unknownbarcode_idx1) else sample_idx1[:len(unknownbarcode_idx1)]
+                                                    if comparepart_idx1 == unknownbarcode_idx1[:len(comparepart_idx1)]:
+                                                        del full_list_unknownbarcodes['Barcodes'][idx]
+                                                elif not sample_idx1 and sample_idx2:
+                                                    comparepart_idx2 = sample_idx2 if len(sample_idx2) <= len(unknownbarcode_idx1) else sample_idx2[:len(unknownbarcode_idx1)]
+                                                    if comparepart_idx1 == unknownbarcode_idx1[:len(comparepart_idx2)]:
+                                                        del full_list_unknownbarcodes['Barcodes'][idx]
+                                stats_list['UnknownBarcodes'].extend([full_list_unknownbarcodes])
+                                DemuxSummaryFiles_complex_lanes[str(unknown_barcode_lane['Lane'])] = full_list_unknownbarcodes
                             else:
-                                #find the index containing info for this lane
-                                index = [i for i,  entry in enumerate(stats_list['UnknownBarcodes']) if entry['Lane'] == unknown_barcode_lane['Lane']][0]
-                                complex_lane_entry = {'Lane': unknown_barcode_lane['Lane'],
-                                                    'Barcodes': {'unknown': 1}}
-                                stats_list['UnknownBarcodes'][index] = complex_lane_entry
+                                pass
+
             json.dump(stats_list, json_data_cumulative)
+
+        # Create DemuxSummary.txt files for complex lanes
+        if len(DemuxSummaryFiles_complex_lanes) > 0:
+            for key, value in DemuxSummaryFiles_complex_lanes.items():
+                with open(os.path.join(DemultiplexingStats_xml_dir, 'DemuxSummaryF1L{}.txt'.format(key)), 'w') as DemuxSummaryFile:
+                    DemuxSummaryFile.write('### Most Popular Unknown Index Sequences\n')
+                    DemuxSummaryFile.write('### Columns: Index_Sequence Hit_Count\n')
+                    for idx, count in value['Barcodes'].items():
+                        DemuxSummaryFile.write('{}\t{}\n'.format(idx, count))
 
         # Now the run is formally COMPLETED
         open(os.path.join(DemultiplexingStats_xml_dir, 'DemultiplexingStats.xml'), 'a').close()
