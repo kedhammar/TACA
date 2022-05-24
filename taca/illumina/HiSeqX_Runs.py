@@ -542,15 +542,18 @@ def _generate_samplesheet_subset(ssparser, samples_to_include, runSetup):
     for line in ssparser.data:
         sample_name = line.get('Sample_Name') or line.get('SampleName')
         lane = line['Lane']
+        noindex_flag = False
         if lane in samples_to_include.keys():
             if sample_name in samples_to_include.get(lane):
                 line_ar = []
                 for field in datafields:
-                    # Case of no index
+                    # Case with NoIndex
                     if field == 'index' and 'NOINDEX' in line['index'].upper():
                         line[field] = 'T'*index_cycles[0] if index_cycles[0] !=0 else ''
-                    if field == 'index2' and 'NOINDEX' in line['index'].upper():
+                        noindex_flag = True
+                    if field == 'index2' and noindex_flag:
                         line[field] = 'A'*index_cycles[0] if index_cycles[0] !=0 else ''
+                        noindex_flag = False
                     # Case of IDT UMI
                     if (field == 'index' or field == 'index2') and IDT_UMI_PAT.findall(line[field]):
                         line[field] = line[field].replace('N', '')
