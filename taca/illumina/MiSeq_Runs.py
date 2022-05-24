@@ -164,6 +164,15 @@ class MiSeq_Run(HiSeq_Run):
         output_dir = 'Demultiplexing_{}'.format(suffix)
         cl.extend(['--output-dir', output_dir])
 
+        runSetup = self.runParserObj.runinfo.get_read_configuration()
+        index_cycles = [0, 0]
+        for read in runSetup:
+            if read['IsIndexedRead'] == 'Y':
+                if int(read['Number']) == 2:
+                    index_cycles[0] = int(read['NumCycles'])
+                else:
+                    index_cycles[1] = int(read['NumCycles'])
+
         with open(samplesheetMaskSpecific, 'w') as ssms:
             ssms.write(u'[Header]\n')
             ssms.write(u'[Data]\n')
@@ -179,17 +188,38 @@ class MiSeq_Run(HiSeq_Run):
                     if int(re.findall('\d+',idx_bm[0])[0]) <= 6:
                         for opt, val in self.CONFIG['bcl2fastq']['options_short_single_index'][0].items():
                             cl.extend(['--{}'.format(opt), str(val)])
-                base_mask_expr = '{}:'.format(lane) + ','.join(base_mask)
+                # Check NoIndex case
+                noindex_flag = False
+                samples   = [base_masks[lane][bm]['data'] for bm in base_masks[lane]][0]
+                if len(samples) == 1 and (samples[0]['index'] == '' and samples[0]['index2'] == ''):
+                    noindex_flag = True
+                # Add the extra command option if we have NoIndex sample but still run indexing cycles in sequencing
+                if index_cycles != [0, 0] and noindex_flag:
+                    for opt, val in self.CONFIG['bcl2fastq']['options_NOINDEX'][0].items():
+                        cl.extend(['--{}'.format(opt), str(val)])
+                    # The base mask also needs to be changed
+                    base_mask_expr = '{}:'.format(lane) + ','.join([i.replace('N','I') for i in base_mask])
+                # All other cases
+                else:
+                    base_mask_expr = '{}:'.format(lane) + ','.join(base_mask)
                 cl.extend(['--use-bases-mask', base_mask_expr])
                 if strict:
                     tiles.extend(['s_{}'.format(lane)])
                 # These are all the samples that need to be demux with this samplemask in this lane
-                samples   = [base_masks[lane][bm]['data'] for bm in base_masks[lane]][0]
                 for sample in samples:
-                    for field in self.runParserObj.samplesheet.datafields:
-                        if field == 'index' and 'NOINDEX' in sample[field].upper():
-                            ssms.write(u',') # This is emtpy due to NoIndex issue
-                        else:
+                    # Case of NoIndex
+                    if index_cycles != [0, 0] and noindex_flag:
+                        for field in self.runParserObj.samplesheet.datafields:
+                            if field in ['index', 'I7_Index_ID']:
+                                fake_index1 = 'T'*index_cycles[0] if index_cycles[0] !=0 else ''
+                                ssms.write(u'{},'.format(fake_index1))
+                            elif field in ['index2', 'I5_Index_ID']:
+                                fake_index2 = 'A'*index_cycles[1] if index_cycles[1] !=0 else ''
+                                ssms.write(u'{},'.format(fake_index2))
+                            else:
+                                ssms.write(u'{},'.format(sample[field]))
+                    else:
+                        for field in self.runParserObj.samplesheet.datafields:
                             ssms.write(u'{},'.format(sample[field]))
                     ssms.write(u'\n')
             if strict:

@@ -552,7 +552,7 @@ def _generate_samplesheet_subset(ssparser, samples_to_include, runSetup):
                         line[field] = 'T'*index_cycles[0] if index_cycles[0] !=0 else ''
                         noindex_flag = True
                     if field == 'index2' and noindex_flag:
-                        line[field] = 'A'*index_cycles[0] if index_cycles[0] !=0 else ''
+                        line[field] = 'A'*index_cycles[1] if index_cycles[1] !=0 else ''
                         noindex_flag = False
                     # Case of IDT UMI
                     if (field == 'index' or field == 'index2') and IDT_UMI_PAT.findall(line[field]):
