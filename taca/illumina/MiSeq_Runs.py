@@ -195,8 +195,12 @@ class MiSeq_Run(HiSeq_Run):
                     noindex_flag = True
                 # Add the extra command option if we have NoIndex sample but still run indexing cycles in sequencing
                 if index_cycles != [0, 0] and noindex_flag:
-                    for opt, val in self.CONFIG['bcl2fastq']['options_NOINDEX'][0].items():
-                        cl.extend(['--{}'.format(opt), str(val)])
+                    for opt_val in self.CONFIG['bcl2fastq']['options_NOINDEX']:
+                        if isinstance(opt_val, str):
+                            cl.extend(['--{}'.format(opt_val)])
+                        elif isinstance(opt_val, dict):
+                            for opt, val in opt_val.items():
+                            cl.extend(['--{}'.format(opt), str(val)])
                     # The base mask also needs to be changed
                     base_mask_expr = '{}:'.format(lane) + ','.join([i.replace('N','I') for i in base_mask])
                 # All other cases
