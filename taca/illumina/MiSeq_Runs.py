@@ -200,7 +200,7 @@ class MiSeq_Run(HiSeq_Run):
                             cl.extend(['--{}'.format(opt_val)])
                         elif isinstance(opt_val, dict):
                             for opt, val in opt_val.items():
-                            cl.extend(['--{}'.format(opt), str(val)])
+                                cl.extend(['--{}'.format(opt), str(val)])
                     # The base mask also needs to be changed
                     base_mask_expr = '{}:'.format(lane) + ','.join([i.replace('N','I') for i in base_mask])
                 # All other cases
