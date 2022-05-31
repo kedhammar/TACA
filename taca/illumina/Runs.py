@@ -508,11 +508,10 @@ class Run(object):
                         new_name_comps = [sample.replace('Sample_',''), 'S{}'.format(str(sample_counter))] + old_name_comps[2:]
                         new_name = "_".join(new_name_comps)
                         os.symlink(file, os.path.join(sample_dest, new_name))
-                        logger.info("For undet sample {}, renaming {} to {}".format(sample.replace('Sample_',''), old_name, new_name)
+                        logger.info("For undet sample {}, renaming {} to {}".format(sample.replace('Sample_',''), old_name, new_name))
                     sample_counter += 1
-
                 # Make a softlink of lane.html
-                html_report_lane_source = os.path.join(run_dir, sub_demux_folder_name, "Reports", "html",self.flowcell_id, "all", "all", "all", "lane.html")
+                html_report_lane_source = os.path.join(run_dir, sub_demux_folder_name, "Reports", "html", self.flowcell_id, "all", "all", "all", "lane.html")
                 html_report_lane_dest = os.path.join(demux_folder, "Reports", "html",self.flowcell_id, "all", "all", "all", "lane.html")
                 if not os.path.isdir(os.path.dirname(html_report_lane_dest)):
                     os.makedirs(os.path.dirname(html_report_lane_dest))
