@@ -433,8 +433,23 @@ class Run(object):
 
     def _aggregate_demux_results_simple_complex(self):
         run_dir      =  self.run_dir
+        runSetup     =  self.runParserObj.runinfo.get_read_configuration()
         demux_folder =  os.path.join(self.run_dir , self.demux_dir)
         samplesheets =  glob.glob(os.path.join(run_dir, "*_[0-9].csv")) # a single digit... this hipotesis should hold for a while
+
+        index_cycles = [0, 0]
+        for read in runSetup:
+            if read['IsIndexedRead'] == 'Y':
+                if int(read['Number']) == 2:
+                    index_cycles[0] = int(read['NumCycles'])
+                else:
+                    index_cycles[1] = int(read['NumCycles'])
+
+        # Prepare a list for lanes with NoIndex samples
+        noindex_lanes = []
+        for entry in self.runParserObj.samplesheet.data:
+            if entry['index'].upper() == 'NOINDEX' or (entry['index'] == '' and entry['index2'] == ''):
+                noindex_lanes.append(entry['Lane'])
 
         # Prepare a dict with the lane, demux_id and index_length info based on the sub-samplesheets
         # This is for the purpose of deciding simple_lanes and complex_lanes, plus we should start with the Stats.json file from which demux_id for each lane
@@ -469,35 +484,102 @@ class Run(object):
                         else:
                             pass
 
+        # Case with only one sub-demultiplexing
         if len(complex_lanes) == 0 and len(samplesheets) == 1:
-            #it means that each lane had only one type of index size, so no need to do super tricky stuff
-            demux_folder_tmp_name = "Demultiplexing_0" # in this case this is the only demux dir
-            demux_folder_tmp     = os.path.join(run_dir, demux_folder_tmp_name)
-            elements = [element for element  in  os.listdir(demux_folder_tmp) ]
-            for element in elements:
-                if "Stats" not in element: #skip this folder and treat it differently to take into account the NoIndex case
-                    source  = os.path.join(demux_folder_tmp, element)
-                    dest    = os.path.join(self.run_dir, self.demux_dir, element)
-                    os.symlink(source, dest)
-            os.makedirs(os.path.join(self.run_dir, "Demultiplexing", "Stats"))
-            #now fetch the lanes that have NoIndex
-            noIndexLanes = [Sample["Lane"] for Sample in  self.runParserObj.samplesheet.data if "NOINDEX" in Sample["index"].upper()]
-            statsFiles = glob.glob(os.path.join(demux_folder_tmp, "Stats", "*" ))
-            for source in statsFiles:
-                source_name = os.path.split(source)[1]
-                if source_name not in ["DemultiplexingStats.xml", "AdapterTrimming.txt", "ConversionStats.xml", "Stats.json"]:
-                    lane = os.path.splitext(os.path.split(source)[1])[0][-1] #lane
-                    if lane not in noIndexLanes:
-                        #in this case I can soflink the file here
-                        dest    = os.path.join(self.run_dir, self.demux_dir, "Stats", source_name)
-                        os.symlink(source, dest)
-            #now copy the three last files
-            for file in ["DemultiplexingStats.xml", "AdapterTrimming.txt", "ConversionStats.xml", "Stats.json"]:
-                source = os.path.join(self.run_dir, "Demultiplexing_0", "Stats", file)
-                dest   = os.path.join(self.run_dir, "Demultiplexing", "Stats", file)
-                os.symlink(source, dest)
+            sub_demux_folder_name = "Demultiplexing_0" # in this case this is the only demux dir
+            sub_demux_folder_path = os.path.join(run_dir, sub_demux_folder_name)
+            # Special case that when we assign fake indexes for NoIndex samples
+            if noindex_lanes and index_cycles != [0, 0]:
+                # We first softlink the FastQ files of undet as the FastQ files of samples
+                sample_counter = 1
+                for entry in sorted(self.runParserObj.samplesheet.data, key=lambda k: k['Lane']):
+                    lane    = entry['Lane']
+                    project = entry['Sample_Project']
+                    sample  = entry['Sample_ID']
+                    project_dest   = os.path.join(demux_folder, project)
+                    if not os.path.exists(project_dest):
+                        os.makedirs(project_dest)
+                    sample_dest    = os.path.join(project_dest,sample)
+                    if not os.path.exists(sample_dest):
+                        os.makedirs(sample_dest)
+                    for file in glob.glob(os.path.join(sub_demux_folder_path, "Undetermined*L0?{}*".format(lane))):
+                        old_name = os.path.basename(file)
+                        old_name_comps = old_name.split("_")
+                        new_name_comps = [sample.replace('Sample_',''), 'S{}'.format(str(sample_counter))] + old_name_comps[2:]
+                        new_name = "_".join(new_name_comps)
+                        os.symlink(file, os.path.join(sample_dest, new_name))
+                        logger.info("For undet sample {}, renaming {} to {}".format(sample.replace('Sample_',''), old_name, new_name)
+                    sample_counter += 1
+
+                # Make a softlink of lane.html
+                html_report_lane_source = os.path.join(run_dir, sub_demux_folder_name, "Reports", "html",self.flowcell_id, "all", "all", "all", "lane.html")
+                html_report_lane_dest = os.path.join(demux_folder, "Reports", "html",self.flowcell_id, "all", "all", "all", "lane.html")
+                if not os.path.isdir(os.path.dirname(html_report_lane_dest)):
+                    os.makedirs(os.path.dirname(html_report_lane_dest))
+                os.symlink(html_report_lane_source, html_report_lane_dest)
+
+                # Modify the laneBarcode.html file
+                html_report_laneBarcode = os.path.join(run_dir, sub_demux_folder_name, "Reports", "html",self.flowcell_id, "all", "all", "all", "laneBarcode.html")
+                html_report_laneBarcode_parser = LaneBarcodeParser(html_report_laneBarcode)
+                lane_project_sample = dict()
+                for entry in html_report_laneBarcode_parser.sample_data:
+                    if entry['Sample'] != 'Undetermined':
+                        lane_project_sample[entry['Lane']] = {'Project':entry['Project'], 'Sample':entry['Sample']}
+                for entry in html_report_laneBarcode_parser.sample_data[:]:
+                    if entry['Sample'] == 'Undetermined':
+                        entry['Project'] = lane_project_sample[entry['Lane']]['Project']
+                        entry['Sample'] = lane_project_sample[entry['Lane']]['Sample']
+                    else:
+                        html_report_laneBarcode_parser.sample_data.remove(entry)
+                html_report_laneBarcode_parser.sample_data = sorted(html_report_laneBarcode_parser.sample_data, key=lambda k: (k['Lane'].lower(), k['Sample']))
+                new_html_report_laneBarcode = os.path.join(demux_folder, "Reports", "html",self.flowcell_id, "all", "all", "all", "laneBarcode.html")
+                _generate_lane_html(new_html_report_laneBarcode, html_report_laneBarcode_parser)
+
+                if not os.path.exists(os.path.join(demux_folder, "Stats")):
+                    os.makedirs(os.path.join(demux_folder, "Stats"))
+                # Modify the Stats.json file
+                stat_json_source = os.path.join(run_dir, sub_demux_folder_name, "Stats", "Stats.json")
+                stat_json_new = os.path.join(demux_folder, "Stats", "Stats.json")
+                with open(stat_json_source) as json_data:
+                    data = json.load(json_data)
+                ## Fix the sample stats per lane
+                for entry in data['ConversionResults'][:]:
+                    del entry['DemuxResults'][0]['IndexMetrics']
+                    entry['DemuxResults'][0].update(entry['Undetermined'])
+                    del entry['Undetermined']
+                ## Reset unknown barcodes list
+                for entry in data['UnknownBarcodes'][:]:
+                    entry['Barcodes'] = {'unknown': 1}
+                ## Write to a new Stats.json file
+                with open(stat_json_new, 'w') as stat_json_new_file:
+                    json.dump(data, stat_json_new_file)
             #this is the simple case, Demultiplexing dir is simply a symlink to the only sub-demultiplexing dir
+            else:
+                elements = [element for element  in  os.listdir(sub_demux_folder_path) ]
+                for element in elements:
+                    if "Stats" not in element: #skip this folder and treat it differently to take into account the NoIndex case
+                        source  = os.path.join(sub_demux_folder_path, element)
+                        dest    = os.path.join(self.run_dir, self.demux_dir, element)
+                        os.symlink(source, dest)
+                os.makedirs(os.path.join(self.run_dir, "Demultiplexing", "Stats"))
+                #now fetch the lanes that have NoIndex
+                statsFiles = glob.glob(os.path.join(sub_demux_folder_path, "Stats", "*" ))
+                for source in statsFiles:
+                    source_name = os.path.split(source)[1]
+                    if source_name not in ["DemultiplexingStats.xml", "AdapterTrimming.txt", "ConversionStats.xml", "Stats.json"]:
+                        lane = os.path.splitext(os.path.split(source)[1])[0][-1] #lane
+                        if lane not in noindex_lanes:
+                            #in this case I can soflink the file here
+                            dest    = os.path.join(self.run_dir, self.demux_dir, "Stats", source_name)
+                            os.symlink(source, dest)
+                #now copy the three last files
+                for file in ["DemultiplexingStats.xml", "AdapterTrimming.txt", "ConversionStats.xml", "Stats.json"]:
+                    source = os.path.join(self.run_dir, sub_demux_folder_name, "Stats", file)
+                    dest   = os.path.join(self.run_dir, "Demultiplexing", "Stats", file)
+                    os.symlink(source, dest)
             return True
+
+        # Case with multiple sub-demultiplexings
         html_reports_lane        = []
         html_reports_laneBarcode = []
         stats_json               = []
@@ -567,7 +649,6 @@ class Run(object):
 
         #now create the html reports
         #start with the lane
-
         html_report_lane_parser = None
         for next_html_report_lane in html_reports_lane:
             if html_report_lane_parser is None:
