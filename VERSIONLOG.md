@@ -1,5 +1,8 @@
 # TACA Version Log
 
+## 20220524.1
+Handle special demux for NoIndex cases
+
 ## 20220520.1
 Include index list from undet of complex lanes
 
