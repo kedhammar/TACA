@@ -35,6 +35,7 @@ class HiSeqX_Run(Run):
         ssname   = self._get_samplesheet()
         ssparser = SampleSheetParser(ssname)
         indexfile = dict()
+        runSetup = self.runParserObj.runinfo.get_read_configuration()
         # Loading index files
         try:
             indexfile['tenX'] = self.CONFIG['bcl2fastq']['tenX_index_path']
@@ -50,7 +51,7 @@ class HiSeqX_Run(Run):
         # If this is not the case then create it and take special care of modification to be done on the SampleSheet
         samplesheet_dest = os.path.join(self.run_dir, 'SampleSheet.csv')
         # Function that goes through the original sample sheet and check for sample types
-        self.sample_table = _classify_samples(indexfile, ssparser)
+        self.sample_table = _classify_samples(indexfile, ssparser, runSetup)
         # Check that the samplesheet is not already present. In this case go the next step
         if not os.path.exists(samplesheet_dest):
             try:
@@ -79,6 +80,7 @@ class HiSeqX_Run(Run):
             - Decide correct bcl2fastq command parameters based on sample classes
             - run bcl2fastq conversion
         """
+        runSetup = self.runParserObj.runinfo.get_read_configuration()
         # Check sample types
         sample_type_list = []
         for lane, lane_contents in self.sample_table.items():
@@ -138,7 +140,7 @@ class HiSeqX_Run(Run):
                     samplesheet_dest='SampleSheet_{}.csv'.format(bcl2fastq_cmd_counter)
                     with open(samplesheet_dest, 'w') as fcd:
                         fcd.write(_generate_samplesheet_subset(self.runParserObj.samplesheet,
-                                                               samples_to_include))
+                                                               samples_to_include, runSetup))
 
                 # Prepare demultiplexing dir
                 with chdir(self.run_dir):
@@ -195,6 +197,9 @@ class HiSeqX_Run(Run):
                 # Add the extra Smart-seq command options if we have SMARTSEQ indexes
                 if sample_type == 'SMARTSEQ':
                     cl_options.extend(self.CONFIG['bcl2fastq']['options_SMARTSEQ'])
+                # Add the extra NOINDEX command options if NOINDEX sample but still want the index sequences
+                if sample_type == 'NOINDEX':
+                    cl_options.extend(self.CONFIG['bcl2fastq']['options_NOINDEX'])
                 # Add the extra command option if we have samples with single short index
                 if sample_type == 'short_single_index':
                     cl_options.extend(self.CONFIG['bcl2fastq']['options_short_single_index'])
@@ -417,11 +422,18 @@ def _generate_clean_samplesheet(ssparser, indexfile, fields_to_remove=None, rena
         output += os.linesep
     return output
 
-def _classify_samples(indexfile, ssparser):
+def _classify_samples(indexfile, ssparser, runSetup):
     """Given an ssparser object, go through all samples and decide sample types."""
     sample_table = dict()
     index_dict_tenX = parse_10X_indexes(indexfile['tenX'])
     index_dict_smartseq = parse_smartseq_indexes(indexfile['smartseq'])
+    index_cycles = [0, 0]
+    for read in runSetup:
+        if read['IsIndexedRead'] == 'Y':
+            if int(read['Number']) == 2:
+                index_cycles[0] = int(read['NumCycles'])
+            else:
+                index_cycles[1] = int(read['NumCycles'])
     for sample in ssparser.data:
         lane = sample['Lane']
         sample_name = sample.get('Sample_Name') or sample.get('SampleName')
@@ -446,8 +458,12 @@ def _classify_samples(indexfile, ssparser):
             smartseq_index = sample['index'].split('-')[1]
             index_length = [len(index_dict_smartseq[smartseq_index][0][0]),len(index_dict_smartseq[smartseq_index][0][1])]
             sample_type = 'SMARTSEQ'
-        # No Index case. Note that if both index 1 and 2 are empty, it will be the same index type but will be handled in the next case
-        elif sample['index'].upper() == 'NOINDEX':
+        # No Index case 1. We will write indexes to separate FastQ files
+        elif sample['index'].upper() == 'NOINDEX' and index_cycles != [0, 0]:
+            index_length = index_cycles
+            sample_type = 'NOINDEX'
+        # No Index case 2. Both index 1 and 2 are empty, it will be the same index type but will be handled in the next case
+        elif sample['index'].upper() == 'NOINDEX' and index_cycles == [0, 0]:
             index_length = [0, 0]
             sample_type = 'ordinary'
         # Ordinary samples
@@ -501,9 +517,16 @@ def parse_smartseq_indexes(indexfile):
                 index_dict.update({line_[0]:[(line_[1],line_[2])]})
     return index_dict
 
-def _generate_samplesheet_subset(ssparser, samples_to_include):
+def _generate_samplesheet_subset(ssparser, samples_to_include, runSetup):
     output = u''
-
+    # Prepare index cycles
+    index_cycles = [0, 0]
+    for read in runSetup:
+        if read['IsIndexedRead'] == 'Y':
+            if int(read['Number']) == 2:
+                index_cycles[0] = int(read['NumCycles'])
+            else:
+                index_cycles[1] = int(read['NumCycles'])
     # Header
     output += '[Header]{}'.format(os.linesep)
     for field in sorted(ssparser.header):
@@ -519,13 +542,18 @@ def _generate_samplesheet_subset(ssparser, samples_to_include):
     for line in ssparser.data:
         sample_name = line.get('Sample_Name') or line.get('SampleName')
         lane = line['Lane']
+        noindex_flag = False
         if lane in samples_to_include.keys():
             if sample_name in samples_to_include.get(lane):
                 line_ar = []
                 for field in datafields:
-                    # Case of no index
-                    if field == 'index' and 'NOINDEX' in line[field].upper():
-                        line[field] = ''
+                    # Case with NoIndex
+                    if field == 'index' and 'NOINDEX' in line['index'].upper():
+                        line[field] = 'T'*index_cycles[0] if index_cycles[0] !=0 else ''
+                        noindex_flag = True
+                    if field == 'index2' and noindex_flag:
+                        line[field] = 'A'*index_cycles[1] if index_cycles[1] !=0 else ''
+                        noindex_flag = False
                     # Case of IDT UMI
                     if (field == 'index' or field == 'index2') and IDT_UMI_PAT.findall(line[field]):
                         line[field] = line[field].replace('N', '')
