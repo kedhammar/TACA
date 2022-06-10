@@ -36,7 +36,7 @@ class TestBackupUtils(unittest.TestCase):
         self.assertEqual(config_info.gpg_receiver, 'some.user')
         self.assertEqual(config_info.mail_recipients, 'some_user@some_email.com')
         self.assertEqual(config_info.check_demux, True)
-        self.assertEqual(config_info.couch_info, {'url': 'url', 'username': 'username', 'password': 'pwd', 'port': 1234, 'xten_db': 'x_flowcells'})
+        self.assertEqual(config_info.couch_info, {'url': 'url', 'username': 'username', 'password': 'pwd', 'xten_db': 'x_flowcells'})
 
     def test_collect_runs(self):
         """Get backup runs from archive directories."""
