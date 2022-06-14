@@ -279,14 +279,13 @@ def error_emailer(flag, info):
 def fail_run(runid, project):
     """Updates status of specified run or project-run to Failed."""
     statusdb_conf = CONFIG.get('statusdb')
-    logger.info('Connecting to status db: {}:{}'.format(statusdb_conf.get('url'), statusdb_conf.get('port')))
+    logger.info('Connecting to status db: {}'.format(statusdb_conf.get('url')))
     try:
         status_db = statusdb.StatusdbSession(statusdb_conf).connection
     except Exception as e:
-        logger.error('Can not connect to status_db: http://{}:*****@{}:{}'.format(
+        logger.error('Can not connect to status_db: https://{}:*****@{}'.format(
             statusdb_conf.get('username'),
-            statusdb_conf.get('url'),
-            statusdb_conf.get('port')))
+            statusdb_conf.get('url')))
         logger.error(e)
         raise e
     bioinfo_db = status_db['bioinfo_analysis']

@@ -11,10 +11,9 @@ class StatusdbSession(object):
     def __init__(self, config, db=None):
         user = config.get('username')
         password = config.get('password')
-        port = config.get('port')
         url = config.get('url')
-        url_string = 'http://{}:{}@{}:{}'.format(user, password, url, port)
-        display_url_string = 'http://{}:{}@{}:{}'.format(user, '*********', url, port)
+        url_string = 'https://{}:{}@{}'.format(user, password, url)
+        display_url_string = 'https://{}:{}@{}'.format(user, '*********', url)
         self.connection = couchdb.Server(url=url_string)
         if not self.connection:
             raise Exception('Couchdb connection failed for url {}'.format(display_url_string))
