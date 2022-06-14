@@ -5,7 +5,6 @@ statusdb:
   url: url
   username: username
   password: pwd
-  port: 1234
   xten_db: x_flowcells
 
 storage:
