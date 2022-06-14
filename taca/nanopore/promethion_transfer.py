@@ -3,6 +3,7 @@
 
 import os
 import shutil
+import pathlib
 import argparse
 import subprocess
 
@@ -13,8 +14,17 @@ def main(args):
     destination_dir = args.dest_dir
     archive_dir = args.archive_dir
     log_file = os.path.join(data_dir, 'rsync_log.txt')
-    runs = [os.path.join(data_dir, top_dir) for top_dir in os.listdir(data_dir)
+    found_top_dirs = [os.path.join(data_dir, top_dir) for top_dir in os.listdir(data_dir)
             if os.path.isdir(os.path.join(data_dir, top_dir))]
+    
+    runs = []
+    if found_top_dirs:
+        for top_dir in found_top_dirs:
+            if os.path.isdir(top_dir):
+                for sample_dir in os.listdir(top_dir):
+                    if os.path.isdir(os.path.join(top_dir, sample_dir)):
+                        for run_dir in os.listdir(os.path.join(top_dir, sample_dir)):
+                            runs.append(os.path.join(top_dir, sample_dir, run_dir))
     
     # Split finished and unfinished runs
     not_finished = []
@@ -35,8 +45,8 @@ def main(args):
         
 
 def sequencing_finished(run_dir):
-    sequencing_finished_indicator = 'sequencing_summary'
-    run_dir_content = os.listdir(run_dir)
+    sequencing_finished_indicator = 'final_summary'
+    run_dir_content = os.listdir(run_dir) 
     for item in run_dir_content:
         if sequencing_finished_indicator in item:
             return True
@@ -63,8 +73,15 @@ def final_sync_to_storage(run_dir, destination, archive_dir, log_file):
 
 def archive_finished_run(run_dir, archive_dir):
     """Move finished run to archive (nosync)."""
-    print('archiving {}'.format(run_dir))
-    shutil.move(run_dir, archive_dir)
+    dir_to_move = str(pathlib.Path(run_dir).parent)
+    print('Archiving {}'.format(dir_to_move))
+    shutil.move(dir_to_move, archive_dir)
+    top_dir = str(pathlib.Path(run_dir).parent.parent)
+    if not os.listdir(top_dir):
+        print("Project folder {} is empty. Removing it.".format(top_dir))
+        os.rmdir(top_dir)
+    else:
+        print("Some data is still left in {}. Keeping it.".format(top_dir))
 
 if __name__ == "__main__":
     # This is clunky but should be fine since it will only ever run as a cronjob
