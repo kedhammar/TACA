@@ -611,7 +611,7 @@ class Run(object):
                 if row['Lane'] not in lanes_samples.keys():
                     lanes_samples[row['Lane']] = [row['Sample_Name']]
                 else:
-                    lanes_samples[row['Lane']].apend(row['Sample_Name'])
+                    lanes_samples[row['Lane']].append(row['Sample_Name'])
 
             ## Special case that when we assign fake indexes for NoIndex samples
             if (set(list(lanes_samples.keys())) & set(noindex_lanes)) and index_cycles != [0, 0]:
