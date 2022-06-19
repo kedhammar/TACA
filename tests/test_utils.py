@@ -118,7 +118,6 @@ class TestMisc(unittest.TestCase):
         couch_info = {'url': 'url',
                       'username': 'username',
                       'password': 'pwd',
-                      'port': '1234',
                       'db': 'db'}
         is_demultiplexed = misc.run_is_demuxed(run, couch_info=couch_info)
         #TODO: should add a check here but not sure how to mock this properly
@@ -592,8 +591,7 @@ class TestConfig(unittest.TestCase):
         expexted_config_data = {'statusdb':
                                 {'url': 'url',
                                  'username': 'username',
-                                 'password': 'pwd',
-                                 'port': 'port'},
+                                 'password': 'pwd'},
                                 'log':
                                 {'file': 'data/taca.log'}}
         self.assertEqual(expexted_config_data, got_config_data)
@@ -606,8 +604,7 @@ class TestConfig(unittest.TestCase):
         expexted_config_data = {'statusdb':
                                 {'url': 'url',
                                  'username': 'username',
-                                 'password': 'pwd',
-                                 'port': 'port'},
+                                 'password': 'pwd'},
                                 'log':
                                 {'file': 'data/taca.log'}}
         self.assertEqual(expexted_config_data, got_config_data)
@@ -664,7 +661,6 @@ class TestBioinfoTab(unittest.TestCase):
         mock_couch.StatusdbSession.assert_called_with({'url': 'url',
                                                        'username': 'username',
                                                        'password': 'pwd',
-                                                       'port': 1234,
                                                        'xten_db': 'x_flowcells'})
 
     def test_get_status_new(self):
@@ -770,7 +766,6 @@ class TestBioinfoTab(unittest.TestCase):
         mock_couch.StatusdbSession.assert_called_with({'url': 'url',
                                                        'username': 'username',
                                                        'password': 'pwd',
-                                                       'port': 1234,
                                                        'xten_db':
                                                        'x_flowcells'})
 
@@ -782,7 +777,6 @@ class TestStatusdb(unittest.TestCase):
     def test_get_entry(self, mock_couch):
         """Get an entry from statusdb."""
         couch_config = {'user': 'username',
-                        'port': '1234',
                         'url': 'some_url',
                         'password': 'some_pwd'}
         entry = statusdb.ProjectSummaryConnection(couch_config).get_entry('name')

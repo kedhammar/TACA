@@ -1,5 +1,15 @@
 # TACA Version Log
 
+
+## 20220614.1
+Updates to promethion offload script
+
+## 20220613.1
+Include promethion offload script
+
+##20220610.1
+Convert statusdb urls to https
+
 ## 20220524.1
 Handle special demux for NoIndex cases
 
