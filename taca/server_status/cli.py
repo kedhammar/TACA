@@ -9,8 +9,6 @@ from taca.server_status import cronjobs as cj # to avoid similar names with comm
 @click.group(name='server_status')
 def server_status():
     """ Monitor server status """
-    if not CONFIG.get('server_status', ''):
-        logging.warning("Configuration missing required entries: server_status")
 
 # server status subcommands
 @server_status.command()
@@ -18,6 +16,8 @@ def server_status():
 def nases(statusdb):
     """ Checks the available space on all the nases
     """
+    if not CONFIG.get('server_status', ''):
+        logging.warning("Configuration missing required entries: server_status")
     disk_space = status.get_nases_disk_space()
     if statusdb:
         status.update_status_db(disk_space, server_type='nas')
