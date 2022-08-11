@@ -1,5 +1,7 @@
 # TACA Version Log
 
+## 20220811.1
+Set short single index to 8nt
 
 ## 20220614.1
 Updates to promethion offload script

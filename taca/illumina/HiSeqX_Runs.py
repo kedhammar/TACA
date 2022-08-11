@@ -470,7 +470,7 @@ def _classify_samples(indexfile, ssparser, runSetup):
         else:
             index_length = [len(sample['index']),len(sample['index2'])]
             # Short single index (<=6nt)
-            if (index_length[0] <= 6 and index_length[1] == 0) or (index_length[0] == 0 and index_length[1] <= 6):
+            if (index_length[0] <= 8 and index_length[1] == 0) or (index_length[0] == 0 and index_length[1] <= 8):
                 sample_type = 'short_single_index'
             else:
                 sample_type = 'ordinary'
