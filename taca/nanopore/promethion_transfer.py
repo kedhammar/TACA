@@ -75,8 +75,14 @@ def archive_finished_run(run_dir, archive_dir):
     """Move finished run to archive (nosync)."""
     dir_to_move = str(pathlib.Path(run_dir).parent)
     print('Archiving {}'.format(dir_to_move))
-    shutil.move(dir_to_move, archive_dir)
     top_dir = str(pathlib.Path(run_dir).parent.parent)
+    project_id = os.path.basename(top_dir)
+    project_archive = os.path.join(archive_dir, project_id)
+    if os.path.exists(project_archive):
+        shutil.move(dir_to_move, project_archive)
+    else:
+        os.mkdir(project_archive)
+        shutil.move(dir_to_move, project_archive)
     if not os.listdir(top_dir):
         print("Project folder {} is empty. Removing it.".format(top_dir))
         os.rmdir(top_dir)
