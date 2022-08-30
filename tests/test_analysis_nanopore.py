@@ -22,7 +22,7 @@ class TestNanoporeAnalysis(unittest.TestCase):
                          "data/nanopore_data/run8/demux_failed/20200108_1412_MN19414_AAU648_68125dc2"]
         nanopore_data_dir = CONFIG.get('nanopore_analysis').get('minion_qc_run').get('data_dir')
         skip_dirs = CONFIG.get('nanopore_analysis').get('minion_qc_run').get('ignore_dirs')
-        found_dirs = find_runs_to_process(nanopore_data_dir, skip_dirs)
+        found_dirs = find_minion_runs(nanopore_data_dir, skip_dirs)
         self.assertEqual(sorted(found_dirs), sorted(expected_dirs))
 
     @mock.patch('taca.analysis.analysis_nanopore.os.path.isfile')

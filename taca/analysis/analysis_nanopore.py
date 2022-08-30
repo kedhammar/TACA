@@ -10,16 +10,16 @@ from taca.nanopore.promethion import PromethION
 
 logger = logging.getLogger(__name__)
 
-def find_runs_to_process(nanopore_data_dir, skip_dirs):
+def find_minion_runs(minion_data_dir, skip_dirs):
     """Find nanopore runs to process."""
     found_run_dirs = []
     try:
-        found_top_dirs = [os.path.join(nanopore_data_dir, top_dir) for top_dir in os.listdir(nanopore_data_dir)
-                            if os.path.isdir(os.path.join(nanopore_data_dir, top_dir))
+        found_top_dirs = [os.path.join(minion_data_dir, top_dir) for top_dir in os.listdir(minion_data_dir)
+                            if os.path.isdir(os.path.join(minion_data_dir, top_dir))
                             and top_dir not in skip_dirs]
     except OSError:
         logger.warn('There was an issue locating the following directory: {}. '
-                    'Please check that it exists and try again.'.format(nanopore_data_dir))
+                    'Please check that it exists and try again.'.format(minion_data_dir))
     # Get the actual location of the run directories in /var/lib/MinKnow/data/QC_runs/USERDETERMINEDNAME/USERDETSAMPLENAME/run
     if found_top_dirs:
         for top_dir in found_top_dirs:
@@ -29,8 +29,22 @@ def find_runs_to_process(nanopore_data_dir, skip_dirs):
                         for run_dir in os.listdir(os.path.join(top_dir, sample_dir)):
                             found_run_dirs.append(os.path.join(top_dir, sample_dir, run_dir))
     else:
-        logger.warn('Could not find any run directories in {}'.format(nanopore_data_dir))
+        logger.warn('Could not find any run directories in {}'.format(minion_data_dir))
     return found_run_dirs
+
+def find_prom_runs(prom_data_dir, skip_dirs):
+    """Find promethion runs in ngi-nas. 
+    These are assumed to be flowcell dirs, not project dirs.
+    """
+    try:
+        found_dirs = [os.path.join(prom_data_dir, top_dir) for top_dir in os.listdir(prom_data_dir)
+                            if os.path.isdir(os.path.join(prom_data_dir, top_dir))
+                            and top_dir not in skip_dirs]
+    except OSError:
+        logger.warn('There was an issue locating the following directory: {}. '
+                    'Please check that it exists and try again.'.format(prom_data_dir))
+    return found_dirs
+        
 
 def check_ongoing_sequencing(run_dir):
     """Check if sequencing is ongoing for the given run dir """
@@ -237,7 +251,7 @@ def process_minion_qc_runs(run, nanoseq_sample_sheet, anglerfish_sample_sheet):
     else:
         nanopore_data_dir = CONFIG.get('nanopore_analysis').get('minion_qc_run').get('data_dir')
         skip_dirs = CONFIG.get('nanopore_analysis').get('minion_qc_run').get('ignore_dirs')
-        runs_to_process = find_runs_to_process(nanopore_data_dir, skip_dirs)
+        runs_to_process = find_minion_runs(nanopore_data_dir, skip_dirs)
         sequencing_ongoing, nanoseq_ongoing = False, False
         for run_dir in runs_to_process:
             if check_ongoing_sequencing(run_dir):
@@ -255,9 +269,9 @@ def process_minion_delivery_runs(run):
         minion_run = MinIONdelivery(os.path.abspath(run))
         process_minion_delivery_run(minion_run)
     else:
-        nanopore_data_dir = CONFIG.get('nanopore_analysis').get('minion_delivery_run').get('data_dir')
+        minion_data_dir = CONFIG.get('nanopore_analysis').get('minion_delivery_run').get('data_dir')
         skip_dirs = CONFIG.get('nanopore_analysis').get('minion_delivery_run').get('ignore_dirs')
-        runs_to_process = find_runs_to_process(nanopore_data_dir, skip_dirs)
+        runs_to_process = find_minion_runs(minion_data_dir, skip_dirs)
         for run_dir in runs_to_process:
             minion_run = MinIONdelivery(run_dir)
             process_minion_delivery_run(minion_run)
@@ -269,9 +283,9 @@ def process_promethion_runs(run):
         process_promethion_run(promethion_run)
     else:
         # Locate all runs in /srv/ngi_data/sequencing/promethion
-        nanopore_data_dir = CONFIG.get('nanopore_analysis').get('promethion_run').get('data_dir')
+        prom_data_dir = CONFIG.get('nanopore_analysis').get('promethion_run').get('data_dir')
         skip_dirs = CONFIG.get('nanopore_analysis').get('promethion_run').get('ignore_dirs')
-        runs_to_process = find_runs_to_process(nanopore_data_dir, skip_dirs) 
+        runs_to_process = find_prom_runs(prom_data_dir, skip_dirs) 
         for run_dir in runs_to_process:
             promethion_run = PromethION(run_dir)
             process_promethion_run(promethion_run)
