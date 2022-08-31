@@ -1,5 +1,8 @@
 # TACA Version Log
 
+##20220830.1
+Change promethion directory levels
+
 ## 20220811.1
 Set short single index to 8nt
 
