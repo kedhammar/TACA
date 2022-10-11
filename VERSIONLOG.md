@@ -1,5 +1,8 @@
 # TACA Version Log
 
+##20221011.1
+Add versioning for PromethION offload script 
+
 ##20220830.1
 Change promethion directory levels
 

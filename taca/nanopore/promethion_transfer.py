@@ -1,5 +1,6 @@
 """ Transfers new PromethION runs to ngi-nas using rsync.
 """
+__version__ = "1.0.0"
 
 import os
 import shutil
@@ -95,6 +96,7 @@ if __name__ == "__main__":
     parser.add_argument('--source', dest='source_dir', help='Full path to directory containing runs to be synced.')
     parser.add_argument('--dest', dest='dest_dir', help='Full path to destination directory to sync runs to.')
     parser.add_argument('--archive', dest='archive_dir', help='Full path to directory containing runs to be synced.')
+    parser.add_argument('--version', action='version', version=__version__)
     args = parser.parse_args()
     
     main(args)
