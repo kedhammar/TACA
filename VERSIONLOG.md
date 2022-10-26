@@ -1,5 +1,8 @@
 # TACA Version Log
 
+##20221028.1
+Cleaner check for ONT transfer destination
+
 ##20221011.1
 Add versioning for PromethION offload script 
 
