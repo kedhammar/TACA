@@ -280,7 +280,7 @@ def transfer_finished(run):
             ont_run = MinionTransfer(os.path.abspath(run))
             transfer_ont_run(ont_run)
         elif 'promethion' in run:
-            ont_run = MinionTransfer(os.path.abspath(run))
+            ont_run = PromethionTransfer(os.path.abspath(run))
             transfer_ont_run(ont_run)
     else:
         # Locate all runs in /srv/ngi_data/sequencing/promethion and /srv/ngi_data/sequencing/minion
