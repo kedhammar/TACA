@@ -1,5 +1,8 @@
 # TACA Version Log
 
+##20221102.1
+Include MinION data in transfer to HPC cluster
+
 ##20221028.1
 Cleaner check for ONT transfer destination
 
