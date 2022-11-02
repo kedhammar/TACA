@@ -28,8 +28,8 @@ class PromethionTransfer(ONTTransfer):
     """PromethION run for transfer to HPC cluster"""
     def __init__(self, run_dir):
         super(PromethionTransfer, self).__init__(run_dir)
-        self.transfer_details = CONFIG.get('nanopore_analysis').get('ont_transfer').get('promethion_transfer')
-        self.transfer_log = self.transfer_details.get('transfer_file') #TODO: update config
+        self.transfer_details = CONFIG.get('nanopore_analysis').get('ont_transfer').get('promethion')
+        self.transfer_log = self.transfer_details.get('transfer_file')
         self.archive_dir = self.transfer_details.get('finished_dir')
         
 
@@ -37,6 +37,6 @@ class MinionTransfer(ONTTransfer):
     """MinION run for transfer to HPC cluster"""
     def __init__(self, run_dir):
         super(MinionTransfer, self).__init__(run_dir)
-        self.transfer_details = CONFIG.get('nanopore_analysis').get('ont_transfer').get('minion_transfer')
-        self.transfer_log = self.transfer_details.get('transfer_file') #TODO: update config
+        self.transfer_details = CONFIG.get('nanopore_analysis').get('ont_transfer').get('minion')
+        self.transfer_log = self.transfer_details.get('transfer_file')
         self.archive_dir = self.transfer_details.get('finished_dir')

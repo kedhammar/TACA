@@ -284,7 +284,7 @@ def transfer_finished(run):
             transfer_ont_run(ont_run)
     else:
         # Locate all runs in /srv/ngi_data/sequencing/promethion and /srv/ngi_data/sequencing/minion
-        ont_data_dirs = CONFIG.get('nanopore_analysis').get('ont_transfer').get('data_dirs') #TODO: change this in config
+        ont_data_dirs = CONFIG.get('nanopore_analysis').get('ont_transfer').get('data_dirs')
         skip_dirs = CONFIG.get('nanopore_analysis').get('ont_transfer').get('ignore_dirs')
         for data_dir in ont_data_dirs:
             runs_to_process = find_ont_transfer_runs(data_dir, skip_dirs)
