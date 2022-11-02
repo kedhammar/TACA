@@ -6,7 +6,7 @@ import os
 import subprocess
 
 from taca.nanopore.nanopore import Nanopore
-from taca.nanopore.promethion import PromethION
+from taca.nanopore.ont_transfer import ONTTransfer
 from taca.nanopore.minion import MinIONqc
 from taca.utils import config as conf
 
