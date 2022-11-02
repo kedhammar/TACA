@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 class ONTTransfer(Nanopore):
-    """ONT run for transfer to HPC cluster"""
+    """Base class for transfer of ONT data to HPC cluster"""
     def __init__(self, run_dir):
         super(ONTTransfer, self).__init__(run_dir)
     
@@ -25,7 +25,7 @@ class ONTTransfer(Nanopore):
             return False
 
 class PromethionTransfer(ONTTransfer):
-    """PromethION run for transfer to HPC cluster"""
+    """Class for transfer of PromethION data to HPC cluster"""
     def __init__(self, run_dir):
         super(PromethionTransfer, self).__init__(run_dir)
         self.transfer_details = CONFIG.get('nanopore_analysis').get('ont_transfer').get('promethion')
@@ -34,7 +34,7 @@ class PromethionTransfer(ONTTransfer):
         
 
 class MinionTransfer(ONTTransfer):
-    """MinION run for transfer to HPC cluster"""
+    """Class for transfer of MinION data to HPC cluster"""
     def __init__(self, run_dir):
         super(MinionTransfer, self).__init__(run_dir)
         self.transfer_details = CONFIG.get('nanopore_analysis').get('ont_transfer').get('minion')
