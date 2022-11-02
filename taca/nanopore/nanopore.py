@@ -23,14 +23,14 @@ class Nanopore(object):
         with open(self.transfer_log, 'r') as f:
             return self.run_id not in f.read()
 
-    def transfer_run(self, transfer_details):
+    def transfer_run(self):
         """rsync dir to destination specified in config file."""
-        destination = transfer_details.get('destination')
-        rsync_opts = transfer_details.get('rsync_options')
+        destination = self.transfer_details.get('destination')
+        rsync_opts = self.transfer_details.get('rsync_options')
         for k, v in rsync_opts.items():
             if v == 'None':
                 rsync_opts[k] = None
-        connection_details = transfer_details.get('analysis_server', None)
+        connection_details = self.transfer_details.get('analysis_server', None)
         logger.info('Transferring run {} to {}'.format(self.run_id, 
                                                        connection_details['host'] if connection_details 
                                                        else destination))
