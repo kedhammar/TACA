@@ -205,6 +205,10 @@ def transfer_ont_run(ont_run):
     if len(ont_run.summary_file) and os.path.isfile(ont_run.summary_file[0]):
         logger.info('Sequencing done for run {}. Attempting to start processing.'.format(ont_run.run_id))
         if ont_run.is_not_transferred():
+            
+            # Upload to CouchDB
+
+
             if ont_run.transfer_run():
                 if ont_run.update_transfer_log():
                     logger.info('Run {} has been synced to the analysis cluster.'.format(ont_run.run_id))
