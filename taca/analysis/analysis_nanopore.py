@@ -2,9 +2,11 @@
 import os
 import logging
 import glob
+import json
 
 from taca.utils.config import CONFIG
 from taca.utils.misc import send_mail
+from taca.utils.statusdb import NanoporeRunsConnection
 from taca.nanopore.minion import MinIONdelivery, MinIONqc
 from taca.nanopore.ont_transfer import PromethionTransfer, MinionTransfer
 
@@ -196,6 +198,22 @@ def process_minion_delivery_run(minion_run):
             send_mail(email_subject, email_message, email_recipients)
             
 
+def upload_ont_json(ont_run):
+    """Upload run report .json to CouchDB"""
+    try:
+        json_name = glob.glob(run_dir + '/report*.json')
+        with open(json_name, "r") as f:
+            doc = json.load(f)
+
+        sesh = NanoporeRunsConnection(CONFIG["status_db"], dbname="nanopore_runs")
+        sesh.save_db_doc(doc)
+
+        logger.info('Run {} .json has been uploaded to CouchDB.'.format(ont_run.run_id))
+        return True
+
+    except:
+        return False
+
 
 def transfer_ont_run(ont_run):
     """Transfer ONT runs to HPC cluster."""
@@ -206,8 +224,13 @@ def transfer_ont_run(ont_run):
         logger.info('Sequencing done for run {}. Attempting to start processing.'.format(ont_run.run_id))
         if ont_run.is_not_transferred():
             
-            # Upload to CouchDB
-
+            if upload_ont_json(ont_run):
+                logger.info('Run {} .json has been uploaded to CouchDB.'.format(ont_run.run_id))
+            else:
+                email_subject = ('Run processed with errors: {}'.format(ont_run.run_id))
+                email_message = ('Run {} is finished, but the run .json could not be successfully '
+                                    'uploaded to CouchDB').format(ont_run.run_id)
+                send_mail(email_subject, email_message, email_recipients)
 
             if ont_run.transfer_run():
                 if ont_run.update_transfer_log():
