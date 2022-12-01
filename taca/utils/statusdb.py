@@ -86,6 +86,10 @@ class X_FlowcellRunMetricsConnection(StatusdbSession):
         self.name_view = {k.key:k.id for k in self.db.view('names/name', reduce=False)}
         self.proj_list = {k.key:k.value for k in self.db.view('names/project_ids_list', reduce=False) if k.key}
 
+class NanoporeRunsConnection(StatusdbSession):
+    def __init__(self, config, dbname='nanopore_runs'):
+        super(X_FlowcellRunMetricsConnection, self).__init__(config)
+        self.db = self.connection[dbname]
 
 def update_doc(db, obj, over_write_db_entry=False):
     view = db.view('info/name')
