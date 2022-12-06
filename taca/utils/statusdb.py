@@ -88,7 +88,7 @@ class X_FlowcellRunMetricsConnection(StatusdbSession):
 
 class NanoporeRunsConnection(StatusdbSession):
     def __init__(self, config, dbname='nanopore_runs'):
-        super(X_FlowcellRunMetricsConnection, self).__init__(config)
+        super(NanoporeRunsConnection, self).__init__(config)
         self.db = self.connection[dbname]
 
 def update_doc(db, obj, over_write_db_entry=False):
