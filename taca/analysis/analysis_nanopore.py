@@ -200,17 +200,20 @@ def process_minion_delivery_run(minion_run):
 
 def upload_ont_json(ont_run):
     """Upload run report .json to CouchDB"""
+
     try:
-        json_name = glob.glob(run_dir + '/report*.json')
-        with open(json_name, "r") as f:
-            doc = json.load(f)
+        run_path_str = "/".join(ont_run.run_dir.split("/")[-3:])
+
+        json_filename = glob.glob(ont_run.run_dir + '/report*.json')
+        with open(json_filename, "r") as f:
+            run_json = json.load(f)
 
         sesh = NanoporeRunsConnection(CONFIG["status_db"], dbname="nanopore_runs")
-        sesh.save_db_doc(doc)
 
-        logger.info('Run {} .json has been uploaded to CouchDB.'.format(ont_run.run_id))
-        return True
-
+        if sesh.update_db(run_path_str, dict2add = run_json):
+            logger.info('Run {} .json has been uploaded to CouchDB.'.format(ont_run.run_id))
+            return True
+            
     except:
         return False
 
