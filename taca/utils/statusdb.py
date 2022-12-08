@@ -87,9 +87,51 @@ class X_FlowcellRunMetricsConnection(StatusdbSession):
         self.proj_list = {k.key:k.value for k in self.db.view('names/project_ids_list', reduce=False) if k.key}
 
 class NanoporeRunsConnection(StatusdbSession):
+    
     def __init__(self, config, dbname='nanopore_runs'):
         super(NanoporeRunsConnection, self).__init__(config)
         self.db = self.connection[dbname]
+
+    def update_db(self, run_path_str, dict2add = None):
+        """ Use the run path string "experiment_dir/sample_dir/run_dir" string to find any 
+        matching entries in CouchDB. 
+        
+        If such an entry is found and marked as "ongoing", update it with dict2add, containing the finished run info.
+        If no such entry is found, create it.
+        """
+
+        path2stat = self.db.view('info/run_status')
+        matching_rows = path2stat[run_path_str].rows
+
+        # Add finished run
+        if len(matching_rows) == 1:
+            
+            # Fetch run document from database
+            doc_id = matching_rows[0].id
+            doc = db[doc_id]
+
+            if doc["run_status"] == "ongoing":
+
+                # Add finished run information to document and change status
+                doc.update(dict2add)
+                doc["run_status"] = "finished"
+
+                # Overwrite the database entry
+                db[doc_id] = doc
+
+            else:
+                logger.warn(f"Matching database entry with run_path {run_path_str} was not marked 'ongoing'")
+
+        # Create ongoing run
+        elif len(matching_rows) == 0:
+            
+            dict2add = {"run_path": run_path_str, "run_status": "ongoing"}
+            new_doc_id, new_doc_rev = db.save(dict2add)
+        
+        # Multiple matching rows
+        else:
+            logger.warn(f'More than one database entry with run_path {run_path_str} found')
+
 
 def update_doc(db, obj, over_write_db_entry=False):
     view = db.view('info/name')
