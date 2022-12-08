@@ -100,37 +100,43 @@ class NanoporeRunsConnection(StatusdbSession):
         If no such entry is found, create it.
         """
 
-        path2stat = self.db.view('info/run_status')
-        matching_rows = path2stat[run_path_str].rows
+        try:
+            path2stat = self.db.view('info/run_status')
+            matching_rows = path2stat[run_path_str].rows
 
-        # Add finished run
-        if len(matching_rows) == 1:
+            # Add finished run
+            if len(matching_rows) == 1:
+                
+                # Fetch run document from database
+                doc_id = matching_rows[0].id
+                doc = self.db[doc_id]
+
+                if doc["run_status"] == "ongoing":
+
+                    # Add finished run information to document and change status
+                    doc.update(dict2add)
+                    doc["run_status"] = "finished"
+
+                    # Overwrite the database entry
+                    self.db[doc_id] = doc
+
+                else:
+                    logger.warn(f"Matching database entry with run_path {run_path_str} was not marked 'ongoing'")
+
+            # Create ongoing run
+            elif len(matching_rows) == 0:
+                
+                dict2add = {"run_path": run_path_str, "run_status": "ongoing"}
+                new_doc_id, new_doc_rev = self.db.save(dict2add)
             
-            # Fetch run document from database
-            doc_id = matching_rows[0].id
-            doc = db[doc_id]
-
-            if doc["run_status"] == "ongoing":
-
-                # Add finished run information to document and change status
-                doc.update(dict2add)
-                doc["run_status"] = "finished"
-
-                # Overwrite the database entry
-                db[doc_id] = doc
-
+            # Multiple matching rows
             else:
-                logger.warn(f"Matching database entry with run_path {run_path_str} was not marked 'ongoing'")
-
-        # Create ongoing run
-        elif len(matching_rows) == 0:
-            
-            dict2add = {"run_path": run_path_str, "run_status": "ongoing"}
-            new_doc_id, new_doc_rev = db.save(dict2add)
+                logger.warn(f'More than one database entry with run_path {run_path_str} found')
+                return False
+            return True
         
-        # Multiple matching rows
-        else:
-            logger.warn(f'More than one database entry with run_path {run_path_str} found')
+        except:
+            return False
 
 
 def update_doc(db, obj, over_write_db_entry=False):
