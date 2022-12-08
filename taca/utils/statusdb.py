@@ -96,22 +96,26 @@ class NanoporeRunsConnection(StatusdbSession):
         """ Use the run path string "experiment_dir/sample_dir/run_dir" string to find any 
         matching entries in CouchDB. 
         
-        If such an entry is found and marked as "ongoing", update it with dict2add, containing the finished run info.
-        If no such entry is found, create it.
+        If such an entry is found, marked as "ongoing" and there is info to add
+        --> update it with dict2add, containing the finished run info.
+        
+        If no such entry is found
+        --> create it.
         """
 
         try:
             path2stat = self.db.view('info/run_status')
             matching_rows = path2stat[run_path_str].rows
 
-            # Add finished run
+            # If matching entry exists in db
             if len(matching_rows) == 1:
                 
-                # Fetch run document from database
-                doc_id = matching_rows[0].id
-                doc = self.db[doc_id]
-
-                if doc["run_status"] == "ongoing":
+                # If there is a dict to add to the entry and the entry is an ongoing run
+                if dict2add and doc["run_status"] == "ongoing":
+        
+                    # Fetch run document from database
+                    doc_id = matching_rows[0].id
+                    doc = self.db[doc_id]
 
                     # Add finished run information to document and change status
                     doc.update(dict2add)
@@ -119,20 +123,23 @@ class NanoporeRunsConnection(StatusdbSession):
 
                     # Overwrite the database entry
                     self.db[doc_id] = doc
+                    logger.info(f"Run report .json appended to database entry {run_path_str}, id {doc_id}")
 
                 else:
-                    logger.warn(f"Matching database entry with run_path {run_path_str} was not marked 'ongoing'")
+                    # Either the run is not marked "ongoing" or there is no new info to add
+                    pass
 
-            # Create ongoing run
             elif len(matching_rows) == 0:
-                
-                dict2add = {"run_path": run_path_str, "run_status": "ongoing"}
-                new_doc_id, new_doc_rev = self.db.save(dict2add)
+                # Create ongoing run       
+                new_doc = {"run_path": run_path_str, "run_status": "ongoing"}
+                new_doc_id, new_doc_rev = self.db.save(new_doc)
+                logger.info(f"New database entry created: {run_path_str}, id {new_doc_id}, rev {new_doc_rev}")
             
             # Multiple matching rows
             else:
                 logger.warn(f'More than one database entry with run_path {run_path_str} found')
                 return False
+            
             return True
         
         except:

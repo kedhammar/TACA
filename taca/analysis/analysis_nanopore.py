@@ -198,22 +198,27 @@ def process_minion_delivery_run(minion_run):
             send_mail(email_subject, email_message, email_recipients)
             
 
-def upload_ont_json(ont_run):
+def ont2couch(ont_run):
     """Upload run report .json to CouchDB"""
 
     try:
         run_path_str = "/".join(ont_run.run_dir.split("/")[-3:])
-
-        json_filename = glob.glob(ont_run.run_dir + '/report*.json')
-        with open(json_filename, "r") as f:
-            run_json = json.load(f)
-
         sesh = NanoporeRunsConnection(CONFIG["status_db"], dbname="nanopore_runs")
 
-        if sesh.update_db(run_path_str, dict2add = run_json):
-            logger.info('Run {} .json has been uploaded to CouchDB.'.format(ont_run.run_id))
-            return True
-            
+        json_glob = glob.glob(ont_run.run_dir + '/report*.json')
+
+        if len(json_glob) == 1:
+            # Update exisiting run
+            with open(json_glob[0], "r") as f:
+                run_json = json.load(f)
+            sesh.update_db(run_path_str, dict2add = run_json)
+
+        elif len(json_glob) == 0:
+            # Create new run
+            sesh.update_db(run_path_str)
+
+        return True
+    
     except:
         return False
 
@@ -227,7 +232,7 @@ def transfer_ont_run(ont_run):
         logger.info('Sequencing done for run {}. Attempting to start processing.'.format(ont_run.run_id))
         if ont_run.is_not_transferred():
             
-            if upload_ont_json(ont_run):
+            if ont2couch(ont_run):
                 logger.info('Run {} .json has been uploaded to CouchDB.'.format(ont_run.run_id))
             else:
                 email_subject = ('Run processed with errors: {}'.format(ont_run.run_id))
@@ -268,6 +273,7 @@ def transfer_ont_run(ont_run):
                         'skipping: {}'.format(ont_run.run_id))
     else:
         logger.info('Run {} not finished sequencing yet. Skipping.'.format(ont_run.run_id))
+        ont2couch(ont_run)
 
 
 def process_minion_qc_runs(run, nanoseq_sample_sheet, anglerfish_sample_sheet):
