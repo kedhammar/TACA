@@ -199,7 +199,11 @@ def process_minion_delivery_run(minion_run):
             
 
 def ont2couch(ont_run):
-    """Upload run report .json to CouchDB"""
+    """ Check run vs statusdb. 
+    1) If the run is ongling and no entry exists, create a new entry
+    2) If the run is ongoing and an entry exists, do noting
+    3) If the run is finished and an entry exists, update the entry with the report.json
+    """
 
     try:
         run_path_str = "/".join(ont_run.run_dir.split("/")[-3:])
@@ -227,19 +231,17 @@ def transfer_ont_run(ont_run):
     """Transfer ONT runs to HPC cluster."""
     email_recipients = CONFIG.get('mail').get('recipients')
     logger.info('Processing run {}'.format(ont_run.run_id))
-    
+
+    if ont2couch(ont_run):
+        logger.info(f"Database update for run {ont_run.run_id} successful")
+    else:
+        email_subject = ('Run processed with errors: {}'.format(ont_run.run_id))
+        email_message = (f"An error occured when updating statusdb with run {ont_run.run_id}.")
+        send_mail(email_subject, email_message, email_recipients)
+
     if len(ont_run.summary_file) and os.path.isfile(ont_run.summary_file[0]):
         logger.info('Sequencing done for run {}. Attempting to start processing.'.format(ont_run.run_id))
         if ont_run.is_not_transferred():
-            
-            if ont2couch(ont_run):
-                logger.info('Run {} .json has been uploaded to CouchDB.'.format(ont_run.run_id))
-            else:
-                email_subject = ('Run processed with errors: {}'.format(ont_run.run_id))
-                email_message = ('Run {} is finished, but the run .json could not be successfully '
-                                    'uploaded to CouchDB').format(ont_run.run_id)
-                send_mail(email_subject, email_message, email_recipients)
-
             if ont_run.transfer_run():
                 if ont_run.update_transfer_log():
                     logger.info('Run {} has been synced to the analysis cluster.'.format(ont_run.run_id))
@@ -273,7 +275,6 @@ def transfer_ont_run(ont_run):
                         'skipping: {}'.format(ont_run.run_id))
     else:
         logger.info('Run {} not finished sequencing yet. Skipping.'.format(ont_run.run_id))
-        ont2couch(ont_run)
 
 
 def process_minion_qc_runs(run, nanoseq_sample_sheet, anglerfish_sample_sheet):
