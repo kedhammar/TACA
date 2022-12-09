@@ -110,24 +110,25 @@ class NanoporeRunsConnection(StatusdbSession):
             # If matching entry exists in db
             if len(matching_rows) == 1:
                 
-                # If there is a dict to add to the entry and the entry is an ongoing run
-                if dict2add and doc["run_status"] == "ongoing":
-        
-                    # Fetch run document from database
-                    doc_id = matching_rows[0].id
-                    doc = self.db[doc_id]
+                # If there is a dict to add to the entry
+                if dict2add:
+                    # If the entry is an ongoing run
+                    if doc["run_status"] == "ongoing":
+                        # Fetch run document from database
+                        doc_id = matching_rows[0].id
+                        doc = self.db[doc_id]
 
-                    # Add finished run information to document and change status
-                    doc.update(dict2add)
-                    doc["run_status"] = "finished"
+                        # Add finished run information to document and change status
+                        doc.update(dict2add)
+                        doc["run_status"] = "finished"
 
-                    # Overwrite the database entry
-                    self.db[doc_id] = doc
-                    logger.info(f"Run report .json appended to database entry {run_path_str}, id {doc_id}")
-
+                        # Overwrite the database entry
+                        self.db[doc_id] = doc
+                        logger.info(f"Run report .json appended to database entry {run_path_str}, id {doc_id}")
+                    else:
+                        logger.info(f"Database entry found for {run_path_str}, but run is not ongoing")
                 else:
-                    # Either the run is not marked "ongoing" or there is no new info to add
-                    pass
+                    logger.info(f"Database entry found for {run_path_str}, but no new information to add")
 
             elif len(matching_rows) == 0:
                 # Create ongoing run       
