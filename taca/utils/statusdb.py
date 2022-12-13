@@ -112,10 +112,12 @@ class NanoporeRunsConnection(StatusdbSession):
                 
                 # If there is a dict to add to the entry
                 if dict2add:
+                    row = matching_rows[0]
+
                     # If the entry is an ongoing run
-                    if doc["run_status"] == "ongoing":
+                    if row.value == "ongoing":
                         # Fetch run document from database
-                        doc_id = matching_rows[0].id
+                        doc_id = row.id
                         doc = self.db[doc_id]
 
                         # Add finished run information to document and change status
