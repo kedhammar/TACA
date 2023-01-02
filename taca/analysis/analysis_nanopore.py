@@ -3,6 +3,7 @@ import os
 import logging
 import glob
 import json
+import html
 
 from taca.utils.config import CONFIG
 from taca.utils.misc import send_mail
@@ -201,7 +202,7 @@ def process_minion_delivery_run(minion_run):
 def ont2couch(ont_run):
     """ Check run vs statusdb. 
     1) If the run is ongling and no entry exists, create a new entry
-    2) If the run is ongoing and an entry exists, do noting
+    2) If the run is ongoing and an entry exists, do nothing
     3) If the run is finished and an entry exists, update the entry with the report.json
     """
 
@@ -210,16 +211,28 @@ def ont2couch(ont_run):
         sesh = NanoporeRunsConnection(CONFIG["status_db"], dbname="nanopore_runs")
 
         json_glob = glob.glob(ont_run.run_dir + '/report*.json')
+        html_glob = glob.glob(ont_run.run_dir + '/report*.html')
 
-        if len(json_glob) == 1:
-            # Update exisiting run
-            with open(json_glob[0], "r") as f:
-                run_json = json.load(f)
-            sesh.update_db(run_path_str, dict2add = run_json)
-
-        elif len(json_glob) == 0:
-            # Create new run
+        # If there are no run reports (i.e. run is ongoing)
+        if len(json_glob) == 0:
+            # 
             sesh.update_db(run_path_str)
+
+        # If there ARE run reports
+        elif len(json_glob) == 1:
+
+            # Load the .json report as dict
+            with open(json_glob[0], "r") as f:
+                run_dict = json.load(f)
+            
+            # Add the .html report to the dict as an escaped string
+            with open(html_glob[0], "r") as f:
+                html_str_escaped = html.escape(f.read())
+            run_dict["minknow_report_name"] = html_glob[0].split("/")[-1]
+            run_dict["minknow_report_content"] = html_str_escaped
+
+            # Update the existing db entry with the new dict
+            sesh.update_db(run_path_str, dict2add = run_dict)
 
         return True
     
