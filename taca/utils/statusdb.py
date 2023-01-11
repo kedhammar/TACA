@@ -93,21 +93,22 @@ class NanoporeRunsConnection(StatusdbSession):
         self.db = self.connection[dbname]
 
     def update_db(self, run_path_str, dict2add = None):
-        """ Use the run path string "experiment_dir/sample_dir/run_dir" string to find any 
-        matching entries in CouchDB. 
+        """ Use the run path string "experiment_dir/sample_dir/run_dir" to extract info.
         
-        If such an entry is found, marked as "ongoing" and there is info to add
-        --> update it with dict2add, containing the finished run info.
-        
-        If no such entry is found
-        --> create it.
+        1) Search StatusDB by run name
+        2) If a run is found, marked as "ongoing" and there is info to add
+            --> update it with dict2add
+        3) If no run is found
+            --> create it, and extract as much info as possible from the run path
         """
 
-        try:
-            path2stat = self.db.view('info/run_status')
-            matching_rows = path2stat[run_path_str].rows
+        run_name = "/".split(run_path_str)[-1]
 
-            # If matching entry exists in db
+        try:
+            view_all_stats = self.db.view('info/all_stats')
+            matching_rows = view_all_stats[run_name].rows
+
+            # If a run entry exists in db
             if len(matching_rows) == 1:
                 
                 # If there is a dict to add to the entry
@@ -115,18 +116,19 @@ class NanoporeRunsConnection(StatusdbSession):
                     row = matching_rows[0]
 
                     # If the entry is an ongoing run
-                    if row.value == "ongoing":
-                        # Fetch run document from database
-                        doc_id = row.id
-                        doc = self.db[doc_id]
+                    if row.value['run_status'] == "ongoing":
+
+                        # Load the doc itself (not just the view row)
+                        doc = self.db[row.id]
 
                         # Add finished run information to document and change status
                         doc.update(dict2add)
                         doc["run_status"] = "finished"
 
                         # Overwrite the database entry
-                        self.db[doc_id] = doc
-                        logger.info(f"Run report .json appended to database entry {run_path_str}, id {doc_id}")
+                        self.db[row.id] = doc
+
+                        logger.info(f"Run report .json appended to database entry {run_path_str}, id {row.id}")
                     else:
                         logger.info(f"Database entry found for {run_path_str}, but run is not ongoing")
                 else:
@@ -134,7 +136,10 @@ class NanoporeRunsConnection(StatusdbSession):
 
             elif len(matching_rows) == 0:
                 # Create ongoing run       
-                new_doc = {"run_path": run_path_str, "run_status": "ongoing"}
+                new_doc = {
+                    "run_path": run_path_str,
+                    "run_status": "ongoing",
+                }
                 new_doc_id, new_doc_rev = self.db.save(new_doc)
                 logger.info(f"New database entry created: {run_path_str}, id {new_doc_id}, rev {new_doc_rev}")
             
