@@ -215,7 +215,6 @@ def ont2couch(ont_run):
 
         # If there are no run reports (i.e. run is ongoing)
         if len(json_glob) == 0:
-            # 
             sesh.update_db(run_path_str)
 
         # If there ARE run reports
