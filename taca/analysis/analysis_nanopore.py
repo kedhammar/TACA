@@ -201,9 +201,9 @@ def process_minion_delivery_run(minion_run):
 
 def ont2couch(ont_run):
     """ Check run vs statusdb. 
-    1) If the run is ongling and no entry exists, create a new entry
-    2) If the run is ongoing and an entry exists, do nothing
-    3) If the run is finished and an entry exists, update the entry with the report.json
+    1) If the run is ongling and no document exists, create a new document
+    2) If the run is ongoing and a document exists, do nothing
+    3) If the run is finished and a document exists, update the document with the report.json
     """
 
     try:
@@ -227,10 +227,11 @@ def ont2couch(ont_run):
             # Add the .html report to the dict as an escaped string
             with open(html_glob[0], "r") as f:
                 html_str_escaped = html.escape(f.read())
+
             run_dict["minknow_report_name"] = html_glob[0].split("/")[-1]
             run_dict["minknow_report_content"] = html_str_escaped
 
-            # Update the existing db entry with the new dict
+            # Update the existing db document with the new dict
             sesh.update_db(run_path_str, dict2add = run_dict)
 
         return True
@@ -244,6 +245,7 @@ def transfer_ont_run(ont_run):
     email_recipients = CONFIG.get('mail').get('recipients')
     logger.info('Processing run {}'.format(ont_run.run_id))
 
+    # Update StatusDB
     if ont2couch(ont_run):
         logger.info(f"Database update for run {ont_run.run_id} successful")
     else:
