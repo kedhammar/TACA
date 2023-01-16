@@ -86,72 +86,40 @@ class X_FlowcellRunMetricsConnection(StatusdbSession):
         self.name_view = {k.key:k.id for k in self.db.view('names/name', reduce=False)}
         self.proj_list = {k.key:k.value for k in self.db.view('names/project_ids_list', reduce=False) if k.key}
 
+
 class NanoporeRunsConnection(StatusdbSession):
     
     def __init__(self, config, dbname='nanopore_runs'):
         super(NanoporeRunsConnection, self).__init__(config)
         self.db = self.connection[dbname]
 
-    def update_db(self, run_path_str, dict2add = None):
-        """ Use the run path string "experiment_dir/sample_dir/run_dir" to extract info.
-        
-        1) Search StatusDB by run name
-        2) If a run is found, marked as "ongoing" and there is info to add
-            --> update it with dict2add
-        3) If no run is found
-            --> create it, and extract as much info as possible from the run path
-        """
-
-        run_name = "/".split(run_path_str)[-1]
-
-        try:
-            view_all_stats = self.db.view('info/all_stats')
-            matching_rows = view_all_stats[run_name].rows
-
-            # If a run entry exists in db
-            if len(matching_rows) == 1:
-                
-                # If there is a dict to add to the entry
-                if dict2add:
-                    row = matching_rows[0]
-
-                    # If the entry is an ongoing run
-                    if row.value['run_status'] == "ongoing":
-
-                        # Load the doc itself (not just the view row)
-                        doc = self.db[row.id]
-
-                        # Add finished run information to document and change status
-                        doc.update(dict2add)
-                        doc["run_status"] = "finished"
-
-                        # Overwrite the database entry
-                        self.db[row.id] = doc
-
-                        logger.info(f"Run report .json appended to database entry {run_path_str}, id {row.id}")
-                    else:
-                        logger.info(f"Database entry found for {run_path_str}, but run is not ongoing")
-                else:
-                    logger.info(f"Database entry found for {run_path_str}, but no new information to add")
-
-            elif len(matching_rows) == 0:
-                # Create ongoing run       
-                new_doc = {
-                    "run_path": run_path_str,
-                    "run_status": "ongoing",
-                }
-                new_doc_id, new_doc_rev = self.db.save(new_doc)
-                logger.info(f"New database entry created: {run_path_str}, id {new_doc_id}, rev {new_doc_rev}")
-            
-            # Multiple matching rows
-            else:
-                logger.warn(f'More than one database entry with run_path {run_path_str} found')
-                return False
-            
+    def check_run_exists(self, ont_run):
+        view_names = self.db.view('names/name')
+        if len(view_names[ont_run.run_id].rows) > 0:
             return True
-        
-        except:
+        else:
             return False
+    
+    def check_run_status(self, ont_run):
+        view_all_stats = self.db.view('names/name')
+        doc_id = view_all_stats[ont_run.run_id].rows[0].id
+        return self.db[doc_id]["run_status"]
+
+    def create_ongoing_run(self, ont_run, extended_run_path):
+        new_doc = {"run_path": extended_run_path, "run_status": "ongoing"}
+
+        new_doc_id, new_doc_rev = self.db.save(new_doc)
+        logger.info(f"New database entry created: {ont_run.run_id}, id {new_doc_id}, rev {new_doc_rev}")
+
+    def finish_ongoing_run(self, ont_run, dict_json, dict_html):
+        view_names = self.db.view('names/name')
+        doc_id = view_names[ont_run.run_id].rows[0].id
+        doc = self.db[doc_id]
+
+        doc.update(dict_json)
+        doc.update(dict_html)
+        doc["run_status"] = "finished"
+        self.db[doc.id] = doc
 
 
 def update_doc(db, obj, over_write_db_entry=False):

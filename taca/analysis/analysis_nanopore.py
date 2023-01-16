@@ -200,42 +200,33 @@ def process_minion_delivery_run(minion_run):
             
 
 def ont2couch(ont_run):
-    """ Check run vs statusdb. 
-    1) If the run is ongling and no document exists, create a new document
-    2) If the run is ongoing and a document exists, do nothing
-    3) If the run is finished and a document exists, update the document with the report.json
+    """ Check run vs statusdb. Create or update as needed
     """
 
     try:
-        run_path_str = "/".join(ont_run.run_dir.split("/")[-3:])
         sesh = NanoporeRunsConnection(CONFIG["status_db"], dbname="nanopore_runs")
 
-        json_glob = glob.glob(ont_run.run_dir + '/report*.json')
-        html_glob = glob.glob(ont_run.run_dir + '/report*.html')
+        glob_json = glob.glob(ont_run.run_dir + '/report*.json')
+        glob_html = glob.glob(ont_run.run_dir + '/report*.html')
+        glob_run_path_file = glob.glob(ont_run.run_dir + '/run_path.txt')
 
-        # If there are no run reports (i.e. run is ongoing)
-        if len(json_glob) == 0:
-            sesh.update_db(run_path_str)
+        # If no run document exists in the database, create an ongoing run document
+        if not sesh.check_run_exists(ont_run):
+            sesh.create_ongoing_run(ont_run, open(glob_run_path_file[0], "r").read().strip())
 
-        # If there ARE run reports
-        elif len(json_glob) == 1:
-
-            # Load the .json report as dict
-            with open(json_glob[0], "r") as f:
-                run_dict = json.load(f)
+        # If run is finished and an ongoing run document exists
+        if len(ont_run.summary_file) != 0 and sesh.check_run_status(ont_run) == "ongoing":
             
-            # Add the .html report to the dict as an escaped string
-            with open(html_glob[0], "r") as f:
-                html_str_escaped = html.escape(f.read())
+            # Parse the MinKNOW .json and .html report files and finish the ongoing run document
+            dict_json = json.load(open(glob_json[0], "r"))
+            dict_html = {
+                "minknow_report_name": glob_html[0].split("/")[-1],
+                "minknow_report_content": html.escape(open(glob_html[0], "r").read())
+            }
 
-            run_dict["minknow_report_name"] = html_glob[0].split("/")[-1]
-            run_dict["minknow_report_content"] = html_str_escaped
-
-            # Update the existing db document with the new dict
-            sesh.update_db(run_path_str, dict2add = run_dict)
+            sesh.finish_ongoing_run(ont_run, dict_json, dict_html)
 
         return True
-    
     except:
         return False
 
