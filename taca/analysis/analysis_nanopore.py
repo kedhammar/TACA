@@ -3,12 +3,28 @@ import os
 import logging
 import glob
 
+from dateutil.parser import parse
 from taca.utils.config import CONFIG
 from taca.utils.misc import send_mail
 from taca.nanopore.minion import MinIONdelivery, MinIONqc
 from taca.nanopore.ont_transfer import PromethionTransfer, MinionTransfer
 
 logger = logging.getLogger(__name__)
+
+
+
+def is_date(string):
+    """
+    Return whether the string can be interpreted as a date.
+
+    :param string: str, string to check for date
+    From https://stackoverflow.com/questions/25341945/check-if-string-has-date-any-format
+    """
+    try: 
+        parse(string, fuzzy=False)
+        return True
+    except ValueError:
+        return False
 
 def find_minion_runs(minion_data_dir, skip_dirs):
     """Find nanopore runs to process."""
@@ -244,8 +260,12 @@ def transfer_ont_run(ont_run):
 def process_minion_qc_runs(run, nanoseq_sample_sheet, anglerfish_sample_sheet):
     """Find and process MinION QC runs on Squiggle."""
     if run:
-        minion_run = MinIONqc(os.path.abspath(run), nanoseq_sample_sheet, anglerfish_sample_sheet)
-        process_minion_qc_run(minion_run)
+        if is_date(run.split('_')[0])
+            minion_run = MinIONqc(os.path.abspath(run), nanoseq_sample_sheet, anglerfish_sample_sheet)
+            process_minion_qc_run(minion_run)
+        else:
+            logger.warn('The specified path is not a flow cell. Please'
+                        ' provide the full path to the flow cell you wish to process.')
     else:
         nanopore_data_dir = CONFIG.get('nanopore_analysis').get('minion_qc_run').get('data_dir')
         skip_dirs = CONFIG.get('nanopore_analysis').get('minion_qc_run').get('ignore_dirs')
