@@ -1,5 +1,8 @@
 # TACA Version Log
 
+##20230117.1
+Integrate ONT data flow with CouchDB nanopore_runs
+
 ##20221102.1
 Include MinION data in transfer to HPC cluster
 
