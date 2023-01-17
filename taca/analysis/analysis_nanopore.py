@@ -208,7 +208,7 @@ def ont2couch(ont_run):
 
         glob_json = glob.glob(ont_run.run_dir + '/report*.json')
         glob_html = glob.glob(ont_run.run_dir + '/report*.html')
-        glob_run_path_file = glob.glob(ont_run.run_dir + '/run_path.txt')
+        glob_run_path_file = glob.glob(os.path.join(ont_run.run_dir, 'run_path.txt'))
 
         # If no run document exists in the database, create an ongoing run document
         if not sesh.check_run_exists(ont_run):
