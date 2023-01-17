@@ -1,6 +1,6 @@
 # TACA Version Log
 
-##20230117.1
+##20230117.2
 More robust handling of ONT transfers
 
 ##20221102.1
