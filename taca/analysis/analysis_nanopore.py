@@ -2,9 +2,12 @@
 import os
 import logging
 import glob
+import json
+import html
 
 from taca.utils.config import CONFIG
 from taca.utils.misc import send_mail
+from taca.utils.statusdb import NanoporeRunsConnection
 from taca.nanopore.minion import MinIONdelivery, MinIONqc
 from taca.nanopore.ont_transfer import PromethionTransfer, MinionTransfer
 
@@ -196,12 +199,53 @@ def process_minion_delivery_run(minion_run):
             send_mail(email_subject, email_message, email_recipients)
             
 
+def ont2couch(ont_run):
+    """ Check run vs statusdb. Create or update as needed
+    """
+
+    try:
+        sesh = NanoporeRunsConnection(CONFIG["status_db"], dbname="nanopore_runs")        
+
+        # If no run document exists in the database
+        if not sesh.check_run_exists(ont_run):
+            
+            # Create an ongoing run document
+            run_path_file = os.path.join(ont_run.run_dir, 'run_path.txt')
+            sesh.create_ongoing_run(ont_run, open(run_path_file, "r").read().strip())
+
+        # If run is finished and an ongoing run document exists
+        if len(ont_run.summary_file) != 0 and sesh.check_run_status(ont_run) == "ongoing":
+
+            # Parse the MinKNOW .json and .html report files and finish the ongoing run document
+            glob_json = glob.glob(ont_run.run_dir + '/report*.json')
+            glob_html = glob.glob(ont_run.run_dir + '/report*.html')
+            
+            dict_json = json.load(open(glob_json[0], "r"))
+            dict_html = {
+                "minknow_report_name": glob_html[0].split("/")[-1],
+                "minknow_report_content": html.escape(open(glob_html[0], "r").read())
+            }
+
+            sesh.finish_ongoing_run(ont_run, dict_json, dict_html)
+
+        return True
+    except:
+        return False
+
 
 def transfer_ont_run(ont_run):
     """Transfer ONT runs to HPC cluster."""
     email_recipients = CONFIG.get('mail').get('recipients')
     logger.info('Processing run {}'.format(ont_run.run_id))
-    
+
+    # Update StatusDB
+    if ont2couch(ont_run):
+        logger.info(f"Database update for run {ont_run.run_id} successful")
+    else:
+        email_subject = ('Run processed with errors: {}'.format(ont_run.run_id))
+        email_message = (f"An error occured when updating statusdb with run {ont_run.run_id}.")
+        send_mail(email_subject, email_message, email_recipients)
+
     if len(ont_run.summary_file) and os.path.isfile(ont_run.summary_file[0]):
         logger.info('Sequencing done for run {}. Attempting to start processing.'.format(ont_run.run_id))
         if ont_run.is_not_transferred():
