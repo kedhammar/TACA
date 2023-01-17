@@ -204,20 +204,22 @@ def ont2couch(ont_run):
     """
 
     try:
-        sesh = NanoporeRunsConnection(CONFIG["status_db"], dbname="nanopore_runs")
+        sesh = NanoporeRunsConnection(CONFIG["status_db"], dbname="nanopore_runs")        
 
-        glob_json = glob.glob(ont_run.run_dir + '/report*.json')
-        glob_html = glob.glob(ont_run.run_dir + '/report*.html')
-        glob_run_path_file = glob.glob(os.path.join(ont_run.run_dir, 'run_path.txt'))
-
-        # If no run document exists in the database, create an ongoing run document
+        # If no run document exists in the database
         if not sesh.check_run_exists(ont_run):
-            sesh.create_ongoing_run(ont_run, open(glob_run_path_file[0], "r").read().strip())
+            
+            # Create an ongoing run document
+            run_path_file = os.path.join(ont_run.run_dir, 'run_path.txt')
+            sesh.create_ongoing_run(ont_run, open(run_path_file, "r").read().strip())
 
         # If run is finished and an ongoing run document exists
         if len(ont_run.summary_file) != 0 and sesh.check_run_status(ont_run) == "ongoing":
-            
+
             # Parse the MinKNOW .json and .html report files and finish the ongoing run document
+            glob_json = glob.glob(ont_run.run_dir + '/report*.json')
+            glob_html = glob.glob(ont_run.run_dir + '/report*.html')
+            
             dict_json = json.load(open(glob_json[0], "r"))
             dict_html = {
                 "minknow_report_name": glob_html[0].split("/")[-1],
