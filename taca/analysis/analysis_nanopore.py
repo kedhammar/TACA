@@ -5,6 +5,7 @@ import glob
 import json
 import html
 
+from dateutil.parser import parse
 from taca.utils.config import CONFIG
 from taca.utils.misc import send_mail
 from taca.utils.statusdb import NanoporeRunsConnection
@@ -12,6 +13,21 @@ from taca.nanopore.minion import MinIONdelivery, MinIONqc
 from taca.nanopore.ont_transfer import PromethionTransfer, MinionTransfer
 
 logger = logging.getLogger(__name__)
+
+
+
+def is_date(string):
+    """
+    Return whether the string can be interpreted as a date.
+
+    :param string: str, string to check for date
+    From https://stackoverflow.com/questions/25341945/check-if-string-has-date-any-format
+    """
+    try: 
+        parse(string, fuzzy=False)
+        return True
+    except ValueError:
+        return False
 
 def find_minion_runs(minion_data_dir, skip_dirs):
     """Find nanopore runs to process."""
@@ -181,6 +197,7 @@ def process_minion_delivery_run(minion_run):
     """Process minion delivery runs."""
     email_recipients = CONFIG.get('mail').get('recipients')
     logger.info('Processing run {}'.format(minion_run.run_id))
+    minion_run.dump_path()
     if not len(minion_run.summary_file):  # Run not finished, only rsync
         minion_run.transfer_run()
     else:  # Run finished, rsync and archive
@@ -287,8 +304,12 @@ def transfer_ont_run(ont_run):
 def process_minion_qc_runs(run, nanoseq_sample_sheet, anglerfish_sample_sheet):
     """Find and process MinION QC runs on Squiggle."""
     if run:
-        minion_run = MinIONqc(os.path.abspath(run), nanoseq_sample_sheet, anglerfish_sample_sheet)
-        process_minion_qc_run(minion_run)
+        if is_date(os.path.basename(run).split('_')[0]):
+            minion_run = MinIONqc(os.path.abspath(run), nanoseq_sample_sheet, anglerfish_sample_sheet)
+            process_minion_qc_run(minion_run)
+        else:
+            logger.warn('The specified path is not a flow cell. Please '
+                        'provide the full path to the flow cell you wish to process.')
     else:
         nanopore_data_dir = CONFIG.get('nanopore_analysis').get('minion_qc_run').get('data_dir')
         skip_dirs = CONFIG.get('nanopore_analysis').get('minion_qc_run').get('ignore_dirs')
@@ -307,8 +328,12 @@ def process_minion_qc_runs(run, nanoseq_sample_sheet, anglerfish_sample_sheet):
 def process_minion_delivery_runs(run):
     """Find MinION delivery runs on Squiggle and transfer them to ngi-nas."""
     if run:
-        minion_run = MinIONdelivery(os.path.abspath(run))
-        process_minion_delivery_run(minion_run)
+        if is_date(os.path.basename(run).split('_')[0]):
+            minion_run = MinIONdelivery(os.path.abspath(run))
+            process_minion_delivery_run(minion_run)
+        else:
+            logger.warn('The specified path is not a flow cell. Please '
+                        'provide the full path to the flow cell you wish to process.')
     else:
         minion_data_dir = CONFIG.get('nanopore_analysis').get('minion_delivery_run').get('data_dir')
         skip_dirs = CONFIG.get('nanopore_analysis').get('minion_delivery_run').get('ignore_dirs')
@@ -320,12 +345,16 @@ def process_minion_delivery_runs(run):
 def transfer_finished(run):
     """Find finished ONT runs in ngi-nas and transfer to HPC cluster."""
     if run:
-        if 'minion' in run:
-            ont_run = MinionTransfer(os.path.abspath(run))
-            transfer_ont_run(ont_run)
-        elif 'promethion' in run:
-            ont_run = PromethionTransfer(os.path.abspath(run))
-            transfer_ont_run(ont_run)
+        if is_date(os.path.basename(run).split('_')[0]):
+            if 'minion' in run:
+                ont_run = MinionTransfer(os.path.abspath(run))
+                transfer_ont_run(ont_run)
+            elif 'promethion' in run:
+                ont_run = PromethionTransfer(os.path.abspath(run))
+                transfer_ont_run(ont_run)
+        else:
+            logger.warn('The specified path is not a flow cell. Please '
+                        'provide the full path to the flow cell you wish to process.')
     else:
         # Locate all runs in /srv/ngi_data/sequencing/promethion and /srv/ngi_data/sequencing/minion
         ont_data_dirs = CONFIG.get('nanopore_analysis').get('ont_transfer').get('data_dirs')
