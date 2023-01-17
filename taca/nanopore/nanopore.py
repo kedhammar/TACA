@@ -50,7 +50,7 @@ class Nanopore(object):
             transfer_object.transfer()
         except RsyncError:
             logger.warn('An error occurred while transferring {} to the '
-                        'ananlysis server. Please check the logfiles'.format(self.run_dir))
+                        'analysis server. Please check the logfiles'.format(self.run_dir))
             return False
         return True
 

@@ -87,6 +87,41 @@ class X_FlowcellRunMetricsConnection(StatusdbSession):
         self.proj_list = {k.key:k.value for k in self.db.view('names/project_ids_list', reduce=False) if k.key}
 
 
+class NanoporeRunsConnection(StatusdbSession):
+    
+    def __init__(self, config, dbname='nanopore_runs'):
+        super(NanoporeRunsConnection, self).__init__(config)
+        self.db = self.connection[dbname]
+
+    def check_run_exists(self, ont_run):
+        view_names = self.db.view('names/name')
+        if len(view_names[ont_run.run_id].rows) > 0:
+            return True
+        else:
+            return False
+    
+    def check_run_status(self, ont_run):
+        view_all_stats = self.db.view('names/name')
+        doc_id = view_all_stats[ont_run.run_id].rows[0].id
+        return self.db[doc_id]["run_status"]
+
+    def create_ongoing_run(self, ont_run, extended_run_path):
+        new_doc = {"run_path": extended_run_path, "run_status": "ongoing"}
+
+        new_doc_id, new_doc_rev = self.db.save(new_doc)
+        logger.info(f"New database entry created: {ont_run.run_id}, id {new_doc_id}, rev {new_doc_rev}")
+
+    def finish_ongoing_run(self, ont_run, dict_json, dict_html):
+        view_names = self.db.view('names/name')
+        doc_id = view_names[ont_run.run_id].rows[0].id
+        doc = self.db[doc_id]
+
+        doc.update(dict_json)
+        doc.update(dict_html)
+        doc["run_status"] = "finished"
+        self.db[doc.id] = doc
+
+
 def update_doc(db, obj, over_write_db_entry=False):
     view = db.view('info/name')
     if len(view[obj['name']].rows) == 1:

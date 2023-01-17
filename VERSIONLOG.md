@@ -3,6 +3,9 @@
 ##20230117.2
 More robust handling of ONT transfers
 
+##20230117.1
+Integrate ONT data flow with CouchDB nanopore_runs
+
 ##20221102.1
 Include MinION data in transfer to HPC cluster
 
