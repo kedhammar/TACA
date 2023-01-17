@@ -1,5 +1,8 @@
 # TACA Version Log
 
+##20230117.1
+More rubust handling of ONT transfers
+
 ##20221102.1
 Include MinION data in transfer to HPC cluster
 
