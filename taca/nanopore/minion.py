@@ -226,7 +226,7 @@ class MinIONdelivery(Nanopore):
         """Dump path to run to a file that can be
         used when uploading stats to statusdb from preproc."""
         new_file = os.path.join(self.run_dir, 'run_path.txt')
-        proj, sample, run = self.run_dir.split('/')[3:]
+        proj, sample, run = self.run_dir.split('/')[-3:]
         path_to_write = os.path.join(proj, sample, run)
         f = open(new_file, 'w')
         f.write(path_to_write)

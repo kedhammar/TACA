@@ -69,36 +69,23 @@ class Nanopore(object):
     def archive_run(self):
         """Move directory to nosync."""
         logger.info('Archiving run ' + self.run_id)
-        dir_to_move = str(pathlib.Path(self.run_id).parent)
+        dir_to_move = str(pathlib.Path(self.run_dir).parent)
         top_dir = str(pathlib.Path(self.run_dir).parent.parent)  # Get the project folder to archive
         project_id = os.path.basename(top_dir)
         project_archive = os.path.join(self.archive_dir, project_id)
-        if os.path.exists(project_archive):
-            try:
-                shutil.move(dir_to_move, project_archive)
-                logger.info('Successfully archived {}'.format(self.run_id))
-                if not os.listdir(top_dir):
-                    logger.info("Project folder {} is empty. Removing it.".format(top_dir))
-                    os.rmdir(top_dir)
-                else:
-                    logger.info("Some data is still left in {}. Keeping it.".format(top_dir))  # Might be another run for the same project
-                return True
-            except shutil.Error:
-                logger.warn('An error occurred when archiving {}. '
-                            'Please check the logfile for more info.'.format(self.run_dir))
-                return False
-        else:
+        if not os.path.exists(project_archive):
             os.mkdir(project_archive)
-            try:
-                shutil.move(dir_to_move, project_archive)
-                logger.info('Successfully archived {}'.format(self.run_id))
-                if not os.listdir(top_dir):
-                    logger.info("Project folder {} is empty. Removing it.".format(top_dir))
-                    os.rmdir(top_dir)
-                else:
-                    logger.info("Some data is still left in {}. Keeping it.".format(top_dir))  # Might be another run for the same project
-                return True
-            except shutil.Error:
-                logger.warn('An error occurred when archiving {}. '
-                            'Please check the logfile for more info.'.format(self.run_dir))
-                return False
+        try:
+            print(dir_to_move, project_archive)
+            shutil.move(dir_to_move, project_archive)
+            logger.info('Successfully archived {}'.format(self.run_id))
+            if not os.listdir(top_dir):
+                logger.info("Project folder {} is empty. Removing it.".format(top_dir))
+                os.rmdir(top_dir)
+            else:
+                logger.info("Some data is still left in {}. Keeping it.".format(top_dir))  # Might be another run for the same project
+            return True
+        except shutil.Error as e:
+            logger.warn('The following error occurred when archiving {}:\n'
+                        '{}'.format(self.run_dir, e))
+            return False

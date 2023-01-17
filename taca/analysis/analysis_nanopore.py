@@ -194,8 +194,8 @@ def process_minion_delivery_run(minion_run):
     """Process minion delivery runs."""
     email_recipients = CONFIG.get('mail').get('recipients')
     logger.info('Processing run {}'.format(minion_run.run_id))
+    minion_run.dump_path()
     if not len(minion_run.summary_file):  # Run not finished, only rsync
-        minion_run.dump_path()
         minion_run.transfer_run()
     else:  # Run finished, rsync and archive
         if minion_run.transfer_run():
