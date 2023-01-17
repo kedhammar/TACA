@@ -260,12 +260,12 @@ def transfer_ont_run(ont_run):
 def process_minion_qc_runs(run, nanoseq_sample_sheet, anglerfish_sample_sheet):
     """Find and process MinION QC runs on Squiggle."""
     if run:
-        if is_date(run.split('_')[0])
+        if is_date(os.path.basename(run).split('_')[0]):
             minion_run = MinIONqc(os.path.abspath(run), nanoseq_sample_sheet, anglerfish_sample_sheet)
             process_minion_qc_run(minion_run)
         else:
-            logger.warn('The specified path is not a flow cell. Please'
-                        ' provide the full path to the flow cell you wish to process.')
+            logger.warn('The specified path is not a flow cell. Please '
+                        'provide the full path to the flow cell you wish to process.')
     else:
         nanopore_data_dir = CONFIG.get('nanopore_analysis').get('minion_qc_run').get('data_dir')
         skip_dirs = CONFIG.get('nanopore_analysis').get('minion_qc_run').get('ignore_dirs')
@@ -284,8 +284,12 @@ def process_minion_qc_runs(run, nanoseq_sample_sheet, anglerfish_sample_sheet):
 def process_minion_delivery_runs(run):
     """Find MinION delivery runs on Squiggle and transfer them to ngi-nas."""
     if run:
-        minion_run = MinIONdelivery(os.path.abspath(run))
-        process_minion_delivery_run(minion_run)
+        if is_date(os.path.basename(run).split('_')[0]):
+            minion_run = MinIONdelivery(os.path.abspath(run))
+            process_minion_delivery_run(minion_run)
+        else:
+            logger.warn('The specified path is not a flow cell. Please '
+                        'provide the full path to the flow cell you wish to process.')
     else:
         minion_data_dir = CONFIG.get('nanopore_analysis').get('minion_delivery_run').get('data_dir')
         skip_dirs = CONFIG.get('nanopore_analysis').get('minion_delivery_run').get('ignore_dirs')
@@ -297,12 +301,16 @@ def process_minion_delivery_runs(run):
 def transfer_finished(run):
     """Find finished ONT runs in ngi-nas and transfer to HPC cluster."""
     if run:
-        if 'minion' in run:
-            ont_run = MinionTransfer(os.path.abspath(run))
-            transfer_ont_run(ont_run)
-        elif 'promethion' in run:
-            ont_run = PromethionTransfer(os.path.abspath(run))
-            transfer_ont_run(ont_run)
+        if is_date(os.path.basename(run).split('_')[0]):
+            if 'minion' in run:
+                ont_run = MinionTransfer(os.path.abspath(run))
+                transfer_ont_run(ont_run)
+            elif 'promethion' in run:
+                ont_run = PromethionTransfer(os.path.abspath(run))
+                transfer_ont_run(ont_run)
+        else:
+            logger.warn('The specified path is not a flow cell. Please '
+                        'provide the full path to the flow cell you wish to process.')
     else:
         # Locate all runs in /srv/ngi_data/sequencing/promethion and /srv/ngi_data/sequencing/minion
         ont_data_dirs = CONFIG.get('nanopore_analysis').get('ont_transfer').get('data_dirs')
