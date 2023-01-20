@@ -221,7 +221,7 @@ def ont2couch(ont_run):
     """
 
     try:
-        sesh = NanoporeRunsConnection(CONFIG["status_db"], dbname="nanopore_runs")        
+        sesh = NanoporeRunsConnection(CONFIG["statusdb"], dbname="nanopore_runs")        
 
         # If no run document exists in the database
         if not sesh.check_run_exists(ont_run):
@@ -259,6 +259,7 @@ def transfer_ont_run(ont_run):
     if ont2couch(ont_run):
         logger.info(f"Database update for run {ont_run.run_id} successful")
     else:
+        logger.warn(f"Database update for run {ont_run.run_id} failed")
         email_subject = ('Run processed with errors: {}'.format(ont_run.run_id))
         email_message = (f"An error occured when updating statusdb with run {ont_run.run_id}.")
         send_mail(email_subject, email_message, email_recipients)
