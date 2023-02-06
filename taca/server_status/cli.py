@@ -27,3 +27,11 @@ def cronjobs():
     """ Monitors cronjobs and updates statusdb
     """
     cj.update_cronjob_db()
+
+@server_status.command()
+def monitor_promethion():
+    """ Checks the status of PromethION and if ngi-nas is mounted
+    """
+    if not CONFIG.get('server_status', ''):
+        logging.warning("Configuration missing required entries: server_status")
+    status.check_promethion_status()

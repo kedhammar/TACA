@@ -107,3 +107,6 @@ def update_status_db(data, server_type=None):
             raise
         else:
             logging.info('{}: Server status has been updated'.format(key))
+
+def check_promethion_status():
+    pass
