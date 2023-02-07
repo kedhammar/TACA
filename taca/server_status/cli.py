@@ -32,6 +32,10 @@ def cronjobs():
 def monitor_promethion():
     """ Checks the status of PromethION and if ngi-nas is mounted
     """
-    if not CONFIG.get('server_status', ''):
+    if not CONFIG.get('promethion_status', ''):
         logging.warning("Configuration missing required entries: server_status")
-    status.check_promethion_status()
+    promethion_status = status.check_promethion_status()
+    if promethion_status:
+        logging.info("No issues encountered with the PromethION")
+    else:
+        logging.warning("An issue with the PromethION was encountered. Operator has been notified by email.")

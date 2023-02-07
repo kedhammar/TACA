@@ -4,6 +4,8 @@ import datetime
 
 from taca.utils import statusdb
 from taca.utils.config import CONFIG
+from taca.utils.misc import send_mail
+
 
 def get_nases_disk_space():
     result = {}
@@ -109,4 +111,24 @@ def update_status_db(data, server_type=None):
             logging.info('{}: Server status has been updated'.format(key))
 
 def check_promethion_status():
-    pass
+    config = CONFIG.get('promethion_status')
+    server = config.get('server')
+    path = config.get('path')
+    command = config.get('command')
+    command_to_run = f'{command} {path}'
+    user = config.get('user')
+
+    try:
+        subprocess.run(['ssh', '-t', f'{user}@{server}', command_to_run], 
+                       check=True)
+    except subprocess.CalledProcessError:
+        _send_promethion_warning_email()
+        return False
+    return True
+
+def _send_promethion_warning_email():
+    email_recipients = CONFIG.get('mail').get('recipients')
+    email_subject = ('An issue with the PromethION has been detected.')
+    email_message = ('An issue with the PromethION has been detected. '
+                    'Please investigate and consider pausing the transfer cronjob on preproc1')
+    send_mail(email_subject, email_message, email_recipients)
