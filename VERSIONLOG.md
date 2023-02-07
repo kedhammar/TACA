@@ -1,5 +1,8 @@
 # TACA Version Log
 
+##20230207.1
+Add functionality for monitoring PromethION status
+
 ##20230117.2
 More robust handling of ONT transfers
 
