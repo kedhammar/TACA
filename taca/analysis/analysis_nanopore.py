@@ -200,7 +200,7 @@ def process_minion_delivery_run(minion_run):
             
 
 def ont2couch(ont_run):
-    """ Check run vs statusdb. Create or update as needed
+    """ Check run vs statusdb. Create or update run entry as needed.
     """
 
     try:
@@ -208,27 +208,46 @@ def ont2couch(ont_run):
 
         # If no run document exists in the database
         if not sesh.check_run_exists(ont_run):
+            logger.info(f"Run {ont_run.run_id} does not exist in the database, creating entry for ongoing run.")
             
             # Create an ongoing run document
             run_path_file = os.path.join(ont_run.run_dir, 'run_path.txt')
             sesh.create_ongoing_run(ont_run, open(run_path_file, "r").read().strip())
+            logger.info(f"Successfully created db entry for ongoing run {ont_run.run_id}.")
 
-        # If run is finished and an ongoing run document exists
-        if len(ont_run.summary_file) != 0 and sesh.check_run_status(ont_run) == "ongoing":
+        # If a run document DOES exist in the database
+        else:
+            # If the run document is marked as "ongoing"
+            if sesh.check_run_status(ont_run) == "ongoing":
+                
+                logger.info(f"Run {ont_run.run_id} exists in the database as an ongoing run.")
 
-            # Parse the MinKNOW .json and .html report files and finish the ongoing run document
-            glob_json = glob.glob(ont_run.run_dir + '/report*.json')
-            glob_html = glob.glob(ont_run.run_dir + '/report*.html')
+                # If the run is finished
+                if len(ont_run.summary_file) != 0:
+
+                    logger.info(f"Run {ont_run.run_id} has finished sequencing, updating the db entry.")
+
+                    # Parse the MinKNOW .json and .html report files and finish the ongoing run document
+                    glob_json = glob.glob(ont_run.run_dir + '/report*.json')
+                    glob_html = glob.glob(ont_run.run_dir + '/report*.html')
+                    
+                    dict_json = json.load(open(glob_json[0], "r"))
+                    dict_html = {
+                        "minknow_report_name": glob_html[0].split("/")[-1],
+                        "minknow_report_content": html.escape(open(glob_html[0], "r").read())
+                    }
+
+                    sesh.finish_ongoing_run(ont_run, dict_json, dict_html)
+                    logger.info(f"Successfully updated the db entry of run {ont_run.run_id}")
+
+                else:
+                    logger.info(f"Run {ont_run.run_id} has not finished sequencing, do nothing.")
             
-            dict_json = json.load(open(glob_json[0], "r"))
-            dict_html = {
-                "minknow_report_name": glob_html[0].split("/")[-1],
-                "minknow_report_content": html.escape(open(glob_html[0], "r").read())
-            }
-
-            sesh.finish_ongoing_run(ont_run, dict_json, dict_html)
-
+            else:
+                logger.info(f"Run {ont_run.run_id} exists in the database as an finished run, do nothing.")
+        
         return True
+
     except:
         return False
 
