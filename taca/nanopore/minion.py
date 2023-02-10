@@ -221,3 +221,13 @@ class MinIONdelivery(Nanopore):
         self.transfer_details = CONFIG.get('nanopore_analysis').get('minion_delivery_run').get('transfer')
         self.transfer_log = self.transfer_details.get('transfer_file')
         self.archive_dir = self.transfer_details.get('finished_dir')
+    
+    def dump_path(self):
+        """Dump path to run to a file that can be
+        used when uploading stats to statusdb from preproc."""
+        new_file = os.path.join(self.run_dir, 'run_path.txt')
+        proj, sample, run = self.run_dir.split('/')[-3:]
+        path_to_write = os.path.join(proj, sample, run)
+        f = open(new_file, 'w')
+        f.write(path_to_write)
+        f.close()
