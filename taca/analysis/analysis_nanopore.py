@@ -256,6 +256,10 @@ def ont2couch(ont_run):
                     # Parse the MinKNOW .json and .html report files and finish the ongoing run document
                     glob_json = glob.glob(ont_run.run_dir + '/report*.json')
                     glob_html = glob.glob(ont_run.run_dir + '/report*.html')
+
+                    if len(glob_json) == 0 or len(glob_html) == 0:
+                        logger.error(f"Run {ont_run.run_id} is marked as finished, but missing report files.")
+                        raise AssertionError
                     
                     dict_json = json.load(open(glob_json[0], "r"))
                     dict_html = {
