@@ -1,5 +1,8 @@
 # TACA Version Log
 
+##20230210.1
+Update last change (20230117.1) after local troubleshooting.
+
 ##20230117.1
 Integrate ONT data flow with CouchDB nanopore_runs
 
