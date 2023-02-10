@@ -4,6 +4,7 @@ import logging
 import glob
 import json
 import html
+import re
 
 from taca.utils.config import CONFIG
 from taca.utils.misc import send_mail
@@ -203,9 +204,17 @@ def ont2couch(ont_run):
     """ Check run vs statusdb. Create or update run entry as needed.
     """
 
+    run_pattern = re.compile("^(\d{8})_(\d{4})_([0-9a-zA-Z]+)_([0-9a-zA-Z]+)_([0-9a-zA-Z]+)$")
+
     try:
         sesh = NanoporeRunsConnection(CONFIG["statusdb"], dbname="nanopore_runs")        
 
+        if re.match(run_pattern, ont_run.run_id):
+            logger.info(f"Run {ont_run.run_id} looks like a run directory, continuing.")
+        else:
+            logger.error(f"Run {ont_run.run_id} does not match the regex of a run directory (yyyymmdd_hhmm_pos|device_fcID_hash).")
+            raise AssertionError
+        
         # If no run document exists in the database
         if not sesh.check_run_exists(ont_run):
             logger.info(f"Run {ont_run.run_id} does not exist in the database, creating entry for ongoing run.")
