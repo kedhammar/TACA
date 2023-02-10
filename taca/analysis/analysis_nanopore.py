@@ -227,31 +227,31 @@ def ont2couch(ont_run):
         sesh = NanoporeRunsConnection(CONFIG["statusdb"], dbname="nanopore_runs")        
 
         if re.match(run_pattern, ont_run.run_id):
-            logger.info(f"Run {ont_run.run_id} looks like a run directory, continuing.")
+            logger.debug(f"Run {ont_run.run_id} looks like a run directory, continuing.")
         else:
             logger.error(f"Run {ont_run.run_id} does not match the regex of a run directory (yyyymmdd_hhmm_pos|device_fcID_hash).")
             raise AssertionError
         
         # If no run document exists in the database
         if not sesh.check_run_exists(ont_run):
-            logger.info(f"Run {ont_run.run_id} does not exist in the database, creating entry for ongoing run.")
+            logger.debug(f"Run {ont_run.run_id} does not exist in the database, creating entry for ongoing run.")
             
             # Create an ongoing run document
             run_path_file = os.path.join(ont_run.run_dir, 'run_path.txt')
             sesh.create_ongoing_run(ont_run, open(run_path_file, "r").read().strip())
-            logger.info(f"Successfully created db entry for ongoing run {ont_run.run_id}.")
+            logger.debug(f"Successfully created db entry for ongoing run {ont_run.run_id}.")
 
         # If a run document DOES exist in the database
         else:
             # If the run document is marked as "ongoing"
             if sesh.check_run_status(ont_run) == "ongoing":
                 
-                logger.info(f"Run {ont_run.run_id} exists in the database as an ongoing run.")
+                logger.debug(f"Run {ont_run.run_id} exists in the database as an ongoing run.")
 
                 # If the run is finished
                 if len(ont_run.summary_file) != 0:
 
-                    logger.info(f"Run {ont_run.run_id} has finished sequencing, updating the db entry.")
+                    logger.debug(f"Run {ont_run.run_id} has finished sequencing, updating the db entry.")
 
                     # Parse the MinKNOW .json and .html report files and finish the ongoing run document
                     glob_json = glob.glob(ont_run.run_dir + '/report*.json')
@@ -268,13 +268,13 @@ def ont2couch(ont_run):
                     }
 
                     sesh.finish_ongoing_run(ont_run, dict_json, dict_html)
-                    logger.info(f"Successfully updated the db entry of run {ont_run.run_id}")
+                    logger.debug(f"Successfully updated the db entry of run {ont_run.run_id}")
 
                 else:
-                    logger.info(f"Run {ont_run.run_id} has not finished sequencing, do nothing.")
+                    logger.debug(f"Run {ont_run.run_id} has not finished sequencing, do nothing.")
             
             else:
-                logger.info(f"Run {ont_run.run_id} exists in the database as an finished run, do nothing.")
+                logger.debug(f"Run {ont_run.run_id} exists in the database as an finished run, do nothing.")
         
         return True
 
