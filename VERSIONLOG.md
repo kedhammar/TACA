@@ -1,5 +1,8 @@
 # TACA Version Log
 
+##20230213.1
+Further updates to ONT runs TACA <-> CouchDB interplay after local troubleshooting. Improve code readability, logging and exception handling.
+
 ##20230207.1
 Add functionality for monitoring PromethION status
 

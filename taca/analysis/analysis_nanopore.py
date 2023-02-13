@@ -4,6 +4,7 @@ import logging
 import glob
 import json
 import html
+import re
 
 from dateutil.parser import parse
 from taca.utils.config import CONFIG
@@ -37,7 +38,7 @@ def find_minion_runs(minion_data_dir, skip_dirs):
                             if os.path.isdir(os.path.join(minion_data_dir, top_dir))
                             and top_dir not in skip_dirs]
     except OSError:
-        logger.warn('There was an issue locating the following directory: {}. '
+        logger.warning('There was an issue locating the following directory: {}. '
                     'Please check that it exists and try again.'.format(minion_data_dir))
     # Get the actual location of the run directories in /var/lib/MinKnow/data/QC_runs/USERDETERMINEDNAME/USERDETSAMPLENAME/run
     if found_top_dirs:
@@ -48,7 +49,7 @@ def find_minion_runs(minion_data_dir, skip_dirs):
                         for run_dir in os.listdir(os.path.join(top_dir, sample_dir)):
                             found_run_dirs.append(os.path.join(top_dir, sample_dir, run_dir))
     else:
-        logger.warn('Could not find any run directories in {}'.format(minion_data_dir))
+        logger.warning('Could not find any run directories in {}'.format(minion_data_dir))
     return found_run_dirs
 
 def find_ont_transfer_runs(ont_data_dir, skip_dirs):
@@ -60,7 +61,7 @@ def find_ont_transfer_runs(ont_data_dir, skip_dirs):
                             if os.path.isdir(os.path.join(ont_data_dir, top_dir))
                             and top_dir not in skip_dirs]
     except OSError:
-        logger.warn('There was an issue locating the following directory: {}. '
+        logger.warning('There was an issue locating the following directory: {}. '
                     'Please check that it exists and try again.'.format(ont_data_dir))
     return found_dirs
         
@@ -91,15 +92,15 @@ def process_minion_qc_run(minion_run, sequencing_ongoing=False, nanoseq_ongoing=
 
         if os.path.isfile(minion_run.nanoseq_sample_sheet):
             if nanoseq_ongoing:
-                logger.warn('Nanoseq already started, will not attempt to start for {}'.format(minion_run.run_dir))
+                logger.warning('Nanoseq already started, will not attempt to start for {}'.format(minion_run.run_dir))
             elif sequencing_ongoing:
-                logger.warn('Sequencing ongoing, will not attempt to start Nanoseq for {}'.format(minion_run.run_dir))
+                logger.warning('Sequencing ongoing, will not attempt to start Nanoseq for {}'.format(minion_run.run_dir))
             else:
                 minion_run.start_nanoseq()
                 nanoseq_ongoing = True
 
         else:
-            logger.warn('Samplesheet not found for run {}. Operator notified. Skipping.'.format(minion_run.run_dir))
+            logger.warning('Samplesheet not found for run {}. Operator notified. Skipping.'.format(minion_run.run_dir))
             email_subject = ('Samplesheet missing for run {}'.format(os.path.basename(minion_run.run_dir)))
             email_message = 'There was an issue locating the samplesheet for run {}.'.format(minion_run.run_dir)
             send_mail(email_subject, email_message, email_recipients)
@@ -117,7 +118,7 @@ def process_minion_qc_run(minion_run, sequencing_ongoing=False, nanoseq_ongoing=
                 if os.path.isfile(minion_run.anglerfish_sample_sheet):
                     minion_run.start_anglerfish()
                 else:
-                    logger.warn('Anglerfish sample sheet missing for run {}. '
+                    logger.warning('Anglerfish sample sheet missing for run {}. '
                                 'Please provide one using --anglerfish_sample_sheet '
                                 'if running TACA manually.'.format(minion_run.run_id))
 
@@ -162,7 +163,7 @@ def process_minion_qc_run(minion_run, sequencing_ongoing=False, nanoseq_ongoing=
                                 send_mail(email_subject, email_message, email_recipients)
 
                         else:
-                            logger.warn('An error occurred during transfer of run {} '
+                            logger.warning('An error occurred during transfer of run {} '
                                         'to the analysis cluster. Notifying operator.'.format(minion_run.run_id))
                             email_subject = ('Run processed with errors: {}'.format(minion_run.run_id))
                             email_message = ('Run {} has been analysed, but an error occurred during '
@@ -170,11 +171,11 @@ def process_minion_qc_run(minion_run, sequencing_ongoing=False, nanoseq_ongoing=
                             send_mail(email_subject, email_message, email_recipients)
 
                     else:
-                        logger.warn('The following run has already been transferred, '
+                        logger.warning('The following run has already been transferred, '
                                     'skipping: {}'.format(minion_run.run_id))
 
                 else:
-                    logger.warn('Anglerfish exited with a non-zero exit status for run {}. '
+                    logger.warning('Anglerfish exited with a non-zero exit status for run {}. '
                                 'Notifying operator.'.format(minion_run.run_id))
                     email_subject = ('Run processed with errors: {}'.format(minion_run.run_id))
                     email_message = ('Anglerfish exited with errors for run {}. Please '
@@ -182,7 +183,7 @@ def process_minion_qc_run(minion_run, sequencing_ongoing=False, nanoseq_ongoing=
                     send_mail(email_subject, email_message, email_recipients)
 
         else:
-            logger.warn('Nanoseq exited with a non-zero exit status for run {}. '
+            logger.warning('Nanoseq exited with a non-zero exit status for run {}. '
                         'Notifying operator.'.format(minion_run.run_id))
             email_subject = ('Analysis failed for run {}'.format(minion_run.run_id))
             email_message = 'The nanoseq analysis failed for run {}.'.format(minion_run.run_id)
@@ -209,7 +210,7 @@ def process_minion_delivery_run(minion_run):
                             'successfully.').format(minion_run.run_id)
             send_mail(email_subject, email_message, email_recipients)
         else:
-            logger.warn('An error occurred during transfer of run {}.'.format(minion_run.run_id))
+            logger.warning('An error occurred during transfer of run {}.'.format(minion_run.run_id))
             email_subject = ('Run processed with errors: {}'.format(minion_run.run_id))
             email_message = ('An error occurred during the '
                             'transfer of run {}.').format(minion_run.run_id)
@@ -217,37 +218,64 @@ def process_minion_delivery_run(minion_run):
             
 
 def ont2couch(ont_run):
-    """ Check run vs statusdb. Create or update as needed
+    """ Check run vs statusdb. Create or update run entry as needed.
     """
 
-    try:
-        sesh = NanoporeRunsConnection(CONFIG["statusdb"], dbname="nanopore_runs")        
+    run_pattern = re.compile("^(\d{8})_(\d{4})_([0-9a-zA-Z]+)_([0-9a-zA-Z]+)_([0-9a-zA-Z]+)$")
 
-        # If no run document exists in the database
-        if not sesh.check_run_exists(ont_run):
+    sesh = NanoporeRunsConnection(CONFIG["statusdb"], dbname="nanopore_runs")        
+
+    if re.match(run_pattern, ont_run.run_id):
+        logger.debug(f"Run {ont_run.run_id} looks like a run directory, continuing.")
+    else:
+        error_message = f"Run {ont_run.run_id} does not match the regex of a run directory (yyyymmdd_hhmm_pos|device_fcID_hash)."
+        logger.error(error_message)
+        raise AssertionError(error_message)
+    
+    # If no run document exists in the database
+    if not sesh.check_run_exists(ont_run):
+        logger.debug(f"Run {ont_run.run_id} does not exist in the database, creating entry for ongoing run.")
+        
+        # Create an ongoing run document
+        run_path_file = os.path.join(ont_run.run_dir, 'run_path.txt')
+        sesh.create_ongoing_run(ont_run, open(run_path_file, "r").read().strip())
+        logger.debug(f"Successfully created db entry for ongoing run {ont_run.run_id}.")
+        
+    # If a run document DOES exist in the database
+    else:
+        # If the run document is marked as "ongoing"
+        if sesh.check_run_status(ont_run) == "ongoing":
             
-            # Create an ongoing run document
-            run_path_file = os.path.join(ont_run.run_dir, 'run_path.txt')
-            sesh.create_ongoing_run(ont_run, open(run_path_file, "r").read().strip())
+            logger.debug(f"Run {ont_run.run_id} exists in the database as an ongoing run.")
 
-        # If run is finished and an ongoing run document exists
-        if len(ont_run.summary_file) != 0 and sesh.check_run_status(ont_run) == "ongoing":
+            # If the run is finished
+            if len(ont_run.summary_file) != 0:
 
-            # Parse the MinKNOW .json and .html report files and finish the ongoing run document
-            glob_json = glob.glob(ont_run.run_dir + '/report*.json')
-            glob_html = glob.glob(ont_run.run_dir + '/report*.html')
-            
-            dict_json = json.load(open(glob_json[0], "r"))
-            dict_html = {
-                "minknow_report_name": glob_html[0].split("/")[-1],
-                "minknow_report_content": html.escape(open(glob_html[0], "r").read())
-            }
+                logger.debug(f"Run {ont_run.run_id} has finished sequencing, updating the db entry.")
 
-            sesh.finish_ongoing_run(ont_run, dict_json, dict_html)
+                # Parse the MinKNOW .json and .html report files and finish the ongoing run document
+                glob_json = glob.glob(ont_run.run_dir + '/report*.json')
+                glob_html = glob.glob(ont_run.run_dir + '/report*.html')
 
-        return True
-    except:
-        return False
+                if len(glob_json) == 0 or len(glob_html) == 0:
+                    error_message = f"Run {ont_run.run_id} is marked as finished, but missing report files."
+                    logger.error(error_message)
+                    raise AssertionError(error_message)
+                
+                dict_json = json.load(open(glob_json[0], "r"))
+                dict_html = {
+                    "minknow_report_name": glob_html[0].split("/")[-1],
+                    "minknow_report_content": html.escape(open(glob_html[0], "r").read())
+                }
+
+                sesh.finish_ongoing_run(ont_run, dict_json, dict_html)
+                logger.debug(f"Successfully updated the db entry of run {ont_run.run_id}")
+
+            else:
+                logger.debug(f"Run {ont_run.run_id} has not finished sequencing, do nothing.")
+        
+        else:
+            logger.debug(f"Run {ont_run.run_id} exists in the database as an finished run, do nothing.")
 
 
 def transfer_ont_run(ont_run):
@@ -256,12 +284,13 @@ def transfer_ont_run(ont_run):
     logger.info('Processing run {}'.format(ont_run.run_id))
 
     # Update StatusDB
-    if ont2couch(ont_run):
+    try:
+        ont2couch(ont_run)
         logger.info(f"Database update for run {ont_run.run_id} successful")
-    else:
-        logger.warn(f"Database update for run {ont_run.run_id} failed")
+    except Exception as e:
+        logger.warning(f"Database update for run {ont_run.run_id} failed")
         email_subject = ('Run processed with errors: {}'.format(ont_run.run_id))
-        email_message = (f"An error occured when updating statusdb with run {ont_run.run_id}.")
+        email_message = (f"An error occured when updating statusdb with run {ont_run.run_id}.\n{e}")
         send_mail(email_subject, email_message, email_recipients)
 
     if len(ont_run.summary_file) and os.path.isfile(ont_run.summary_file[0]):
@@ -296,7 +325,7 @@ def transfer_ont_run(ont_run):
                 send_mail(email_subject, email_message, email_recipients)
 
         else:
-            logger.warn('The following run has already been transferred, '
+            logger.warning('The following run has already been transferred, '
                         'skipping: {}'.format(ont_run.run_id))
     else:
         logger.info('Run {} not finished sequencing yet. Skipping.'.format(ont_run.run_id))
@@ -309,7 +338,7 @@ def process_minion_qc_runs(run, nanoseq_sample_sheet, anglerfish_sample_sheet):
             minion_run = MinIONqc(os.path.abspath(run), nanoseq_sample_sheet, anglerfish_sample_sheet)
             process_minion_qc_run(minion_run)
         else:
-            logger.warn('The specified path is not a flow cell. Please '
+            logger.warning('The specified path is not a flow cell. Please '
                         'provide the full path to the flow cell you wish to process.')
     else:
         nanopore_data_dir = CONFIG.get('nanopore_analysis').get('minion_qc_run').get('data_dir')
@@ -333,7 +362,7 @@ def process_minion_delivery_runs(run):
             minion_run = MinIONdelivery(os.path.abspath(run))
             process_minion_delivery_run(minion_run)
         else:
-            logger.warn('The specified path is not a flow cell. Please '
+            logger.warning('The specified path is not a flow cell. Please '
                         'provide the full path to the flow cell you wish to process.')
     else:
         minion_data_dir = CONFIG.get('nanopore_analysis').get('minion_delivery_run').get('data_dir')
@@ -354,7 +383,7 @@ def transfer_finished(run):
                 ont_run = PromethionTransfer(os.path.abspath(run))
                 transfer_ont_run(ont_run)
         else:
-            logger.warn('The specified path is not a flow cell. Please '
+            logger.warning('The specified path is not a flow cell. Please '
                         'provide the full path to the flow cell you wish to process.')
     else:
         # Locate all runs in /srv/ngi_data/sequencing/promethion and /srv/ngi_data/sequencing/minion
