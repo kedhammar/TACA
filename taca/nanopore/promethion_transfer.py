@@ -1,5 +1,6 @@
 """ Transfers new PromethION runs to ngi-nas using rsync.
 """
+__version__ = "1.0.1"
 
 import os
 import shutil
@@ -38,6 +39,7 @@ def main(args):
 
     # Start transfer of unfinished runs first (detatched)
     for run in not_finished:
+        dump_path(run)
         sync_to_storage(run, destination_dir, log_file)
     for run in finished:
         final_sync_to_storage(run, destination_dir, archive_dir, log_file) 
@@ -51,6 +53,16 @@ def sequencing_finished(run_dir):
         if sequencing_finished_indicator in item:
             return True
     return False
+
+def dump_path(run_path):
+    """Dump path to run to a file that can be
+    used when uploading stats to statusdb from preproc."""
+    new_file = os.path.join(run_path, 'run_path.txt')
+    proj, sample, run = run_path.split('/')[3:]
+    path_to_write = os.path.join(proj, sample, run)
+    f = open(new_file, 'w')
+    f.write(path_to_write)
+    f.close()
 
 def sync_to_storage(run_dir, destination, log_file):
     """Sync the run to storage using rsync. 
@@ -75,13 +87,19 @@ def archive_finished_run(run_dir, archive_dir):
     """Move finished run to archive (nosync)."""
     dir_to_move = str(pathlib.Path(run_dir).parent)
     print('Archiving {}'.format(dir_to_move))
-    shutil.move(dir_to_move, archive_dir)
     top_dir = str(pathlib.Path(run_dir).parent.parent)
+    project_id = os.path.basename(top_dir)
+    project_archive = os.path.join(archive_dir, project_id)
+    if os.path.exists(project_archive):
+        shutil.move(dir_to_move, project_archive)
+    else:
+        os.mkdir(project_archive)
+        shutil.move(dir_to_move, project_archive)
     if not os.listdir(top_dir):
         print("Project folder {} is empty. Removing it.".format(top_dir))
         os.rmdir(top_dir)
     else:
-        print("Some data is still left in {}. Keeping it.".format(top_dir))
+        print("Some data is still left in {}. Keeping it.".format(top_dir))  # Might be another run for the same project
 
 if __name__ == "__main__":
     # This is clunky but should be fine since it will only ever run as a cronjob
@@ -89,6 +107,7 @@ if __name__ == "__main__":
     parser.add_argument('--source', dest='source_dir', help='Full path to directory containing runs to be synced.')
     parser.add_argument('--dest', dest='dest_dir', help='Full path to destination directory to sync runs to.')
     parser.add_argument('--archive', dest='archive_dir', help='Full path to directory containing runs to be synced.')
+    parser.add_argument('--version', action='version', version=__version__)
     args = parser.parse_args()
     
     main(args)

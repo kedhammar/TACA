@@ -62,7 +62,7 @@ def minion(runtype, run, nanoseq_sample_sheet, anglerfish_sample_sheet):
 @click.option('-r', '--run', type=click.Path(exists=True), default=None,
               help='Transfer only a particular run')
 
-def promethion(run):
-    """Transfer runs present in the data directories.
+def ont_transfer(run):
+    """Transfer runs present in the data directories to HPC cluster.
     """
-    analysis_nanopore.process_promethion_runs(run)
+    analysis_nanopore.transfer_finished(run)

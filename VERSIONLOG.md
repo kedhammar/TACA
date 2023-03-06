@@ -1,5 +1,29 @@
 # TACA Version Log
 
+##20230213.1
+Further updates to ONT runs TACA <-> CouchDB interplay after local troubleshooting. Improve code readability, logging and exception handling.
+
+##20230207.1
+Add functionality for monitoring PromethION status
+
+##20230117.2
+More robust handling of ONT transfers
+
+##20230117.1
+Integrate ONT data flow with CouchDB nanopore_runs
+
+##20221102.1
+Include MinION data in transfer to HPC cluster
+
+##20221028.1
+Cleaner check for ONT transfer destination
+
+##20221011.1
+Add versioning for PromethION offload script 
+
+##20220830.1
+Change promethion directory levels
+
 ## 20220811.1
 Set short single index to 8nt
 
