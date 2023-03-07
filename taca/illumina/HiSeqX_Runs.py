@@ -284,13 +284,19 @@ class HiSeqX_Run(Run):
                 if is_first_read:
                     if cycles > read1_size:
                         r_remainder = cycles - read1_size
-                        bm.append('Y' + str(read1_size) + 'N' + str(r_remainder))
+                        if read1_size != 0:
+                            bm.append('Y' + str(read1_size) + 'N' + str(r_remainder))
+                        else:
+                            bm.append('N' + str(cycles))
                     else:
                         bm.append('Y' + str(cycles))
                 else:
                     if cycles > read2_size:
                         r_remainder = cycles - read2_size
-                        bm.append('Y' + str(read2_size) + 'N' + str(r_remainder))
+                        if read2_size != 0:
+                            bm.append('Y' + str(read2_size) + 'N' + str(r_remainder))
+                        else:
+                            bm.append('N' + str(cycles))
                     else:
                         bm.append('Y' + str(cycles))
             else:
