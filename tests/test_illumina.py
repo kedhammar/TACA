@@ -471,8 +471,8 @@ Experiment Name,CIDXX
 Investigator Name,Test
 [Data]
 Lane,Sample_ID,Sample_Name,index,index2,Sample_Project,FCID,SampleRef,Description,Control,Recipe,Operator
-1,Sample_Sample_P10000_1001,Sample_P10000_1001,CGCGCAG,CTGCGCG,A_Test_18_01,HISEQFCIDXX,Human (Homo sapiens GRCh37),A_Test_18_01,N,2x50,Some_One
-1,Sample_Sample_P10000_1005,Sample_P10000_1005,AGGTACC,,A_Test_18_01,HISEQFCIDXX,Human (Homo sapiens GRCh37),A_Test_18_01,N,2x50,Some_One
+1,Sample_Sample_P10000_1001,Sample_P10000_1001,CGCGCAG,CTGCGCG,A_Test_18_01,HISEQFCIDXX,Human (Homo sapiens GRCh37),A_Test_18_01,N,50-50,Some_One
+1,Sample_Sample_P10000_1005,Sample_P10000_1005,AGGTACC,,A_Test_18_01,HISEQFCIDXX,Human (Homo sapiens GRCh37),A_Test_18_01,N,50-50,Some_One
 '''
         got_samplesheet = self.running._generate_clean_samplesheet(ssparser)
         self.assertEqual(got_samplesheet, expected_samplesheet)
@@ -541,7 +541,7 @@ Lane,Sample_ID,Sample_Name,index,index2,Sample_Project,FCID,SampleRef,Descriptio
                                               'FCID': 'HISEQFCIDXX',
                                               'SampleRef': 'Human (Homo sapiens GRCh37)',
                                               'Description': 'A_Test_18_01',
-                                              'Recipe': '2x50',
+                                              'Recipe': '50-50',
                                               'Operator': 'Some_One'}]},
                                   'Y150I7N1Y151':
                                    {'base_mask': ['Y150', 'I7N1', 'Y151'],
@@ -555,7 +555,7 @@ Lane,Sample_ID,Sample_Name,index,index2,Sample_Project,FCID,SampleRef,Descriptio
                                               'FCID': 'HISEQFCIDXX',
                                               'SampleRef': 'Human (Homo sapiens GRCh37)',
                                               'Description': 'A_Test_18_01',
-                                              'Recipe': '2x50',
+                                              'Recipe': '50-50',
                                               'Operator': 'Some_One'}]}
                                   }}
         self.to_start.demultiplex_run()
@@ -622,7 +622,7 @@ Lane,Sample_ID,Sample_Name,index,index2,Sample_Project,FCID,SampleRef,Descriptio
                                                                                    'Lane': '1',
                                                                                    'Description': 'A_Test_18_01',
                                                                                    'Sample_ID': 'Sample_Sample_P10000_1001',
-                                                                                   'Recipe': '2x50',
+                                                                                   'Recipe': '50-50',
                                                                                    'FCID': 'HISEQFCIDXX',
                                                                                    'SampleRef': 'Human (Homo sapiens GRCh37)',
                                                                                    'Operator': 'Some_One',
@@ -634,7 +634,7 @@ Lane,Sample_ID,Sample_Name,index,index2,Sample_Project,FCID,SampleRef,Descriptio
                                                                                    'Lane': '1',
                                                                                    'Description': 'A_Test_18_01',
                                                                                    'Sample_ID': 'Sample_Sample_P10000_1005',
-                                                                                   'Recipe': '2x50',
+                                                                                   'Recipe': '50-50',
                                                                                    'FCID': 'HISEQFCIDXX',
                                                                                    'SampleRef': 'Human (Homo sapiens GRCh37)',
                                                                                    'Operator': 'Some_One',
