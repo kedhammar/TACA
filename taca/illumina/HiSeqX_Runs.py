@@ -257,14 +257,14 @@ class HiSeqX_Run(Run):
             if (index1_size != 0 and index2_size != 0) or (index1_size == 0 and index2_size != 0):
                 is_dual_index = True
             # Compute the basemask
-            base_mask = self._compute_base_mask(runSetup, sample_type, index1_size, is_dual_index, index2_size, umi1_size, umi2_size, read1_size, read1_size)
+            base_mask = self._compute_base_mask(runSetup, sample_type, index1_size, is_dual_index, index2_size, umi1_size, umi2_size, read1_size, read2_size)
             base_mask_string = ''.join(base_mask)
 
             base_masks[lane][base_mask_string] = {'base_mask':base_mask}
 
         return base_masks
 
-    def _compute_base_mask(self, runSetup, sample_type, index1_size, is_dual_index, index2_size, umi1_size, umi2_size, read1_size, read1_size):
+    def _compute_base_mask(self, runSetup, sample_type, index1_size, is_dual_index, index2_size, umi1_size, umi2_size, read1_size, read2_size):
         """
             Assumptions:
                 - if runSetup is of size 3, then single index run
