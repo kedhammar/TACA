@@ -15,6 +15,7 @@ TENX_SINGLE_PAT = re.compile('SI-(?:GA|NA)-[A-H][1-9][0-2]?')
 TENX_DUAL_PAT = re.compile('SI-(?:TT|NT|NN|TN|TS)-[A-H][1-9][0-2]?')
 SMARTSEQ_PAT = re.compile('SMARTSEQ[1-9]?-[1-9][0-9]?[A-P]')
 IDT_UMI_PAT = re.compile('([ATCG]{4,}N+$)')
+RECIPE_PAT = re.compile('[0-9]+-[0-9]+')
 
 
 class HiSeqX_Run(Run):
@@ -101,12 +102,13 @@ class HiSeqX_Run(Run):
                     sample_type_t = sample_detail['sample_type']
                     sample_index_length = sample_detail['index_length']
                     sample_umi_length = sample_detail['umi_length']
+                    sample_read_length = sample_detail['read_length']
                     if sample_type_t == sample_type:
                         if lane_table.get(lane):
-                            if (sample_index_length, sample_umi_length) not in lane_table[lane]:
-                                lane_table[lane].append((sample_index_length, sample_umi_length))
+                            if (sample_index_length, sample_umi_length, sample_read_length) not in lane_table[lane]:
+                                lane_table[lane].append((sample_index_length, sample_umi_length, sample_read_length))
                         else:
-                            lane_table.update({lane:[(sample_index_length, sample_umi_length)]})
+                            lane_table.update({lane:[(sample_index_length, sample_umi_length, sample_read_length)]})
             # Determine the number of demux needed for the same sample type
             demux_number_with_the_same_sample_type = len(max([v for k, v in lane_table.items()],key=len))
             # Prepare sub-samplesheets, masks and commands
@@ -118,15 +120,16 @@ class HiSeqX_Run(Run):
                 mask_table = dict()
                 for lane, lane_contents in self.sample_table.items():
                     try:
-                        (index_length, umi_length) = lane_table[lane][i]
-                        mask_table.update({lane: (index_length, umi_length)})
+                        (index_length, umi_length, read_length) = lane_table[lane][i]
+                        mask_table.update({lane: (index_length, umi_length, read_length)})
                         for sample in lane_contents:
                             sample_name = sample[0]
                             sample_detail = sample[1]
                             sample_type_t = sample_detail['sample_type']
                             sample_index_length = sample_detail['index_length']
                             sample_umi_length = sample_detail['umi_length']
-                            if sample_type_t == sample_type and sample_index_length == index_length and sample_umi_length == umi_length:
+                            sample_read_length = sample_detail['read_length']
+                            if sample_type_t == sample_type and sample_index_length == index_length and sample_umi_length == umi_length and sample_read_length == read_length:
                                 if samples_to_include.get(lane):
                                     samples_to_include[lane].append(sample_name)
                                 else:
@@ -248,18 +251,20 @@ class HiSeqX_Run(Run):
             index2_size = lane_contents[0][1]
             umi1_size = lane_contents[1][0]
             umi2_size = lane_contents[1][1]
+            read1_size = lane_contents[2][0]
+            read2_size = lane_contents[2][1]
             is_dual_index = False
             if (index1_size != 0 and index2_size != 0) or (index1_size == 0 and index2_size != 0):
                 is_dual_index = True
             # Compute the basemask
-            base_mask = self._compute_base_mask(runSetup, sample_type, index1_size, is_dual_index, index2_size, umi1_size, umi2_size)
+            base_mask = self._compute_base_mask(runSetup, sample_type, index1_size, is_dual_index, index2_size, umi1_size, umi2_size, read1_size, read2_size)
             base_mask_string = ''.join(base_mask)
 
             base_masks[lane][base_mask_string] = {'base_mask':base_mask}
 
         return base_masks
 
-    def _compute_base_mask(self, runSetup, sample_type, index1_size, is_dual_index, index2_size, umi1_size, umi2_size):
+    def _compute_base_mask(self, runSetup, sample_type, index1_size, is_dual_index, index2_size, umi1_size, umi2_size, read1_size, read2_size):
         """
             Assumptions:
                 - if runSetup is of size 3, then single index run
@@ -274,7 +279,26 @@ class HiSeqX_Run(Run):
         for read in runSetup:
             cycles = int(read['NumCycles'])
             if read['IsIndexedRead'] == 'N':
-                bm.append('Y' + str(cycles))
+                # Prepare the base mask for the 1st read
+                is_first_read = int(read['Number']) == 1
+                if is_first_read:
+                    if cycles > read1_size:
+                        r_remainder = cycles - read1_size
+                        if read1_size != 0:
+                            bm.append('Y' + str(read1_size) + 'N' + str(r_remainder))
+                        else:
+                            bm.append('N' + str(cycles))
+                    else:
+                        bm.append('Y' + str(cycles))
+                else:
+                    if cycles > read2_size:
+                        r_remainder = cycles - read2_size
+                        if read2_size != 0:
+                            bm.append('Y' + str(read2_size) + 'N' + str(r_remainder))
+                        else:
+                            bm.append('N' + str(cycles))
+                    else:
+                        bm.append('Y' + str(cycles))
             else:
                 is_first_index_read = int(read['Number']) == 2
                 # Prepare the base mask for the 1st index read
@@ -428,16 +452,31 @@ def _classify_samples(indexfile, ssparser, runSetup):
     index_dict_tenX = parse_10X_indexes(indexfile['tenX'])
     index_dict_smartseq = parse_smartseq_indexes(indexfile['smartseq'])
     index_cycles = [0, 0]
+    read_cycles = [0, 0]
     for read in runSetup:
         if read['IsIndexedRead'] == 'Y':
             if int(read['Number']) == 2:
                 index_cycles[0] = int(read['NumCycles'])
             else:
                 index_cycles[1] = int(read['NumCycles'])
+        elif read['IsIndexedRead'] == 'N':
+            if int(read['Number']) == 1:
+                read_cycles[0] = int(read['NumCycles'])
+            else:
+                read_cycles[1] = int(read['NumCycles'])
     for sample in ssparser.data:
         lane = sample['Lane']
         sample_name = sample.get('Sample_Name') or sample.get('SampleName')
         umi_length = [0, 0]
+        read_length = read_cycles
+        # Read the length of read 1 and read 2 from the field Recipe
+        if sample.get('Recipe') and RECIPE_PAT.findall(sample.get('Recipe')):
+            ss_read_length = [int(sample.get('Recipe').split('-')[0]), int(sample.get('Recipe').split('-')[1])]
+        else:
+            ss_read_length = [0, 0]
+        # By default use the read cycles from the sequncing setup. Otherwise use the shorter read length
+        if ss_read_length != [0, 0]:
+            read_length = [min(rd) for rd in zip(ss_read_length, read_length)]
         # 10X single index
         if TENX_SINGLE_PAT.findall(sample['index']):
             index_length = [len(index_dict_tenX[sample['index']][0]),0]
@@ -481,12 +520,14 @@ def _classify_samples(indexfile, ssparser, runSetup):
             sample_table[lane].append((sample_name,
                                        {'sample_type': sample_type,
                                         'index_length': index_length,
-                                        'umi_length': umi_length}))
+                                        'umi_length': umi_length,
+                                        'read_length': read_length}))
         else:
             sample_table.update({lane:[(sample_name,
                                         {'sample_type': sample_type,
                                          'index_length': index_length,
-                                         'umi_length': umi_length})]})
+                                         'umi_length': umi_length,
+                                         'read_length': read_length})]})
 
     return sample_table
 

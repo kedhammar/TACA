@@ -1,5 +1,8 @@
 # TACA Version Log
 
+## 20230307.1
+Handle demux case that ordered read length is different from seq setup
+
 ##20230213.1
 Further updates to ONT runs TACA <-> CouchDB interplay after local troubleshooting. Improve code readability, logging and exception handling.
 
@@ -19,7 +22,7 @@ Include MinION data in transfer to HPC cluster
 Cleaner check for ONT transfer destination
 
 ##20221011.1
-Add versioning for PromethION offload script 
+Add versioning for PromethION offload script
 
 ##20220830.1
 Change promethion directory levels
