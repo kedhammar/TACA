@@ -272,7 +272,7 @@ def ont2couch(ont_run):
                 logger.debug(f"Successfully updated the db entry of run {ont_run.run_id}")
 
                 # Transfer the MinKNOW .html report file, requires IT SSH access between from source to dest
-                scp_command = f'scp {glob_html[0]} {CONFIG["nanopore_analysis"]["ont_transfer"]["minknow_reports_dir"]}'
+                scp_command = f'scp {glob_html[0]} {os.path.join(CONFIG["nanopore_analysis"]["ont_transfer"]["minknow_reports_dir"], glob_html[0])}'
                 os.system(scp_command)
                 logger.debug(f"Successfully transferred the MinKNOW report of run {ont_run.run_id}")
 
