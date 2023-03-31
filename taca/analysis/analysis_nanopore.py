@@ -253,7 +253,7 @@ def ont2couch(ont_run):
 
                 logger.debug(f"Run {ont_run.run_id} has finished sequencing, updating the db entry.")
 
-                # Parse the MinKNOW .json and .html report files and finish the ongoing run document
+                # Parse the MinKNOW .json report file and finish the ongoing run document
                 glob_json = glob.glob(ont_run.run_dir + '/report*.json')
                 glob_html = glob.glob(ont_run.run_dir + '/report*.html')
 
@@ -270,6 +270,11 @@ def ont2couch(ont_run):
 
                 sesh.finish_ongoing_run(ont_run, dict_json, dict_html)
                 logger.debug(f"Successfully updated the db entry of run {ont_run.run_id}")
+
+                # Transfer the MinKNOW .html report file, requires IT SSH access between from source to dest
+                scp_command = f'scp {glob_html[0]} {CONFIG["nanopore_analysis"]["ont_transfer"]["minknow_reports_dir"]}'
+                os.system(scp_command)
+                logger.debug(f"Successfully transferred the MinKNOW report of run {ont_run.run_id}")
 
             else:
                 logger.debug(f"Run {ont_run.run_id} has not finished sequencing, do nothing.")
