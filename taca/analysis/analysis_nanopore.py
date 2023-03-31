@@ -263,12 +263,8 @@ def ont2couch(ont_run):
                     raise AssertionError(error_message)
                 
                 dict_json = json.load(open(glob_json[0], "r"))
-                dict_html = {
-                    "minknow_report_name": glob_html[0].split("/")[-1],
-                    "minknow_report_content": html.escape(open(glob_html[0], "r").read())
-                }
 
-                sesh.finish_ongoing_run(ont_run, dict_json, dict_html)
+                sesh.finish_ongoing_run(ont_run, dict_json)
                 logger.debug(f"Successfully updated the db entry of run {ont_run.run_id}")
 
                 # Transfer the MinKNOW .html report file, may require SSH access via IT
