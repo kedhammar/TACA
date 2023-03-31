@@ -1,5 +1,8 @@
 # TACA Version Log
 
+## 20230331.1
+Move MinKNOW reports to ngi-internal instead of embedding in StatusDB doc
+
 ## 20230307.1
 Handle demux case that ordered read length is different from seq setup
 
