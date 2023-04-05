@@ -111,13 +111,12 @@ class NanoporeRunsConnection(StatusdbSession):
         new_doc_id, new_doc_rev = self.db.save(new_doc)
         logger.info(f"New database entry created: {ont_run.run_id}, id {new_doc_id}, rev {new_doc_rev}")
 
-    def finish_ongoing_run(self, ont_run, dict_json, dict_html):
+    def finish_ongoing_run(self, ont_run, dict_json):
         view_names = self.db.view('names/name')
         doc_id = view_names[ont_run.run_id].rows[0].id
         doc = self.db[doc_id]
 
         doc.update(dict_json)
-        doc.update(dict_html)
         doc["run_status"] = "finished"
         self.db[doc.id] = doc
 
