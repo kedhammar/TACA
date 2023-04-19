@@ -69,7 +69,7 @@ def write_finished_indicator(run_path):
     when the finial rsync is finished."""
     new_file = os.path.join(run_path, '.sync_finished')
     f = open(new_file, 'w')
-    f.write()
+    f.write('0')
     f.close()
     return new_file
 

@@ -237,6 +237,6 @@ class MinIONdelivery(Nanopore):
         when the finial rsync is finished."""
         new_file = os.path.join(self.run_dir, '.sync_finished')
         f = open(new_file, 'w')
-        f.write()
+        f.write('0')
         f.close()
         return new_file
