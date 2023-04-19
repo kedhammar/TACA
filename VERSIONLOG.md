@@ -1,5 +1,8 @@
 # TACA Version Log
 
+## 20230418.1
+Use a hidden file to indicate when the final rsync of ONT data to ngi-nas is done
+
 ## 20230331.1
 Move MinKNOW reports to ngi-internal instead of embedding in StatusDB doc
 
