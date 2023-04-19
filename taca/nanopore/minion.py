@@ -231,3 +231,12 @@ class MinIONdelivery(Nanopore):
         f = open(new_file, 'w')
         f.write(path_to_write)
         f.close()
+    
+    def write_finished_indicator(self):
+        """Write a hidden file to indicate 
+        when the finial rsync is finished."""
+        new_file = os.path.join(self.run_dir, '.sync_finished')
+        f = open(new_file, 'w')
+        f.write()
+        f.close()
+        return new_file

@@ -88,7 +88,8 @@ def final_sync_to_storage(run_dir, destination, archive_dir, log_file):
     process_handle = subprocess.run(command)
     if process_handle.returncode == 0:
         finished_indicator = write_finished_indicator(run_dir)
-        sync_finished_indicator = ['rsync', finished_indicator, destination]
+        dest = os.path.join(destination, os.path.basename(run_dir))
+        sync_finished_indicator = ['rsync', finished_indicator, dest]
         process_handle = subprocess.run(sync_finished_indicator)
         archive_finished_run(run_dir, archive_dir)
     else:

@@ -1,5 +1,6 @@
 import logging
 import shutil
+import glob
 
 from taca.nanopore.nanopore import Nanopore
 from taca.utils.config import CONFIG
@@ -11,6 +12,7 @@ class ONTTransfer(Nanopore):
     """Base class for transfer of ONT data to HPC cluster"""
     def __init__(self, run_dir):
         super(ONTTransfer, self).__init__(run_dir)
+        self.sync_finished_indicator = glob.glob(run_dir + '.sync_finished')
     
     def archive_run(self):
         """Move run directory to nosync."""

@@ -5,6 +5,7 @@ import glob
 import json
 import html
 import re
+import subprocess
 
 from dateutil.parser import parse
 from taca.utils.config import CONFIG
@@ -77,7 +78,7 @@ def check_ongoing_sequencing(run_dir):
         return False
 
 def process_minion_qc_run(minion_run, sequencing_ongoing=False, nanoseq_ongoing=False):
-    """Process MinION QC runs.
+    """Process MinION QC runs on Squiggle.
     
     Will not start nanoseq if a sequencing run is ongoing, to limit memory usage.
     Will also maximum start one nanoseq run at once, for the same reason.
@@ -195,7 +196,7 @@ def process_minion_qc_run(minion_run, sequencing_ongoing=False, nanoseq_ongoing=
     return nanoseq_ongoing
 
 def process_minion_delivery_run(minion_run):
-    """Process minion delivery runs."""
+    """Process minion delivery runs on Squiggle."""
     email_recipients = CONFIG.get('mail').get('recipients')
     logger.info('Processing run {}'.format(minion_run.run_id))
     minion_run.dump_path()
@@ -203,6 +204,10 @@ def process_minion_delivery_run(minion_run):
         minion_run.transfer_run()
     else:  # Run finished, rsync and archive
         if minion_run.transfer_run():
+            finished_indicator = minion_run.write_finished_indicator()
+            destination = os.path.join(minion_run.transfer_details.get('destination'), minion_run.run_id)
+            sync_finished_indicator = ['rsync', finished_indicator, destination]
+            process_handle = subprocess.run(sync_finished_indicator)
             minion_run.archive_run()
             logger.info('Run {} has been fully transferred.'.format(minion_run.run_id))
             email_subject = ('Run successfully processed: {}'.format(minion_run.run_id))
@@ -294,7 +299,7 @@ def transfer_ont_run(ont_run):
         email_message = (f"An error occured when updating statusdb with run {ont_run.run_id}.\n{e}")
         send_mail(email_subject, email_message, email_recipients)
 
-    if len(ont_run.summary_file) and os.path.isfile(ont_run.summary_file[0]):
+    if len(ont_run.sync_finished_indicator) and os.path.isfile(ont_run.sync_finished_indicator[0]):
         logger.info('Sequencing done for run {}. Attempting to start processing.'.format(ont_run.run_id))
         if ont_run.is_not_transferred():
             if ont_run.transfer_run():
