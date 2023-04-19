@@ -63,6 +63,15 @@ def dump_path(run_path):
     f = open(new_file, 'w')
     f.write(path_to_write)
     f.close()
+    
+def write_finished_indicator(run_path):
+    """Write a hidden file to indicate 
+    when the finial rsync is finished."""
+    new_file = os.path.join(run_path, '.sync_finished')
+    f = open(new_file, 'w')
+    f.write()
+    f.close()
+    return new_file
 
 def sync_to_storage(run_dir, destination, log_file):
     """Sync the run to storage using rsync. 
@@ -78,6 +87,9 @@ def final_sync_to_storage(run_dir, destination, archive_dir, log_file):
     command = ['run-one', 'rsync', '-rv', '--log-file=' + log_file, run_dir, destination]
     process_handle = subprocess.run(command)
     if process_handle.returncode == 0:
+        finished_indicator = write_finished_indicator(run_dir)
+        sync_finished_indicator = ['rsync', finished_indicator, destination]
+        process_handle = subprocess.run(sync_finished_indicator)
         archive_finished_run(run_dir, archive_dir)
     else:
         print('Previous rsync might be running still. Skipping {} for now.'.format(run_dir))
