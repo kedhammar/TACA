@@ -1,6 +1,6 @@
 # TACA Version Log
 
-## 20230418.1
+## 20230419.1
 Use a hidden file to indicate when the final rsync of ONT data to ngi-nas is done
 
 ## 20230331.1
