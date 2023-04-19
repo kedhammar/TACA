@@ -299,7 +299,7 @@ def transfer_ont_run(ont_run):
         email_message = (f"An error occured when updating statusdb with run {ont_run.run_id}.\n{e}")
         send_mail(email_subject, email_message, email_recipients)
 
-    if len(ont_run.sync_finished_indicator) and os.path.isfile(ont_run.sync_finished_indicator[0]):
+    if os.path.isfile(ont_run.sync_finished_indicator):
         logger.info('Sequencing done for run {}. Attempting to start processing.'.format(ont_run.run_id))
         if ont_run.is_not_transferred():
             if ont_run.transfer_run():
