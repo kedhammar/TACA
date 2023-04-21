@@ -43,7 +43,6 @@ def main(args):
         sync_to_storage(run, destination_dir, log_file)
     for run in finished:
         final_sync_to_storage(run, destination_dir, archive_dir, log_file) 
-        #TODO: possible improvement: Instead of waiting for the final sync, make it print the exit code to a file when done and use that as an indicator that the run is ready to archive. i.e. split the process into three steps instead of 2.
         
 
 def sequencing_finished(run_dir):
@@ -60,17 +59,14 @@ def dump_path(run_path):
     new_file = os.path.join(run_path, 'run_path.txt')
     proj, sample, run = run_path.split('/')[3:]
     path_to_write = os.path.join(proj, sample, run)
-    f = open(new_file, 'w')
-    f.write(path_to_write)
-    f.close()
+    with open(new_file, 'w') as f:
+        f.write(path_to_write)
     
 def write_finished_indicator(run_path):
     """Write a hidden file to indicate 
     when the finial rsync is finished."""
     new_file = os.path.join(run_path, '.sync_finished')
-    f = open(new_file, 'w')
-    f.write('0')
-    f.close()
+    pathlib.Path(new_file).touch()
     return new_file
 
 def sync_to_storage(run_dir, destination, log_file):

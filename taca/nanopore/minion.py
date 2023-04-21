@@ -3,6 +3,7 @@ import subprocess
 import shutil
 import glob
 import logging
+import pathlib
 
 from taca.nanopore.nanopore import Nanopore
 from taca.utils.config import CONFIG
@@ -228,15 +229,12 @@ class MinIONdelivery(Nanopore):
         new_file = os.path.join(self.run_dir, 'run_path.txt')
         proj, sample, run = self.run_dir.split('/')[-3:]
         path_to_write = os.path.join(proj, sample, run)
-        f = open(new_file, 'w')
-        f.write(path_to_write)
-        f.close()
+        with open(new_file, 'w') as f:
+            f.write(path_to_write)
     
     def write_finished_indicator(self):
         """Write a hidden file to indicate 
         when the finial rsync is finished."""
         new_file = os.path.join(self.run_dir, '.sync_finished')
-        f = open(new_file, 'w')
-        f.write('0')
-        f.close()
+        pathlib.Path(new_file).touch()
         return new_file
