@@ -1,6 +1,6 @@
 """ Transfers new PromethION runs to ngi-nas using rsync.
 """
-__version__ = "1.0.1"
+__version__ = "1.0.2"
 
 import os
 import shutil
@@ -43,7 +43,6 @@ def main(args):
         sync_to_storage(run, destination_dir, log_file)
     for run in finished:
         final_sync_to_storage(run, destination_dir, archive_dir, log_file) 
-        #TODO: possible improvement: Instead of waiting for the final sync, make it print the exit code to a file when done and use that as an indicator that the run is ready to archive. i.e. split the process into three steps instead of 2.
         
 
 def sequencing_finished(run_dir):
@@ -60,9 +59,15 @@ def dump_path(run_path):
     new_file = os.path.join(run_path, 'run_path.txt')
     proj, sample, run = run_path.split('/')[3:]
     path_to_write = os.path.join(proj, sample, run)
-    f = open(new_file, 'w')
-    f.write(path_to_write)
-    f.close()
+    with open(new_file, 'w') as f:
+        f.write(path_to_write)
+    
+def write_finished_indicator(run_path):
+    """Write a hidden file to indicate 
+    when the finial rsync is finished."""
+    new_file = os.path.join(run_path, '.sync_finished')
+    pathlib.Path(new_file).touch()
+    return new_file
 
 def sync_to_storage(run_dir, destination, log_file):
     """Sync the run to storage using rsync. 
@@ -78,6 +83,10 @@ def final_sync_to_storage(run_dir, destination, archive_dir, log_file):
     command = ['run-one', 'rsync', '-rv', '--log-file=' + log_file, run_dir, destination]
     process_handle = subprocess.run(command)
     if process_handle.returncode == 0:
+        finished_indicator = write_finished_indicator(run_dir)
+        dest = os.path.join(destination, os.path.basename(run_dir))
+        sync_finished_indicator = ['rsync', finished_indicator, dest]
+        process_handle = subprocess.run(sync_finished_indicator)
         archive_finished_run(run_dir, archive_dir)
     else:
         print('Previous rsync might be running still. Skipping {} for now.'.format(run_dir))
