@@ -64,7 +64,7 @@ def dump_path(run_path):
     """Dump path to run to a file that can be
     used when uploading stats to statusdb from preproc."""
     new_file = os.path.join(run_path, 'run_path.txt')
-    proj, sample, run = run_path.split('/')[3:]
+    proj, sample, run = run_path.split('/')[-3:]
     path_to_write = os.path.join(proj, sample, run)
     with open(new_file, 'w') as f:
         f.write(path_to_write)
