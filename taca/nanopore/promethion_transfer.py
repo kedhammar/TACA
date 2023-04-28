@@ -13,7 +13,7 @@ def main(args):
     """Find promethion runs and transfer them to storage. 
     Archives the run when the transfer is complete."""
     data_dir = args.source_dir
-    project_pattern = re.compile("^P\d{5}$")  # Runs started manually (project ID)
+    project_pattern = re.compile("^P\d{4,6}$")  # Runs started manually (project ID)
     lims_id_pattern = re.compile("^24-\d{6}$")  # Runs started with samplesheet (lims ID)
     destination_dir = args.dest_dir
     archive_dir = args.archive_dir
