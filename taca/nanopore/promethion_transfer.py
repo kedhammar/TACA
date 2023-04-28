@@ -13,12 +13,14 @@ def main(args):
     """Find promethion runs and transfer them to storage. 
     Archives the run when the transfer is complete."""
     data_dir = args.source_dir
-    project_pattern = re.compile("^P\d{5}$")
+    project_pattern = re.compile("^P\d{5}$")  # Runs started manually (project ID)
+    lims_id_pattern = re.compile("^24-\d{6}$")  # Runs started with samplesheet (lims ID)
     destination_dir = args.dest_dir
     archive_dir = args.archive_dir
     log_file = os.path.join(data_dir, 'rsync_log.txt')
     found_top_dirs = [os.path.join(data_dir, top_dir) for top_dir in os.listdir(data_dir)
-            if os.path.isdir(os.path.join(data_dir, top_dir)) and re.match(project_pattern, top_dir)]
+            if os.path.isdir(os.path.join(data_dir, top_dir)) 
+            and (re.match(project_pattern, top_dir) or re.match(lims_id_pattern, top_dir))]
     
     runs = []
     if found_top_dirs:
