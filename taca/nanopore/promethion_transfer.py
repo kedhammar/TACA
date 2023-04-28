@@ -3,6 +3,7 @@
 __version__ = "1.0.2"
 
 import os
+import re
 import shutil
 import pathlib
 import argparse
@@ -12,15 +13,21 @@ def main(args):
     """Find promethion runs and transfer them to storage. 
     Archives the run when the transfer is complete."""
     data_dir = args.source_dir
+    project_pattern = re.compile("^P\d{5}$")
     destination_dir = args.dest_dir
     archive_dir = args.archive_dir
     log_file = os.path.join(data_dir, 'rsync_log.txt')
     found_top_dirs = [os.path.join(data_dir, top_dir) for top_dir in os.listdir(data_dir)
             if os.path.isdir(os.path.join(data_dir, top_dir))]
     
+    filtered_top_dirs = []
+    for directory in found_top_dirs:
+        if re.match(project_pattern, directory):
+            filtered_top_dirs.append(directory)
+    
     runs = []
-    if found_top_dirs:
-        for top_dir in found_top_dirs:
+    if filtered_top_dirs:
+        for top_dir in filtered_top_dirs:
             if os.path.isdir(top_dir):
                 for sample_dir in os.listdir(top_dir):
                     if os.path.isdir(os.path.join(top_dir, sample_dir)):
@@ -72,7 +79,7 @@ def write_finished_indicator(run_path):
 def sync_to_storage(run_dir, destination, log_file):
     """Sync the run to storage using rsync. 
     Skip if rsync is already running on the run."""
-    command = ['run-one', 'rsync', '-rv', '--log-file=' + log_file, run_dir, destination] #TODO: might be an issue if multiple rsyncs write to the same log file at the same time
+    command = ['run-one', 'rsync', '-rv', '--log-file=' + log_file, run_dir, destination]
     process_handle = subprocess.Popen(command)
     print('Initiated rsync with the following parameters: {}'.format(command))
     
