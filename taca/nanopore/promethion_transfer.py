@@ -18,16 +18,11 @@ def main(args):
     archive_dir = args.archive_dir
     log_file = os.path.join(data_dir, 'rsync_log.txt')
     found_top_dirs = [os.path.join(data_dir, top_dir) for top_dir in os.listdir(data_dir)
-            if os.path.isdir(os.path.join(data_dir, top_dir))]
-    
-    filtered_top_dirs = []
-    for directory in found_top_dirs:
-        if re.match(project_pattern, directory):
-            filtered_top_dirs.append(directory)
+            if os.path.isdir(os.path.join(data_dir, top_dir)) and re.match(project_pattern, top_dir)]
     
     runs = []
-    if filtered_top_dirs:
-        for top_dir in filtered_top_dirs:
+    if found_top_dirs:
+        for top_dir in found_top_dirs:
             if os.path.isdir(top_dir):
                 for sample_dir in os.listdir(top_dir):
                     if os.path.isdir(os.path.join(top_dir, sample_dir)):
