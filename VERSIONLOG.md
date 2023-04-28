@@ -1,5 +1,8 @@
 # TACA Version Log
 
+## 20230428.1
+Change offload location in promethion_transfer.py
+
 ## 20230419.1
 Use a hidden file to indicate when the final rsync of ONT data to ngi-nas is done
 
