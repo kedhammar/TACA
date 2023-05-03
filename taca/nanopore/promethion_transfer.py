@@ -46,6 +46,7 @@ def main(args):
         dump_path(run)
         sync_to_storage(run, destination_dir, log_file)
     for run in finished:
+        dump_path(run)  # To catch very small runs that finished quickly
         final_sync_to_storage(run, destination_dir, archive_dir, log_file) 
         
 
