@@ -398,15 +398,13 @@ def ont2couch(ont_run):
 
             # Parse the MinKNOW .json report file and finish the ongoing run document
             glob_json = glob.glob(ont_run.run_dir + "/report*.json")
-            glob_html = glob.glob(ont_run.run_dir + "/report*.html")
-
-            if len(glob_json) == 0 or len(glob_html) == 0:
-                error_message = f"Run {ont_run.run_id} is marked as finished, but missing report files."
+            if len(glob_json) == 0:
+                error_message = f"Run {ont_run.run_id} is marked as finished, but missing .json report file."
                 logger.error(error_message)
                 raise AssertionError(error_message)
 
-            elif len(glob_json) > 1 or len(glob_html) > 1:
-                error_message = f"Run {ont_run.run_id} is marked as finished, but contains conflicting report files."
+            elif len(glob_json) > 1:
+                error_message = f"Run {ont_run.run_id} is marked as finished, but contains conflicting .json report files."
                 logger.error(error_message)
                 raise AssertionError(error_message)
 
@@ -423,6 +421,17 @@ def ont2couch(ont_run):
     # if the run document is marked as "finished"
     if sesh.check_run_status(ont_run) == "finished":
         logger.info(f"Run {ont_run.run_id} exists in the database as an finished run.")
+
+        glob_html = glob.glob(ont_run.run_dir + "/report*.html")
+        if len(glob_html) == 0:
+            error_message = f"Run {ont_run.run_id} is marked as finished, but missing .html report file."
+            logger.error(error_message)
+            raise AssertionError(error_message)
+        elif len(glob_html) > 1:
+            error_message = f"Run {ont_run.run_id} is marked as finished, but contains conflicting .html report files."
+            logger.error(error_message)
+            raise AssertionError(error_message)
+
         logger.info(f"Transferring the run report to ngi-internal.")
 
         # Transfer the MinKNOW .html report file to ngi-internal, renaming it to the full run ID. Requires password-free SSH access.
