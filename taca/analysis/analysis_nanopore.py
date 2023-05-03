@@ -231,7 +231,7 @@ def ont2couch(ont_run):
     sesh = NanoporeRunsConnection(CONFIG["statusdb"], dbname="nanopore_runs")        
 
     if re.match(run_pattern, ont_run.run_id):
-        logger.debug(f"Run {ont_run.run_id} looks like a run directory, continuing.")
+        logger.info(f"Run {ont_run.run_id} looks like a run directory, continuing.")
     else:
         error_message = f"Run {ont_run.run_id} does not match the regex of a run directory (yyyymmdd_hhmm_pos|device_fcID_hash)."
         logger.error(error_message)
@@ -239,24 +239,24 @@ def ont2couch(ont_run):
     
     # If no run document exists in the database
     if not sesh.check_run_exists(ont_run):
-        logger.debug(f"Run {ont_run.run_id} does not exist in the database, creating entry for ongoing run.")
+        logger.info(f"Run {ont_run.run_id} does not exist in the database, creating entry for ongoing run.")
         
         # Create an ongoing run document
         run_path_file = os.path.join(ont_run.run_dir, 'run_path.txt')
         sesh.create_ongoing_run(ont_run, open(run_path_file, "r").read().strip())
-        logger.debug(f"Successfully created db entry for ongoing run {ont_run.run_id}.")
+        logger.info(f"Successfully created db entry for ongoing run {ont_run.run_id}.")
         
     # If a run document DOES exist in the database
     else:
         # If the run document is marked as "ongoing"
         if sesh.check_run_status(ont_run) == "ongoing":
             
-            logger.debug(f"Run {ont_run.run_id} exists in the database as an ongoing run.")
+            logger.info(f"Run {ont_run.run_id} exists in the database as an ongoing run.")
 
             # If the run is finished
             if len(ont_run.summary_file) != 0:
 
-                logger.debug(f"Run {ont_run.run_id} has finished sequencing, updating the db entry.")
+                logger.info(f"Run {ont_run.run_id} has finished sequencing, updating the db entry.")
 
                 # Parse the MinKNOW .json report file and finish the ongoing run document
                 glob_json = glob.glob(ont_run.run_dir + '/report*.json')
@@ -267,21 +267,28 @@ def ont2couch(ont_run):
                     logger.error(error_message)
                     raise AssertionError(error_message)
                 
+                elif len(glob_json) > 1 or len(glob_html) > 1:
+                    error_message = f"Run {ont_run.run_id} is marked as finished, but contains conflicting report files."
+                    logger.error(error_message)
+                    raise AssertionError(error_message)
+                
                 dict_json = json.load(open(glob_json[0], "r"))
 
                 sesh.finish_ongoing_run(ont_run, dict_json)
-                logger.debug(f"Successfully updated the db entry of run {ont_run.run_id}")
+                logger.info(f"Successfully updated the db entry of run {ont_run.run_id}")
 
-                # Transfer the MinKNOW .html report file, may require SSH access via IT
-                scp_command = f'scp {glob_html[0]} {os.path.join(CONFIG["nanopore_analysis"]["ont_transfer"]["minknow_reports_dir"], glob_html[0])}'
+                # Transfer the MinKNOW .html report file to ngi-internal, renaming it to the full run ID. Requires password-free SSH access.
+                logger.info(f"Attempting to transfer the MinKNOW report of run {ont_run.run_id}")
+                new_report_file_name = f"report_{ont_run.run.id}.html"
+                scp_command = f'scp {glob_html[0]} {os.path.join(CONFIG["nanopore_analysis"]["ont_transfer"]["minknow_reports_dir"], new_report_file_name)}'
                 os.system(scp_command)
-                logger.debug(f"Successfully transferred the MinKNOW report of run {ont_run.run_id}")
+                logger.info(f"Successfully transferred the MinKNOW report of run {ont_run.run_id}")
 
             else:
-                logger.debug(f"Run {ont_run.run_id} has not finished sequencing, do nothing.")
+                logger.info(f"Run {ont_run.run_id} has not finished sequencing, do nothing.")
         
         else:
-            logger.debug(f"Run {ont_run.run_id} exists in the database as an finished run, do nothing.")
+            logger.info(f"Run {ont_run.run_id} exists in the database as an finished run, do nothing.")
 
 
 def transfer_ont_run(ont_run):

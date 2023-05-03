@@ -1,5 +1,8 @@
 # TACA Version Log
 
+## 20230502.1
+Enforce MinKNOW reports retain MinKNOW run ID upon transfer to ngi-internal. Improve logging.
+
 ## 20230428.1
 Change offload location in promethion_transfer.py
 
