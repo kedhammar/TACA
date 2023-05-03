@@ -415,35 +415,35 @@ def ont2couch(ont_run):
             sesh.finish_ongoing_run(ont_run, dict_json)
             logger.info(f"Successfully updated the db entry of run {ont_run.run_id}")
 
-            # Transfer the MinKNOW .html report file to ngi-internal, renaming it to the full run ID. Requires password-free SSH access.
-            report_dest_path = os.path.join(
-                CONFIG["nanopore_analysis"]["ont_transfer"]["minknow_reports_dir"],
-                f"report_{ont_run.run_id}.html",
-            )
-            transfer_object = RsyncAgent(
-                glob_html[0],
-                dest_path=report_dest_path,
-                validate=False,
-            )
-            try:
-                transfer_object.transfer()
-                logger.info(
-                    f"Successfully transferred the MinKNOW report of run {ont_run.run_id}"
-                )
-            except RsyncError:
-                msg = f"An error occurred while attempting to transfer the report {glob_html[0]} to {report_dest_path}"
-                logger.error(msg)
-                raise RsyncError(msg)
-
         else:
             logger.info(
                 f"Run {ont_run.run_id} has not finished sequencing, do nothing."
             )
 
-    else:
-        logger.info(
-            f"Run {ont_run.run_id} exists in the database as an finished run, do nothing."
+    # if the run document is marked as "finished"
+    if sesh.check_run_status(ont_run) == "finished":
+        logger.info(f"Run {ont_run.run_id} exists in the database as an finished run.")
+        logger.info(f"Transferring the run report to ngi-internal.")
+
+        # Transfer the MinKNOW .html report file to ngi-internal, renaming it to the full run ID. Requires password-free SSH access.
+        report_dest_path = os.path.join(
+            CONFIG["nanopore_analysis"]["ont_transfer"]["minknow_reports_dir"],
+            f"report_{ont_run.run_id}.html",
         )
+        transfer_object = RsyncAgent(
+            glob_html[0],
+            dest_path=report_dest_path,
+            validate=False,
+        )
+        try:
+            transfer_object.transfer()
+            logger.info(
+                f"Successfully transferred the MinKNOW report of run {ont_run.run_id}"
+            )
+        except RsyncError:
+            msg = f"An error occurred while attempting to transfer the report {glob_html[0]} to {report_dest_path}"
+            logger.error(msg)
+            raise RsyncError(msg)
 
 
 def transfer_ont_run(ont_run):
