@@ -1,5 +1,8 @@
 # TACA Version Log
 
+## 20230503.1
+Change how MinKNOW reports are synced to GenStat server to increase traceability and enable transfer of the reports of finished runs.
+
 ## 20230502.1
 Enforce MinKNOW reports retain MinKNOW run ID upon transfer to ngi-internal. Improve logging.
 
