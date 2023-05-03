@@ -1,6 +1,6 @@
 """ Transfers new PromethION runs to ngi-nas using rsync.
 """
-__version__ = "1.0.3"
+__version__ = "1.0.4"
 
 import os
 import re
