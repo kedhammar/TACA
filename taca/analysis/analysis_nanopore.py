@@ -3,7 +3,6 @@ import os
 import logging
 import glob
 import json
-import html
 import re
 import subprocess
 
@@ -13,7 +12,7 @@ from taca.utils.misc import send_mail
 from taca.utils.statusdb import NanoporeRunsConnection
 from taca.nanopore.minion import MinIONdelivery, MinIONqc
 from taca.nanopore.ont_transfer import PromethionTransfer, MinionTransfer
-from utils.transfer import RsyncAgent
+from taca.utils.transfer import RsyncAgent, RsyncError
 
 logger = logging.getLogger(__name__)
 
@@ -417,18 +416,24 @@ def ont2couch(ont_run):
             logger.info(f"Successfully updated the db entry of run {ont_run.run_id}")
 
             # Transfer the MinKNOW .html report file to ngi-internal, renaming it to the full run ID. Requires password-free SSH access.
-            logger.info(
-                f"Attempting to transfer the MinKNOW report of run {ont_run.run_id}"
+            report_dest_path = os.path.join(
+                CONFIG["nanopore_analysis"]["ont_transfer"]["minknow_reports_dir"],
+                f"report_{ont_run.run_id}.html",
             )
-            new_report_file_name = f"report_{ont_run.run.id}.html"
-            scp_command = f'scp {glob_html[0]} {os.path.join(CONFIG["nanopore_analysis"]["ont_transfer"]["minknow_reports_dir"], new_report_file_name)}'
-            if os.system(scp_command) != 0:
-                raise AssertionError(
-                    f"Carrying out the command '{scp_command}' returned non-zero exit code."
+            transfer_object = RsyncAgent(
+                glob_html[0],
+                dest_path=report_dest_path,
+                validate=False,
+            )
+            try:
+                transfer_object.transfer()
+                logger.info(
+                    f"Successfully transferred the MinKNOW report of run {ont_run.run_id}"
                 )
-            logger.info(
-                f"Successfully transferred the MinKNOW report of run {ont_run.run_id}"
-            )
+            except RsyncError:
+                msg = f"An error occurred while attempting to transfer the report {glob_html[0]} to {report_dest_path}"
+                logger.error(msg)
+                raise RsyncError(msg)
 
         else:
             logger.info(
