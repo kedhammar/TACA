@@ -1,5 +1,8 @@
 # TACA Version Log
 
+## 20230510.1
+Add storage_systems to server_status command to allow disk space surveillance of mounted virtual NAS:es. Also added Dockerfile and devcontainer setup.
+
 ## 20230503.1
 Change how MinKNOW reports are synced to GenStat server to increase traceability and enable transfer of the reports of finished runs.
 
