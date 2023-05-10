@@ -1,0 +1,14 @@
+server_status:
+    command: df -h
+    servers:
+        localhost: /
+    storage_systems:
+        ngi-nas: /workspaces/
+    user: hiseq.bioinfo
+promethion_status:
+    server: promethion1.scilifelab.se
+    path: /srv/ngi_data/sequencing
+    user: prom
+    command: ls
+log:
+    file: "/workspaces/TACA/taca.log"
