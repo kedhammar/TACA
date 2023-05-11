@@ -259,14 +259,12 @@ def extract_project_samplesheet(sample_sheet, pid):
     new_samplesheet_content = header_line + project_entries
     return new_samplesheet_content
 
-def run_preprocessing(run, force_trasfer=True, statusdb=True):
+def run_preprocessing(run):
     """Run demultiplexing in all data directories.
 
     :param str run: Process a particular run instead of looking for runs
-    :param bool force_tranfer: if set to True the FC is transferred also if fails QC
-    :param bool statusdb: True if we want to upload info to statusdb
     """
-    def _process(run, force_trasfer):
+    def _process(run):
         """Process a run/flowcell and transfer to analysis server.
 
         :param taca.illumina.Run run: Run to be processed and transferred
