@@ -10,6 +10,7 @@ from taca.illumina.HiSeq_Runs import HiSeq_Run
 from taca.illumina.MiSeq_Runs import MiSeq_Run
 from taca.illumina.NextSeq_Runs import NextSeq_Run
 from taca.illumina.NovaSeq_Runs import NovaSeq_Run
+from taca.illumina.NovaSeqXPlus_Runs import NovaSeqXPlus_Run
 from taca.utils.config import CONFIG
 from taca.utils.transfer import RsyncAgent
 from taca.utils import statusdb
@@ -41,13 +42,16 @@ def get_runObj(run):
 
     rppath = os.path.join(run, run_parameters_file)
     try:
-        rp = RunParametersParser(os.path.join(run, run_parameters_file))
+        rp = RunParametersParser(os.path.join(run, run_parameters_file)) #TODO: check if there are differences.
     except OSError:
         logger.warn('Problems parsing the runParameters.xml file at {}. '
                     'This is quite unexpected. please archive the run {} manually'.format(rppath, run))
     else:
         # Do a case by case test becasue there are so many version of RunParameters that there is no real other way
-        runtype = rp.data['RunParameters'].get('Application', rp.data['RunParameters'].get('ApplicationName', ''))
+        runtype = rp.data['RunParameters'].get('InstrumentType', 
+                                               rp.data['RunParameters'].get('ApplicationName', 
+                                                                            rp.data['RunParameters'].get('Application', 
+                                                                                                         ''))) #TODO: check for InstrumentType in the other instruments runparameters as well
         if 'Setup' in rp.data['RunParameters']:
             # This is the HiSeq2500, MiSeq, and HiSeqX case
             try:
@@ -72,6 +76,8 @@ def get_runObj(run):
             return NextSeq_Run(run, CONFIG['analysis']['NextSeq'])
         elif 'NovaSeq' in runtype:
             return NovaSeq_Run(run, CONFIG['analysis']['NovaSeq'])
+        elif 'NovaSeqXPlus' in runtype:
+            return NovaSeqXPlus_Run(run, CONFIG['analysis']['NovaSeq'])  #TODO: add section in config
         else:
             logger.warn('Unrecognized run type {}, cannot archive the run {}. '
                         'Someone as likely bought a new sequencer without telling '
@@ -357,7 +363,7 @@ def run_preprocessing(run, force_trasfer=True, statusdb=True):
         else:
             _process(runObj, force_trasfer)
     else:
-        data_dirs = CONFIG.get('analysis').get('data_dirs')
+        data_dirs = CONFIG.get('analysis').get('data_dirs') #TODO: add section in config
         for data_dir in data_dirs:
             # Run folder looks like DATE_*_*_*, the last section is the FC name.
             # See Courtesy information from illumina of 10 June 2016 (no more XX at the end of the FC)
