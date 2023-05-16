@@ -32,8 +32,8 @@ class Run(object):
         if not os.path.exists(os.path.join(run_dir, 'runParameters.xml')) \
         and os.path.exists(os.path.join(run_dir, 'RunParameters.xml')):
             # In NextSeq runParameters is named RunParameters
-            logger.warning("Renaming RunParameters.xml to runParameters.xml")
-            os.rename(os.path.join(run_dir, 'RunParameters.xml'), os.path.join(run_dir, 'runParameters.xml'))
+            logger.warning("Creating link from runParameters.xml to RunParameters.xml")
+            os.symlink('RunParameters.xml', os.path.join(run_dir, 'runParameters.xml'))
         elif not os.path.exists(os.path.join(run_dir, 'runParameters.xml')):
             raise RuntimeError('Could not locate runParameters.xml in run directory {}'.format(run_dir))
 
