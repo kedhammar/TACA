@@ -29,7 +29,6 @@ class Run(object):
             'samplesheets_dir' not in configuration:
             raise RuntimeError("configuration missing required entries "
                                "(analysis_server, bcl2fastq, samplesheets_dir)")
-
         if not os.path.exists(os.path.join(run_dir, 'runParameters.xml')) \
         and os.path.exists(os.path.join(run_dir, 'RunParameters.xml')):
             # In NextSeq runParameters is named RunParameters
@@ -40,7 +39,7 @@ class Run(object):
 
         self.run_dir = os.path.abspath(run_dir)
         self.id = os.path.basename(os.path.normpath(run_dir))
-        pattern = r'(\d{6})_([ST-]*\w+\d+)_\d+_([AB]?)([A-Z0-9\-]+)'
+        pattern = r'(\d{6,8})_([ST-]*\w+\d+)_\d+_([AB]?)([A-Z0-9\-]+)'
         m = re.match(pattern, self.id)
         self.date = m.group(1)
         self.instrument = m.group(2)
