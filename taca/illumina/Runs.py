@@ -125,7 +125,13 @@ class Run(object):
             Locate and parse the samplesheet for a run. The idea is that there is a folder in
             samplesheet_folders that contains a samplesheet named flowecell_id.csv.
         """
-        current_year = '20' + self.id[0:2]
+        try:
+            # Only implemented for some, (e.g. NovaSeqXPlus)
+            # Will raise AttributeError if not implemented.
+            current_year = self._current_year()
+        except AttributeError:
+            current_year = '20' + self.id[0:2]
+
         samplesheets_dir = os.path.join(self.CONFIG['samplesheets_dir'],
                                                 current_year)
         ssname = os.path.join(samplesheets_dir, '{}.csv'.format(self.flowcell_id))
