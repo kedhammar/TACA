@@ -10,12 +10,13 @@ RUN apt-get update \
     && apt-get install -y git \
     && apt-get install -y curl
 
-
+# Needed to install requirements,
+# in devcontainer a local mounted version of flowcell_parser is used
 RUN git clone https://github.com/SciLifeLab/flowcell_parser.git
 
 RUN cd flowcell_parser \
     && python -m pip install -r requirements.txt \
-    && python setup.py install
+    && pip3 install -e .
 
 # Install dependencies
 COPY requirements.txt requirements.txt

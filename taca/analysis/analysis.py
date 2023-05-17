@@ -74,10 +74,10 @@ def get_runObj(run):
             return MiSeq_Run(run, CONFIG['analysis']['MiSeq'])
         elif 'NextSeq' in runtype:
             return NextSeq_Run(run, CONFIG['analysis']['NextSeq'])
-        elif 'NovaSeq' in runtype:
-            return NovaSeq_Run(run, CONFIG['analysis']['NovaSeq'])
         elif 'NovaSeqXPlus' in runtype:
             return NovaSeqXPlus_Run(run, CONFIG['analysis']['NovaSeq'])  #TODO: add section in config
+        elif 'NovaSeq' in runtype:
+            return NovaSeq_Run(run, CONFIG['analysis']['NovaSeq'])
         else:
             logger.warn('Unrecognized run type {}, cannot archive the run {}. '
                         'Someone as likely bought a new sequencer without telling '

@@ -8,8 +8,7 @@
         // Update the 'dockerFile' property if you aren't using the standard 'Dockerfile' filename.
         "dockerfile": "../Dockerfile"
     },
-    "features": {
-    },
+    "features": {},
     "customizations": {
         "vscode": {
             "extensions": [
@@ -17,17 +16,16 @@
             ]
         }
     },
-
     // Features to add to the dev container. More info: https://containers.dev/features.
     // "features": {},
-
     // Use 'forwardPorts' to make a list of ports inside the container available locally.
     // "forwardPorts": [],
-
-    "postCreateCommand": "pip3 install -e ."
+    "postCreateCommand": "cd ../flowcell_parser/ && pip3 install -e . && cd ../TACA && pip3 install -e .",
     // Configure tool-specific properties.
     // "customizations": {},
-
     // Uncomment to connect as an existing user other than the container default. More info: https://aka.ms/dev-containers-non-root.
     // "remoteUser": "devcontainer"
+    "mounts": [
+        "source=${localEnv:HOME}/repos/flowcell_parser,target=/workspaces/flowcell_parser,type=bind,consistency=cached"
+    ]
 }
