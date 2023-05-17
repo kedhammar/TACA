@@ -186,7 +186,7 @@ class HiSeqX_Run(Run):
                 os.makedirs(output_dir)
             cl_options = []
             if 'options' in self.CONFIG.get('bcl2fastq'):
-                for option in self.CONFIG['bcl2fastq']['options']:
+                for option in self.CONFIG['bcl2fastq']['options']: #TODO: add options for novaseqxplus to taca.yaml
                     cl_options.extend([option])
                 # Add the extra 10X command options if we have 10X single indexes
                 if sample_type == '10X_SINGLE':

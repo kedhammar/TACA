@@ -108,7 +108,7 @@ def _upload_to_statusdb(run):
     parser = run.runParserObj
     # Check if I have NoIndex lanes
     for element in parser.obj['samplesheet_csv']:
-        if 'NoIndex' in element['index'] or not element['index']: # NoIndex in the case of HiSeq, empty in the case of HiSeqX
+        if 'NoIndex' in element['index'] or not element['index']: # NoIndex in the case of HiSeq, empty in the case of HiSeqX #TODO: novaseqxplus case?
             lane = element['Lane'] # This is a lane with NoIndex
             # In this case PF Cluster is the number of undetermined reads
             try:
@@ -270,18 +270,12 @@ def run_preprocessing(run):
         :param taca.illumina.Run run: Run to be processed and transferred
         """
         logger.info('Checking run {}'.format(run.id))
-        t_file = os.path.join(CONFIG['analysis']['status_dir'], 'transfer.tsv')
-        if run.is_transferred(t_file):
-            # In this case I am either processing a run that is in transfer
-            # or that has been already transferred. Do nothing.
-            # time to time this situation is due to runs that are copied back from NAS after a reboot.
-            # This check avoid failures
+        transfer_file = os.path.join(CONFIG['analysis']['status_dir'], 'transfer.tsv')
+        if run.is_transferred(transfer_file):  # Transfer is ongoing or finished. Do nothing. Sometimes caused by runs that are copied back from NAS after a reboot
             logger.info('Run {} already transferred to analysis server, skipping it'.format(run.id))
             return
 
         if run.get_run_status() == 'SEQUENCING':
-            # Check status files and say i.e Run in second read, maybe something
-            # even more specific like cycle or something
             logger.info('Run {} is not finished yet'.format(run.id))
             # Upload to statusDB if applies
             if 'statusdb' in CONFIG:
@@ -347,11 +341,11 @@ def run_preprocessing(run):
                             .format(run.id,
                                     run.CONFIG['analysis_server']['host'],
                                     run.CONFIG['analysis_server']['sync']['data_archive']))
-                run.transfer_run(t_file, mail_recipients)
+                run.transfer_run(transfer_file, mail_recipients)
 
             # Archive the run if indicated in the config file
-            if 'storage' in CONFIG:
-                run.archive_run(CONFIG['storage']['archive_dirs'][run.sequencer_type])
+            if 'storage' in CONFIG: #TODO: make sure archiving to PDC is not ongoing
+                run.archive_run(CONFIG['storage']['archive_dirs'][run.sequencer_type]) #TODO: add novaseqxplus to taca.yaml
 
     if run:
         # Needs to guess what run type I have (HiSeq, MiSeq, HiSeqX, NextSeq)

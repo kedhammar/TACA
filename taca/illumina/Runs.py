@@ -40,7 +40,7 @@ class Run(object):
 
         self.run_dir = os.path.abspath(run_dir)
         self.id = os.path.basename(os.path.normpath(run_dir))
-        pattern = r'(\d{6})_([ST-]*\w+\d+)_\d+_([AB]?)([A-Z0-9\-]+)'
+        pattern = r'(\d{6})_([ST-]*\w+\d+)_\d+_([AB]?)([A-Z0-9\-]+)' #TODO: needs fixing?
         m = re.match(pattern, self.id)
         self.date = m.group(1)
         self.instrument = m.group(2)
@@ -139,7 +139,7 @@ class Run(object):
         return os.path.exists(os.path.join(self.run_dir,
                                            self._get_demux_folder(),
                                            'Stats',
-                                           'Stats.json'))
+                                           'Stats.json')) #TODO: check that this is the same
 
     def _is_demultiplexing_started(self):
         return os.path.exists(os.path.join(self.run_dir, self._get_demux_folder()))
@@ -148,11 +148,11 @@ class Run(object):
         return os.path.exists(os.path.join(self.run_dir, 'RTAComplete.txt')) and os.path.exists(os.path.join(self.run_dir, 'CopyComplete.txt'))
 
     def get_run_status(self):
-        """ Return the status of the run, that is the trello card where it needs to be placed
+        """ Return the current status of the run.
         """
-        demux_started = self._is_demultiplexing_started() # True if demux is ongoing
-        demux_done = self._is_demultiplexing_done() # True if demux is done
-        sequencing_done = self._is_sequencing_done() # True if sequencing is done
+        demux_started = self._is_demultiplexing_started()
+        demux_done = self._is_demultiplexing_done()
+        sequencing_done = self._is_sequencing_done()
         if sequencing_done and demux_done:
             return 'COMPLETED' # run is done, transfer might be ongoing.
         elif sequencing_done and demux_started and not demux_done:
@@ -279,7 +279,6 @@ class Run(object):
             by any user/account in that group (i.e a functional account...).
             :param str t_file: File where to put the transfer information
         """
-        # TODO: check the run type and build the correct rsync command
         # The option -a implies -o and -g which is not the desired behaviour
         command_line = ['rsync', '-Lav', '--no-o', '--no-g']
         # Add R/W permissions to the group
@@ -361,14 +360,13 @@ class Run(object):
 
     def is_transferred(self, transfer_file):
         """ Checks wether a run has been transferred to the analysis server or not.
-            Returns true in the case in which the tranfer is ongoing.
-            :param str run: Run directory
+            Returns true in the case in which the tranfer is finished or ongoing.
             :param str transfer_file: Path to file with information about transferred runs
         """
         try:
             with open(transfer_file, 'r') as file_handle:
-                t_f = csv.reader(file_handle, delimiter='\t')
-                for row in t_f:
+                transfer_file_contents = csv.reader(file_handle, delimiter='\t')
+                for row in transfer_file_contents:
                     # Rows have two columns: run and transfer date
                     if row[0] == os.path.basename(self.id):
                         return True
