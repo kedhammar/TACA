@@ -20,8 +20,8 @@ RECIPE_PAT = re.compile('[0-9]+-[0-9]+')
 
 class HiSeqX_Run(Run):
 
-    def __init__(self,  run_dir, samplesheet_folders):
-        super(HiSeqX_Run, self).__init__( run_dir, samplesheet_folders)
+    def __init__(self,  run_dir, configuration):
+        super(HiSeqX_Run, self).__init__( run_dir, configuration)
         self._set_sequencer_type()
         self._set_run_type()
         self._copy_samplesheet()

@@ -29,18 +29,17 @@ class Run(object):
             'samplesheets_dir' not in configuration:
             raise RuntimeError("configuration missing required entries "
                                "(analysis_server, bcl2fastq, samplesheets_dir)")
-
         if not os.path.exists(os.path.join(run_dir, 'runParameters.xml')) \
         and os.path.exists(os.path.join(run_dir, 'RunParameters.xml')):
             # In NextSeq runParameters is named RunParameters
-            logger.warning("Renaming RunParameters.xml to runParameters.xml")
-            os.rename(os.path.join(run_dir, 'RunParameters.xml'), os.path.join(run_dir, 'runParameters.xml'))
+            logger.warning("Creating link from runParameters.xml to RunParameters.xml")
+            os.symlink('RunParameters.xml', os.path.join(run_dir, 'runParameters.xml'))
         elif not os.path.exists(os.path.join(run_dir, 'runParameters.xml')):
             raise RuntimeError('Could not locate runParameters.xml in run directory {}'.format(run_dir))
 
         self.run_dir = os.path.abspath(run_dir)
         self.id = os.path.basename(os.path.normpath(run_dir))
-        pattern = r'(\d{6})_([ST-]*\w+\d+)_\d+_([AB]?)([A-Z0-9\-]+)'
+        pattern = r'(\d{6,8})_([ST-]*\w+\d+)_\d+_([AB]?)([A-Z0-9\-]+)'
         m = re.match(pattern, self.id)
         self.date = m.group(1)
         self.instrument = m.group(2)
@@ -126,7 +125,13 @@ class Run(object):
             Locate and parse the samplesheet for a run. The idea is that there is a folder in
             samplesheet_folders that contains a samplesheet named flowecell_id.csv.
         """
-        current_year = '20' + self.id[0:2]
+        try:
+            # Only implemented for some, (e.g. NovaSeqXPlus)
+            # Will raise AttributeError if not implemented.
+            current_year = self._current_year()
+        except AttributeError:
+            current_year = '20' + self.id[0:2]
+
         samplesheets_dir = os.path.join(self.CONFIG['samplesheets_dir'],
                                                 current_year)
         ssname = os.path.join(samplesheets_dir, '{}.csv'.format(self.flowcell_id))
