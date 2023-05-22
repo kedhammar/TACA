@@ -4,7 +4,6 @@ import csv
 import logging
 import subprocess
 import shutil
-import requests
 import glob
 import json
 
@@ -434,11 +433,11 @@ class Run(object):
             logger.info("Renaming {} to {}".format(file, os.path.join(os.path.dirname(file), new_name)))
             os.rename(file, os.path.join(os.path.dirname(file), new_name))
 
-    def _aggregate_demux_results_simple_complex(self):
+    def _aggregate_demux_results_simple_complex(self): #TODO: check that this works for NovaSeqXPlus
         run_dir      =  self.run_dir
         runSetup     =  self.runParserObj.runinfo.get_read_configuration()
         demux_folder =  os.path.join(self.run_dir , self.demux_dir)
-        samplesheets =  glob.glob(os.path.join(run_dir, "*_[0-9].csv")) # a single digit... this hipotesis should hold for a while
+        samplesheets =  glob.glob(os.path.join(run_dir, "*_[0-9].csv"))
 
         index_cycles = [0, 0]
         for read in runSetup:
