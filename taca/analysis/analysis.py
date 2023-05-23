@@ -74,7 +74,7 @@ def get_runObj(run):
         elif 'NextSeq' in runtype:
             return NextSeq_Run(run, CONFIG['analysis']['NextSeq'])
         elif 'NovaSeqXPlus' in runtype:
-            return NovaSeqXPlus_Run(run, CONFIG['analysis']['NovaSeqXPlus'])  #TODO: add section in config
+            return NovaSeqXPlus_Run(run, CONFIG['analysis']['NovaSeqXPlus'])
         elif 'NovaSeq' in runtype:
             return NovaSeq_Run(run, CONFIG['analysis']['NovaSeq'])
         else:
@@ -107,7 +107,7 @@ def _upload_to_statusdb(run):
     parser = run.runParserObj
     # Check if I have NoIndex lanes
     for element in parser.obj['samplesheet_csv']:
-        if 'NoIndex' in element['index'] or not element['index']: # NoIndex in the case of HiSeq, empty in the case of HiSeqX #TODO: novaseqxplus case?
+        if 'NoIndex' in element['index'] or not element['index']: # NoIndex in the case of HiSeq, empty in the case of HiSeqX
             lane = element['Lane'] # This is a lane with NoIndex
             # In this case PF Cluster is the number of undetermined reads
             try:
@@ -340,20 +340,19 @@ def run_preprocessing(run):
 
             # Archive the run if indicated in the config file
             if 'storage' in CONFIG: #TODO: make sure archiving to PDC is not ongoing
-                run.archive_run(CONFIG['storage']['archive_dirs'][run.sequencer_type]) #TODO: add novaseqxplus to taca.yaml
+                run.archive_run(CONFIG['storage']['archive_dirs'][run.sequencer_type])
 
     if run:
-        # Needs to guess what run type I have (HiSeq, MiSeq, HiSeqX, NextSeq)
+        # Determine the run type
         runObj = get_runObj(run)
         if not runObj:
             raise RuntimeError('Unrecognized instrument type or incorrect run folder {}'.format(run))
         else:
             _process(runObj)
     else:
-        data_dirs = CONFIG.get('analysis').get('data_dirs') #TODO: add section in config
+        data_dirs = CONFIG.get('analysis').get('data_dirs')
         for data_dir in data_dirs:
             # Run folder looks like DATE_*_*_*, the last section is the FC name.
-            # See Courtesy information from illumina of 10 June 2016 (no more XX at the end of the FC)
             runs = glob.glob(os.path.join(data_dir, '[1-9]*_*_*_*'))
             for _run in runs:
                 runObj = get_runObj(_run)

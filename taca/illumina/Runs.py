@@ -45,8 +45,8 @@ class Run(object):
         self.position = m.group(3)
         self.flowcell_id = m.group(4)
         self.CONFIG = configuration
-        self._set_demux_folder(configuration)
-        self._set_run_parser_obj(configuration) # get parser object to update DB
+        self.demux_dir = "Demultiplexing"
+        self.runParserObj = RunParser(self.run_dir)
         # This flag tells TACA to move demultiplexed files to the analysis server
         self.transfer_to_analysis_server = True
         # Probably worth to add the samplesheet name as a variable too
@@ -102,16 +102,7 @@ class Run(object):
             raise RuntimeError("run_type not yet available!!")
 
     def _set_sequencer_type(self, configuration):
-        raise NotImplementedError("Please Implement this method")
-
-    def _set_run_parser_obj(self, configuration):
-        self.runParserObj = RunParser(self.run_dir)
-
-    def _set_demux_folder(self, configuration):
-        self.demux_dir = "Demultiplexing"
-        for option in self.CONFIG['bcl2fastq']['options']:
-            if isinstance(option, dict) and option.get('output-dir'):
-                _demux_dir = option.get('output-dir')
+        raise NotImplementedError("Please Implement this method")        
 
     def _get_demux_folder(self):
         if self.demux_dir:
@@ -143,7 +134,7 @@ class Run(object):
         return os.path.exists(os.path.join(self.run_dir,
                                            self._get_demux_folder(),
                                            'Stats',
-                                           'Stats.json')) #TODO: check that this is the same
+                                           'Stats.json')) #TODO: check that this is the same after demux
 
     def _is_demultiplexing_started(self):
         return os.path.exists(os.path.join(self.run_dir, self._get_demux_folder()))
@@ -434,10 +425,10 @@ class Run(object):
             os.rename(file, os.path.join(os.path.dirname(file), new_name))
 
     def _aggregate_demux_results_simple_complex(self): #TODO: check that this works for NovaSeqXPlus
-        run_dir      =  self.run_dir
-        runSetup     =  self.runParserObj.runinfo.get_read_configuration()
-        demux_folder =  os.path.join(self.run_dir , self.demux_dir)
-        samplesheets =  glob.glob(os.path.join(run_dir, "*_[0-9].csv"))
+        run_dir = self.run_dir
+        runSetup = self.runParserObj.runinfo.get_read_configuration()
+        demux_folder = os.path.join(self.run_dir , self.demux_dir)
+        samplesheets = glob.glob(os.path.join(run_dir, "*_[0-9].csv"))
 
         index_cycles = [0, 0]
         for read in runSetup:
