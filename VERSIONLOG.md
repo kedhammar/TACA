@@ -1,5 +1,8 @@
 # TACA Version Log
 
+## 20230524.1
+Add support for NovaSeqXPlus and improve readability
+
 ## 20230510.1
 Add storage_systems to server_status command to allow disk space surveillance of mounted virtual NAS:es. Also added Dockerfile and devcontainer setup.
 
