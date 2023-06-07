@@ -1,5 +1,8 @@
 # TACA Version Log
 
+## 20230607.1
+Trim out unused data acquisition outputs from ONT report .json files before sending them to CouchDB.
+
 ## 20230510.1
 Add storage_systems to server_status command to allow disk space surveillance of mounted virtual NAS:es. Also added Dockerfile and devcontainer setup.
 

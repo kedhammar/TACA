@@ -408,7 +408,29 @@ def ont2couch(ont_run):
                 logger.error(error_message)
                 raise AssertionError(error_message)
 
+            # Trim the contents of the MinKNOW report.json file to accomodate CouchDB size constraints (and save space)
             dict_json = json.load(open(glob_json[0], "r"))
+            initial_size = len(json.dumps(dict_json))
+            trimmed_acquisition_outputs = []
+
+            for acquisition_output in dict_json["acquisitions"][-1][
+                "acquisition_output"
+            ]:
+                if acquisition_output["type"] in [
+                    "AllData",
+                    "SplitByBarcode",
+                ]:
+                    trimmed_acquisition_outputs.append(acquisition_output)
+
+            dict_json["acquisitions"][-1][
+                "acquisition_output"
+            ] = trimmed_acquisition_outputs
+
+            new_size = len(json.dumps(dict_json))
+            trimmed_fraction = round((1 - new_size / initial_size) * 100, 2)
+            logger.info(
+                f"Reduced space by {trimmed_fraction}% by trimming out unused data acquisition outputs from {os.path.basename(glob_json[0])}"
+            )
 
             sesh.finish_ongoing_run(ont_run, dict_json)
             logger.info(f"Successfully updated the db entry of run {ont_run.run_id}")
