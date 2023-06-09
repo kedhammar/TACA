@@ -361,130 +361,132 @@ def process_minion_delivery_run(minion_run):
             send_mail(email_subject, email_message, email_recipients)
 
 
-def ont2couch(ont_run):
+def ont_updatedb(ont_run):
     """Check run vs statusdb. Create or update run entry as needed."""
 
-    run_pattern = re.compile(
-        "^(\d{8})_(\d{4})_([0-9a-zA-Z]+)_([0-9a-zA-Z]+)_([0-9a-zA-Z]+)$"
-    )
-
-    sesh = NanoporeRunsConnection(CONFIG["statusdb"], dbname="nanopore_runs")
-
-    if re.match(run_pattern, ont_run.run_id):
-        logger.info(f"Run {ont_run.run_id} looks like a run directory, continuing.")
-    else:
-        error_message = f"Run {ont_run.run_id} does not match the regex of a run directory (yyyymmdd_hhmm_pos|device_fcID_hash)."
-        logger.error(error_message)
-        raise AssertionError(error_message)
-
-    # If no run document exists in the database, ceate an ongoing run document
-    if not sesh.check_run_exists(ont_run):
-        logger.info(
-            f"Run {ont_run.run_id} does not exist in the database, creating entry for ongoing run."
-        )
-        run_path_file = os.path.join(ont_run.run_dir, "run_path.txt")
-        sesh.create_ongoing_run(ont_run, open(run_path_file, "r").read().strip())
-        logger.info(f"Successfully created db entry for ongoing run {ont_run.run_id}.")
-
-    # If the run document is marked as "ongoing"
-    if sesh.check_run_status(ont_run) == "ongoing":
-        logger.info(f"Run {ont_run.run_id} exists in the database as an ongoing run.")
-
-        # If the run is finished
-        if len(ont_run.summary_file) != 0:
-            logger.info(
-                f"Run {ont_run.run_id} has finished sequencing, updating the db entry."
-            )
-
-            # Parse the MinKNOW .json report file and finish the ongoing run document
-            glob_json = glob.glob(ont_run.run_dir + "/report*.json")
-            if len(glob_json) == 0:
-                error_message = f"Run {ont_run.run_id} is marked as finished, but missing .json report file."
-                logger.error(error_message)
-                raise AssertionError(error_message)
-
-            elif len(glob_json) > 1:
-                error_message = f"Run {ont_run.run_id} is marked as finished, but contains conflicting .json report files."
-                logger.error(error_message)
-                raise AssertionError(error_message)
-
-            # Trim the contents of the MinKNOW report.json file to accomodate CouchDB size constraints (and save space)
-            dict_json = json.load(open(glob_json[0], "r"))
-            initial_size = len(json.dumps(dict_json))
-            trimmed_acquisition_outputs = []
-
-            for acquisition_output in dict_json["acquisitions"][-1][
-                "acquisition_output"
-            ]:
-                if acquisition_output["type"] in [
-                    "AllData",
-                    "SplitByBarcode",
-                ]:
-                    trimmed_acquisition_outputs.append(acquisition_output)
-
-            dict_json["acquisitions"][-1][
-                "acquisition_output"
-            ] = trimmed_acquisition_outputs
-
-            new_size = len(json.dumps(dict_json))
-            trimmed_fraction = round((1 - new_size / initial_size) * 100, 2)
-            logger.info(
-                f"Reduced space by {trimmed_fraction}% by trimming out unused data acquisition outputs from {os.path.basename(glob_json[0])}"
-            )
-
-            sesh.finish_ongoing_run(ont_run, dict_json)
-            logger.info(f"Successfully updated the db entry of run {ont_run.run_id}")
-
-        else:
-            logger.info(
-                f"Run {ont_run.run_id} has not finished sequencing, do nothing."
-            )
-
-    # if the run document is marked as "finished"
-    if sesh.check_run_status(ont_run) == "finished":
-        logger.info(f"Run {ont_run.run_id} exists in the database as an finished run.")
-
-        glob_html = glob.glob(ont_run.run_dir + "/report*.html")
-        if len(glob_html) == 0:
-            error_message = f"Run {ont_run.run_id} is marked as finished, but missing .html report file."
-            logger.error(error_message)
-            raise AssertionError(error_message)
-        elif len(glob_html) > 1:
-            error_message = f"Run {ont_run.run_id} is marked as finished, but contains conflicting .html report files."
-            logger.error(error_message)
-            raise AssertionError(error_message)
-
-        logger.info(f"Transferring the run report to ngi-internal.")
-
-        # Transfer the MinKNOW .html report file to ngi-internal, renaming it to the full run ID. Requires password-free SSH access.
-        report_dest_path = os.path.join(
-            CONFIG["nanopore_analysis"]["ont_transfer"]["minknow_reports_dir"],
-            f"report_{ont_run.run_id}.html",
-        )
-        transfer_object = RsyncAgent(
-            glob_html[0],
-            dest_path=report_dest_path,
-            validate=False,
-        )
-        try:
-            transfer_object.transfer()
-            logger.info(
-                f"Successfully transferred the MinKNOW report of run {ont_run.run_id}"
-            )
-        except RsyncError:
-            msg = f"An error occurred while attempting to transfer the report {glob_html[0]} to {report_dest_path}"
-            logger.error(msg)
-            raise RsyncError(msg)
-
-
-def transfer_ont_run(ont_run):
-    """Transfer ONT runs to HPC cluster."""
     email_recipients = CONFIG.get("mail").get("recipients")
-    logger.info("Processing run {}".format(ont_run.run_id))
+    logger.info("Updating database with run {}".format(ont_run.run_id))
 
-    # Update StatusDB
     try:
-        ont2couch(ont_run)
+        run_pattern = re.compile(
+            "^(\d{8})_(\d{4})_([0-9a-zA-Z]+)_([0-9a-zA-Z]+)_([0-9a-zA-Z]+)$"
+        )
+
+        sesh = NanoporeRunsConnection(CONFIG["statusdb"], dbname="nanopore_runs")
+
+        if re.match(run_pattern, ont_run.run_id):
+            logger.info(f"Run {ont_run.run_id} looks like a run directory, continuing.")
+        else:
+            error_message = f"Run {ont_run.run_id} does not match the regex of a run directory (yyyymmdd_hhmm_pos|device_fcID_hash)."
+            logger.error(error_message)
+            raise AssertionError(error_message)
+
+        # If no run document exists in the database, ceate an ongoing run document
+        if not sesh.check_run_exists(ont_run):
+            logger.info(
+                f"Run {ont_run.run_id} does not exist in the database, creating entry for ongoing run."
+            )
+            run_path_file = os.path.join(ont_run.run_dir, "run_path.txt")
+            sesh.create_ongoing_run(ont_run, open(run_path_file, "r").read().strip())
+            logger.info(
+                f"Successfully created db entry for ongoing run {ont_run.run_id}."
+            )
+
+        # If the run document is marked as "ongoing"
+        if sesh.check_run_status(ont_run) == "ongoing":
+            logger.info(
+                f"Run {ont_run.run_id} exists in the database as an ongoing run."
+            )
+
+            # If the run is finished
+            if len(ont_run.summary_file) != 0:
+                logger.info(
+                    f"Run {ont_run.run_id} has finished sequencing, updating the db entry."
+                )
+
+                # Parse the MinKNOW .json report file and finish the ongoing run document
+                glob_json = glob.glob(ont_run.run_dir + "/report*.json")
+                if len(glob_json) == 0:
+                    error_message = f"Run {ont_run.run_id} is marked as finished, but missing .json report file."
+                    logger.error(error_message)
+                    raise AssertionError(error_message)
+
+                elif len(glob_json) > 1:
+                    error_message = f"Run {ont_run.run_id} is marked as finished, but contains conflicting .json report files."
+                    logger.error(error_message)
+                    raise AssertionError(error_message)
+
+                # Trim the contents of the MinKNOW report.json file to accomodate CouchDB size constraints (and save space)
+                dict_json = json.load(open(glob_json[0], "r"))
+                initial_size = len(json.dumps(dict_json))
+                trimmed_acquisition_outputs = []
+
+                for acquisition_output in dict_json["acquisitions"][-1][
+                    "acquisition_output"
+                ]:
+                    if acquisition_output["type"] in [
+                        "AllData",
+                        "SplitByBarcode",
+                    ]:
+                        trimmed_acquisition_outputs.append(acquisition_output)
+
+                dict_json["acquisitions"][-1][
+                    "acquisition_output"
+                ] = trimmed_acquisition_outputs
+
+                new_size = len(json.dumps(dict_json))
+                trimmed_fraction = round((1 - new_size / initial_size) * 100, 2)
+                logger.info(
+                    f"Reduced space by {trimmed_fraction}% by trimming out unused data acquisition outputs from {os.path.basename(glob_json[0])}"
+                )
+
+                sesh.finish_ongoing_run(ont_run, dict_json)
+                logger.info(
+                    f"Successfully updated the db entry of run {ont_run.run_id}"
+                )
+
+            else:
+                logger.info(
+                    f"Run {ont_run.run_id} has not finished sequencing, do nothing."
+                )
+
+        # if the run document is marked as "finished"
+        if sesh.check_run_status(ont_run) == "finished":
+            logger.info(
+                f"Run {ont_run.run_id} exists in the database as an finished run."
+            )
+
+            glob_html = glob.glob(ont_run.run_dir + "/report*.html")
+            if len(glob_html) == 0:
+                error_message = f"Run {ont_run.run_id} is marked as finished, but missing .html report file."
+                logger.error(error_message)
+                raise AssertionError(error_message)
+            elif len(glob_html) > 1:
+                error_message = f"Run {ont_run.run_id} is marked as finished, but contains conflicting .html report files."
+                logger.error(error_message)
+                raise AssertionError(error_message)
+
+            logger.info(f"Transferring the run report to ngi-internal.")
+
+            # Transfer the MinKNOW .html report file to ngi-internal, renaming it to the full run ID. Requires password-free SSH access.
+            report_dest_path = os.path.join(
+                CONFIG["nanopore_analysis"]["ont_transfer"]["minknow_reports_dir"],
+                f"report_{ont_run.run_id}.html",
+            )
+            transfer_object = RsyncAgent(
+                glob_html[0],
+                dest_path=report_dest_path,
+                validate=False,
+            )
+            try:
+                transfer_object.transfer()
+                logger.info(
+                    f"Successfully transferred the MinKNOW report of run {ont_run.run_id}"
+                )
+            except RsyncError:
+                msg = f"An error occurred while attempting to transfer the report {glob_html[0]} to {report_dest_path}"
+                logger.error(msg)
+                raise RsyncError(msg)
         logger.info(f"Database update for run {ont_run.run_id} successful")
     except Exception as e:
         logger.warning(f"Database update for run {ont_run.run_id} failed")
@@ -493,6 +495,15 @@ def transfer_ont_run(ont_run):
             f"An error occured when updating statusdb with run {ont_run.run_id}.\n{e}"
         )
         send_mail(email_subject, email_message, email_recipients)
+
+
+def transfer_ont_run(ont_run):
+    """Transfer ONT runs to HPC cluster."""
+    email_recipients = CONFIG.get("mail").get("recipients")
+    logger.info("Processing run {}".format(ont_run.run_id))
+
+    # Update StatusDB
+    ont_updatedb(ont_run)
 
     if os.path.isfile(ont_run.sync_finished_indicator):
         logger.info(
@@ -628,10 +639,9 @@ def transfer_finished(run):
         if is_date(os.path.basename(run).split("_")[0]):
             if "minion" in run:
                 ont_run = MinionTransfer(os.path.abspath(run))
-                transfer_ont_run(ont_run)
             elif "promethion" in run:
                 ont_run = PromethionTransfer(os.path.abspath(run))
-                transfer_ont_run(ont_run)
+            transfer_ont_run(ont_run)
         else:
             logger.warning(
                 "The specified path is not a flow cell. Please "
@@ -654,3 +664,18 @@ def transfer_finished(run):
                 elif "promethion" in data_dir:
                     ont_run = PromethionTransfer(run_dir)
                     transfer_ont_run(ont_run)
+
+
+def ont_updatedb_from_cli(run):
+
+    if is_date(os.path.basename(run).split("_")[0]):
+        if "minion" in run:
+            ont_run = MinionTransfer(os.path.abspath(run))
+        elif "promethion" in run:
+            ont_run = PromethionTransfer(os.path.abspath(run))
+        ont_updatedb(ont_run)
+    else:
+        logger.warning(
+            "The specified path is not a flow cell. Please "
+            "provide the full path to the flow cell you wish to process."
+        )
