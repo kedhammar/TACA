@@ -1,5 +1,8 @@
 # TACA Version Log
 
+## 20230609.1
+Add functionality to update DB of specified run dirs.
+
 ## 20230607.1
 Trim out unused data acquisition outputs from ONT report .json files before sending them to CouchDB.
 
