@@ -272,7 +272,11 @@ class Run(object):
             :param str t_file: File where to put the transfer information
         """
         # The option -a implies -o and -g which is not the desired behaviour
-        command_line = ['rsync', '-Lav', '--no-o', '--no-g']
+        # TODO Don't understand how `-a` works for other runs, I cannot get it to work for NovaSeqXPlus
+        if self.sequencer_type == 'NovaSeqXPlus':
+            command_line = ['rsync', 'LtDrv']
+        else:
+            command_line = ['rsync', '-Lav', '--no-o', '--no-g']
         # Add R/W permissions to the group
         command_line.append('--chmod=g+rw')
         # This horrible thing here avoids data dup when we use multiple indexes in a lane/FC
