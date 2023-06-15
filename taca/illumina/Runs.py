@@ -495,7 +495,11 @@ class Run(object):
                         old_name_comps = old_name.split("_")
                         new_name_comps = [sample.replace('Sample_',''), 'S{}'.format(str(sample_counter))] + old_name_comps[2:]
                         new_name = "_".join(new_name_comps)
-                        os.symlink(file, os.path.join(sample_dest, new_name))
+                        # Temporary (hopefully) fix until ngi_data allows symlinks
+                        if 'ngi_data' in sample_dest:
+                            os.link(file, os.path.join(sample_dest, new_name))
+                        else:
+                            os.symlink(file, os.path.join(sample_dest, new_name))
                         logger.info("For undet sample {}, renaming {} to {}".format(sample.replace('Sample_',''), old_name, new_name))
                     sample_counter += 1
                 # Make a softlink of lane.html
@@ -503,7 +507,11 @@ class Run(object):
                 html_report_lane_dest = os.path.join(demux_folder, "Reports", "html", self.flowcell_id, "all", "all", "all", "lane.html")
                 if not os.path.isdir(os.path.dirname(html_report_lane_dest)):
                     os.makedirs(os.path.dirname(html_report_lane_dest))
-                os.symlink(html_report_lane_source, html_report_lane_dest)
+                # Temporary (hopefully) fix until ngi_data allows symlinks
+                if 'ngi_data' in html_report_lane_dest:
+                    os.link(html_report_lane_source, html_report_lane_dest)
+                else:
+                    os.symlink(html_report_lane_source, html_report_lane_dest)
 
                 # Modify the laneBarcode.html file
                 html_report_laneBarcode = os.path.join(run_dir, 
@@ -567,7 +575,11 @@ class Run(object):
                     if "Stats" not in element: #skip this folder and treat it differently to take into account the NoIndex case
                         source = os.path.join(demux_id_folder, element)
                         dest = os.path.join(self.run_dir, self.demux_dir, element)
-                        os.symlink(source, dest)
+                        # Temporary (hopefully) fix until ngi_data allows symlinks
+                        if 'ngi_data' in dest:
+                            os.link(source, dest)
+                        else:
+                            os.symlink(source, dest)
                 os.makedirs(os.path.join(self.run_dir, "Demultiplexing", "Stats"))
                 # Fetch the lanes that have NoIndex
                 statsFiles = glob.glob(os.path.join(demux_id_folder, "Stats", "*" ))
@@ -577,11 +589,19 @@ class Run(object):
                         lane = os.path.splitext(os.path.split(source)[1])[0][-1] #lane
                         if lane not in noindex_lanes:
                             dest = os.path.join(self.run_dir, self.demux_dir, "Stats", source_name)
-                            os.symlink(source, dest)
+                            # Temporary (hopefully) fix until ngi_data allows symlinks
+                            if 'ngi_data' in dest:
+                                os.link(source, dest)
+                            else:
+                                os.symlink(source, dest)
                 for file in ["DemultiplexingStats.xml", "AdapterTrimming.txt", "ConversionStats.xml", "Stats.json"]:
                     source = os.path.join(self.run_dir, demux_id_folder_name, "Stats", file)
                     dest = os.path.join(self.run_dir, "Demultiplexing", "Stats", file)
-                    os.symlink(source, dest)
+                    # Temporary (hopefully) fix until ngi_data allows symlinks
+                    if 'ngi_data' in dest:
+                        os.link(source, dest)
+                    else:
+                        os.symlink(source, dest)
             return True
 
         # Case with multiple sub-demultiplexings
@@ -654,7 +674,11 @@ class Run(object):
                         old_name_comps = old_name.split("_")
                         new_name_comps = [sample.replace('Sample_', ''), 'S{}'.format(str(sample_counter))] + old_name_comps[2:]
                         new_name = "_".join(new_name_comps)
-                        os.symlink(file, os.path.join(sample_dest, new_name))
+                        # Temporary (hopefully) fix until ngi_data allows symlinks
+                        if 'ngi_data' in 'sample_dest':
+                            os.link(file, os.path.join(sample_dest, new_name))
+                        else:
+                            os.symlink(file, os.path.join(sample_dest, new_name))
                         logger.info("For undet sample {}, renaming {} to {}".format(sample.replace('Sample_', ''), old_name, new_name))
                     sample_counter += 1
             # Ordinary cases
@@ -678,7 +702,11 @@ class Run(object):
                             os.makedirs(sample_dest)
                         fastqfiles =  glob.glob(os.path.join(sample_source, "*.fastq*"))
                         for fastqfile in fastqfiles:
-                            os.symlink(fastqfile, os.path.join(sample_dest, os.path.split(fastqfile)[1]))
+                            # Temporary (hopefully) fix until ngi_data allows symlinks
+                            if 'ngi_data' in sample_dest:
+                                os.link(fastqfile, os.path.join(sample_dest, os.path.split(fastqfile)[1]))
+                            else:
+                                os.symlink(fastqfile, os.path.join(sample_dest, os.path.split(fastqfile)[1]))
                 # Copy fastq files for undetermined and the undetermined stats for simple lanes only
                 lanes_in_sub_samplesheet = []
                 header = ['[Header]','[Data]','FCID','Lane', 'Sample_ID', 'Sample_Name', 'Sample_Ref', 'index', 'index2', 'Description', 'Control', 'Recipe', 'Operator', 'Sample_Project']
@@ -694,7 +722,11 @@ class Run(object):
                                                                           "Demultiplexing_{}".format(demux_id), 
                                                                           "Undetermined_S0_L00{}*.fastq*".format(lane))) # Contains only simple lanes undetermined
                         for fastqfile in undetermined_fastq_files:
-                            os.symlink(fastqfile, os.path.join(demux_folder, os.path.split(fastqfile)[1]))
+                            # Temporary (hopefully) fix until ngi_data allows symlinks
+                            if 'ngi_data' in demux_folder:
+                                os.link(fastqfile, os.path.join(demux_folder, os.path.split(fastqfile)[1]))
+                            else:
+                                os.symlink(fastqfile, os.path.join(demux_folder, os.path.split(fastqfile)[1]))
                         DemuxSummaryFiles = glob.glob(os.path.join(run_dir, 
                                                                    "Demultiplexing_{}".format(demux_id), 
                                                                    "Stats", 
@@ -702,7 +734,11 @@ class Run(object):
                         if not os.path.exists(os.path.join(demux_folder, "Stats")):
                             os.makedirs(os.path.join(demux_folder, "Stats"))
                         for DemuxSummaryFile in DemuxSummaryFiles:
-                            os.symlink(DemuxSummaryFile, os.path.join(demux_folder, "Stats", os.path.split(DemuxSummaryFile)[1]))
+                            # Temporary (hopefully) fix until ngi_data allows symlinks
+                            if 'ngi_data' in demux_folder:
+                                os.link(DemuxSummaryFile, os.path.join(demux_folder, "Stats", os.path.split(DemuxSummaryFile)[1]))
+                            else:
+                                os.symlink(DemuxSummaryFile, os.path.join(demux_folder, "Stats", os.path.split(DemuxSummaryFile)[1]))
 
         # Create the html reports
         # Start with the lane
