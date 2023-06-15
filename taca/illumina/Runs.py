@@ -274,7 +274,7 @@ class Run(object):
         # The option -a implies -o and -g which is not the desired behaviour
         # TODO Don't understand how `-a` works for other runs, I cannot get it to work for NovaSeqXPlus
         if self.sequencer_type == 'NovaSeqXPlus':
-            command_line = ['rsync', 'LtDrv']
+            command_line = ['rsync', '-LtDrv']
         else:
             command_line = ['rsync', '-Lav', '--no-o', '--no-g']
         # Add R/W permissions to the group
