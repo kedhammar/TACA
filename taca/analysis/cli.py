@@ -65,3 +65,9 @@ def ont_transfer(run):
     """Transfer runs present in the data directories to HPC cluster.
     """
     analysis_nanopore.transfer_finished(run)
+
+
+@analysis.command()
+@click.argument("run")
+def ont_updatedb(run):
+    analysis_nanopore.ont_updatedb_from_cli(run)
