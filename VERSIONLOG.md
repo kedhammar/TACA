@@ -1,5 +1,8 @@
 # TACA Version Log
 
+## 20230621.1
+Add support for NovaSeqXPlus and improve readability
+
 ## 20230609.1
 Add functionality to update DB of specified run dirs.
 

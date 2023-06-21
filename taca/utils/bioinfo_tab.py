@@ -22,10 +22,10 @@ class Tree(defaultdict):
 
 def collect_runs():
     """Update command."""
-    found_runs=[]
-    #Pattern explained:
-    #Digits_(maybe ST-)AnythingLetterornumberNumber_Number_AorbLetterornumberordash
-    rundir_re = re.compile('\d{6}_[ST-]*\w+\d+_\d+_[AB]?[A-Z0-9\-]+')
+    found_runs = []
+    # Pattern explained:
+    # 6-8Digits_(maybe ST-)AnythingLetterornumberNumber_Number_AorBLetterornumberordash
+    rundir_re = re.compile('\d{6,8}_[ST-]*\w+\d+_\d+_[AB]?[A-Z0-9\-]+')
     for data_dir in CONFIG['bioinfo_tab']['data_dirs']:
         if os.path.exists(data_dir):
             potential_run_dirs = glob.glob(os.path.join(data_dir, '*'))
@@ -33,14 +33,11 @@ def collect_runs():
                 if rundir_re.match(os.path.basename(os.path.abspath(run_dir))) and os.path.isdir(run_dir):
                     found_runs.append(os.path.basename(run_dir))
                     logger.info('Working on {}'.format(run_dir))
-                    #updates run status
                     update_statusdb(run_dir)
         nosync_data_dir = os.path.join(data_dir, 'nosync')
         potential_nosync_run_dirs = glob.glob(os.path.join(nosync_data_dir, '*'))
-        #wades through nosync directories
         for run_dir in potential_nosync_run_dirs:
             if rundir_re.match(os.path.basename(os.path.abspath(run_dir))) and os.path.isdir(run_dir):
-                #update the run status
                 update_statusdb(run_dir)
 
 def update_statusdb(run_dir):
@@ -54,16 +51,19 @@ def update_statusdb(run_dir):
     db = couch_connection['bioinfo_analysis']
     view = db.view('latest_data/sample_id')
     # Construction and sending of individual records, if samplesheet is incorrectly formatted the loop is skipped
-    if not project_info == []:
+    if project_info:
         for flowcell in project_info:
             for lane in project_info[flowcell]:
                 for sample in project_info[flowcell][lane]:
                     for project in project_info[flowcell][lane][sample]:
                         project_info[flowcell][lane][sample].value = get_status(run_dir)
                         sample_status = project_info[flowcell][lane][sample].value
-                        obj = {'run_id': run_id, 'project_id': project,
-                               'flowcell': flowcell, 'lane': lane,
-                               'sample': sample, 'status': sample_status,
+                        obj = {'run_id': run_id, 
+                               'project_id': project,
+                               'flowcell': flowcell, 
+                               'lane': lane,
+                               'sample': sample, 
+                               'status': sample_status,
                                'values': {valueskey: {'user': 'taca',
                                                       'sample_status': sample_status}}}
                         # If entry exists, append to existing
@@ -81,18 +81,26 @@ def update_statusdb(run_dir):
                                 # Appends old entry to new. Essentially merges the two
                                 for k, v in remote_doc.items():
                                     obj['values'][k] = v
-                                logger.info('Updating {} {} {} {} {} as {}'.format(run_id, project,
-                                flowcell, lane, sample, sample_status))
-                                #Sorts timestamps
+                                logger.info('Updating {} {} {} {} {} as {}'.format(run_id, 
+                                                                                   project,
+                                                                                   flowcell, 
+                                                                                   lane, 
+                                                                                   sample, 
+                                                                                   sample_status))
+                                # Sorts timestamps
                                 obj['values'] = OrderedDict(sorted(obj['values'].items(), key=lambda k_v: k_v[0], reverse=True))
-                                #Update record cluster
+                                # Update record cluster
                                 obj['_rev'] = db[remote_id].rev
                                 obj['_id'] = remote_id
                                 db.save(obj)
                         # Creates new entry
                         else:
-                            logger.info('Creating {} {} {} {} {} as {}'.format(run_id, project,
-                            flowcell, lane, sample, sample_status))
+                            logger.info('Creating {} {} {} {} {} as {}'.format(run_id, 
+                                                                               project,
+                                                                               flowcell, 
+                                                                               lane, 
+                                                                               sample, 
+                                                                               sample_status))
                             # Creates record
                             db.save(obj)
                         # Sets FC error flag
@@ -106,13 +114,12 @@ def update_statusdb(run_dir):
             # Email error per flowcell
             if not project_info[flowcell].value == None:
                 if 'Ambiguous' in project_info[flowcell].value:
-                    error_emailer('failed_run', run_name)
+                    error_emailer('failed_run', run_id)
 
 def get_status(run_dir):
     """Gets status of a sample run, based on flowcell info (folder structure)."""
     # Default state, should never occur
     status = 'ERROR'
-    run_name = os.path.basename(os.path.abspath(run_dir))
     xten_dmux_folder = os.path.join(run_dir, 'Demultiplexing')
     unaligned_folder = glob.glob(os.path.join(run_dir, 'Unaligned_*'))
     nosync_pattern = re.compile('nosync')
@@ -134,13 +141,16 @@ def get_ss_projects(run_dir):
     lane_pattern = re.compile('^([1-8]{1,2})$')
     sample_proj_pattern = re.compile('^((P[0-9]{3,5})_[0-9]{3,5})')
     run_name = os.path.basename(os.path.abspath(run_dir))
-    current_year = '20' + run_name[0:2]
+    run_date = run_name.split('_')[0]
+    if len(run_date) == 6:
+        current_year = '20' + run_date[0:2]
+    elif len(run_name.split('_')[0]) == 8:  # NovaSeqXPlus case
+        current_year = run_date[0:4]
     run_name_components = run_name.split('_')
     if 'VH' in run_name_components[1]:
         FCID = run_name_components[3]
     else:
         FCID = run_name_components[3][1:]
-    newData = False
     miseq = False
     # FIXME: this check breaks if the system is case insensitive
     if os.path.exists(os.path.join(run_dir, 'runParameters.xml')):
@@ -157,8 +167,10 @@ def get_ss_projects(run_dir):
             logger.warn('Parsing runParameters to fetch instrument type, '
                         'not found Flowcell information in it. Using ApplicationName')
             runtype = rp.data['RunParameters']['Setup'].get('ApplicationName', '')
+    elif 'InstrumentType' in rp.data['RunParameters']:
+        runtype = rp.data['RunParameters'].get('InstrumentType')
     else:
-        runtype = rp.data['RunParameters'].get('Application', '')
+        runtype = rp.data['RunParameters'].get('Application')
         if not runtype:
             logger.warn("Couldn't find 'Application', could be NextSeq. Trying 'ApplicationName'")
             runtype = rp.data['RunParameters'].get('ApplicationName', '')
@@ -186,7 +198,11 @@ def get_ss_projects(run_dir):
         FCID_samplesheet_origin = os.path.join(CONFIG['bioinfo_tab']['hiseq_samplesheets'],
                                     current_year, '{}.csv'.format(FCID))
         data = parse_samplesheet(FCID_samplesheet_origin, run_dir)
-    # NovaSeq 600 case
+    elif 'NovaSeqXPlus' in runtype:
+        FCID_samplesheet_origin = os.path.join(CONFIG['bioinfo_tab']['novaseqxplus_samplesheets'],
+                                    current_year, '{}.csv'.format(FCID))
+        data = parse_samplesheet(FCID_samplesheet_origin, run_dir)
+    # NovaSeq 6000 case
     elif 'NovaSeq' in runtype:
         FCID_samplesheet_origin = os.path.join(CONFIG['bioinfo_tab']['novaseq_samplesheets'],
                                     current_year, '{}.csv'.format(FCID))
@@ -200,7 +216,7 @@ def get_ss_projects(run_dir):
         logger.warn('Cannot locate the samplesheet for run {}'.format(run_dir))
         return []
 
-    # If samplesheet is empty, dont bother going through it
+    # If samplesheet is empty, don't bother going through it
     if data == []:
             return data
 

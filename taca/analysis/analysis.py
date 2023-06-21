@@ -10,6 +10,7 @@ from taca.illumina.HiSeq_Runs import HiSeq_Run
 from taca.illumina.MiSeq_Runs import MiSeq_Run
 from taca.illumina.NextSeq_Runs import NextSeq_Run
 from taca.illumina.NovaSeq_Runs import NovaSeq_Run
+from taca.illumina.NovaSeqXPlus_Runs import NovaSeqXPlus_Run
 from taca.utils.config import CONFIG
 from taca.utils.transfer import RsyncAgent
 from taca.utils import statusdb
@@ -26,7 +27,6 @@ def get_runObj(run):
 
     :param run: run name identifier
     :type run: string
-    :rtype: Object
     :returns: returns the sequencer type object,
     None if the sequencer type is unknown of there was an error
     """
@@ -39,20 +39,23 @@ def get_runObj(run):
         logger.error('Cannot find RunParameters.xml or runParameters.xml in the run folder for run {}'.format(run))
         return
 
-    rppath = os.path.join(run, run_parameters_file)
+    run_parameters_path = os.path.join(run, run_parameters_file)
     try:
-        rp = RunParametersParser(os.path.join(run, run_parameters_file))
+        run_parameters = RunParametersParser(run_parameters_path)
     except OSError:
         logger.warn('Problems parsing the runParameters.xml file at {}. '
-                    'This is quite unexpected. please archive the run {} manually'.format(rppath, run))
+                    'This is quite unexpected. please archive the run {} manually'.format(run_parameters_path, run))
     else:
-        # Do a case by case test becasue there are so many version of RunParameters that there is no real other way
-        runtype = rp.data['RunParameters'].get('Application', rp.data['RunParameters'].get('ApplicationName', ''))
-        if 'Setup' in rp.data['RunParameters']:
+        # Do a case by case test because there are so many version of RunParameters that there is no real other way
+        runtype = run_parameters.data['RunParameters'].get('InstrumentType', 
+                                               run_parameters.data['RunParameters'].get('ApplicationName', 
+                                                                            run_parameters.data['RunParameters'].get('Application', 
+                                                                                                         '')))
+        if 'Setup' in run_parameters.data['RunParameters']:
             # This is the HiSeq2500, MiSeq, and HiSeqX case
             try:
                 # Works for recent control software
-                runtype = rp.data['RunParameters']['Setup']['Flowcell']
+                runtype = run_parameters.data['RunParameters']['Setup']['Flowcell']
             except KeyError:
                 # Use this as second resource but print a warning in the logs
                 logger.warn('Parsing runParameters to fecth instrument type, '
@@ -60,7 +63,7 @@ def get_runObj(run):
                 # Here makes sense to use get with default value '' ->
                 # so that it doesn't raise an exception in the next lines
                 # (in case ApplicationName is not found, get returns None)
-                runtype = rp.data['RunParameters']['Setup'].get('ApplicationName', '')
+                runtype = run_parameters.data['RunParameters']['Setup'].get('ApplicationName', '')
 
         if 'HiSeq X' in runtype:
             return HiSeqX_Run(run, CONFIG['analysis']['HiSeqX'])
@@ -70,6 +73,8 @@ def get_runObj(run):
             return MiSeq_Run(run, CONFIG['analysis']['MiSeq'])
         elif 'NextSeq' in runtype:
             return NextSeq_Run(run, CONFIG['analysis']['NextSeq'])
+        elif 'NovaSeqXPlus' in runtype:
+            return NovaSeqXPlus_Run(run, CONFIG['analysis']['NovaSeqXPlus'])
         elif 'NovaSeq' in runtype:
             return NovaSeq_Run(run, CONFIG['analysis']['NovaSeq'])
         else:
@@ -253,33 +258,24 @@ def extract_project_samplesheet(sample_sheet, pid):
     new_samplesheet_content = header_line + project_entries
     return new_samplesheet_content
 
-def run_preprocessing(run, force_trasfer=True, statusdb=True):
+def run_preprocessing(run):
     """Run demultiplexing in all data directories.
 
     :param str run: Process a particular run instead of looking for runs
-    :param bool force_tranfer: if set to True the FC is transferred also if fails QC
-    :param bool statusdb: True if we want to upload info to statusdb
     """
-    def _process(run, force_trasfer):
+    def _process(run):
         """Process a run/flowcell and transfer to analysis server.
 
         :param taca.illumina.Run run: Run to be processed and transferred
         """
         logger.info('Checking run {}'.format(run.id))
-        t_file = os.path.join(CONFIG['analysis']['status_dir'], 'transfer.tsv')
-        if run.is_transferred(t_file):
-            # In this case I am either processing a run that is in transfer
-            # or that has been already transferred. Do nothing.
-            # time to time this situation is due to runs that are copied back from NAS after a reboot.
-            # This check avoid failures
+        transfer_file = os.path.join(CONFIG['analysis']['status_dir'], 'transfer.tsv')
+        if run.is_transferred(transfer_file):  # Transfer is ongoing or finished. Do nothing. Sometimes caused by runs that are copied back from NAS after a reboot
             logger.info('Run {} already transferred to analysis server, skipping it'.format(run.id))
             return
 
         if run.get_run_status() == 'SEQUENCING':
-            # Check status files and say i.e Run in second read, maybe something
-            # even more specific like cycle or something
             logger.info('Run {} is not finished yet'.format(run.id))
-            # Upload to statusDB if applies
             if 'statusdb' in CONFIG:
                 _upload_to_statusdb(run)
         elif run.get_run_status() == 'TO_START':
@@ -288,13 +284,10 @@ def run_preprocessing(run, force_trasfer=True, statusdb=True):
                 logger.warn('Run {} marked as {}, '
                             'TACA will skip this and move the run to '
                             'no-sync directory'.format(run.id, run.get_run_type()))
-                # Archive the run if indicated in the config file
                 if 'storage' in CONFIG:
                     run.archive_run(CONFIG['storage']['archive_dirs'][run.sequencer_type])
                 return
-            # Otherwise it is fine, process it
             logger.info(('Starting BCL to FASTQ conversion and demultiplexing for run {}'.format(run.id)))
-            # Upload to statusDB if applies
             if 'statusdb' in CONFIG:
                 _upload_to_statusdb(run)
             run.demultiplex_run()
@@ -343,24 +336,23 @@ def run_preprocessing(run, force_trasfer=True, statusdb=True):
                             .format(run.id,
                                     run.CONFIG['analysis_server']['host'],
                                     run.CONFIG['analysis_server']['sync']['data_archive']))
-                run.transfer_run(t_file, mail_recipients)
+                run.transfer_run(transfer_file, mail_recipients)
 
             # Archive the run if indicated in the config file
-            if 'storage' in CONFIG:
+            if 'storage' in CONFIG: #TODO: make sure archiving to PDC is not ongoing
                 run.archive_run(CONFIG['storage']['archive_dirs'][run.sequencer_type])
 
     if run:
-        # Needs to guess what run type I have (HiSeq, MiSeq, HiSeqX, NextSeq)
+        # Determine the run type
         runObj = get_runObj(run)
         if not runObj:
             raise RuntimeError('Unrecognized instrument type or incorrect run folder {}'.format(run))
         else:
-            _process(runObj, force_trasfer)
+            _process(runObj)
     else:
         data_dirs = CONFIG.get('analysis').get('data_dirs')
         for data_dir in data_dirs:
             # Run folder looks like DATE_*_*_*, the last section is the FC name.
-            # See Courtesy information from illumina of 10 June 2016 (no more XX at the end of the FC)
             runs = glob.glob(os.path.join(data_dir, '[1-9]*_*_*_*'))
             for _run in runs:
                 runObj = get_runObj(_run)
@@ -368,7 +360,7 @@ def run_preprocessing(run, force_trasfer=True, statusdb=True):
                     logger.warning('Unrecognized instrument type or incorrect run folder {}'.format(run))
                 else:
                     try:
-                        _process(runObj, force_trasfer)
+                        _process(runObj)
                     except:
                         # This function might throw and exception,
                         # it is better to continue processing other runs
