@@ -8,6 +8,7 @@ import shutil
 import pathlib
 import argparse
 import subprocess
+from glob import glob
 
 def main(args):
     """Find promethion runs and transfer them to storage. 
@@ -18,18 +19,13 @@ def main(args):
     destination_dir = args.dest_dir
     archive_dir = args.archive_dir
     log_file = os.path.join(data_dir, 'rsync_log.txt')
-    found_top_dirs = [os.path.join(data_dir, top_dir) for top_dir in os.listdir(data_dir)
-            if os.path.isdir(os.path.join(data_dir, top_dir)) 
-            and (re.match(project_pattern, top_dir) or re.match(lims_id_pattern, top_dir))]
-    
-    runs = []
-    if found_top_dirs:
-        for top_dir in found_top_dirs:
-            if os.path.isdir(top_dir):
-                for sample_dir in os.listdir(top_dir):
-                    if os.path.isdir(os.path.join(top_dir, sample_dir)):
-                        for run_dir in os.listdir(os.path.join(top_dir, sample_dir)):
-                            runs.append(os.path.join(top_dir, sample_dir, run_dir))
+
+    run_pattern = re.compile("\d{8}_\d{4}_[A-Za-z0-9]+_[A-Za-z0-9]+_[A-Za-z0-9]+")
+    runs = [
+        path
+        for path in glob("*/*/*", recursive=True)
+        if re.match(run_pattern, os.path.basename(path))
+    ]
     
     # Split finished and unfinished runs
     not_finished = []
