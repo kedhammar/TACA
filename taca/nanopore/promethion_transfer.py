@@ -14,13 +14,11 @@ def main(args):
     """Find promethion runs and transfer them to storage. 
     Archives the run when the transfer is complete."""
     data_dir = args.source_dir
-    project_pattern = re.compile("^P\d{4,6}$")  # Runs started manually (project ID)
-    lims_id_pattern = re.compile("^24-\d{6}$")  # Runs started with samplesheet (lims ID)
+    run_pattern = re.compile("\d{8}_\d{4}_[A-Za-z0-9]+_[A-Za-z0-9]+_[A-Za-z0-9]+")
     destination_dir = args.dest_dir
     archive_dir = args.archive_dir
     log_file = os.path.join(data_dir, 'rsync_log.txt')
 
-    run_pattern = re.compile("\d{8}_\d{4}_[A-Za-z0-9]+_[A-Za-z0-9]+_[A-Za-z0-9]+")
     runs = [
         path
         for path in glob("*/*/*", recursive=True)
@@ -36,13 +34,12 @@ def main(args):
             finished.append(run)
         else:
             not_finished.append(run)
+        dump_path(run)
 
     # Start transfer of unfinished runs first (detatched)
     for run in not_finished:
-        dump_path(run)
         sync_to_storage(run, destination_dir, log_file)
     for run in finished:
-        dump_path(run)  # To catch very small runs that finished quickly
         final_sync_to_storage(run, destination_dir, archive_dir, log_file) 
         
 
