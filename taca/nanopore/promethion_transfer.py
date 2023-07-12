@@ -1,6 +1,6 @@
 """ Transfers new PromethION runs to ngi-nas using rsync.
 """
-__version__ = "1.0.4"
+__version__ = "1.0.5"
 
 import os
 import re
@@ -19,6 +19,9 @@ def main(args):
     archive_dir = args.archive_dir
     log_file = os.path.join(data_dir, 'rsync_log.txt')
 
+    position_logs = parse_position_logs(args.minknow_logs_dir)
+    qc_logs = get_qc_logs(position_logs)
+
     runs = [
         path
         for path in glob("*/*/*", recursive=True)
@@ -35,13 +38,13 @@ def main(args):
         else:
             not_finished.append(run)
         dump_path(run)
+        dump_qc_logs(run, qc_logs)
 
     # Start transfer of unfinished runs first (detatched)
     for run in not_finished:
         sync_to_storage(run, destination_dir, log_file)
     for run in finished:
         final_sync_to_storage(run, destination_dir, archive_dir, log_file) 
-        
 
 def sequencing_finished(run_dir):
     sequencing_finished_indicator = 'final_summary'
@@ -108,13 +111,132 @@ def archive_finished_run(run_dir, archive_dir):
     else:
         print("Some data is still left in {}. Keeping it.".format(top_dir))  # Might be another run for the same project
 
+
+def parse_position_logs(minknow_log_dir: str) -> list:
+    """Look through all flow cell position logs and boil down into a strucutred list of dicts
+
+    Example output:
+    [{
+        "timestamp": "2023-07-10 15:44:31.481512",
+        "category": "INFO: platform_qc.report (user_messages)",
+        "body": {
+            "flow_cell_id": "PAO33763"
+            "num_pores": "8378"
+        }
+    } ... ]
+
+    """
+
+    position_log_file_name = "control_server_log-0.txt"
+    log_timestamp_format = "%Y-%m-%d %H:%M:%S.%f"
+
+    positions = []
+    for col in "123":
+        for row in "ABCDEFGH":
+            positions.append(col + row)
+
+    entries = []
+    for position in positions:
+        with open(
+            f"{minknow_log_dir}/{position}/{position_log_file_name}", "r"
+        ) as stream:
+            lines = stream.readlines()
+            for i in range(0, len(lines)):
+                line = lines[i]
+                if line[0:4] != "    ":
+                    # Line is log header
+                    split_header = line.split(" ")
+                    timestamp = " ".join(split_header[0:2])
+                    category = " ".join(split_header[2:])
+
+                    entry = {
+                        "position": position,
+                        "timestamp": timestamp.strip(),
+                        "category": category.strip(),
+                    }
+                    entries.append(entry)
+                else:
+                    # Line is log body
+                    if "body" not in entry:
+                        entry["body"] = {}
+                    key = line.split(": ")[0].strip()
+                    val = ": ".join(line.split(": ")[1:]).strip()
+                    entry["body"][key] = val
+
+    return entries
+
+
+def get_qc_logs(position_logs: list) -> list:
+    """Take the flowcell log list output by parse_position_logs() and subset to contain only QC info."""
+
+    qc_logs = []
+    for entry in position_logs:
+        if "INFO: platform_qc.report (user_messages)" in entry["category"]:
+
+            new_entry = {
+                "flow_cell_id": entry["body"]["flow_cell_id"],
+                "timestamp": entry["timestamp"],
+                "position": entry["position"],
+                "num_pores": entry["body"]["num_pores"],
+            }
+
+            qc_logs.append(new_entry)
+
+    return qc_logs
+
+
+def dump_qc_logs(run_path, qc_logs):
+
+    flowcell_id = os.path.basename(run_path).split["_"][-2]
+    new_file_path = os.path.join(run_path, "flowcell_qc_logs.csv")
+
+    flowcell_qc_logs = [
+        log_entry for log_entry in qc_logs if log_entry["flow_cell_id"] == flowcell_id
+    ]
+
+    flowcell_qc_logs_sorted = sorted(
+        flowcell_qc_logs,
+        key=lambda x: (
+            x["flow_cell_id"],
+            x["timestamp"],
+            x["position"],
+            x["num_pores"],
+        ),
+    )
+
+    header = flowcell_qc_logs_sorted[0].keys()
+    rows = [e.values() for e in flowcell_qc_logs_sorted]
+
+    with open(new_file_path, "w") as f:
+        f.write(",".join(header) + "\n")
+        for row in rows:
+            f.write(",".join(row) + "\n")
+
+
 if __name__ == "__main__":
     # This is clunky but should be fine since it will only ever run as a cronjob
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--source', dest='source_dir', help='Full path to directory containing runs to be synced.')
-    parser.add_argument('--dest', dest='dest_dir', help='Full path to destination directory to sync runs to.')
-    parser.add_argument('--archive', dest='archive_dir', help='Full path to directory containing runs to be synced.')
-    parser.add_argument('--version', action='version', version=__version__)
+    parser.add_argument(
+        "--source",
+        dest="source_dir",
+        help="Full path to directory containing runs to be synced.",
+    )
+    parser.add_argument(
+        "--dest",
+        dest="dest_dir",
+        help="Full path to destination directory to sync runs to.",
+    )
+    parser.add_argument(
+        "--archive",
+        dest="archive_dir",
+        help="Full path to directory containing runs to be synced.",
+    )
+    parser.add_argument(
+        "--minknow_logs",
+        dest="minknow_logs_dir",
+        help="Full path to the directory containing the MinKNOW position logs.",
+    )
+    parser.add_argument("--version", action="version", version=__version__)
     args = parser.parse_args()
     
     main(args)
