@@ -1,6 +1,6 @@
 """ Transfers new PromethION runs to ngi-nas using rsync.
 """
-__version__ = "1.0.4"
+__version__ = "1.0.5"
 
 import os
 import re
@@ -14,8 +14,6 @@ def main(args):
     """Find promethion runs and transfer them to storage. 
     Archives the run when the transfer is complete."""
     data_dir = args.source_dir
-    project_pattern = re.compile("^P\d{4,6}$")  # Runs started manually (project ID)
-    lims_id_pattern = re.compile("^24-\d{6}$")  # Runs started with samplesheet (lims ID)
     destination_dir = args.dest_dir
     archive_dir = args.archive_dir
     log_file = os.path.join(data_dir, 'rsync_log.txt')
