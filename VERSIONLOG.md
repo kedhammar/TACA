@@ -1,5 +1,8 @@
 # TACA Version Log
 
+## 20230711.1
+Rework how PromethION script detects runs to catch mis-named ones, too.
+
 ## 20230621.1
 Add support for NovaSeqXPlus and improve readability
 
