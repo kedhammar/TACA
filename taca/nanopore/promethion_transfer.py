@@ -208,7 +208,7 @@ def dump_pore_count_history(run, pore_counts):
     run_start_time = dt.strptime(os.path.basename(run)[0:13], "%Y%m%d_%H%M")
     log_time_pattern = "%Y-%m-%d %H:%M:%S.%f"
 
-    new_file_path = os.path.join(run, f"{flowcell_id}_pore_count_history.csv")
+    new_file_path = os.path.join(run, "pore_count_history.csv")
 
     flowcell_pore_counts = [
         log_entry
