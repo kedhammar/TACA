@@ -9,6 +9,7 @@ import pathlib
 import argparse
 import subprocess
 from glob import glob
+from datetime import datetime as dt
 
 def main(args):
     """Find promethion runs and transfer them to storage. 
@@ -18,13 +19,14 @@ def main(args):
     destination_dir = args.dest_dir
     archive_dir = args.archive_dir
     log_file = os.path.join(data_dir, 'rsync_log.txt')
+    minknow_logs_dir = args.minknow_logs_dir
 
-    position_logs = parse_position_logs(args.minknow_logs_dir)
-    qc_logs = get_qc_logs(position_logs)
+    position_logs = parse_position_logs(minknow_logs_dir)
+    pore_counts = get_pore_counts(position_logs)
 
     runs = [
         path
-        for path in glob("*/*/*", recursive=True)
+        for path in glob(f"{data_dir}/*/*/*", recursive=True)
         if re.match(run_pattern, os.path.basename(path))
     ]
     
@@ -38,7 +40,7 @@ def main(args):
         else:
             not_finished.append(run)
         dump_path(run)
-        dump_qc_logs(run, qc_logs)
+        dump_pore_count_history(run, pore_counts)
 
     # Start transfer of unfinished runs first (detatched)
     for run in not_finished:
@@ -166,46 +168,63 @@ def parse_position_logs(minknow_log_dir: str) -> list:
     return entries
 
 
-def get_qc_logs(position_logs: list) -> list:
-    """Take the flowcell log list output by parse_position_logs() and subset to contain only QC info."""
+def get_pore_counts(position_logs: list) -> list:
+    """Take the flowcell log list output by parse_position_logs() and subset to contain only QC and MUX info."""
 
-    qc_logs = []
+    pore_counts = []
     for entry in position_logs:
+
         if "INFO: platform_qc.report (user_messages)" in entry["category"]:
+            type = "qc"
+        elif "INFO: mux_scan_result (user_messages)" in entry["category"]:
+            type = "mux"
+        else:
+            type = "other"
+
+        if type in ["qc", "mux"]:
 
             new_entry = {
                 "flow_cell_id": entry["body"]["flow_cell_id"],
                 "timestamp": entry["timestamp"],
                 "position": entry["position"],
+                "type": type,
                 "num_pores": entry["body"]["num_pores"],
             }
 
-            qc_logs.append(new_entry)
+            new_entry["total_pores"] = (
+                entry["body"]["num_pores"]
+                if type == "qc"
+                else entry["body"]["total_pores"]
+            )
 
-    return qc_logs
+            pore_counts.append(new_entry)
+
+    return pore_counts
 
 
-def dump_qc_logs(run_path, qc_logs):
+def dump_pore_count_history(run, pore_counts):
 
-    flowcell_id = os.path.basename(run_path).split["_"][-2]
-    new_file_path = os.path.join(run_path, "flowcell_qc_logs.csv")
+    flowcell_id = os.path.basename(run).split("_")[-2]
+    run_start_time = dt.strptime(os.path.basename(run)[0:13], "%Y%m%d_%H%M")
+    log_time_pattern = "%Y-%m-%d %H:%M:%S.%f"
 
-    flowcell_qc_logs = [
-        log_entry for log_entry in qc_logs if log_entry["flow_cell_id"] == flowcell_id
+    new_file_path = os.path.join(run, f"{flowcell_id}_pore_count_history.csv")
+
+    flowcell_pore_counts = [
+        log_entry
+        for log_entry in pore_counts
+        if (
+            log_entry["flow_cell_id"] == flowcell_id
+            and dt.strptime(log_entry["timestamp"], log_time_pattern) <= run_start_time
+        )
     ]
 
-    flowcell_qc_logs_sorted = sorted(
-        flowcell_qc_logs,
-        key=lambda x: (
-            x["flow_cell_id"],
-            x["timestamp"],
-            x["position"],
-            x["num_pores"],
-        ),
+    flowcell_pore_counts_sorted = sorted(
+        flowcell_pore_counts, key=lambda x: x["timestamp"], reverse=True
     )
 
-    header = flowcell_qc_logs_sorted[0].keys()
-    rows = [e.values() for e in flowcell_qc_logs_sorted]
+    header = flowcell_pore_counts_sorted[0].keys()
+    rows = [e.values() for e in flowcell_pore_counts_sorted]
 
     with open(new_file_path, "w") as f:
         f.write(",".join(header) + "\n")
