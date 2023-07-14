@@ -219,17 +219,20 @@ def dump_pore_count_history(run, pore_counts):
         )
     ]
 
-    flowcell_pore_counts_sorted = sorted(
-        flowcell_pore_counts, key=lambda x: x["timestamp"], reverse=True
-    )
+    if flowcell_pore_counts:
+        flowcell_pore_counts_sorted = sorted(
+            flowcell_pore_counts, key=lambda x: x["timestamp"], reverse=True
+        )
 
-    header = flowcell_pore_counts_sorted[0].keys()
-    rows = [e.values() for e in flowcell_pore_counts_sorted]
+        header = flowcell_pore_counts_sorted[0].keys()
+        rows = [e.values() for e in flowcell_pore_counts_sorted]
 
-    with open(new_file_path, "w") as f:
-        f.write(",".join(header) + "\n")
-        for row in rows:
-            f.write(",".join(row) + "\n")
+        with open(new_file_path, "w") as f:
+            f.write(",".join(header) + "\n")
+            for row in rows:
+                f.write(",".join(row) + "\n")
+    else:
+        open(new_file_path, "a").close()
 
 
 if __name__ == "__main__":

@@ -386,8 +386,18 @@ def ont_updatedb(ont_run):
             logger.info(
                 f"Run {ont_run.run_id} does not exist in the database, creating entry for ongoing run."
             )
+
             run_path_file = os.path.join(ont_run.run_dir, "run_path.txt")
-            sesh.create_ongoing_run(ont_run, open(run_path_file, "r").read().strip())
+            assert os.path.isfile(run_path_file), f"Couldn't find {run_path_file}"
+
+            pore_count_history_file = os.path.join(
+                ont_run.run_dir, "pore_count_history.csv"
+            )
+            assert os.path.isfile(
+                pore_count_history_file
+            ), f"Couldn't find {pore_count_history_file}"
+
+            sesh.create_ongoing_run(ont_run, run_path_file, pore_count_history_file)
             logger.info(
                 f"Successfully created db entry for ongoing run {ont_run.run_id}."
             )
