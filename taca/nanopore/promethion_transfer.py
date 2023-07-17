@@ -115,7 +115,7 @@ def archive_finished_run(run_dir, archive_dir):
 
 
 def parse_position_logs(minknow_log_dir: str) -> list:
-    """Look through all flow cell position logs and boil down into a strucutred list of dicts
+    """Look through all flow cell position logs and boil down into a structured list of dicts
 
     Example output:
     [{
