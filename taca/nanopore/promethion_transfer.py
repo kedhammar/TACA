@@ -99,6 +99,8 @@ def final_sync_to_storage(run_dir, destination, archive_dir, log_file):
 def archive_finished_run(run_dir, archive_dir):
     """Move finished run to archive (nosync)."""
 
+    print(f"Archiving {run_dir}.")
+
     sample_dir = os.path.dirname(run_dir)
     exp_dir = os.path.dirname(sample_dir)
 
@@ -108,12 +110,15 @@ def archive_finished_run(run_dir, archive_dir):
 
     # Create archive experiment group dir, if none
     if not os.path.exists(os.path.join(archive_dir, exp_name)):
+        print(f"Creating {os.path.join(archive_dir, exp_name)}.")
         os.mkdir(os.path.join(archive_dir, exp_name))
     # Create archive sample dir, if none
     if not os.path.exists(os.path.join(archive_dir, exp_name, sample_name)):
+        print(f"Creating {os.path.join(archive_dir, exp_name, sample_name)}.")
         os.mkdir(os.path.join(archive_dir, exp_name, sample_name))
 
     # Archive run
+    print(f"Archiving {run_dir} to {os.path.join(archive_dir, exp_name, sample_name)}.")
     shutil.move(run_dir, os.path.join(archive_dir, exp_name, sample_name))
 
     # Remove sample dir, if empty
