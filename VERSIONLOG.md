@@ -1,5 +1,8 @@
 # TACA Version Log
 
+## 20230718.1
+Update PromethION script to run rsync w. -u flag and clarify archiving code.
+
 ## 20230713.1
 Let PromethION script search through device logs to dump flow cell pore count history into the run dir.
 
