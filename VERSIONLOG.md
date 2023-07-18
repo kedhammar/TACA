@@ -1,5 +1,8 @@
 # TACA Version Log
 
+## 20230713.1
+Let PromethION script search through device logs to dump flow cell pore count history into the run dir.
+
 ## 20230711.1
 Rework how PromethION script detects runs to catch mis-named ones, too.
 

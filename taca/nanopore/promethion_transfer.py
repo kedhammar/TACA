@@ -1,6 +1,6 @@
 """ Transfers new PromethION runs to ngi-nas using rsync.
 """
-__version__ = "1.0.5"
+__version__ = "1.0.6"
 
 import os
 import re
@@ -9,19 +9,24 @@ import pathlib
 import argparse
 import subprocess
 from glob import glob
+from datetime import datetime as dt
 
 def main(args):
     """Find promethion runs and transfer them to storage. 
     Archives the run when the transfer is complete."""
     data_dir = args.source_dir
+    run_pattern = re.compile("\d{8}_\d{4}_[A-Za-z0-9]+_[A-Za-z0-9]+_[A-Za-z0-9]+")
     destination_dir = args.dest_dir
     archive_dir = args.archive_dir
     log_file = os.path.join(data_dir, 'rsync_log.txt')
+    minknow_logs_dir = args.minknow_logs_dir
 
-    run_pattern = re.compile("\d{8}_\d{4}_[A-Za-z0-9]+_[A-Za-z0-9]+_[A-Za-z0-9]+")
+    position_logs = parse_position_logs(minknow_logs_dir)
+    pore_counts = get_pore_counts(position_logs)
+
     runs = [
         path
-        for path in glob("*/*/*", recursive=True)
+        for path in glob(f"{data_dir}/*/*/*", recursive=True)
         if re.match(run_pattern, os.path.basename(path))
     ]
     
@@ -34,15 +39,14 @@ def main(args):
             finished.append(run)
         else:
             not_finished.append(run)
+        dump_path(run)
+        dump_pore_count_history(run, pore_counts)
 
     # Start transfer of unfinished runs first (detatched)
     for run in not_finished:
-        dump_path(run)
         sync_to_storage(run, destination_dir, log_file)
     for run in finished:
-        dump_path(run)  # To catch very small runs that finished quickly
         final_sync_to_storage(run, destination_dir, archive_dir, log_file) 
-        
 
 def sequencing_finished(run_dir):
     sequencing_finished_indicator = 'final_summary'
@@ -109,13 +113,152 @@ def archive_finished_run(run_dir, archive_dir):
     else:
         print("Some data is still left in {}. Keeping it.".format(top_dir))  # Might be another run for the same project
 
+
+def parse_position_logs(minknow_log_dir: str) -> list:
+    """Look through all flow cell position logs and boil down into a structured list of dicts
+
+    Example output:
+    [{
+        "timestamp": "2023-07-10 15:44:31.481512",
+        "category": "INFO: platform_qc.report (user_messages)",
+        "body": {
+            "flow_cell_id": "PAO33763"
+            "num_pores": "8378"
+        }
+    } ... ]
+
+    """
+
+    position_log_file_name = "control_server_log-0.txt"
+    log_timestamp_format = "%Y-%m-%d %H:%M:%S.%f"
+
+    positions = []
+    for col in "123":
+        for row in "ABCDEFGH":
+            positions.append(col + row)
+
+    entries = []
+    for position in positions:
+        with open(
+            f"{minknow_log_dir}/{position}/{position_log_file_name}", "r"
+        ) as stream:
+            lines = stream.readlines()
+            for i in range(0, len(lines)):
+                line = lines[i]
+                if line[0:4] != "    ":
+                    # Line is log header
+                    split_header = line.split(" ")
+                    timestamp = " ".join(split_header[0:2])
+                    category = " ".join(split_header[2:])
+
+                    entry = {
+                        "position": position,
+                        "timestamp": timestamp.strip(),
+                        "category": category.strip(),
+                    }
+                    entries.append(entry)
+                else:
+                    # Line is log body
+                    if "body" not in entry:
+                        entry["body"] = {}
+                    key = line.split(": ")[0].strip()
+                    val = ": ".join(line.split(": ")[1:]).strip()
+                    entry["body"][key] = val
+
+    return entries
+
+
+def get_pore_counts(position_logs: list) -> list:
+    """Take the flowcell log list output by parse_position_logs() and subset to contain only QC and MUX info."""
+
+    pore_counts = []
+    for entry in position_logs:
+
+        if "INFO: platform_qc.report (user_messages)" in entry["category"]:
+            type = "qc"
+        elif "INFO: mux_scan_result (user_messages)" in entry["category"]:
+            type = "mux"
+        else:
+            type = "other"
+
+        if type in ["qc", "mux"]:
+
+            new_entry = {
+                "flow_cell_id": entry["body"]["flow_cell_id"],
+                "timestamp": entry["timestamp"],
+                "position": entry["position"],
+                "type": type,
+                "num_pores": entry["body"]["num_pores"],
+            }
+
+            new_entry["total_pores"] = (
+                entry["body"]["num_pores"]
+                if type == "qc"
+                else entry["body"]["total_pores"]
+            )
+
+            pore_counts.append(new_entry)
+
+    return pore_counts
+
+
+def dump_pore_count_history(run, pore_counts):
+
+    flowcell_id = os.path.basename(run).split("_")[-2]
+    run_start_time = dt.strptime(os.path.basename(run)[0:13], "%Y%m%d_%H%M")
+    log_time_pattern = "%Y-%m-%d %H:%M:%S.%f"
+
+    new_file_path = os.path.join(run, "pore_count_history.csv")
+
+    flowcell_pore_counts = [
+        log_entry
+        for log_entry in pore_counts
+        if (
+            log_entry["flow_cell_id"] == flowcell_id
+            and dt.strptime(log_entry["timestamp"], log_time_pattern) <= run_start_time
+        )
+    ]
+
+    if flowcell_pore_counts:
+        flowcell_pore_counts_sorted = sorted(
+            flowcell_pore_counts, key=lambda x: x["timestamp"], reverse=True
+        )
+
+        header = flowcell_pore_counts_sorted[0].keys()
+        rows = [e.values() for e in flowcell_pore_counts_sorted]
+
+        with open(new_file_path, "w") as f:
+            f.write(",".join(header) + "\n")
+            for row in rows:
+                f.write(",".join(row) + "\n")
+    else:
+        open(new_file_path, "a").close()
+
+
 if __name__ == "__main__":
     # This is clunky but should be fine since it will only ever run as a cronjob
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--source', dest='source_dir', help='Full path to directory containing runs to be synced.')
-    parser.add_argument('--dest', dest='dest_dir', help='Full path to destination directory to sync runs to.')
-    parser.add_argument('--archive', dest='archive_dir', help='Full path to directory containing runs to be synced.')
-    parser.add_argument('--version', action='version', version=__version__)
+    parser.add_argument(
+        "--source",
+        dest="source_dir",
+        help="Full path to directory containing runs to be synced.",
+    )
+    parser.add_argument(
+        "--dest",
+        dest="dest_dir",
+        help="Full path to destination directory to sync runs to.",
+    )
+    parser.add_argument(
+        "--archive",
+        dest="archive_dir",
+        help="Full path to directory containing runs to be synced.",
+    )
+    parser.add_argument(
+        "--minknow_logs",
+        dest="minknow_logs_dir",
+        help="Full path to the directory containing the MinKNOW position logs.",
+    )
+    parser.add_argument("--version", action="version", version=__version__)
     args = parser.parse_args()
     
     main(args)
