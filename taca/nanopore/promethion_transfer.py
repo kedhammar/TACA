@@ -1,6 +1,6 @@
 """ Transfers new PromethION runs to ngi-nas using rsync.
 """
-__version__ = "1.0.6"
+__version__ = "1.0.7"
 
 import os
 import re
@@ -29,7 +29,7 @@ def main(args):
         for path in glob(f"{data_dir}/*/*/*", recursive=True)
         if re.match(run_pattern, os.path.basename(path))
     ]
-    
+
     # Split finished and unfinished runs
     not_finished = []
     finished = []
@@ -95,23 +95,35 @@ def final_sync_to_storage(run_dir, destination, archive_dir, log_file):
         print('Previous rsync might be running still. Skipping {} for now.'.format(run_dir))
         return
 
+
 def archive_finished_run(run_dir, archive_dir):
     """Move finished run to archive (nosync)."""
-    dir_to_move = str(pathlib.Path(run_dir).parent)
-    print('Archiving {}'.format(dir_to_move))
-    top_dir = str(pathlib.Path(run_dir).parent.parent)
-    project_id = os.path.basename(top_dir)
-    project_archive = os.path.join(archive_dir, project_id)
-    if os.path.exists(project_archive):
-        shutil.move(dir_to_move, project_archive)
-    else:
-        os.mkdir(project_archive)
-        shutil.move(dir_to_move, project_archive)
-    if not os.listdir(top_dir):
-        print("Project folder {} is empty. Removing it.".format(top_dir))
-        os.rmdir(top_dir)
-    else:
-        print("Some data is still left in {}. Keeping it.".format(top_dir))  # Might be another run for the same project
+
+    sample_dir = os.path.dirname(run_dir)
+    exp_dir = os.path.dirname(sample_dir)
+
+    run_name = os.path.basename(run_dir)
+    sample_name = os.path.basename(sample_dir)
+    exp_name = os.path.basename(exp_dir)
+
+    # Create archive experiment group dir, if none
+    if not os.path.exists(os.path.join(archive_dir, exp_name)):
+        os.mkdir(os.path.join(archive_dir, exp_name))
+    # Create archive sample dir, if none
+    if not os.path.exists(os.path.join(archive_dir, exp_name, sample_name)):
+        os.mkdir(os.path.join(archive_dir, exp_name, sample_name))
+
+    # Archive run
+    shutil.move(run_dir, os.path.join(archive_dir, exp_name, sample_name))
+
+    # Remove sample dir, if empty
+    if not os.listdir(sample_dir):
+        print(f"Sample folder {sample_dir} is empty. Removing it.")
+        os.rmdir(sample_dir)
+    # Remove experiment group dir, if empty
+    if not os.listdir(exp_dir):
+        print(f"Experiment group folder {exp_dir} is empty. Removing it.")
+        os.rmdir(exp_dir)
 
 
 def parse_position_logs(minknow_log_dir: str) -> list:
