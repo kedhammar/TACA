@@ -46,6 +46,7 @@ class Run(object):
         self.flowcell_id = m.group(4)
         self.CONFIG = configuration
         self.demux_dir = "Demultiplexing"
+        self.demux_summary = dict()
         self.runParserObj = RunParser(self.run_dir)
         # This flag tells TACA to move demultiplexed files to the analysis server
         self.transfer_to_analysis_server = True
@@ -74,7 +75,16 @@ class Run(object):
             # Check if this job is done
             if os.path.exists(os.path.join(run_dir, demux_folder, 'Stats', 'DemultiplexingStats.xml')):
                 all_demux_done = all_demux_done and True
-                logger.info("Sub-Demultiplexing in {} completed.".format(demux_folder))
+                demux_log = os.path.join(run_dir, demux_folder, "demux_{}_bcl2fastq.err".format(demux_id))
+                errors, warnings, error_and_warning_messages = _check_demux_log(demux_id, demux_log)
+                self.demux_summary[demux_id] = {'errors' : errors,
+                                                'warnings' : warnings,
+                                                'error_and_warning_messages' : error_and_warning_messages
+                                               }
+                if errors or warnings or error_and_warning_messages:
+                    logger.info("Sub-Demultiplexing in {} completed with {} errors and {} warnings!".format(demux_folder, errors, warnings))
+                else:
+                    logger.info("Sub-Demultiplexing in {} completed without any error or warning.".format(demux_folder))
             else:
                 all_demux_done = all_demux_done and False
                 logger.info("Sub-Demultiplexing in {} not completed yet.".format(demux_folder))
@@ -89,6 +99,31 @@ class Run(object):
                 if self.is_unpooled_lane(lane):
                     self._rename_undet(lane, samples_per_lane)
 
+    def _check_demux_log(demux_id, demux_log):
+        """
+        This function checks the log files of bcl2fastq
+        Errors or warnings will be captured and email notifications will be sent
+        """
+        with open(demux_log, 'r') as demux_log_file:
+            demux_log_content = demux_log_file.readlines()
+            errors, warnings, error_and_warning_messages = _extract_errors_and_warnings(demux_id, demux_log_content)
+            return errors, warnings, error_and_warning_messages
+
+    def _extract_errors_and_warnings(demux_id, demux_log_content):
+        pattern = r'Processing completed with (\d+) errors and (\d+) warnings'
+        match = re.search(pattern, demux_log_content[-1])
+        if match:
+            errors = int(match.group(1))
+            warnings = int(match.group(2))
+            error_and_warning_messages = []
+            if errors or warnings:
+                for line in demux_log_content:
+                    if 'ERROR' in line or 'WARN' in line:
+                        error_and_warning_messages.append(line)
+            return errors, warnings, error_and_warning_messages
+        else:
+            raise RuntimeError("Bad format with log file demux_{}_bcl2fastq.err".format(demux_id))
+
     def _set_run_type(self):
         raise NotImplementedError("Please Implement this method")
 
@@ -99,7 +134,7 @@ class Run(object):
             raise RuntimeError("run_type not yet available!!")
 
     def _set_sequencer_type(self, configuration):
-        raise NotImplementedError("Please Implement this method")        
+        raise NotImplementedError("Please Implement this method")
 
     def _get_demux_folder(self):
         if self.demux_dir:
@@ -518,21 +553,21 @@ class Run(object):
                     os.symlink(html_report_lane_source, html_report_lane_dest)
 
                 # Modify the laneBarcode.html file
-                html_report_laneBarcode = os.path.join(run_dir, 
-                                                       demux_id_folder_name, 
-                                                       "Reports", 
-                                                       "html", 
-                                                       self.flowcell_id, 
-                                                       "all", 
-                                                       "all", 
-                                                       "all", 
+                html_report_laneBarcode = os.path.join(run_dir,
+                                                       demux_id_folder_name,
+                                                       "Reports",
+                                                       "html",
+                                                       self.flowcell_id,
+                                                       "all",
+                                                       "all",
+                                                       "all",
                                                        "laneBarcode.html"
                                                        )
                 html_report_laneBarcode_parser = LaneBarcodeParser(html_report_laneBarcode)
                 lane_project_sample = dict()
                 for entry in html_report_laneBarcode_parser.sample_data:
                     if entry['Sample'] != 'Undetermined':
-                        lane_project_sample[entry['Lane']] = {'Project': entry['Project'], 
+                        lane_project_sample[entry['Lane']] = {'Project': entry['Project'],
                                                               'Sample': entry['Sample']
                                                               }
                 for entry in html_report_laneBarcode_parser.sample_data[:]:
@@ -541,15 +576,15 @@ class Run(object):
                         entry['Sample'] = lane_project_sample[entry['Lane']]['Sample']
                     else:
                         html_report_laneBarcode_parser.sample_data.remove(entry)
-                html_report_laneBarcode_parser.sample_data = sorted(html_report_laneBarcode_parser.sample_data, 
+                html_report_laneBarcode_parser.sample_data = sorted(html_report_laneBarcode_parser.sample_data,
                                                                     key=lambda k: (k['Lane'].lower(), k['Sample']))
-                new_html_report_laneBarcode = os.path.join(demux_folder, 
-                                                           "Reports", 
-                                                           "html", 
-                                                           self.flowcell_id, 
-                                                           "all", 
-                                                           "all", 
-                                                           "all", 
+                new_html_report_laneBarcode = os.path.join(demux_folder,
+                                                           "Reports",
+                                                           "html",
+                                                           self.flowcell_id,
+                                                           "all",
+                                                           "all",
+                                                           "all",
                                                            "laneBarcode.html"
                                                            )
                 _generate_lane_html(new_html_report_laneBarcode, html_report_laneBarcode_parser)
@@ -616,14 +651,14 @@ class Run(object):
             ssparser = SampleSheetParser(samplesheet)
             demux_id = os.path.splitext(os.path.split(samplesheet)[1])[0].split("_")[1]
             demux_id_folder = os.path.join(run_dir, "Demultiplexing_{}".format(demux_id))
-            html_report_lane = os.path.join(run_dir, 
-                                            "Demultiplexing_{}".format(demux_id), 
-                                            "Reports", 
-                                            "html", 
-                                            self.flowcell_id, 
-                                            "all", 
-                                            "all", 
-                                            "all", 
+            html_report_lane = os.path.join(run_dir,
+                                            "Demultiplexing_{}".format(demux_id),
+                                            "Reports",
+                                            "html",
+                                            self.flowcell_id,
+                                            "all",
+                                            "all",
+                                            "all",
                                             "lane.html"
                                             )
             if os.path.exists(html_report_lane):
@@ -631,14 +666,14 @@ class Run(object):
             else:
                 raise RuntimeError("Not able to find html report {}: possible cause is problem in demultiplexing".format(html_report_lane))
 
-            html_report_laneBarcode = os.path.join(run_dir, 
-                                                   "Demultiplexing_{}".format(demux_id), 
-                                                   "Reports", 
+            html_report_laneBarcode = os.path.join(run_dir,
+                                                   "Demultiplexing_{}".format(demux_id),
+                                                   "Reports",
                                                    "html",
-                                                   self.flowcell_id, 
-                                                   "all", 
-                                                   "all", 
-                                                   "all", 
+                                                   self.flowcell_id,
+                                                   "all",
+                                                   "all",
+                                                   "all",
                                                    "laneBarcode.html"
                                                    )
             if os.path.exists(html_report_laneBarcode):
@@ -701,7 +736,7 @@ class Run(object):
                         sample_source = os.path.join(project_source, sample)
                         sample_dest = os.path.join(project_dest, sample)
                         if not os.path.exists(sample_dest):
-                            # There should never be the same sample sequenced with different index length, 
+                            # There should never be the same sample sequenced with different index length,
                             # however a sample might be pooled in several lanes and therefore sequenced using different samplesheets
                             os.makedirs(sample_dest)
                         fastqfiles =  glob.glob(os.path.join(sample_source, "*.fastq*"))
@@ -722,8 +757,8 @@ class Run(object):
                 lanes_in_sub_samplesheet = list(set(lanes_in_sub_samplesheet))
                 for lane in lanes_in_sub_samplesheet:
                     if lane in simple_lanes.keys():
-                        undetermined_fastq_files = glob.glob(os.path.join(run_dir, 
-                                                                          "Demultiplexing_{}".format(demux_id), 
+                        undetermined_fastq_files = glob.glob(os.path.join(run_dir,
+                                                                          "Demultiplexing_{}".format(demux_id),
                                                                           "Undetermined_S0_L00{}*.fastq*".format(lane))) # Contains only simple lanes undetermined
                         for fastqfile in undetermined_fastq_files:
                             # Temporary (hopefully) fix until ngi_data allows symlinks
@@ -731,9 +766,9 @@ class Run(object):
                                 os.link(fastqfile, os.path.join(demux_folder, os.path.split(fastqfile)[1]))
                             else:
                                 os.symlink(fastqfile, os.path.join(demux_folder, os.path.split(fastqfile)[1]))
-                        DemuxSummaryFiles = glob.glob(os.path.join(run_dir, 
-                                                                   "Demultiplexing_{}".format(demux_id), 
-                                                                   "Stats", 
+                        DemuxSummaryFiles = glob.glob(os.path.join(run_dir,
+                                                                   "Demultiplexing_{}".format(demux_id),
+                                                                   "Stats",
                                                                    "*L{}*txt".format(lane)))
                         if not os.path.exists(os.path.join(demux_folder, "Stats")):
                             os.makedirs(os.path.join(demux_folder, "Stats"))
@@ -767,7 +802,7 @@ class Run(object):
         Yield_Mbases = 0
         for entry in html_report_lane_parser.sample_data:
             # Update NumberReads for total lane clusters
-            NumberReads_Summary[entry['Lane']] = {'total_lane_cluster': int(entry['PF Clusters'].replace(',', '')), 
+            NumberReads_Summary[entry['Lane']] = {'total_lane_cluster': int(entry['PF Clusters'].replace(',', '')),
                                                   'total_lane_yield': int(entry['Yield (Mbases)'].replace(',', ''))}
             Clusters_Raw += int(int(entry['PF Clusters'].replace(',', '')) / float(entry['% PFClusters']) * 100)
             Clusters_PF += int(entry['PF Clusters'].replace(',', ''))
@@ -837,7 +872,7 @@ class Run(object):
             lane_project_sample = dict()
             for entry in html_report_laneBarcode_parser.sample_data:
                 if entry['Lane'] in noindex_lanes and entry['Sample'] != 'Undetermined':
-                    lane_project_sample[entry['Lane']] = {'Project': entry['Project'], 
+                    lane_project_sample[entry['Lane']] = {'Project': entry['Project'],
                                                           'Sample': entry['Sample']}
             for entry in html_report_laneBarcode_parser.sample_data[:]:
                 if entry['Lane'] in noindex_lanes and entry['Sample'] == 'Undetermined':
@@ -847,7 +882,7 @@ class Run(object):
                     html_report_laneBarcode_parser.sample_data.remove(entry)
 
         # Sort sample_data: first by lane then by sample ID
-        html_report_laneBarcode_parser.sample_data = sorted(html_report_laneBarcode_parser.sample_data, 
+        html_report_laneBarcode_parser.sample_data = sorted(html_report_laneBarcode_parser.sample_data,
                                                             key=lambda k: (k['Lane'].lower(), k['Sample']))
 
         # Update the values in Flowcell Summary

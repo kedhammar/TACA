@@ -1,5 +1,8 @@
 # TACA Version Log
 
+## 20230724.1
+Enable TACA to retrieve error and warnings in bcl2fastq logs
+
 ## 20230718.1
 Update PromethION script to run rsync w. -u flag and clarify archiving code.
 
