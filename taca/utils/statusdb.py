@@ -3,6 +3,7 @@
 import couchdb
 import logging
 from datetime import datetime
+import csv
 
 logger = logging.getLogger(__name__)
 
@@ -105,19 +106,30 @@ class NanoporeRunsConnection(StatusdbSession):
         doc_id = view_all_stats[ont_run.run_id].rows[0].id
         return self.db[doc_id]["run_status"]
 
-    def create_ongoing_run(self, ont_run, extended_run_path):
-        new_doc = {"run_path": extended_run_path, "run_status": "ongoing"}
+    def create_ongoing_run(self, ont_run, run_path_file, pore_count_history_file):
+
+        run_path = open(run_path_file, "r").read().strip()
+
+        pore_counts = []
+        with open(pore_count_history_file, "r") as stream:
+            for line in csv.DictReader(stream):
+                pore_counts.append(line)
+
+        new_doc = {
+            "run_path": run_path,
+            "run_status": "ongoing",
+            "pore_count_history": pore_counts,
+        }
 
         new_doc_id, new_doc_rev = self.db.save(new_doc)
         logger.info(f"New database entry created: {ont_run.run_id}, id {new_doc_id}, rev {new_doc_rev}")
 
-    def finish_ongoing_run(self, ont_run, dict_json, dict_html):
+    def finish_ongoing_run(self, ont_run, dict_json):
         view_names = self.db.view('names/name')
         doc_id = view_names[ont_run.run_id].rows[0].id
         doc = self.db[doc_id]
 
         doc.update(dict_json)
-        doc.update(dict_html)
         doc["run_status"] = "finished"
         self.db[doc.id] = doc
 

@@ -1,5 +1,41 @@
 # TACA Version Log
 
+## 20230718.1
+Update PromethION script to run rsync w. -u flag and clarify archiving code.
+
+## 20230713.1
+Let PromethION script search through device logs to dump flow cell pore count history into the run dir.
+
+## 20230711.1
+Rework how PromethION script detects runs to catch mis-named ones, too.
+
+## 20230621.1
+Add support for NovaSeqXPlus and improve readability
+
+## 20230609.1
+Add functionality to update DB of specified run dirs.
+
+## 20230607.1
+Trim out unused data acquisition outputs from ONT report .json files before sending them to CouchDB.
+
+## 20230510.1
+Add storage_systems to server_status command to allow disk space surveillance of mounted virtual NAS:es. Also added Dockerfile and devcontainer setup.
+
+## 20230503.1
+Change how MinKNOW reports are synced to GenStat server to increase traceability and enable transfer of the reports of finished runs.
+
+## 20230502.1
+Enforce MinKNOW reports retain MinKNOW run ID upon transfer to ngi-internal. Improve logging.
+
+## 20230428.1
+Change offload location in promethion_transfer.py
+
+## 20230419.1
+Use a hidden file to indicate when the final rsync of ONT data to ngi-nas is done
+
+## 20230331.1
+Move MinKNOW reports to ngi-internal instead of embedding in StatusDB doc
+
 ## 20230307.1
 Handle demux case that ordered read length is different from seq setup
 

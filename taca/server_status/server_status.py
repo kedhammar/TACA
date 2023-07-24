@@ -10,30 +10,38 @@ from taca.utils.misc import send_mail
 def get_nases_disk_space():
     result = {}
     config = CONFIG['server_status']
-    servers = config.get('servers', [])
-    for server_url in servers.keys():
-        # Get path of disk
-        path = servers[server_url]
+    servers = config.get('servers', dict())
+
+    for server_url, path in servers.items():
 
         # Get command
         command = '{command} {path}'.format(command=config['command'], path=path)
 
         # If localhost, don't connect to ssh
         if server_url == 'localhost':
-            proc = subprocess.Popen(command.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            command = command.split()
         else:
             if 'promethion' in server_url:
                 user = 'prom'
             else:
                 user = config['user']
             # Connect via ssh to server and execute the command
-            proc = subprocess.Popen(['ssh', '-t', '{}@{}'.format(user, server_url), command],
-                stdout = subprocess.PIPE,
-                stderr = subprocess.PIPE)
-        output = proc.stdout.read().decode("utf-8")
-        output = _parse_output(output)
-        result[server_url] = output
+            command = ['ssh', '-t', '{}@{}'.format(user, server_url), command]
+
+        result[server_url] = _run_cmd(command)
+
+    # Storage systems are mouted locally, e.g. ngi-nas
+    for storage_system, path in config.get('storage_systems', {}).items():
+        # Get command
+        command = '{command} {path}'.format(command=config['command'], path=path)
+        result[storage_system] = _run_cmd(command.split())
+
     return result
+
+def _run_cmd(command):
+    proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    output = proc.stdout.read().decode("utf-8")
+    return _parse_output(output)
 
 def _parse_output(output): # for nases
     # command = df -h /home

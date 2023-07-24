@@ -13,11 +13,10 @@ def analysis():
 @analysis.command()
 @click.option('-r', '--run', type=click.Path(exists=True), default=None,
 				 help='Demultiplex only a particular run')
-@click.option('--force', is_flag=True, help='If specified, always tranfers the runs, even if they fail QC. Mail is sent anyway' )
 
-def demultiplex(run, force):
+def demultiplex(run):
 	"""Demultiplex and transfer all runs present in the data directories."""
-	an.run_preprocessing(run, force_trasfer=force)
+	an.run_preprocessing(run)
 
 @analysis.command()
 @click.option('--runfolder-project', is_flag=False, help='Project ID for runfolder transfer')
@@ -66,3 +65,9 @@ def ont_transfer(run):
     """Transfer runs present in the data directories to HPC cluster.
     """
     analysis_nanopore.transfer_finished(run)
+
+
+@analysis.command()
+@click.argument("run")
+def ont_updatedb(run):
+    analysis_nanopore.ont_updatedb_from_cli(run)
