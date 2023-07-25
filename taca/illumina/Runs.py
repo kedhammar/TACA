@@ -78,7 +78,7 @@ class Run(object):
                                                 'warnings' : warnings,
                                                 'error_and_warning_messages' : error_and_warning_messages
                                                }
-                if errors or warnings or error_and_warning_messages:
+                if errors or warnings:
                     logger.info("Sub-Demultiplexing in {} completed with {} errors and {} warnings!".format(demux_folder, errors, warnings))
                 else:
                     logger.info("Sub-Demultiplexing in {} completed without any error or warning.".format(demux_folder))
@@ -107,23 +107,19 @@ class Run(object):
         """
         with open(demux_log, 'r') as demux_log_file:
             demux_log_content = demux_log_file.readlines()
-            errors, warnings, error_and_warning_messages = self._extract_errors_and_warnings(demux_id, demux_log_content)
-            return errors, warnings, error_and_warning_messages
-
-    def _extract_errors_and_warnings(self, demux_id, demux_log_content):
-        pattern = r'Processing completed with (\d+) errors and (\d+) warnings'
-        match = re.search(pattern, demux_log_content[-1])
-        if match:
-            errors = int(match.group(1))
-            warnings = int(match.group(2))
-            error_and_warning_messages = []
-            if errors or warnings:
-                for line in demux_log_content:
-                    if 'ERROR' in line or 'WARN' in line:
-                        error_and_warning_messages.append(line)
-            return errors, warnings, error_and_warning_messages
-        else:
-            raise RuntimeError("Bad format with log file demux_{}_bcl2fastq.err".format(demux_id))
+            pattern = r'Processing completed with (\d+) errors and (\d+) warnings'
+            match = re.search(pattern, demux_log_content[-1])
+            if match:
+                errors = int(match.group(1))
+                warnings = int(match.group(2))
+                error_and_warning_messages = []
+                if errors or warnings:
+                    for line in demux_log_content:
+                        if 'ERROR' in line or 'WARN' in line:
+                            error_and_warning_messages.append(line)
+                return errors, warnings, error_and_warning_messages
+            else:
+                raise RuntimeError("Bad format with log file demux_{}_bcl2fastq.err".format(demux_id))
 
     def _set_run_type(self):
         raise NotImplementedError("Please Implement this method")

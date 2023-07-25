@@ -317,6 +317,7 @@ def run_preprocessing(run):
                             demux_summary_message.append("...... Only the first 5 errors or warnings are displayed for Demultiplexing_{}.".format(demux_id))
                 # Notify with a mail run completion and stats uploaded
                 if demux_summary_message:
+                    sbt = ("{} Demultiplexing Completed with ERRORs or WARNINGS!".format(run.id))
                     msg = """The run {run} has been demultiplexed with errors or warnings!
 
                     {errors_warnings}
@@ -327,6 +328,7 @@ def run_preprocessing(run):
 
                     """.format(errors_warnings='\n'.join(demux_summary_message), run=run.id)
                 else:
+                    sbt = ("{} Demultiplexing Completed!".format(run.id))
                     msg = """The run {run} has been demultiplexed without any error or warning.
 
                     The Run will be transferred to the analysis cluster for further analysis.
@@ -334,7 +336,7 @@ def run_preprocessing(run):
                     The run is available at : https://genomics-status.scilifelab.se/flowcells/{run}
 
                     """.format(run=run.id)
-                run.send_mail(msg, rcp=CONFIG['mail']['recipients'])
+                run.send_mail(sbt, msg, rcp=CONFIG['mail']['recipients'])
 
             # Copy demultiplex stats file to shared file system for LIMS purpose
             if 'mfs_path' in CONFIG['analysis']:
