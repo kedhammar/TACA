@@ -312,11 +312,9 @@ def run_preprocessing(run):
                 for demux_id, demux_log in run.demux_summary.items():
                     if demux_log['errors'] or demux_log['warnings']:
                         demux_summary_message.append("Sub-Demultiplexing in Demultiplexing_{} completed with {} errors and {} warnings:".format(demux_id, demux_log['errors'], demux_log['warnings']))
-                        demux_summary_message.append("\n")
                         demux_summary_message.append("\n".join(demux_log['error_and_warning_messages'][:5]))
                         if len(demux_log['error_and_warning_messages'])>5:
                             demux_summary_message.append("Subsequent error messages have been truncated. Only the first 5 lines are displayed.\n")
-                        demux_summary_message.append("\n")
                 # Notify with a mail run completion and stats uploaded
                 if demux_summary_message:
                     msg = """The run {run} has been demultiplexed with errors or warnings!
