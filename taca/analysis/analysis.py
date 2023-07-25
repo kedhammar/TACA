@@ -310,10 +310,11 @@ def run_preprocessing(run):
                 demux_summary_message = []
                 for demux_id, demux_log in run.demux_summary.items():
                     if demux_log['errors'] or demux_log['warnings']:
-                        demux_summary_message.append("Sub-Demultiplexing in Demultiplexing_{} completed with {} errors and {} warnings!".format(demux_id, demux_log['errors'], demux_log['warnings']))
+                        demux_summary_message.append("Sub-Demultiplexing in Demultiplexing_{} completed with {} errors and {} warnings:".format(demux_id, demux_log['errors'], demux_log['warnings']))
                         demux_summary_message.append("\n")
-                        demux_summary_message.append("First five error or warning records in Demultiplexing_{}:".format(demux_id))
                         demux_summary_message.append("\n".join(demux_log['error_and_warning_messages'][:5]))
+                        if len(demux_log['error_and_warning_messages'])>5:
+                            demux_summary_message.append("Subsequent error messages have been truncated. Only the first 5 lines are displayed.\n")
                         demux_summary_message.append("\n")
                 # Notify with a mail run completion and stats uploaded
                 if demux_summary_message:
@@ -325,7 +326,7 @@ def run_preprocessing(run):
 
                     The run is available at : https://genomics-status.scilifelab.se/flowcells/{run}
 
-                    """.format(errors_warnings='{\n}'.join(demux_summary_message), run=run.id)
+                    """.format(errors_warnings='\n'.join(demux_summary_message), run=run.id)
                 else:
                     msg = """The run {run} has been demultiplexed without any error or warning.
 
