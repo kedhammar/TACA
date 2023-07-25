@@ -303,6 +303,7 @@ def run_preprocessing(run):
         # Previous elif might change the status to COMPLETED, therefore to avoid skipping
         # a cycle take the last if out of the elif
         if run.get_run_status() == 'COMPLETED':
+            run.check_run_status()
             logger.info(('Preprocessing of run {} is finished, transferring it'.format(run.id)))
             # Upload to statusDB if applies
             if 'statusdb' in CONFIG:

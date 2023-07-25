@@ -62,9 +62,6 @@ class Run(object):
         """
         run_dir    =  self.run_dir
         dex_status =  self.get_run_status()
-        # All demux jobs finished and all stats aggregated under Demultiplexing
-        if  dex_status == 'COMPLETED':
-            return None
         # Check the status of running demux
         # Collect all samplesheets generated before
         samplesheets =  glob.glob(os.path.join(run_dir, "*_[0-9].csv")) # A single digit, this hypothesis should hold for a while
@@ -75,8 +72,8 @@ class Run(object):
             # Check if this job is done
             if os.path.exists(os.path.join(run_dir, demux_folder, 'Stats', 'DemultiplexingStats.xml')):
                 all_demux_done = all_demux_done and True
-                demux_log = os.path.join(run_dir, demux_folder, "demux_{}_bcl2fastq.err".format(demux_id))
-                errors, warnings, error_and_warning_messages = _check_demux_log(demux_id, demux_log)
+                demux_log = os.path.join(run_dir, "demux_{}_bcl2fastq.err".format(demux_id))
+                errors, warnings, error_and_warning_messages = self._check_demux_log(demux_id, demux_log)
                 self.demux_summary[demux_id] = {'errors' : errors,
                                                 'warnings' : warnings,
                                                 'error_and_warning_messages' : error_and_warning_messages
@@ -88,8 +85,11 @@ class Run(object):
             else:
                 all_demux_done = all_demux_done and False
                 logger.info("Sub-Demultiplexing in {} not completed yet.".format(demux_folder))
+
+        # All demux jobs finished and all stats aggregated under Demultiplexing
         # Aggreate all the results in the Demultiplexing folder
-        if all_demux_done:
+        if  all_demux_done and dex_status!='COMPLETED':
+            dex_status = 'COMPLETED'
             self._aggregate_demux_results()
             self.runParserObj = RunParser(self.run_dir)
             # Rename undetermined if needed
@@ -98,18 +98,19 @@ class Run(object):
             for lane in lanes:
                 if self.is_unpooled_lane(lane):
                     self._rename_undet(lane, samples_per_lane)
+            return None
 
-    def _check_demux_log(demux_id, demux_log):
+    def _check_demux_log(self, demux_id, demux_log):
         """
         This function checks the log files of bcl2fastq
         Errors or warnings will be captured and email notifications will be sent
         """
         with open(demux_log, 'r') as demux_log_file:
             demux_log_content = demux_log_file.readlines()
-            errors, warnings, error_and_warning_messages = _extract_errors_and_warnings(demux_id, demux_log_content)
+            errors, warnings, error_and_warning_messages = self._extract_errors_and_warnings(demux_id, demux_log_content)
             return errors, warnings, error_and_warning_messages
 
-    def _extract_errors_and_warnings(demux_id, demux_log_content):
+    def _extract_errors_and_warnings(self, demux_id, demux_log_content):
         pattern = r'Processing completed with (\d+) errors and (\d+) warnings'
         match = re.search(pattern, demux_log_content[-1])
         if match:
