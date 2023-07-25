@@ -47,9 +47,9 @@ def get_runObj(run):
                     'This is quite unexpected. please archive the run {} manually'.format(run_parameters_path, run))
     else:
         # Do a case by case test because there are so many version of RunParameters that there is no real other way
-        runtype = run_parameters.data['RunParameters'].get('InstrumentType', 
-                                               run_parameters.data['RunParameters'].get('ApplicationName', 
-                                                                            run_parameters.data['RunParameters'].get('Application', 
+        runtype = run_parameters.data['RunParameters'].get('InstrumentType',
+                                               run_parameters.data['RunParameters'].get('ApplicationName',
+                                                                            run_parameters.data['RunParameters'].get('Application',
                                                                                                          '')))
         if 'Setup' in run_parameters.data['RunParameters']:
             # This is the HiSeq2500, MiSeq, and HiSeqX case
@@ -303,18 +303,40 @@ def run_preprocessing(run):
         # Previous elif might change the status to COMPLETED, therefore to avoid skipping
         # a cycle take the last if out of the elif
         if run.get_run_status() == 'COMPLETED':
+            run.check_run_status()
             logger.info(('Preprocessing of run {} is finished, transferring it'.format(run.id)))
             # Upload to statusDB if applies
             if 'statusdb' in CONFIG:
                 _upload_to_statusdb(run)
+                demux_summary_message = []
+                for demux_id, demux_log in run.demux_summary.items():
+                    if demux_log['errors'] or demux_log['warnings']:
+                        demux_summary_message.append("Sub-Demultiplexing in Demultiplexing_{} completed with {} errors and {} warnings:".format(demux_id, demux_log['errors'], demux_log['warnings']))
+                        demux_summary_message.append("\n".join(demux_log['error_and_warning_messages'][:5]))
+                        if len(demux_log['error_and_warning_messages'])>5:
+                            demux_summary_message.append("...... Only the first 5 errors or warnings are displayed for Demultiplexing_{}.".format(demux_id))
                 # Notify with a mail run completion and stats uploaded
-                msg = """The run {run} has been demultiplexed.
-                The Run will be transferred to the analysis cluster for further analysis.
+                if demux_summary_message:
+                    sbt = ("{} Demultiplexing Completed with ERRORs or WARNINGS!".format(run.id))
+                    msg = """The run {run} has been demultiplexed with errors or warnings!
 
-                The run is available at : https://genomics-status.scilifelab.se/flowcells/{run}
+                    {errors_warnings}
 
-                """.format(run=run.id)
-                run.send_mail(msg, rcp=CONFIG['mail']['recipients'])
+                    The Run will be transferred to the analysis cluster for further analysis.
+
+                    The run is available at : https://genomics-status.scilifelab.se/flowcells/{run}
+
+                    """.format(errors_warnings='\n'.join(demux_summary_message), run=run.id)
+                else:
+                    sbt = ("{} Demultiplexing Completed!".format(run.id))
+                    msg = """The run {run} has been demultiplexed without any error or warning.
+
+                    The Run will be transferred to the analysis cluster for further analysis.
+
+                    The run is available at : https://genomics-status.scilifelab.se/flowcells/{run}
+
+                    """.format(run=run.id)
+                run.send_mail(sbt, msg, rcp=CONFIG['mail']['recipients'])
 
             # Copy demultiplex stats file to shared file system for LIMS purpose
             if 'mfs_path' in CONFIG['analysis']:
