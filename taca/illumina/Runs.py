@@ -378,13 +378,14 @@ class Run(object):
         else:
             logger.warning("Cannot move run to archive, destination does not exist")
 
-    def send_mail(self, msg, rcp):
+    def send_mail(self, sbt, msg, rcp):
         """ Sends mail about run completion
         """
         already_seen = False
         runname = self.id
-        sj = "{}".format(runname)
-        misc.send_mail(sj, msg, rcp)
+        if not sbt:
+            sbt = "{}".format(runname)
+        misc.send_mail(sbt, msg, rcp)
 
     def is_transferred(self, transfer_file):
         """ Checks wether a run has been transferred to the analysis server or not.
