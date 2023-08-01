@@ -18,12 +18,11 @@ class MinIONqc(Nanopore):
         self.transfer_details = CONFIG.get('nanopore_analysis').get('minion_qc_run').get('transfer')
         self.transfer_log = self.transfer_details.get('transfer_file')
         self.archive_dir = self.transfer_details.get('finished_dir')
-        self.nanoseq_sample_sheet = nanoseq_sample_sheet
         self.anglerfish_sample_sheet = anglerfish_sample_sheet
                
-        self.nanoseq_dir = os.path.join(self.run_dir, 'nanoseq_output')
+        self.basecalled_dir = os.path.join(self.run_dir, 'restuls?') #TODO: get actual name of results dir
         self.anglerfish_dir = os.path.join(self.run_dir, 'anglerfish_output')
-        self.nanoseq_exit_status_file = os.path.join(self.run_dir, '.exitcode_for_nanoseq')
+        self.nanoseq_exit_status_file = os.path.join(self.run_dir, '.exitcode_for_nanoseq') #TODO: replace with run finished indicator if needed
         self.anglerfish_exit_status_file = os.path.join(self.run_dir, '.exitcode_for_anglerfish')
 
         self.year_processed = self.run_id[0:4]
@@ -93,84 +92,6 @@ class MinIONqc(Nanopore):
             with open(self.anglerfish_sample_sheet, 'w') as f:
                 f.write(anglerfish_content)
 
-    def start_nanoseq(self):
-        """Start Nanoseq analysis."""
-        flowcell_product_code = self._get_flowcell_product_code() 
-        kit_id = os.path.basename(self.nanoseq_sample_sheet).split('_')[0]
-        nanoseq_version = CONFIG.get('nanopore_analysis').get('minion_qc_run').get('nanoseq_version')
-        if self._is_multiplexed():
-            logger.info('Run {} is multiplexed. Starting nanoseq with --barcode_kit option'.format(self.run_dir))
-            barcode_kit = self._get_barcode_kit()
-            analysis_command = ('nextflow run nf-core/nanoseq'
-                                + ' -r ' + nanoseq_version
-                                + ' --input ' + self.nanoseq_sample_sheet
-                                + ' --protocol DNA'
-                                + ' --input_path ' + os.path.join(self.run_dir, 'fast5')
-                                + ' --outdir ' + os.path.join(self.run_dir, 'nanoseq_output')
-                                + ' --flowcell ' + flowcell_product_code
-                                + ' --guppy_gpu'
-                                + ' --skip_alignment'
-                                + ' --skip_quantification'
-                                + ' --kit ' + kit_id
-                                + ' --max_cpus 6'
-                                + ' --max_memory 20.GB'
-                                + ' --barcode_kit ' + barcode_kit
-                                + ' -profile singularity; echo $? > .exitcode_for_nanoseq')
-        else:
-            logger.info('Run {} is not multiplexed. Starting nanoseq without --barcode_kit option'.format(self.run_dir))
-            analysis_command = ('nextflow run nf-core/nanoseq'
-                                + ' -r ' + nanoseq_version
-                                + ' --input ' + self.nanoseq_sample_sheet
-                                + ' --protocol DNA'
-                                + ' --input_path ' + os.path.join(self.run_dir, 'fast5')
-                                + ' --outdir ' + os.path.join(self.run_dir, 'nanoseq_output')
-                                + ' --flowcell ' + flowcell_product_code
-                                + ' --guppy_gpu'
-                                + ' --skip_alignment'
-                                + ' --skip_quantification'
-                                + ' --kit ' + kit_id
-                                + ' --max_cpus 6'
-                                + ' --max_memory 20.GB'
-                                + ' -profile singularity; echo $? > .exitcode_for_nanoseq')
-
-        try:
-            p_handle = subprocess.Popen(analysis_command, stdout=subprocess.PIPE, shell=True, cwd=self.run_dir)
-            logger.info('Started Nanoseq for run {}'.format(self.run_dir))
-        except subprocess.CalledProcessError:
-            logger.warn('An error occurred while starting the Nanoseq for run {}. '
-                        'Please check the logfile for info.'.format(self.run_dir))
-
-    def _get_flowcell_product_code(self):
-        """Look for flow_cell_product_code in report.md and return the corresponding value."""
-        report_file = glob.glob(self.run_dir + '/report*.md')[0]
-        with open(report_file, 'r') as f:
-            for line in f.readlines():
-                if 'flow_cell_product_code' in line:
-                    return line.split('"')[3]
-
-    def _is_multiplexed(self):
-        """Look in the sample_sheet and return True if the run was multiplexed, else False.
-        Assumes that a run that has not been multiplexed has the barcode 0."""
-        with open(self.nanoseq_sample_sheet, 'r') as f:
-            for i, line in enumerate(f):
-                if i == 1:  # Only need to check first non-header line
-                    line_entries = line.split(',')
-        if line_entries[2] == '0':
-            return False
-        else:
-            return True
-
-    def _get_barcode_kit(self):
-        """Figure out which barcode kit was used. Assumes only one kit is ever used."""
-        with open(self.nanoseq_sample_sheet, 'r') as f:
-            for i, line in enumerate(f):
-                if i == 1:  # Only need to check first non-header line
-                    line_entries = line.split(',')
-        if int(line_entries[2]) <= 12:
-            return 'EXP-NBD104'
-        elif int(line_entries[2]) >= 13:
-            return 'EXP-NBD114'
-
     def check_exit_status(self, status_file):
         """Read pipeline exit status file and return True if 0, False if anything else"""
         with open(status_file, 'r') as f:
@@ -180,7 +101,7 @@ class MinIONqc(Nanopore):
     def start_anglerfish(self):
         """Start Anglerfish."""
         os.makedirs(self.anglerfish_dir)
-        anglerfish_command = ('anglerfish'
+        anglerfish_command = ('anglerfish' #TODO: check that this is still correct
                             + ' --samplesheet ' + self.anglerfish_sample_sheet
                             + ' --out_fastq ' + self.anglerfish_dir
                             + ' --threads 2'
