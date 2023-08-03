@@ -1,12 +1,10 @@
 """Storage methods and utilities"""
-from __future__ import print_function
 import getpass
 import logging
 import os
 import re
 import shutil
 import time
-import yaml
 
 from collections import defaultdict
 from datetime import datetime
@@ -14,7 +12,6 @@ from glob import glob
 
 from taca.utils.config import CONFIG, load_config
 from taca.utils import filesystem, misc, statusdb
-from taca.illumina.MiSeq_Runs import MiSeq_Run
 from io import open
 from six.moves import map
 
@@ -22,52 +19,6 @@ logger = logging.getLogger(__name__)
 
 # This is used by many of the functions in this module
 finished_run_indicator = CONFIG.get('storage', {}).get('finished_run_indicator', 'RTAComplete.txt')
-copy_complete_indicator = CONFIG.get('storage', {}).get('copy_complete_indicator', 'CopyComplete.txt')
-
-def cleanup_nas(seconds):
-    """Will move the finished runs in NASes to nosync directory.
-
-    :param int seconds: Days/hours converted as second to consider a run to be old
-    """
-    couch_info = CONFIG.get('statusdb')
-    mail_recipients = CONFIG.get('mail', {}).get('recipients')
-    check_demux = CONFIG.get('storage', {}).get('check_demux', False)
-    host_name = os.getenv('HOSTNAME', os.uname()[1]).split('.', 1)[0]
-    run_types = ['novaseq', 'miseq', 'nextseq']
-    for data_dir in CONFIG.get('storage').get('data_dirs'):
-        if not os.path.exists(data_dir) or not os.path.isdir(data_dir):
-            logger.warn('Data directory "{}" does not exist or not a directory'.format(data_dir))
-            continue
-        logger.info('Moving old runs in {}'.format(data_dir))
-        with filesystem.chdir(data_dir):
-            for run in [r for r in os.listdir(data_dir) if re.match(filesystem.RUN_RE, r)]:
-                if any(run_type in data_dir for run_type in run_types):
-                    rta_file = os.path.join(run, finished_run_indicator)
-                    cp_file = os.path.join(run, copy_complete_indicator)
-                    if os.path.exists(rta_file) and os.path.exists(cp_file):
-                        logger.info('Moving run {} to nosync directory'.format(os.path.basename(run)))
-                        shutil.move(run, 'nosync')
-                else:
-                    rta_file = os.path.join(run, finished_run_indicator)
-                    if os.path.exists(rta_file):
-                        if check_demux:
-                            if misc.run_is_demuxed(run, couch_info):
-                                logger.info('Moving run {} to nosync directory'.format(os.path.basename(run)))
-                                shutil.move(run, 'nosync')
-                            elif os.stat(rta_file).st_mtime < time.time() - seconds:
-                                logger.warn('Run {} is older than given time, but it is not demultiplexed yet'
-                                            .format(run))
-                                sbt = 'Run not demultiplexed - {}'.format(run)
-                                msg = ('Run "{}" in "{}" is older then given threshold, but seems like it is not '
-                                'yet demultiplexed'.format(os.path.join(data_dir, run), host_name))
-                                misc.send_mail(sbt, msg, mail_recipients)
-                        else:
-                            if os.stat(rta_file).st_mtime < time.time() - seconds:
-                                logger.info('Moving run {} to nosync directory'.format(os.path.basename(run)))
-                                shutil.move(run, 'nosync')
-                            else:
-                                logger.info('{} file exists but is not older than given time, skipping run {}'
-                                            .format(finished_run_indicator, run))
 
 def cleanup_processing(seconds):
     """Cleanup runs in processing server.

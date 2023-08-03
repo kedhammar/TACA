@@ -20,17 +20,6 @@ def cleanup(ctx, status_db_config):
 @click.option('-h', '--hours', type=click.IntRange(min=1),
               help='Hours to consider as thershold, should not be combined with option "--days"')
 @click.pass_context
-def nas(ctx, days, hours):
-    """Do appropriate cleanup on NAS."""
-    seconds = misc.to_seconds(days, hours)
-    cln.cleanup_nas(seconds)
-
-@cleanup.command()
-@click.option('-d', '--days', type=click.IntRange(min=1),
-              help='Days to consider as thershold, should not be combined with option "--hours"')
-@click.option('-h', '--hours', type=click.IntRange(min=1),
-              help='Hours to consider as thershold, should not be combined with option "--days"')
-@click.pass_context
 def preproc(ctx, days, hours):
     """Do appropriate cleanup on preproc."""
     seconds = misc.to_seconds(days, hours)
