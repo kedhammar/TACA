@@ -61,7 +61,7 @@ class TestMinION(unittest.TestCase):
         """Get location of lims sample sheet."""
         run_dir = 'data/nanopore_data/run2/done_sequencing/20200102_1412_MN19414_AAU642_68125dc2'
         run = MinIONqc(run_dir, None, None)
-        run._get_original_samplesheet()
+        run._get_anglerfish_samplesheet()
         expected_sample_sheet = 'data/nanopore_samplesheets/2020/QC_SQK-LSK109_AAU642_Samplesheet_22-594126.csv'
         self.assertEqual(run.lims_samplesheet, expected_sample_sheet)
 

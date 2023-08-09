@@ -81,58 +81,41 @@ def find_ont_transfer_runs(ont_data_dir, skip_dirs):
         )
     return found_dirs
 
-
-def check_ongoing_sequencing(run_dir):
-    """Check if sequencing is ongoing for the given run dir"""
-    summary_file = glob.glob(run_dir + "/final_summary*.txt")
-
-    if not len(summary_file):
-        logger.info(
-            "Sequencing ongoing for run {}. Will not start nanoseq at this time".format(
-                run_dir
-            )
-        )
-        return True
-    else:
-        return False
-
-
 def process_minion_qc_run(minion_run):
     """Process MinION QC runs on Squiggle.
     """
     logger.info("Processing QC run: {}".format(minion_run.run_dir))
     email_recipients = CONFIG.get("mail").get("recipients")
-    if not len(minion_run.summary_file): #TODO: is this enough to check if sequencing and basecalling is still ongoing?
-        #Sequencing not done, do nothing to this run
+    if not len(minion_run.summary_file):
+        # Sequencing not done, do nothing to this run
         logger.info(
             "Sequencing is still ongoing for run {}. Skipping.".format(
                 minion_run.run_id
                 )
         )
         return
-            
+    
     if (
         len(minion_run.summary_file)
         and os.path.isfile(minion_run.summary_file[0])
         and not os.path.isdir(minion_run.anglerfish_dir)
     ):
-        #Sequencing done, AF not started. Get the AF SS and start AF
+        # Sequencing done, AF not started. Get the AF SS and start AF
         logger.info(
             "Sequencing is done for run {}. Attempting to start Anglerfish.".format(
                 minion_run.run_id
                 )
             )
         if not minion_run.anglerfish_sample_sheet:
-            minion_run.anglerfish_sample_sheet = os.path.join(
-                minion_run.run_dir, "anglerfish_sample_sheet.csv" #TODO: Copy this from lims location instead
-            )
-        if os.path.isfile(minion_run.anglerfish_sample_sheet):
+            minion_run.anglerfish_sample_sheet = minion_run.get_anglerfish_samplesheet()
+            
+        if minion_run.anglerfish_sample_sheet and os.path.isfile(minion_run.anglerfish_sample_sheet):
             minion_run.start_anglerfish()
         else:
             logger.warning(
                 "Anglerfish sample sheet missing for run {}. "
                 "Please provide one using --anglerfish_sample_sheet "
-                "if running TACA manually.".format(minion_run.run_id)
+                "or complete the correct lims step.".format(minion_run.run_id)
             )
     elif not os.path.isfile(minion_run.anglerfish_exit_status_file):
                 logger.info(
@@ -140,9 +123,6 @@ def process_minion_qc_run(minion_run):
                         minion_run.run_id
                     )
                 )
-
-    
-
     elif os.path.isfile(minion_run.anglerfish_exit_status_file):
         anglerfish_successful = minion_run.check_exit_status(
             minion_run.anglerfish_exit_status_file
@@ -174,7 +154,7 @@ def process_minion_qc_run(minion_run):
                 ).format(minion_run.run_id)
                 send_mail(email_subject, email_message, email_recipients)
 
-            if minion_run.is_not_transferred(): #TODO: replace with propper archiving
+            if minion_run.is_not_transferred():
                 if minion_run.transfer_run():
                     if minion_run.update_transfer_log():
                         logger.info(
@@ -221,7 +201,6 @@ def process_minion_qc_run(minion_run):
                         send_mail(
                             email_subject, email_message, email_recipients
                         )
-
                 else:
                     logger.warning(
                         "An error occurred during transfer of run {} "
@@ -234,10 +213,9 @@ def process_minion_qc_run(minion_run):
                     )
                     email_message = (
                         "Run {} has been analysed, but an error occurred during "
-                        "transfer."
+                        "transfer to the analysis cluster."
                     ).format(minion_run.run_id)
                     send_mail(email_subject, email_message, email_recipients)
-
             else:
                 logger.warning(
                     "The following run has already been transferred, "

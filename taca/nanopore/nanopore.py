@@ -17,6 +17,8 @@ class Nanopore(object):
         self.run_dir = run_dir
         self.run_id = os.path.basename(run_dir)
         self.summary_file = glob.glob(run_dir + '/final_summary*.txt')
+        self.top_dir = str(pathlib.Path(self.run_dir).parent.parent)
+        self.experiment_id = os.path.basename(self.top_dir)
 
     def is_not_transferred(self):
         """Return True if run id not in transfer.tsv, else False."""
@@ -70,20 +72,18 @@ class Nanopore(object):
         """Move directory to nosync."""
         logger.info('Archiving run ' + self.run_id)
         dir_to_move = str(pathlib.Path(self.run_dir).parent)
-        top_dir = str(pathlib.Path(self.run_dir).parent.parent)  # Get the project folder to archive
-        project_id = os.path.basename(top_dir)
-        project_archive = os.path.join(self.archive_dir, project_id)
+        project_archive = os.path.join(self.archive_dir, self.experiment_id)
         if not os.path.exists(project_archive):
             os.mkdir(project_archive)
         try:
             print(dir_to_move, project_archive)
             shutil.move(dir_to_move, project_archive)
             logger.info('Successfully archived {}'.format(self.run_id))
-            if not os.listdir(top_dir):
-                logger.info("Project folder {} is empty. Removing it.".format(top_dir))
-                os.rmdir(top_dir)
+            if not os.listdir(self.top_dir):
+                logger.info("Project folder {} is empty. Removing it.".format(self.top_dir))
+                os.rmdir(self.top_dir)
             else:
-                logger.info("Some data is still left in {}. Keeping it.".format(top_dir))  # Might be another run for the same project
+                logger.info("Some data is still left in {}. Keeping it.".format(self.top_dir))  # Might be another run for the same project
             return True
         except shutil.Error as e:
             logger.warn('The following error occurred when archiving {}:\n'
