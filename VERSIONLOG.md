@@ -1,5 +1,8 @@
 # TACA Version Log
 
+## 20230809.1
+Update PromethION script to extend the scope of the log file parsing.
+
 ## 20230724.1
 Enable TACA to retrieve error and warnings in bcl2fastq logs
 
