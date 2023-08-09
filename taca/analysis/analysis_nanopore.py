@@ -87,7 +87,6 @@ def process_minion_qc_run(minion_run):
     logger.info("Processing QC run: {}".format(minion_run.run_dir))
     email_recipients = CONFIG.get("mail").get("recipients")
     if not len(minion_run.summary_file):
-        # Sequencing not done, do nothing to this run
         logger.info(
             "Sequencing is still ongoing for run {}. Skipping.".format(
                 minion_run.run_id
@@ -100,7 +99,6 @@ def process_minion_qc_run(minion_run):
         and os.path.isfile(minion_run.summary_file[0])
         and not os.path.isdir(minion_run.anglerfish_dir)
     ):
-        # Sequencing done, AF not started. Get the AF SS and start AF
         logger.info(
             "Sequencing is done for run {}. Attempting to start Anglerfish.".format(
                 minion_run.run_id
