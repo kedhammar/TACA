@@ -1,6 +1,6 @@
 """ Transfers new PromethION runs to ngi-nas using rsync.
 """
-__version__ = "1.0.7"
+__version__ = "1.0.8"
 
 import os
 import re
@@ -139,13 +139,21 @@ def archive_finished_run(run_dir, archive_dir):
     if not os.listdir(sample_dir):
         print(f"Sample folder {sample_dir} is empty. Removing it.")
         os.rmdir(sample_dir)
+    else:
+        print(
+            f"Sample folder {sample_dir} is not empty ({os.listdir(sample_dir)}), leaving it."
+        )
     # Remove experiment group dir, if empty
     if not os.listdir(exp_dir):
         print(f"Experiment group folder {exp_dir} is empty. Removing it.")
         os.rmdir(exp_dir)
+    else:
+        print(
+            f"Experiment group folder {exp_dir} is not empty ({os.listdir(exp_dir)}), leaving it."
+        )
 
 
-def parse_position_logs(minknow_log_dir: str) -> list:
+def parse_position_logs(minknow_logs_dir: str) -> list:
     """Look through all flow cell position logs and boil down into a structured list of dicts
 
     Example output:
@@ -160,7 +168,6 @@ def parse_position_logs(minknow_log_dir: str) -> list:
 
     """
 
-    position_log_file_name = "control_server_log-0.txt"
     log_timestamp_format = "%Y-%m-%d %H:%M:%S.%f"
 
     positions = []
@@ -170,32 +177,36 @@ def parse_position_logs(minknow_log_dir: str) -> list:
 
     entries = []
     for position in positions:
-        with open(
-            f"{minknow_log_dir}/{position}/{position_log_file_name}", "r"
-        ) as stream:
-            lines = stream.readlines()
-            for i in range(0, len(lines)):
-                line = lines[i]
-                if line[0:4] != "    ":
-                    # Line is log header
-                    split_header = line.split(" ")
-                    timestamp = " ".join(split_header[0:2])
-                    category = " ".join(split_header[2:])
 
-                    entry = {
-                        "position": position,
-                        "timestamp": timestamp.strip(),
-                        "category": category.strip(),
-                    }
-                    entries.append(entry)
-                else:
-                    # Line is log body
-                    if "body" not in entry:
-                        entry["body"] = {}
-                    key = line.split(": ")[0].strip()
-                    val = ": ".join(line.split(": ")[1:]).strip()
-                    entry["body"][key] = val
+        log_files = glob(f"{minknow_logs_dir}/{position}/control_server_log-*.txt")
+        log_files.sort()
 
+        for log_file in log_files:
+            with open(log_file) as stream:
+                lines = stream.readlines()
+                for i in range(0, len(lines)):
+                    line = lines[i]
+                    if line[0:4] != "    ":
+                        # Line is log header
+                        split_header = line.split(" ")
+                        timestamp = " ".join(split_header[0:2])
+                        category = " ".join(split_header[2:])
+
+                        entry = {
+                            "position": position,
+                            "timestamp": timestamp.strip(),
+                            "category": category.strip(),
+                        }
+                        entries.append(entry)
+                    else:
+                        # Line is log body
+                        if "body" not in entry:
+                            entry["body"] = {}
+                        key = line.split(": ")[0].strip()
+                        val = ": ".join(line.split(": ")[1:]).strip()
+                        entry["body"][key] = val
+
+    entries.sort(key=lambda x: x["timestamp"])
     return entries
 
 
