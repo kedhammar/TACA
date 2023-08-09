@@ -139,10 +139,18 @@ def archive_finished_run(run_dir, archive_dir):
     if not os.listdir(sample_dir):
         print(f"Sample folder {sample_dir} is empty. Removing it.")
         os.rmdir(sample_dir)
+    else:
+        print(
+            f"Sample folder {sample_dir} is not empty ({os.listdir(sample_dir)}), leaving it."
+        )
     # Remove experiment group dir, if empty
     if not os.listdir(exp_dir):
         print(f"Experiment group folder {exp_dir} is empty. Removing it.")
         os.rmdir(exp_dir)
+    else:
+        print(
+            f"Experiment group folder {exp_dir} is not empty ({os.listdir(exp_dir)}), leaving it."
+        )
 
 
 def parse_position_logs(minknow_logs_dir: str) -> list:
