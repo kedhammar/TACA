@@ -1,5 +1,8 @@
 # TACA Version Log
 
+## 20230810.1
+Implement logging for PromethION script.
+
 ## 20230809.2
 Update handling of MinION QC runs to not run nanoseq, only anglerfish.
 
