@@ -66,7 +66,7 @@ class MinIONqc(Nanopore):
         """Find results and copy to lims directory."""
         year_processed = self.run_id[0:4]
         lims_result_file = os.path.join(CONFIG.get('nanopore_analysis').get('minion_qc_run').get('lims_results_dir'),
-                                        year_processed, 'anglerfish_stats_' + self.experiment_id + '.txt')
+                                        year_processed, self.run_id, 'anglerfish_stats_' + self.experiment_id + '.txt')
         anglerfish_results = self._find_anglerfish_results()
         try:
             shutil.copyfile(anglerfish_results, lims_result_file)

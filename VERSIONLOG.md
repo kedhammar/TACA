@@ -1,5 +1,8 @@
 # TACA Version Log
 
+## 20230814.1
+Update path to store Anglerfish results.
+
 ## 20230810.1
 Implement logging for PromethION script.
 
