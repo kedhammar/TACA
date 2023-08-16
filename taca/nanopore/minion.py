@@ -64,10 +64,12 @@ class MinIONqc(Nanopore):
 
     def copy_results_for_lims(self):
         """Find results and copy to lims directory."""
-        year_processed = self.run_id[0:4]
-        lims_result_file = os.path.join(CONFIG.get('nanopore_analysis').get('minion_qc_run').get('lims_results_dir'),
-                                        year_processed, self.run_id, 'anglerfish_stats_' + self.experiment_id + '.txt')
+        lims_result_path = os.path.join(CONFIG.get('nanopore_analysis').get('minion_qc_run').get('lims_results_dir'),
+                                        self.run_id)
+        lims_result_file = os.path.join(lims_result_path, 'anglerfish_stats_' + self.experiment_id + '.txt')
         anglerfish_results = self._find_anglerfish_results()
+        if not os.path.isdir(lims_result_path):
+            os.mkdir(lims_result_path)
         try:
             shutil.copyfile(anglerfish_results, lims_result_file)
             return True
