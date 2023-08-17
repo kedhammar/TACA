@@ -325,19 +325,19 @@ def ont_updatedb(ont_run):
                 )
 
                 # Parse the MinKNOW .json report file and finish the ongoing run document
-                glob_json = glob.glob(ont_run.run_dir + "/report*.json")
-                if len(glob_json) == 0:
+                glob_report_json = glob.glob(ont_run.run_dir + "/report*.json")
+                if len(glob_report_json) == 0:
                     error_message = f"Run {ont_run.run_id} is marked as finished, but missing .json report file."
                     logger.error(error_message)
                     raise AssertionError(error_message)
 
-                elif len(glob_json) > 1:
+                elif len(glob_report_json) > 1:
                     error_message = f"Run {ont_run.run_id} is marked as finished, but contains conflicting .json report files."
                     logger.error(error_message)
                     raise AssertionError(error_message)
 
                 # Trim the contents of the MinKNOW report.json file to accomodate CouchDB size constraints (and save space)
-                dict_json = json.load(open(glob_json[0], "r"))
+                dict_json = json.load(open(glob_report_json[0], "r"))
                 initial_size = len(json.dumps(dict_json))
                 trimmed_acquisition_outputs = []
 
@@ -357,7 +357,7 @@ def ont_updatedb(ont_run):
                 new_size = len(json.dumps(dict_json))
                 trimmed_fraction = round((1 - new_size / initial_size) * 100, 2)
                 logger.info(
-                    f"Reduced space by {trimmed_fraction}% by trimming out unused data acquisition outputs from {os.path.basename(glob_json[0])}"
+                    f"Reduced space by {trimmed_fraction}% by trimming out unused data acquisition outputs from {os.path.basename(glob_report_json[0])}"
                 )
 
                 # Parse pore_activity_*.csv and include in the JSON object to append to the DB
