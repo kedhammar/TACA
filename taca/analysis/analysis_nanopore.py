@@ -324,41 +324,50 @@ def ont_updatedb(ont_run):
                     f"Run {ont_run.run_id} has finished sequencing, updating the db entry."
                 )
 
+                db_update = {}
+
                 # Parse the MinKNOW .json report file and finish the ongoing run document
                 glob_report_json = glob.glob(ont_run.run_dir + "/report*.json")
                 if len(glob_report_json) == 0:
                     error_message = f"Run {ont_run.run_id} is marked as finished, but missing .json report file."
                     logger.error(error_message)
                     raise AssertionError(error_message)
-
                 elif len(glob_report_json) > 1:
                     error_message = f"Run {ont_run.run_id} is marked as finished, but contains conflicting .json report files."
                     logger.error(error_message)
                     raise AssertionError(error_message)
 
-                # Trim the contents of the MinKNOW report.json file to accomodate CouchDB size constraints (and save space)
-                dict_json = json.load(open(glob_report_json[0], "r"))
-                initial_size = len(json.dumps(dict_json))
-                trimmed_acquisition_outputs = []
+                dict_json_report = json.load(open(glob_report_json[0], "r"))
 
-                for acquisition_output in dict_json["acquisitions"][-1][
-                    "acquisition_output"
+                logger.info(f"Parsing report JSON of run {ont_run.run_id}")
+
+                # Add useful stuff from the json report to the DB entry update
+                for section in [
+                    "software_versions",
+                    "host",
+                    "protocol_run_info",
+                    "user_messages",
                 ]:
-                    if acquisition_output["type"] in [
-                        "AllData",
-                        "SplitByBarcode",
-                    ]:
-                        trimmed_acquisition_outputs.append(acquisition_output)
+                    db_update[section] = dict_json_report[section]
 
-                dict_json["acquisitions"][-1][
-                    "acquisition_output"
-                ] = trimmed_acquisition_outputs
+                seq_metadata = dict_json_report["acquisitions"][-1]
 
-                new_size = len(json.dumps(dict_json))
-                trimmed_fraction = round((1 - new_size / initial_size) * 100, 2)
-                logger.info(
-                    f"Reduced space by {trimmed_fraction}% by trimming out unused data acquisition outputs from {os.path.basename(glob_report_json[0])}"
-                )
+                seq_metadata_trimmed = {}
+                seq_metadata_trimmed["acquisition_run_info"] = {}
+                seq_metadata_trimmed["acquisition_run_info"][
+                    "yield_summary"
+                ] = seq_metadata["acquisition_run_info"]["yield_summary"]
+                seq_metadata_trimmed["acquisition_run_info"][
+                    "yield_summary"
+                ] = seq_metadata["acquisition_run_info"]["yield_summary"]
+
+                seq_metadata_trimmed["acquisition_output"] = []
+                for section in seq_metadata["acquisition_output"]:
+                    if section["type"] in ["AllData", "SplitByBarcode"]:
+                        seq_metadata_trimmed["acquisition_output"].append(section)
+
+                db_update["acquisitions"] = []
+                db_update["acquisitions"].append(seq_metadata_trimmed)
 
                 # Parse pore_activity_*.csv and include in the JSON object to append to the DB
                 pore_activity_filename = "pore_activity_*.csv"
@@ -379,13 +388,13 @@ def ont_updatedb(ont_run):
                     "State Time (samples)", "Experiment Time (minutes)", "Channel State"
                 )
                 pore_activity = df.to_dict("records")
-                dict_json["pore_activity"] = pore_activity
+                db_update["pore_activity"] = pore_activity
                 logger.info(
                     f"Appending pore activity to the database update of run {ont_run.run_id}"
                 )
 
                 # Update the DB entry
-                sesh.finish_ongoing_run(ont_run, dict_json)
+                sesh.finish_ongoing_run(ont_run, db_update)
                 logger.info(
                     f"Successfully updated the db entry of run {ont_run.run_id}"
                 )
