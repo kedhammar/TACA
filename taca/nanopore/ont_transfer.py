@@ -26,6 +26,7 @@ class ONTTransfer(Nanopore):
                         'Please check the logfile for more info.'.format(self.run_dir))
             return False
 
+
 class PromethionTransfer(ONTTransfer):
     """Class for transfer of PromethION data to HPC cluster"""
     def __init__(self, run_dir):
@@ -33,7 +34,7 @@ class PromethionTransfer(ONTTransfer):
         self.transfer_details = CONFIG.get('nanopore_analysis').get('ont_transfer').get('promethion')
         self.transfer_log = self.transfer_details.get('transfer_file')
         self.archive_dir = self.transfer_details.get('finished_dir')
-        
+
 
 class MinionTransfer(ONTTransfer):
     """Class for transfer of MinION data to HPC cluster"""
