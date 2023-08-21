@@ -82,7 +82,6 @@ def find_ont_transfer_runs(ont_data_dir, skip_dirs):
         )
     return found_dirs
 
-
 def process_minion_qc_run(minion_run):
     """Process MinION QC runs on Squiggle.
     """
@@ -535,18 +534,6 @@ def transfer_ont_run(ont_run):
             )
         )
         if ont_run.is_not_transferred():
-
-            # Copy metadata
-            if ont_run.transfer_metadata():
-                logger.info(
-                    f"Metadata of run {ont_run.run_id} has been synced to {ont_run.metadata_dir}"
-                )
-            else:
-                email_subject = f"Run processed with errors: {ont_run.run_id}"
-                email_message = f"Run {ont_run.run_id} has been analysed, but an error occurred when copying the metadata"
-                send_mail(email_subject, email_message, email_recipients)
-
-            # Transfer run
             if ont_run.transfer_run():
                 if ont_run.update_transfer_log():
                     logger.info(
