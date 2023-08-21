@@ -1,8 +1,5 @@
 # TACA Version Log
 
-## 20230821.1
-Copy ONT metadata to ngi-nas-ns.
-
 ## 20230814.1
 Update path to store Anglerfish results.
 
