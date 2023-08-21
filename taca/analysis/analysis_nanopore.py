@@ -5,7 +5,6 @@ import glob
 import json
 import re
 import subprocess
-import pandas as pd
 
 from dateutil.parser import parse
 from taca.utils.config import CONFIG
@@ -360,68 +359,10 @@ def ont_updatedb(ont_run):
                     f"Reduced space by {trimmed_fraction}% by trimming out unused data acquisition outputs from {os.path.basename(glob_json[0])}"
                 )
 
-                # Parse pore_activity_*.csv and include in the JSON object to append to the DB
-                pore_activity_filename = "pore_activity_*.csv"
-                glob_pore_activity = glob.glob(
-                    ont_run.run_dir + f"/{pore_activity_filename}"
-                )
-                if len(glob_pore_activity) == 0:
-                    error_message = f"Run {ont_run.run_id} is marked as finished, but missing {pore_activity_filename}"
-                    logger.error(error_message)
-                    raise AssertionError(error_message)
-                elif len(glob_pore_activity) > 1:
-                    error_message = f"Run {ont_run.run_id} is marked as finished, but contains conflicting {pore_activity_filename} files."
-                    logger.error(error_message)
-                    raise AssertionError(error_message)
-
-                df = pd.read_csv(glob_pore_activity[0])
-                df = df.pivot_table(
-                    "State Time (samples)", "Experiment Time (minutes)", "Channel State"
-                )
-                pore_activity = df.to_dict("records")
-                dict_json["pore_activity"] = pore_activity
-                logger.info(
-                    f"Appending pore activity to the database update of run {ont_run.run_id}"
-                )
-
-                # Update the DB entry
                 sesh.finish_ongoing_run(ont_run, dict_json)
                 logger.info(
                     f"Successfully updated the db entry of run {ont_run.run_id}"
                 )
-
-                # Transfer the MinKNOW run report
-                glob_html = glob.glob(ont_run.run_dir + "/report*.html")
-                if len(glob_html) == 0:
-                    error_message = f"Run {ont_run.run_id} is marked as finished, but missing .html report file."
-                    logger.error(error_message)
-                    raise AssertionError(error_message)
-                elif len(glob_html) > 1:
-                    error_message = f"Run {ont_run.run_id} is marked as finished, but contains conflicting .html report files."
-                    logger.error(error_message)
-                    raise AssertionError(error_message)
-
-                logger.info(f"Transferring the run report to ngi-internal.")
-
-                # Transfer the MinKNOW .html report file to ngi-internal, renaming it to the full run ID. Requires password-free SSH access.
-                report_dest_path = os.path.join(
-                    CONFIG["nanopore_analysis"]["ont_transfer"]["minknow_reports_dir"],
-                    f"report_{ont_run.run_id}.html",
-                )
-                transfer_object = RsyncAgent(
-                    glob_html[0],
-                    dest_path=report_dest_path,
-                    validate=False,
-                )
-                try:
-                    transfer_object.transfer()
-                    logger.info(
-                        f"Successfully transferred the MinKNOW report of run {ont_run.run_id}"
-                    )
-                except RsyncError:
-                    msg = f"An error occurred while attempting to transfer the report {glob_html[0]} to {report_dest_path}"
-                    logger.error(msg)
-                    raise RsyncError(msg)
 
             else:
                 logger.info(
@@ -431,9 +372,41 @@ def ont_updatedb(ont_run):
         # if the run document is marked as "finished"
         if sesh.check_run_status(ont_run) == "finished":
             logger.info(
-                f"Run {ont_run.run_id} exists in the database as an finished run, do nothing."
+                f"Run {ont_run.run_id} exists in the database as an finished run."
             )
 
+            glob_html = glob.glob(ont_run.run_dir + "/report*.html")
+            if len(glob_html) == 0:
+                error_message = f"Run {ont_run.run_id} is marked as finished, but missing .html report file."
+                logger.error(error_message)
+                raise AssertionError(error_message)
+            elif len(glob_html) > 1:
+                error_message = f"Run {ont_run.run_id} is marked as finished, but contains conflicting .html report files."
+                logger.error(error_message)
+                raise AssertionError(error_message)
+
+            logger.info(f"Transferring the run report to ngi-internal.")
+
+            # Transfer the MinKNOW .html report file to ngi-internal, renaming it to the full run ID. Requires password-free SSH access.
+            report_dest_path = os.path.join(
+                CONFIG["nanopore_analysis"]["ont_transfer"]["minknow_reports_dir"],
+                f"report_{ont_run.run_id}.html",
+            )
+            transfer_object = RsyncAgent(
+                glob_html[0],
+                dest_path=report_dest_path,
+                validate=False,
+            )
+            try:
+                transfer_object.transfer()
+                logger.info(
+                    f"Successfully transferred the MinKNOW report of run {ont_run.run_id}"
+                )
+            except RsyncError:
+                msg = f"An error occurred while attempting to transfer the report {glob_html[0]} to {report_dest_path}"
+                logger.error(msg)
+                raise RsyncError(msg)
+        logger.info(f"Database update for run {ont_run.run_id} successful")
     except Exception as e:
         logger.warning(f"Database update for run {ont_run.run_id} failed")
         email_subject = "Run processed with errors: {}".format(ont_run.run_id)
