@@ -5,6 +5,7 @@ import glob
 import json
 import re
 import subprocess
+import pandas as pd
 
 from dateutil.parser import parse
 from taca.utils.config import CONFIG
@@ -80,6 +81,7 @@ def find_ont_transfer_runs(ont_data_dir, skip_dirs):
             "Please check that it exists and try again.".format(ont_data_dir)
         )
     return found_dirs
+
 
 def process_minion_qc_run(minion_run):
     """Process MinION QC runs on Squiggle.
@@ -319,50 +321,31 @@ def ont_updatedb(ont_run):
 
             # If the run is finished
             if len(ont_run.summary_file) != 0:
+
                 logger.info(
                     f"Run {ont_run.run_id} has finished sequencing, updating the db entry."
                 )
 
-                # Parse the MinKNOW .json report file and finish the ongoing run document
-                glob_json = glob.glob(ont_run.run_dir + "/report*.json")
-                if len(glob_json) == 0:
-                    error_message = f"Run {ont_run.run_id} is marked as finished, but missing .json report file."
-                    logger.error(error_message)
-                    raise AssertionError(error_message)
+                # Instantiate json (dict) to update the db with
+                db_update = {}
 
-                elif len(glob_json) > 1:
-                    error_message = f"Run {ont_run.run_id} is marked as finished, but contains conflicting .json report files."
-                    logger.error(error_message)
-                    raise AssertionError(error_message)
+                # Parse report_*.json
+                parse_minknow_json(ont_run, db_update)
 
-                # Trim the contents of the MinKNOW report.json file to accomodate CouchDB size constraints (and save space)
-                dict_json = json.load(open(glob_json[0], "r"))
-                initial_size = len(json.dumps(dict_json))
-                trimmed_acquisition_outputs = []
+                # Parse pore_activity_*.csv
+                parse_pore_activity(ont_run, db_update)
 
-                for acquisition_output in dict_json["acquisitions"][-1][
-                    "acquisition_output"
-                ]:
-                    if acquisition_output["type"] in [
-                        "AllData",
-                        "SplitByBarcode",
-                    ]:
-                        trimmed_acquisition_outputs.append(acquisition_output)
-
-                dict_json["acquisitions"][-1][
-                    "acquisition_output"
-                ] = trimmed_acquisition_outputs
-
-                new_size = len(json.dumps(dict_json))
-                trimmed_fraction = round((1 - new_size / initial_size) * 100, 2)
-                logger.info(
-                    f"Reduced space by {trimmed_fraction}% by trimming out unused data acquisition outputs from {os.path.basename(glob_json[0])}"
-                )
-
-                sesh.finish_ongoing_run(ont_run, dict_json)
+                # Update the DB entry
+                sesh.finish_ongoing_run(ont_run, db_update)
                 logger.info(
                     f"Successfully updated the db entry of run {ont_run.run_id}"
                 )
+
+                # Transfer the MinKNOW run report
+                transfer_html_report(ont_run)
+
+                # Transfer the entire run dir, excluding .bam, .fastq, and .fast5 contents to metadata storage
+                # TODO
 
             else:
                 logger.info(
@@ -372,41 +355,9 @@ def ont_updatedb(ont_run):
         # if the run document is marked as "finished"
         if sesh.check_run_status(ont_run) == "finished":
             logger.info(
-                f"Run {ont_run.run_id} exists in the database as an finished run."
+                f"Run {ont_run.run_id} exists in the database as an finished run, do nothing."
             )
 
-            glob_html = glob.glob(ont_run.run_dir + "/report*.html")
-            if len(glob_html) == 0:
-                error_message = f"Run {ont_run.run_id} is marked as finished, but missing .html report file."
-                logger.error(error_message)
-                raise AssertionError(error_message)
-            elif len(glob_html) > 1:
-                error_message = f"Run {ont_run.run_id} is marked as finished, but contains conflicting .html report files."
-                logger.error(error_message)
-                raise AssertionError(error_message)
-
-            logger.info(f"Transferring the run report to ngi-internal.")
-
-            # Transfer the MinKNOW .html report file to ngi-internal, renaming it to the full run ID. Requires password-free SSH access.
-            report_dest_path = os.path.join(
-                CONFIG["nanopore_analysis"]["ont_transfer"]["minknow_reports_dir"],
-                f"report_{ont_run.run_id}.html",
-            )
-            transfer_object = RsyncAgent(
-                glob_html[0],
-                dest_path=report_dest_path,
-                validate=False,
-            )
-            try:
-                transfer_object.transfer()
-                logger.info(
-                    f"Successfully transferred the MinKNOW report of run {ont_run.run_id}"
-                )
-            except RsyncError:
-                msg = f"An error occurred while attempting to transfer the report {glob_html[0]} to {report_dest_path}"
-                logger.error(msg)
-                raise RsyncError(msg)
-        logger.info(f"Database update for run {ont_run.run_id} successful")
     except Exception as e:
         logger.warning(f"Database update for run {ont_run.run_id} failed")
         email_subject = "Run processed with errors: {}".format(ont_run.run_id)
@@ -414,6 +365,159 @@ def ont_updatedb(ont_run):
             f"An error occured when updating statusdb with run {ont_run.run_id}.\n{e}"
         )
         send_mail(email_subject, email_message, email_recipients)
+
+
+def transfer_html_report(ont_run):
+
+    glob_html = glob.glob(ont_run.run_dir + "/report*.html")
+
+    if len(glob_html) == 0:
+        error_message = f"Run {ont_run.run_id} is marked as finished, but missing .html report file."
+        logger.error(error_message)
+        raise AssertionError(error_message)
+    elif len(glob_html) > 1:
+        error_message = f"Run {ont_run.run_id} is marked as finished, but contains conflicting .html report files."
+        logger.error(error_message)
+        raise AssertionError(error_message)
+
+    logger.info(f"Transferring the run report to ngi-internal.")
+
+    # Transfer the MinKNOW .html report file to ngi-internal, renaming it to the full run ID. Requires password-free SSH access.
+    report_dest_path = os.path.join(
+        CONFIG["nanopore_analysis"]["ont_transfer"]["minknow_reports_dir"],
+        f"report_{ont_run.run_id}.html",
+    )
+    transfer_object = RsyncAgent(
+        glob_html[0],
+        dest_path=report_dest_path,
+        validate=False,
+    )
+    try:
+        transfer_object.transfer()
+        logger.info(
+            f"Successfully transferred the MinKNOW report of run {ont_run.run_id}"
+        )
+    except RsyncError:
+        msg = f"An error occurred while attempting to transfer the report {glob_html[0]} to {report_dest_path}"
+        logger.error(msg)
+        raise RsyncError(msg)
+
+
+def parse_pore_activity(ont_run, db_update):
+
+    pore_activity = {}
+
+    # Find the pore activity file
+    pore_activity_filename = "pore_activity_*.csv"
+
+    glob_pore_activity = glob.glob(ont_run.run_dir + f"/{pore_activity_filename}")
+
+    if len(glob_pore_activity) == 0:
+        error_message = f"Run {ont_run.run_id} is marked as finished, but missing {pore_activity_filename}"
+        logger.error(error_message)
+        raise AssertionError(error_message)
+    elif len(glob_pore_activity) > 1:
+        error_message = f"Run {ont_run.run_id} is marked as finished, but contains conflicting {pore_activity_filename} files."
+        logger.error(error_message)
+        raise AssertionError(error_message)
+
+    # Use pandas to pivot the data into a more manipulable dataframe
+    df = pd.read_csv(glob_pore_activity[0])
+    df.sort_values(by="Experiment Time (minutes)", inplace=True)
+    df = df.pivot_table(
+        "State Time (samples)", "Experiment Time (minutes)", "Channel State"
+    )
+
+    # Use pore counts to calculate new metrics
+    df["all"] = df.sum(axis=1)
+    df["healthy"] = df.strand + df.adapter + df.pore
+    df["productive"] = df.strand + df.adapter
+
+    df["health"] = df["healthy"] / df["all"]
+    df["efficacy"] = df["productive"] / df["healthy"]
+
+    # Look at peaks within 1st hour of the run and define some metrics
+    df_h1 = df[0:60]
+    pore_activity["peak_pore_health_pc"] = round(
+        100 * float(df_h1.loc[df_h1.health == df_h1.health.max(), "health"]), 2
+    )
+    pore_activity["peak_pore_efficacy_pc"] = round(
+        100 * float(df_h1.loc[df_h1.efficacy == df_h1.efficacy.max(), "efficacy"]), 2
+    )
+
+    # Calculate the T90
+    # -- Get the cumulative sum of all productive pores
+    df["cum_productive"] = df["productive"].cumsum()
+    # -- Find the timepoint (h) at which the cumulative sum >= 90% of the absolute sum
+    t90_min = df[df["cum_productive"] >= 0.9 * df["productive"].sum()].index[0]
+    pore_activity["t90_h"] = round(t90_min / 60, 1)
+
+    # Add to the db update
+    db_update["pore_activity"] = pore_activity
+
+
+def parse_minknow_json(ont_run, db_update):
+    """Parse useful stuff from the MinKNOW .json report to add to CouchDB"""
+
+    logger.info(f"Parsing report JSON of run {ont_run.run_id}")
+
+    glob_report_json = glob.glob(ont_run.run_dir + "/report*.json")
+
+    if len(glob_report_json) == 0:
+        error_message = f"Run {ont_run.run_id} is marked as finished, but missing .json report file."
+        logger.error(error_message)
+        raise AssertionError(error_message)
+    elif len(glob_report_json) > 1:
+        error_message = f"Run {ont_run.run_id} is marked as finished, but contains conflicting .json report files."
+        logger.error(error_message)
+        raise AssertionError(error_message)
+
+    dict_json_report = json.load(open(glob_report_json[0], "r"))
+
+    # Initialize return dict
+    parsed_data = {}
+
+    # These sections of the .json can be added as they are
+    for section in [
+        "software_versions",
+        "host",
+        "protocol_run_info",
+        "user_messages",
+    ]:
+        parsed_data[section] = dict_json_report[section]
+
+    # Only parse the last acquisition section, which contains the actual sequencing data
+    seq_metadata = dict_json_report["acquisitions"][-1]
+    seq_metadata_trimmed = {}
+
+    # -- Run info subsection
+    seq_metadata_trimmed["acquisition_run_info"] = {}
+
+    seq_metadata_trimmed["acquisition_run_info"]["yield_summary"] = seq_metadata[
+        "acquisition_run_info"
+    ]["yield_summary"]
+
+    seq_metadata_trimmed["acquisition_run_info"]["yield_summary"] = seq_metadata[
+        "acquisition_run_info"
+    ]["yield_summary"]
+
+    # -- Run output subsection
+    seq_metadata_trimmed["acquisition_output"] = []
+    for section in seq_metadata["acquisition_output"]:
+        if section["type"] in ["AllData", "SplitByBarcode"]:
+            seq_metadata_trimmed["acquisition_output"].append(section)
+
+    # -- Read length subseqtion
+    seq_metadata_trimmed["read_length_histogram"] = seq_metadata[
+        "read_length_histogram"
+    ]
+
+    # Add the trimmed acquisition section to the parsed data
+    parsed_data["acquisitions"] = []
+    parsed_data["acquisitions"].append(seq_metadata_trimmed)
+
+    # Add the parsed data to the db update
+    db_update.update(parsed_data)
 
 
 def transfer_ont_run(ont_run):
@@ -431,6 +535,18 @@ def transfer_ont_run(ont_run):
             )
         )
         if ont_run.is_not_transferred():
+
+            # Copy metadata
+            if ont_run.transfer_metadata():
+                logger.info(
+                    f"Metadata of run {ont_run.run_id} has been synced to {ont_run.metadata_dir}"
+                )
+            else:
+                email_subject = f"Run processed with errors: {ont_run.run_id}"
+                email_message = f"Run {ont_run.run_id} has been analysed, but an error occurred when copying the metadata"
+                send_mail(email_subject, email_message, email_recipients)
+
+            # Transfer run
             if ont_run.transfer_run():
                 if ont_run.update_transfer_log():
                     logger.info(
