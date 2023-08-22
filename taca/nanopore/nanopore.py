@@ -170,17 +170,35 @@ class Nanopore(object):
                 db_update = {}
 
                 # Parse report_*.json
-                self.parse_minknow_json(db_update)
+                try:
+                    self.parse_minknow_json(db_update)
+                except BaseException as e:
+                    logger.error(f"Failed parse_minknow_json() for run {self.run_id}")
+                    raise e
 
                 # Parse pore_activity_*.csv
-                self.parse_pore_activity(db_update)
+                try:
+                    self.parse_pore_activity(db_update)
+                except BaseException as e:
+                    logger.error(f"Failed parse_pore_activity() for run {self.run_id}")
+                    raise e
 
                 # Update the DB entry
-                sesh.finish_ongoing_run(self, db_update)
-                logger.info(f"Successfully updated the db entry of run {self.run_id}")
+                try:
+                    sesh.finish_ongoing_run(self, db_update)
+                    logger.info(
+                        f"Successfully updated the db entry of run {self.run_id}"
+                    )
+                except BaseException as e:
+                    logger.error(f"Failed finish_ongoing_run() for run {self.run_id}")
+                    raise e
 
                 # Transfer the MinKNOW run report
-                self.transfer_html_report()
+                try:
+                    self.transfer_html_report()
+                except BaseException as e:
+                    logger.error(f"Failed transfer_html_report() for run {self.run_id}")
+                    raise e
 
             else:
                 logger.info(
