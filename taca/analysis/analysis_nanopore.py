@@ -497,10 +497,6 @@ def parse_minknow_json(ont_run, db_update):
         "acquisition_run_info"
     ]["yield_summary"]
 
-    seq_metadata_trimmed["acquisition_run_info"]["yield_summary"] = seq_metadata[
-        "acquisition_run_info"
-    ]["yield_summary"]
-
     # -- Run output subsection
     seq_metadata_trimmed["acquisition_output"] = []
     for section in seq_metadata["acquisition_output"]:
