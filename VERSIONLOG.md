@@ -1,5 +1,8 @@
 # TACA Version Log
 
+## 20230822.1
+Add pandas to requiresments to accomodate last PR
+
 ## 20230821.1
 Copy ONT metadata to ngi-nas-ns.
 
