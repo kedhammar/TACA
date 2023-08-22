@@ -537,13 +537,14 @@ def transfer_ont_run(ont_run):
         if ont_run.is_not_transferred():
 
             # Copy metadata
-            if ont_run.transfer_metadata():
+            try:
+                ont_run.transfer_metadata()
                 logger.info(
                     f"Metadata of run {ont_run.run_id} has been synced to {ont_run.metadata_dir}"
                 )
-            else:
+            except BaseException as e:
                 email_subject = f"Run processed with errors: {ont_run.run_id}"
-                email_message = f"Run {ont_run.run_id} has been analysed, but an error occurred when copying the metadata"
+                email_message = f"Run {ont_run.run_id} has been analysed, but an error occurred when copying the metadata: \n{str(e)}"
                 send_mail(email_subject, email_message, email_recipients)
 
             # Transfer run

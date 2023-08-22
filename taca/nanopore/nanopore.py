@@ -59,34 +59,25 @@ class Nanopore(object):
     def transfer_metadata(self):
         """Copies run dir (excluding seq data) to metadata dir"""
 
-        try:
+        exclude_patterns = [
+            # Main seq dirs
+            "**/bam*/***",
+            "**/fast5*/***",
+            "**/fastq*/***",
+            # Any files found elsewhere
+            "*.bam*",
+            "*.fast5*",
+            "*.fastq*",
+        ]
 
-            exclude_patterns = [
-                # Main seq dirs
-                "**/bam*/***",
-                "**/fast5*/***",
-                "**/fastq*/***",
-                # Any files found elsewhere
-                "*.bam*",
-                "*.fast5*",
-                "*.fastq*",
-            ]
+        exclude_patterns_quoted = ["'" + pattern + "'" for pattern in exclude_patterns]
 
-            exclude_patterns_quoted = [
-                "'" + pattern + "'" for pattern in exclude_patterns
-            ]
+        src = self.run_dir
+        dst = os.path.join(self.metadata_dir)
 
-            src = self.run_dir
-            dst = os.path.join(self.metadata_dir)
-
-            os.system(
-                f"rsync -rv --exclude={{{','.join(exclude_patterns_quoted)}}} {src} {dst}"
-            )
-
-            return True
-
-        except:
-            return False
+        os.system(
+            f"rsync -rv --exclude={{{','.join(exclude_patterns_quoted)}}} {src} {dst}"
+        )
 
 
     def update_transfer_log(self):
