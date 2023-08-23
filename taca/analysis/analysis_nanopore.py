@@ -454,7 +454,7 @@ def ont_updatedb_from_cli(run):
             ont_run = MinionTransfer(os.path.abspath(run))
         elif "promethion" in run:
             ont_run = PromethionTransfer(os.path.abspath(run))
-        ont_run.update_db()
+        ont_run.update_db(force_update=True)
     else:
         logger.warning(
             "The specified path is not a flow cell. Please "

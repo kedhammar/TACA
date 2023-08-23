@@ -68,4 +68,5 @@ def ont_transfer(run):
 @analysis.command()
 @click.argument("run")
 def ont_updatedb(run):
+    """Update the database, regardless of run status"""
     analysis_nanopore.ont_updatedb_from_cli(run)
