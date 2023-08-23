@@ -1,5 +1,8 @@
 # TACA Version Log
 
+## 20230823.1
+Allow manual database update of finished ONT runs
+
 ## 20230822.1
 Add pandas to requiresments to accomodate last PR
 
