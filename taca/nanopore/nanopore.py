@@ -118,8 +118,8 @@ class Nanopore(object):
             logger.error(msg)
             raise RsyncError(msg)
 
-    def update_db(self):
-        """Check run vs statusdb. Create or update run entry as needed."""
+    def update_db(self, force_update=False):
+        """Check run vs statusdb. Create or update run entry."""
 
         logger.info("Updating database with run {}".format(self.run_id))
 
@@ -155,9 +155,11 @@ class Nanopore(object):
             sesh.create_ongoing_run(self, run_path_file, pore_count_history_file)
             logger.info(f"Successfully created db entry for ongoing run {self.run_id}.")
 
-        # If the run document is marked as "ongoing"
-        if sesh.check_run_status(self) == "ongoing":
-            logger.info(f"Run {self.run_id} exists in the database as an ongoing run.")
+        # If the run document is marked as "ongoing" or database is being manually updated
+        if sesh.check_run_status(self) == "ongoing" or force_update == True:
+            logger.info(
+                f"Run {self.run_id} exists in the database with run status: {sesh.check_run_status(self)}"
+            )
 
             # If the run is finished
             if len(self.summary_file) != 0:
@@ -206,12 +208,14 @@ class Nanopore(object):
                 )
 
         # if the run document is marked as "finished"
-        if sesh.check_run_status(self) == "finished":
+        elif sesh.check_run_status(self) == "finished":
             logger.info(
                 f"Run {self.run_id} exists in the database as an finished run, do nothing."
             )
 
     def parse_pore_activity(self, db_update):
+
+        logger.info(f"Parsing pore activity of run {self.run_id}")
 
         pore_activity = {}
 
