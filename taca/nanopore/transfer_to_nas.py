@@ -1,4 +1,4 @@
-""" Transfers new ONT runs to nas using rsync.
+""" This is a stand-alone script run on ONT instrument computers. It transfers new ONT runs to nas using rsync.
 """
 __version__ = "1.0.10"
 
@@ -79,8 +79,8 @@ def sequencing_finished(run_dir):
 
 
 def dump_path(run_path):
-    """Dump path to run to a file that can be
-    used when uploading stats to statusdb from preproc."""
+    """Dump path <minknow_experiment_id>/<minknow_sample_id>/<minknow_run_id>
+    to a file. Used for transferring info on ongoing runs to StatusDB."""
     new_file = os.path.join(run_path, "run_path.txt")
     proj, sample, run = run_path.split("/")[-3:]
     path_to_write = os.path.join(proj, sample, run)
@@ -282,6 +282,8 @@ def get_pore_counts(position_logs: list) -> list:
 
 
 def dump_pore_count_history(run, pore_counts):
+    """For a recently started run, dump all QC and MUX events that the instrument remembers
+    for the flow cell as a file in the run dir."""
 
     flowcell_id = os.path.basename(run).split("_")[-2]
     run_start_time = dt.strptime(os.path.basename(run)[0:13], "%Y%m%d_%H%M")
