@@ -4,10 +4,12 @@ import click
 from taca.analysis import analysis as an
 from taca.analysis import analysis_nanopore
 
+
 @click.group()
 def analysis():
     """Analysis methods entry point."""
     pass
+
 
 # Illumina analysis subcommands
 
