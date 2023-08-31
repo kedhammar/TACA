@@ -17,6 +17,7 @@ def is_date(string):
     :param string: str, string to check for date
     From https://stackoverflow.com/questions/25341945/check-if-string-has-date-any-format
     """
+
     try:
         parse(string, fuzzy=False)
         return True
@@ -28,6 +29,7 @@ def find_ont_transfer_runs(ont_data_dir, skip_dirs):
     """Find runs in ngi-nas.
     These are assumed to be flowcell dirs, not project dirs.
     """
+
     try:
         found_dirs = [
             os.path.join(ont_data_dir, top_dir)
@@ -45,6 +47,7 @@ def find_ont_transfer_runs(ont_data_dir, skip_dirs):
 
 def transfer_ont_run(ont_run):
     """Transfer ONT runs to HPC cluster."""
+
     email_recipients = CONFIG.get("mail").get("recipients")
     logger.info("Processing run {}".format(ont_run.run_id))
 
@@ -139,6 +142,7 @@ def transfer_ont_run(ont_run):
 
 def transfer_finished(run):
     """Find finished ONT runs in ngi-nas and transfer to HPC cluster."""
+
     if run:
         if is_date(os.path.basename(run).split("_")[0]):
             if "minion" in run:
