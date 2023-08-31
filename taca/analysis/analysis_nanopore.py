@@ -6,8 +6,8 @@ import subprocess
 from dateutil.parser import parse
 from taca.utils.config import CONFIG
 from taca.utils.misc import send_mail
-from taca.nanopore.minion import MinIONdelivery, MinIONqc
-from taca.nanopore.ont_transfer import PromethionTransfer, MinionTransfer
+from taca.nanopore.minion_run_class import MinIONdelivery, MinIONqc
+from taca.nanopore.ont_transfer_class import PromethionTransfer, MinionTransfer
 
 logger = logging.getLogger(__name__)
 

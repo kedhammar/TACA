@@ -2,33 +2,37 @@ import logging
 import shutil
 import os
 
-from taca.nanopore.nanopore import Nanopore
+from taca.nanopore.ont_run_class import ONT_run
 from taca.utils.config import CONFIG
 
 logger = logging.getLogger(__name__)
 
 
-class ONTTransfer(Nanopore):
+class ONTTransfer(ONT_run):
     """Base class for transfer of ONT data to HPC cluster"""
+
     def __init__(self, run_dir):
         super(ONTTransfer, self).__init__(run_dir)
-        self.sync_finished_indicator = os.path.join(run_dir, '.sync_finished')
-    
+        self.sync_finished_indicator = os.path.join(run_dir, ".sync_finished")
+
     def archive_run(self):
         """Move run directory to nosync."""
-        logger.info('Archiving run ' + self.run_id)
+        logger.info("Archiving run " + self.run_id)
         try:
             shutil.move(self.run_dir, self.archive_dir)
-            logger.info('Successfully archived {}'.format(self.run_id))
+            logger.info("Successfully archived {}".format(self.run_id))
             return True
         except shutil.Error:
-            logger.warn('An error occurred when archiving {}. '
-                        'Please check the logfile for more info.'.format(self.run_dir))
+            logger.warn(
+                "An error occurred when archiving {}. "
+                "Please check the logfile for more info.".format(self.run_dir)
+            )
             return False
 
 
 class PromethionTransfer(ONTTransfer):
     """Class for transfer of PromethION data to HPC cluster"""
+
     def __init__(self, run_dir):
         super(PromethionTransfer, self).__init__(run_dir)
         self.transfer_details = (
@@ -41,6 +45,7 @@ class PromethionTransfer(ONTTransfer):
 
 class MinionTransfer(ONTTransfer):
     """Class for transfer of MinION data to HPC cluster"""
+
     def __init__(self, run_dir):
         super(MinionTransfer, self).__init__(run_dir)
         self.transfer_details = (

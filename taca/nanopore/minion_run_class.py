@@ -5,13 +5,14 @@ import glob
 import logging
 import pathlib
 
-from taca.nanopore.nanopore import Nanopore
+from taca.nanopore.ont_run_class import ONT_run
 from taca.utils.config import CONFIG
 from taca.utils.minion_barcodes import BARCODES
 
 logger = logging.getLogger(__name__)
 
-class MinIONqc(Nanopore):
+
+class MinIONqc(ONT_run):
     """Minion QC run"""
     def __init__(self, run_dir, anglerfish_sample_sheet):
         super(MinIONqc, self).__init__(run_dir)
@@ -87,7 +88,7 @@ class MinIONqc(Nanopore):
         if not results_file:
             logger.warn('Could not find any Anglerfish results in {}'.format(self.anglerfish_dir))
 
-class MinIONdelivery(Nanopore):
+class MinIONdelivery(ONT_run):
     """Minion delivery run"""
     def __init__(self, run_dir):
         super(MinIONdelivery, self).__init__(run_dir)
