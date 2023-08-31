@@ -2,6 +2,7 @@ import subprocess
 import os
 import logging
 
+from taca.analysis.analysis_nanopore import is_date
 from taca.utils.config import CONFIG
 from taca.utils.misc import send_mail
 from taca.nanopore.minion_run_class import MinIONdelivery, MinIONqc
