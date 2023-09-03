@@ -291,7 +291,6 @@ class Nanopore(object):
 
         # These sections of the .json can be added as they are
         for section in [
-            "software_versions",
             "host",
             "protocol_run_info",
             "user_messages",
