@@ -1,15 +1,16 @@
 """Nanopore analysis methods for TACA."""
 import os
 import logging
+import re
 
 from taca.utils.config import CONFIG
 from taca.utils.misc import send_mail
-from taca.nanopore import ONT_run
+from taca.nanopore import ONT_run, ONT_RUN_PATTERN
 
 logger = logging.getLogger(__name__)
 
 
-def find_ont_runs(dir_to_search, skip_dirs):
+def find_run_dirs(dir_to_search, skip_dirs):
     """Takes an input dir, expected to contain ONT run dirs.
     Append all found ONT run dirs to a list and return it"""
 
@@ -19,6 +20,7 @@ def find_ont_runs(dir_to_search, skip_dirs):
             if (
                 os.path.isdir(os.path.join(dir_to_search, found_dir))
                 and found_dir not in skip_dirs
+                and re.match(ONT_RUN_PATTERN, found_dir)
             ):
                 found_run_dirs.append(os.path.join(dir_to_search, found_dir))
 
@@ -145,8 +147,8 @@ def ont_transfer(run_abspath):
             CONFIG.get("nanopore_analysis").get("ont_transfer").get("ignore_dirs")
         )
         for data_dir in ont_data_dirs:
-            runs_to_process = find_ont_runs(data_dir, skip_dirs)
-            for run_dir in runs_to_process:
+            run_dirs = find_run_dirs(data_dir, skip_dirs)
+            for run_dir in run_dirs:
                 ont_run = ONT_run(run_dir)
                 transfer_ont_run(ont_run)
 
