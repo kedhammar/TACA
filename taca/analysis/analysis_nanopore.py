@@ -15,6 +15,8 @@ def find_run_dirs(dir_to_search: str, skip_dirs: list):
     """Takes an input dir, expected to contain ONT run dirs.
     Append all found ONT run dirs to a list and return it"""
 
+    logger.info(f"Looking for ONT runs in {dir_to_search}...")
+
     found_run_dirs = []
     for found_dir in os.listdir(dir_to_search):
         if (
@@ -22,6 +24,7 @@ def find_run_dirs(dir_to_search: str, skip_dirs: list):
             and found_dir not in skip_dirs
             and re.match(ONT_RUN_PATTERN, found_dir)
         ):
+            logger.info(f"Found ONT run {found_dir} in {dir_to_search}.")
             found_run_dirs.append(os.path.join(dir_to_search, found_dir))
 
     return found_run_dirs
@@ -37,81 +40,60 @@ def send_error_mail(ont_run: ONT_run, error: BaseException):
 
 
 def transfer_ont_run(ont_run: ONT_run):
-    """Transfer ONT run to HPC cluster."""
+    """
 
-    logger.info("Processing run {}".format(ont_run.run_id))
+    For a single ONT run...
+        a) If not finished:
+            - Ensure there is a database entry corresponding to an ongoing run
 
-    # Update StatusDB
-    ont_run.update_db()
+        b) If finished:
+            - Ensure there is a database entry corresponding to an ongoing run
+            - Update the StatusDB entry
+            - Copy metadata
+            - Transfer run to cluster
+
+    """
+
+    logger.info(f"{ont_run.run_id}: Inspecting StatusDB...")
+    ont_run.touch_db_entry()
 
     if ont_run.is_synced:
-        logger.info(f"Run {ont_run.run_id} has finished sequencing.")
+        logger.info(f"{ont_run.run_id}: Finished sequencing.")
 
         if not ont_run.is_transferred():
-            logger.info(f"Run {ont_run.run_id} is not yet transferred.")
+            logger.info(f"{ont_run.run_id}: Processing...")
+
+            # Update StatusDB
+            logger.info(f"{ont_run.run_id}: Updating StatusDB...")
+            ont_run.update_db_entry()
+            logger.info(f"{ont_run.run_id}: Updating StatusDB successful.")
+
+            # Transfer HTML report
+            logger.info(f"{ont_run.run_id}: Copying HTML report to GenStat...")
+            ont_run.transfer_html_report()
+            logger.info(f"{ont_run.run_id}: Copying HTML report to GenStat successful.")
 
             # Copy metadata
-            logger.info(f"Copying metadata of {ont_run.run_id}.")
+            logger.info(f"{ont_run.run_id}: Copying metadata...")
             ont_run.transfer_metadata()
-            logger.info(
-                f"Metadata of run {ont_run.run_id} has been synced to {ont_run.metadata_dir}"
-            )
+            logger.info(f"{ont_run.run_id}: Copying metadata successful.")
 
             # Transfer run
-            if ont_run.transfer_run():
-                if ont_run.update_transfer_log():
-                    logger.info(
-                        f"Run {ont_run.run_id} has been synced to the analysis cluster."
-                    )
-                else:
-                    email_subject = "Run processed with errors: {}".format(
-                        ont_run.run_id
-                    )
-                    email_message = (
-                        "Run {} has been transferred, but an error occurred while updating "
-                        "the transfer log"
-                    ).format(ont_run.run_id)
-                    send_mail(email_subject, email_message, email_recipients)
+            logger.info(f"{ont_run.run_id}: Transferring to cluster...")
+            ont_run.transfer_run()
+            logger.info(f"{ont_run.run_id}: Transferring to cluster successful.")
 
-                if ont_run.archive_run():
-                    logger.info(
-                        "Run {} is finished and has been archived. "
-                        "Notifying operator.".format(ont_run.run_id)
-                    )
-                    email_subject = "Run successfully processed: {}".format(
-                        ont_run.run_id
-                    )
-                    email_message = (
-                        "Run {} has been transferred and archived " "successfully."
-                    ).format(ont_run.run_id)
-                    send_mail(email_subject, email_message, email_recipients)
-                else:
-                    email_subject = "Run processed with errors: {}".format(
-                        ont_run.run_id
-                    )
-                    email_message = (
-                        "Run {} has been analysed, but an error occurred during "
-                        "archiving"
-                    ).format(ont_run.run_id)
-                    send_mail(email_subject, email_message, email_recipients)
-
-            else:
-                email_subject = "Run processed with errors: {}".format(ont_run.run_id)
-                email_message = (
-                    "An error occurred during transfer of run {} "
-                    "to the analysis cluster."
-                ).format(ont_run.run_id)
-                send_mail(email_subject, email_message, email_recipients)
+            # Update transfer log
+            logger.info(f"{ont_run.run_id}: Updating transfer log...")
+            ont_run.update_transfer_log()
+            logger.info(f"{ont_run.run_id}: Updating transfer log successful.")
 
         else:
             logger.warning(
-                "The following run has already been transferred, "
-                "skipping: {}".format(ont_run.run_id)
+                f"{ont_run.run_id}: Already logged as transferred, skipping."
             )
     else:
-        logger.info(
-            "Run {} not finished sequencing yet. Skipping.".format(ont_run.run_id)
-        )
+        logger.info(f"{ont_run.run_id}: Not finished sequencing yet, skipping.")
 
 
 def ont_transfer(run_abspath: str or None):
@@ -121,6 +103,7 @@ def ont_transfer(run_abspath: str or None):
     """
 
     if run_abspath:
+        # No need to send mails for manual command, CLI will show errors
         ont_run = ONT_run(os.path.abspath(run_abspath))
         transfer_ont_run(ont_run)
 
@@ -148,4 +131,7 @@ def ont_updatedb(run_abspath: str):
     """CLI entry function."""
 
     ont_run = ONT_run(os.path.abspath(run_abspath))
+
+    logger.info(f"{ont_run.run_id}: Manually updating StatusDB, ignoring run status...")
     ont_run.update_db(force_update=True)
+    logger.info(f"{ont_run.run_id}: Manually updating StatusDB successful.")

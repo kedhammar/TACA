@@ -103,17 +103,14 @@ class ONT_run(object):
 
     # DB update
 
-    def update_db(self, force_update=False):
-        """Check run vs statusdb. Create or update run entry."""
-
-        logger.info("Updating database with run {}".format(self.run_name))
+    def touch_db_entry(self):
+        """Check run vs statusdb. Create entry if there is none."""
 
         sesh = NanoporeRunsConnection(CONFIG["statusdb"], dbname="nanopore_runs")
 
-        # If no run document exists in the database, ceate an ongoing run document
         if not sesh.check_run_exists(self):
             logger.info(
-                f"Run {self.run_name} does not exist in the database, creating entry for ongoing run."
+                f"{self.run_name}: Run does not exist in the database, creating entry for ongoing run."
             )
 
             run_path_file = os.path.join(self.run_abspath, "run_path.txt")
@@ -128,8 +125,20 @@ class ONT_run(object):
 
             sesh.create_ongoing_run(self, run_path_file, pore_count_history_file)
             logger.info(
-                f"Successfully created db entry for ongoing run {self.run_name}."
+                f"{self.run_name}: Successfully created database entry for ongoing run."
             )
+        else:
+            logger.info(f"{self.run_name}: Database entry already exists, skipping.")
+
+    def update_db_entry(self, force_update=False):
+        """Check run vs statusdb. Create or update run entry."""
+
+        logger.info(f"{self.run_name}: Checking StatusDB...")
+
+        sesh = NanoporeRunsConnection(CONFIG["statusdb"], dbname="nanopore_runs")
+
+        # If no run document exists in the database, ceate an ongoing run document
+        self.create_db_entry(self)
 
         # If the run document is marked as "ongoing" or database is being manually updated
         if sesh.check_run_status(self) == "ongoing" or force_update == True:
@@ -304,7 +313,7 @@ class ONT_run(object):
                 f"Successfully transferred the MinKNOW report of run {self.run_name}"
             )
         except RsyncError:
-            msg = f"An error occurred while attempting to transfer the report {report_src_path} to {report_dest_path}"
+            msg = f"{self.run_name}: An error occurred while attempting to transfer the report {report_src_path} to {report_dest_path}."
             logger.error(msg)
             raise RsyncError(msg)
 
@@ -337,12 +346,9 @@ class ONT_run(object):
         try:
             transfer_object.transfer()
         except RsyncError:
-            logger.warn(
-                "An error occurred while transferring {} to the "
-                "analysis server. Please check the logfiles".format(self.run_abspath)
-            )
-            return False
-        return True
+            msg = f"{self.run_name}: An error occurred while transferring to the analysis server."
+            logger.error(msg)
+            raise RsyncError(msg)
 
     def update_transfer_log(self):
         """Update transfer log with run id and date."""
@@ -350,15 +356,10 @@ class ONT_run(object):
             with open(self.transfer_log, "a") as f:
                 tsv_writer = csv.writer(f, delimiter="\t")
                 tsv_writer.writerow([self.run_name, str(datetime.now())])
-                return True
         except IOError:
-            logger.warn(
-                "Could not update the transfer logfile for run {}. "
-                "Please make sure it gets updated.".format(
-                    self.run_name, self.transfer_log
-                )
-            )
-            return False
+            msg = f"{self.run_name}: Could not update the transfer logfile {self.transfer_log}"
+            logger.error(msg)
+            raise IOError(msg)
 
     def archive_run(self):
         """Move directory to nosync."""
@@ -384,10 +385,9 @@ class ONT_run(object):
                         self.experiment_abspath
                     )
                 )  # Might be another run for the same project
-            return True
         except shutil.Error as e:
-            logger.warn(
-                "The following error occurred when archiving {}:\n"
-                "{}".format(self.run_abspath, e)
+            msg = (
+                f"The following error occurred when archiving {self.run_abspath}:\n{e}"
             )
-            return False
+            logger.error(msg)
+            raise RsyncError(msg)
