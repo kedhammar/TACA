@@ -5,7 +5,7 @@ import filecmp
 import os
 import subprocess
 
-from taca.nanopore.ont_run_class import ONT_run
+from taca.nanopore.ONT_run import ONT_run
 from taca.nanopore.ont_transfer_class import ONTTransfer
 from taca.nanopore.minion_run_class import MinIONqc
 from taca.utils import config as conf
