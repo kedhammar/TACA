@@ -32,7 +32,7 @@ def find_run_dirs(dir_to_search: str, skip_dirs: list):
 
 def send_error_mail(ont_run: ONT_run, error: BaseException):
 
-    email_subject = f"Run processed with errors: {ont_run.run_id}"
+    email_subject = f"Run processed with errors: {ont_run.run_name}"
     email_message = f"{str(error)}\n\n{traceback.format_exc(error)}"
     email_recipients = CONFIG.get("mail").get("recipients")
 
@@ -59,51 +59,51 @@ def transfer_ont_run(ont_run: ONT_run):
     Any errors raised here-in should be sent with traceback as an email.
     """
 
-    logger.info(f"{ont_run.run_id}: Inspecting StatusDB...")
+    logger.info(f"{ont_run.run_name}: Inspecting StatusDB...")
     ont_run.touch_db_entry()
 
-    if ont_run.is_synced:
-        logger.info(f"{ont_run.run_id}: Finished sequencing.")
+    if ont_run.is_synced():
+        logger.info(f"{ont_run.run_name}: Finished sequencing.")
 
         if not ont_run.is_transferred():
-            logger.info(f"{ont_run.run_id}: Processing...")
+            logger.info(f"{ont_run.run_name}: Processing...")
 
             # Update StatusDB
-            logger.info(f"{ont_run.run_id}: Updating StatusDB...")
+            logger.info(f"{ont_run.run_name}: Updating StatusDB...")
             ont_run.update_db_entry()
-            logger.info(f"{ont_run.run_id}: Updating StatusDB successful.")
+            logger.info(f"{ont_run.run_name}: Updating StatusDB successful.")
 
             # Transfer HTML report
-            logger.info(f"{ont_run.run_id}: Copying HTML report to GenStat...")
+            logger.info(f"{ont_run.run_name}: Put HTML report on GenStat...")
             ont_run.transfer_html_report()
-            logger.info(f"{ont_run.run_id}: Copying HTML report to GenStat successful.")
+            logger.info(f"{ont_run.run_name}: Put HTML report on GenStat successful.")
 
             # Copy metadata
-            logger.info(f"{ont_run.run_id}: Copying metadata...")
+            logger.info(f"{ont_run.run_name}: Copying metadata...")
             ont_run.transfer_metadata()
-            logger.info(f"{ont_run.run_id}: Copying metadata successful.")
+            logger.info(f"{ont_run.run_name}: Copying metadata successful.")
 
             # Transfer run
-            logger.info(f"{ont_run.run_id}: Transferring to cluster...")
+            logger.info(f"{ont_run.run_name}: Transferring to cluster...")
             ont_run.transfer_run()
-            logger.info(f"{ont_run.run_id}: Transferring to cluster successful.")
+            logger.info(f"{ont_run.run_name}: Transferring to cluster successful.")
 
             # Update transfer log
-            logger.info(f"{ont_run.run_id}: Updating transfer log...")
+            logger.info(f"{ont_run.run_name}: Updating transfer log...")
             ont_run.update_transfer_log()
-            logger.info(f"{ont_run.run_id}: Updating transfer log successful.")
+            logger.info(f"{ont_run.run_name}: Updating transfer log successful.")
 
             # Archive run
-            logger.info(f"{ont_run.run_id}: Archiving run...")
+            logger.info(f"{ont_run.run_name}: Archiving run...")
             ont_run.update_transfer_log()
-            logger.info(f"{ont_run.run_id}: Archiving run successful.")
+            logger.info(f"{ont_run.run_name}: Archiving run successful.")
 
         else:
             logger.warning(
-                f"{ont_run.run_id}: Already logged as transferred, skipping."
+                f"{ont_run.run_name}: Already logged as transferred, skipping."
             )
     else:
-        logger.info(f"{ont_run.run_id}: Not finished sequencing yet, skipping.")
+        logger.info(f"{ont_run.run_name}: Not finished sequencing yet, skipping.")
 
 
 def ont_transfer(run_abspath: str or None):
@@ -142,6 +142,8 @@ def ont_updatedb(run_abspath: str):
 
     ont_run = ONT_run(os.path.abspath(run_abspath))
 
-    logger.info(f"{ont_run.run_id}: Manually updating StatusDB, ignoring run status...")
+    logger.info(
+        f"{ont_run.run_name}: Manually updating StatusDB, ignoring run status..."
+    )
     ont_run.update_db(force_update=True)
-    logger.info(f"{ont_run.run_id}: Manually updating StatusDB successful.")
+    logger.info(f"{ont_run.run_name}: Manually updating StatusDB successful.")

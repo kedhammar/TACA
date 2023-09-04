@@ -38,7 +38,7 @@ class ONT_run(object):
         ), f"Run {self.run_name} doesn't look like a run dir"
 
         # Parse MinKNOW sample and experiment name
-        with open(self.get_file(self, "/run_path.txt"), "r") as stream:
+        with open(self.get_file("/run_path.txt"), "r") as stream:
             self.experiment_name, self.sample_name, _ = stream.read().split("/")
 
         # Get info from run name
@@ -91,10 +91,10 @@ class ONT_run(object):
     # Evaluating run status
 
     def is_finished(self) -> bool:
-        return self.has_file(self, "/final_summary*.txt")
+        return self.has_file("/final_summary*.txt")
 
     def is_synced(self) -> bool:
-        return self.has_file(self, "/.sync_finished")
+        return self.has_file("/.sync_finished")
 
     def is_transferred(self) -> bool:
         """Return True if run ID in transfer.tsv, else False."""
@@ -138,40 +138,30 @@ class ONT_run(object):
         sesh = NanoporeRunsConnection(CONFIG["statusdb"], dbname="nanopore_runs")
 
         # If no run document exists in the database, ceate an ongoing run document
-        self.create_db_entry(self)
+        self.touch_db_entry()
 
         # If the run document is marked as "ongoing" or database is being manually updated
         if sesh.check_run_status(self) == "ongoing" or force_update == True:
             logger.info(
-                f"Run {self.run_name} exists in the database with run status: {sesh.check_run_status(self)}"
+                f"{self.run_name}: Run exists in the database with run status: {sesh.check_run_status(self)}."
             )
 
-            # If the run is finished
-            if len(self.summary_file_abspath) != 0:
+            logger.info(f"{self.run_name}: Updating...")
 
-                logger.info(
-                    f"Run {self.run_name} has finished sequencing, updating the db entry."
-                )
+            # Instantiate json (dict) to update the db with
+            db_update = {}
 
-                # Instantiate json (dict) to update the db with
-                db_update = {}
+            # Parse report_*.json
+            self.parse_minknow_json(db_update)
 
-                # Parse report_*.json
-                self.parse_minknow_json(db_update)
+            # Parse pore_activity_*.csv
+            self.parse_pore_activity(db_update)
 
-                # Parse pore_activity_*.csv
-                self.parse_pore_activity(db_update)
+            # Update the DB entry
+            sesh.finish_ongoing_run(self, db_update)
 
-                # Update the DB entry
-                sesh.finish_ongoing_run(self, db_update)
-
-                # Transfer the MinKNOW run report
-                self.transfer_html_report()
-
-            else:
-                logger.info(
-                    f"Run {self.run_name} has not finished sequencing, do nothing."
-                )
+            # Transfer the MinKNOW run report
+            self.transfer_html_report()
 
         # If the run document is marked as "finished"
         elif sesh.check_run_status(self) == "finished":
