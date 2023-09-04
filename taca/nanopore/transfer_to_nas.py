@@ -1,4 +1,4 @@
-""" This is a stand-alone script run on ONT instrument computers. It transfers new ONT runs to nas using rsync.
+""" This is a stand-alone script run on ONT instrument computers. It transfers new ONT runs to NAS using rsync.
 """
 __version__ = "1.0.10"
 
