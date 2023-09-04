@@ -5,7 +5,7 @@ import glob
 import logging
 import pathlib
 
-from taca.nanopore.ont_run_class import ONT_run
+from taca.nanopore.ONT_run import ONT_run
 from taca.utils.config import CONFIG
 from taca.utils.minion_barcodes import BARCODES
 
