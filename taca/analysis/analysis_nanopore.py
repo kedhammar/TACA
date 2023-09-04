@@ -2,6 +2,7 @@
 import os
 import logging
 import re
+import traceback
 
 from taca.utils.config import CONFIG
 from taca.utils.misc import send_mail
@@ -10,72 +11,57 @@ from taca.nanopore import ONT_run, ONT_RUN_PATTERN
 logger = logging.getLogger(__name__)
 
 
-def find_run_dirs(dir_to_search, skip_dirs):
+def find_run_dirs(dir_to_search: str, skip_dirs: list):
     """Takes an input dir, expected to contain ONT run dirs.
     Append all found ONT run dirs to a list and return it"""
 
-    try:
-        found_run_dirs = []
-        for found_dir in os.listdir(dir_to_search):
-            if (
-                os.path.isdir(os.path.join(dir_to_search, found_dir))
-                and found_dir not in skip_dirs
-                and re.match(ONT_RUN_PATTERN, found_dir)
-            ):
-                found_run_dirs.append(os.path.join(dir_to_search, found_dir))
-
-    except OSError:
-        logger.warning(
-            "There was an issue locating the following directory: {}. "
-            "Please check that it exists and try again.".format(dir_to_search)
-        )
+    found_run_dirs = []
+    for found_dir in os.listdir(dir_to_search):
+        if (
+            os.path.isdir(os.path.join(dir_to_search, found_dir))
+            and found_dir not in skip_dirs
+            and re.match(ONT_RUN_PATTERN, found_dir)
+        ):
+            found_run_dirs.append(os.path.join(dir_to_search, found_dir))
 
     return found_run_dirs
 
 
-def transfer_ont_run(ont_run):
+def send_error_mail(ont_run: ONT_run, error: BaseException):
+
+    email_subject = f"Run processed with errors: {ont_run.run_id}"
+    email_message = f"{str(error)}\n\n{traceback.format_exc(error)}"
+    email_recipients = CONFIG.get("mail").get("recipients")
+
+    send_mail(email_subject, email_message, email_recipients)
+
+
+def transfer_ont_run(ont_run: ONT_run):
     """Transfer ONT run to HPC cluster."""
 
-    email_recipients = CONFIG.get("mail").get("recipients")
     logger.info("Processing run {}".format(ont_run.run_id))
 
     # Update StatusDB
-    try:
-        ont_run.update_db()
-    except Exception as e:
-        logger.warning(f"Database update for run {ont_run.run_id} failed")
-        email_subject = "Run processed with errors: {}".format(ont_run.run_id)
-        email_message = (
-            f"An error occured when updating statusdb with run {ont_run.run_id}.\n{e}"
-        )
-        send_mail(email_subject, email_message, email_recipients)
+    ont_run.update_db()
 
-    if os.path.isfile(ont_run.sync_finished_indicator):
-        logger.info(
-            "Sequencing done for run {}. Attempting to start processing.".format(
-                ont_run.run_id
-            )
-        )
-        if ont_run.is_not_transferred():
+    if ont_run.is_synced:
+        logger.info(f"Run {ont_run.run_id} has finished sequencing.")
+
+        if not ont_run.is_transferred():
+            logger.info(f"Run {ont_run.run_id} is not yet transferred.")
 
             # Copy metadata
-            try:
-                ont_run.transfer_metadata()
-                logger.info(
-                    f"Metadata of run {ont_run.run_id} has been synced to {ont_run.metadata_dir}"
-                )
-            except BaseException as e:
-                email_subject = f"Run processed with errors: {ont_run.run_id}"
-                email_message = f"Run {ont_run.run_id} has been analysed, but an error occurred when copying the metadata: \n{str(e)}"
-                send_mail(email_subject, email_message, email_recipients)
+            logger.info(f"Copying metadata of {ont_run.run_id}.")
+            ont_run.transfer_metadata()
+            logger.info(
+                f"Metadata of run {ont_run.run_id} has been synced to {ont_run.metadata_dir}"
+            )
 
             # Transfer run
             if ont_run.transfer_run():
                 if ont_run.update_transfer_log():
                     logger.info(
-                        "Run {} has been synced to the analysis cluster.".format(
-                            ont_run.run_id
-                        )
+                        f"Run {ont_run.run_id} has been synced to the analysis cluster."
                     )
                 else:
                     email_subject = "Run processed with errors: {}".format(
@@ -128,7 +114,7 @@ def transfer_ont_run(ont_run):
         )
 
 
-def ont_transfer(run_abspath):
+def ont_transfer(run_abspath: str or None):
     """CLI entry function.
 
     Find finished ONT runs in ngi-nas and transfer to HPC cluster.
@@ -146,14 +132,19 @@ def ont_transfer(run_abspath):
         skip_dirs = (
             CONFIG.get("nanopore_analysis").get("ont_transfer").get("ignore_dirs")
         )
+
         for data_dir in ont_data_dirs:
             run_dirs = find_run_dirs(data_dir, skip_dirs)
             for run_dir in run_dirs:
-                ont_run = ONT_run(run_dir)
-                transfer_ont_run(ont_run)
+                # Send error mails at run-level
+                try:
+                    ont_run = ONT_run(run_dir)
+                    transfer_ont_run(ont_run)
+                except BaseException as e:
+                    send_error_mail(ont_run, e)
 
 
-def ont_updatedb(run_abspath):
+def ont_updatedb(run_abspath: str):
     """CLI entry function."""
 
     ont_run = ONT_run(os.path.abspath(run_abspath))

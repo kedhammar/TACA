@@ -29,12 +29,13 @@ class ONT_run(object):
     def __init__(self, run_abspath: str):
 
         # Get paths and names of MinKNOW experiment, sample and run
-        assert re.match(
-            ONT_RUN_PATTERN, self.run_name
-        ), f"Run {self.run_name} doesn't look like a run dir"
 
         self.run_name = os.path.basename(run_abspath)
         self.run_abspath = run_abspath
+
+        assert re.match(
+            ONT_RUN_PATTERN, self.run_name
+        ), f"Run {self.run_name} doesn't look like a run dir"
 
         # Parse MinKNOW sample and experiment name
         with open(self.get_file(self, "/run_path.txt"), "r") as stream:
@@ -147,46 +148,23 @@ class ONT_run(object):
                 db_update = {}
 
                 # Parse report_*.json
-                try:
-                    self.parse_minknow_json(db_update)
-                except BaseException as e:
-                    logger.error(f"Failed parse_minknow_json() for run {self.run_name}")
-                    raise e
+                self.parse_minknow_json(db_update)
 
                 # Parse pore_activity_*.csv
-                try:
-                    self.parse_pore_activity(db_update)
-                except BaseException as e:
-                    logger.error(
-                        f"Failed parse_pore_activity() for run {self.run_name}"
-                    )
-                    raise e
+                self.parse_pore_activity(db_update)
 
                 # Update the DB entry
-                try:
-                    sesh.finish_ongoing_run(self, db_update)
-                    logger.info(
-                        f"Successfully updated the db entry of run {self.run_name}"
-                    )
-                except BaseException as e:
-                    logger.error(f"Failed finish_ongoing_run() for run {self.run_name}")
-                    raise e
+                sesh.finish_ongoing_run(self, db_update)
 
                 # Transfer the MinKNOW run report
-                try:
-                    self.transfer_html_report()
-                except BaseException as e:
-                    logger.error(
-                        f"Failed transfer_html_report() for run {self.run_name}"
-                    )
-                    raise e
+                self.transfer_html_report()
 
             else:
                 logger.info(
                     f"Run {self.run_name} has not finished sequencing, do nothing."
                 )
 
-        # if the run document is marked as "finished"
+        # If the run document is marked as "finished"
         elif sesh.check_run_status(self) == "finished":
             logger.info(
                 f"Run {self.run_name} exists in the database as an finished run, do nothing."
