@@ -40,9 +40,10 @@ def send_error_mail(ont_run: ONT_run, error: BaseException):
 
 
 def transfer_ont_run(ont_run: ONT_run):
-    """
+    """This function orchestrates the sequential execution of the ONT_run class methods.
 
     For a single ONT run...
+
         a) If not finished:
             - Ensure there is a database entry corresponding to an ongoing run
 
@@ -50,8 +51,12 @@ def transfer_ont_run(ont_run: ONT_run):
             - Ensure there is a database entry corresponding to an ongoing run
             - Update the StatusDB entry
             - Copy metadata
+            - Copy HTML report to GenStat
             - Transfer run to cluster
+            - Update transfer log
+            - Archive run
 
+    Any errors raised here-in should be sent with traceback as an email.
     """
 
     logger.info(f"{ont_run.run_id}: Inspecting StatusDB...")
@@ -87,6 +92,11 @@ def transfer_ont_run(ont_run: ONT_run):
             logger.info(f"{ont_run.run_id}: Updating transfer log...")
             ont_run.update_transfer_log()
             logger.info(f"{ont_run.run_id}: Updating transfer log successful.")
+
+            # Archive run
+            logger.info(f"{ont_run.run_id}: Archiving run...")
+            ont_run.update_transfer_log()
+            logger.info(f"{ont_run.run_id}: Archiving run successful.")
 
         else:
             logger.warning(
