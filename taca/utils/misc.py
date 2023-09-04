@@ -191,6 +191,8 @@ def run_is_demuxed(run, couch_info=None):
         raise SystemExit('To check for demultiplexing is enabled in config file but no "statusDB" info was given')
     run_terms = run.split('_')
     run_date = run_terms[0]
+    if len(run_date)>6:
+        run_date = run_date[2:]
     run_fc = run_terms[-1]
     run_name = '{}_{}'.format(run_date, run_fc)
     try:
