@@ -95,7 +95,7 @@ def transfer_ont_run(ont_run: ONT_run):
 
             # Archive run
             logger.info(f"{ont_run.run_name}: Archiving run...")
-            ont_run.update_transfer_log()
+            ont_run.archive_run()
             logger.info(f"{ont_run.run_name}: Archiving run successful.")
 
         else:

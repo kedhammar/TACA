@@ -3,7 +3,6 @@ import logging
 import csv
 import shutil
 import glob
-import pathlib
 import re
 import json
 import pandas as pd
@@ -159,9 +158,6 @@ class ONT_run(object):
 
             # Update the DB entry
             sesh.finish_ongoing_run(self, db_update)
-
-            # Transfer the MinKNOW run report
-            self.transfer_html_report()
 
         # If the run document is marked as "finished"
         elif sesh.check_run_status(self) == "finished":
@@ -354,30 +350,9 @@ class ONT_run(object):
     def archive_run(self):
         """Move directory to nosync."""
         logger.info("Archiving run " + self.run_name)
-        dir_to_move = str(pathlib.Path(self.run_abspath).parent)
-        project_archive = os.path.join(self.archive_dir, self.experiment_name)
-        if not os.path.exists(project_archive):
-            os.mkdir(project_archive)
-        try:
-            print(dir_to_move, project_archive)
-            shutil.move(dir_to_move, project_archive)
-            logger.info("Successfully archived {}".format(self.run_name))
-            if not os.listdir(self.experiment_abspath):
-                logger.info(
-                    "Project folder {} is empty. Removing it.".format(
-                        self.experiment_abspath
-                    )
-                )
-                os.rmdir(self.experiment_abspath)
-            else:
-                logger.info(
-                    "Some data is still left in {}. Keeping it.".format(
-                        self.experiment_abspath
-                    )
-                )  # Might be another run for the same project
-        except shutil.Error as e:
-            msg = (
-                f"The following error occurred when archiving {self.run_abspath}:\n{e}"
-            )
-            logger.error(msg)
-            raise RsyncError(msg)
+
+        src = self.run_abspath
+        dst = os.path.join(self.run_abspath, os.pardir, "nosync")
+
+        shutil.move(src, dst)
+        logger.info("Successfully archived {}".format(self.run_name))
