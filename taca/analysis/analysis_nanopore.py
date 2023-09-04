@@ -174,13 +174,13 @@ def transfer_finished(run):
                     transfer_ont_run(ont_run)
 
 
-def ont_updatedb_from_cli(run):
+def ont_updatedb_from_cli(run_abspath):
 
-    if is_date(os.path.basename(run).split("_")[0]):
-        if "minion" in run:
-            ont_run = MinionTransfer(os.path.abspath(run))
-        elif "promethion" in run:
-            ont_run = PromethionTransfer(os.path.abspath(run))
+    if is_date(os.path.basename(run_abspath).split("_")[0]):
+        if "minion" in run_abspath:
+            ont_run = MinionTransfer(os.path.abspath(run_abspath))
+        elif "promethion" in run_abspath:
+            ont_run = PromethionTransfer(os.path.abspath(run_abspath))
         ont_run.update_db(force_update=True)
     else:
         logger.warning(

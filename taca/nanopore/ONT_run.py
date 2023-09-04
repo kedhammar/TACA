@@ -15,139 +15,99 @@ from taca.utils.transfer import RsyncAgent, RsyncError
 
 logger = logging.getLogger(__name__)
 
+ONT_RUN_PATTERN = re.compile(
+    "^(\d{8})_(\d{4})_([0-9a-zA-Z]+)_([0-9a-zA-Z]+)_([0-9a-zA-Z]+)$"
+)
+
 
 class ONT_run(object):
-    """General Nanopore run"""
+    """General Nanopore run.
 
-    def __init__(self, run_abspath):
-        self.run_abspath = run_abspath
+    Expects instantiation from absolute path of run directory on preprocessing server.
+    """
+
+    def __init__(self, run_abspath: str):
+
+        # Get paths and names of MinKNOW experiment, sample and run
+        assert re.match(
+            ONT_RUN_PATTERN, self.run_name
+        ), f"Run {self.run_name} doesn't look like a run dir"
+
         self.run_name = os.path.basename(run_abspath)
+        self.run_abspath = run_abspath
 
-        self.sample_abspath = str(pathlib.Path(self.run_abspath).parent)
-        self.sample_name = os.path.basename(self.sample_abspath)
+        # Parse MinKNOW sample and experiment name
+        with open(self.get_file(self, "/run_path.txt"), "r") as stream:
+            self.experiment_name, self.sample_name, _ = stream.read().split("/")
 
-        self.experiment_abspath = str(pathlib.Path(self.run_abspath).parent.parent)
-        self.experiment_name = os.path.basename(self.experiment_abspath)
+        # Get info from run name
+        (
+            self.date,
+            self.time,
+            self.position,
+            self.flowcell_id,
+            self.run_hash,
+        ) = self.run_name.split("_")
 
-        self.summary_file_abspath = glob.glob(run_abspath + "/final_summary*.txt")
+        # Get instrument
+        self.instrument = "promethion" if len(self.position) == 2 else "minion"
 
-    def is_not_transferred(self):
-        """Return True if run id not in transfer.tsv, else False."""
-        with open(self.transfer_log, "r") as f:
-            return self.run_name not in f.read()
-
-    def transfer_run(self):
-        """rsync dir to destination specified in config file."""
-        destination = self.transfer_details.get("destination")
-        rsync_opts = self.transfer_details.get("rsync_options")
-        for k, v in rsync_opts.items():
-            if v == "None":
-                rsync_opts[k] = None
-        connection_details = self.transfer_details.get("analysis_server", None)
-        logger.info(
-            "Transferring run {} to {}".format(
-                self.run_name,
-                connection_details["host"] if connection_details else destination,
-            )
+        # Get instument-specific transfer details
+        self.transfer_details = (
+            CONFIG.get("nanopore_analysis").get("ont_transfer").get(self.instrument)
         )
-        if connection_details:
-            transfer_object = RsyncAgent(
-                self.run_abspath,
-                dest_path=destination,
-                remote_host=connection_details.get("host"),
-                remote_user=connection_details.get("user"),
-                validate=False,
-                opts=rsync_opts,
-            )
+        self.transfer_log = self.transfer_details.get("transfer_file")
+        self.archive_dir = self.transfer_details.get("finished_dir")
+        self.metadata_dir = self.transfer_details.get("metadata_dir")
+
+        # Get QC bool
+        self.qc = True if self.sample_name[0:3] == "QC_" else False
+
+    # Looking for files within the run dir
+
+    def has_file(self, content_pattern: str) -> bool:
+        """Checks within run dir for pattern, e.g. '/report*.json', returns bool."""
+        query_path = self.run_abspath + content_pattern
+        query_glob = glob.glob(query_path)
+
+        if len(query_glob) > 0:
+            return True
         else:
-            transfer_object = RsyncAgent(
-                self.run_abspath, dest_path=destination, validate=False, opts=rsync_opts
-            )
-        try:
-            transfer_object.transfer()
-        except RsyncError:
-            logger.warn(
-                "An error occurred while transferring {} to the "
-                "analysis server. Please check the logfiles".format(self.run_abspath)
-            )
             return False
-        return True
 
-    def transfer_metadata(self):
-        """Copies run dir (excluding seq data) to metadata dir"""
+    def get_file(self, content_pattern) -> str:
+        """Checks within run dir for pattern, e.g. '/report*.json', returns file abspath as string."""
+        query_path = self.run_abspath + content_pattern
+        query_glob = glob.glob(query_path)
 
-        exclude_patterns = [
-            # Main seq dirs
-            "**/bam*/***",
-            "**/fast5*/***",
-            "**/fastq*/***",
-            # Any files found elsewhere
-            "*.bam*",
-            "*.fast5*",
-            "*.fastq*",
-        ]
+        if len(query_glob) == 1:
+            return query_glob[0]
+        elif len(query_glob) == 0:
+            raise AssertionError(f"Could not find {query_path}")
+        else:
+            raise AssertionError(f"Found multiple instances of {query_path}")
 
-        exclude_patterns_quoted = ["'" + pattern + "'" for pattern in exclude_patterns]
+    # Evaluating run status
 
-        src = self.run_abspath
-        dst = os.path.join(self.metadata_dir)
+    def is_finished(self) -> bool:
+        return self.has_file(self, "/final_summary*.txt")
 
-        os.system(
-            f"rsync -rv --exclude={{{','.join(exclude_patterns_quoted)}}} {src} {dst}"
-        )
+    def is_synced(self) -> bool:
+        return self.has_file(self, "/.sync_finished")
 
-    def transfer_html_report(self):
+    def is_transferred(self) -> bool:
+        """Return True if run ID in transfer.tsv, else False."""
+        with open(self.transfer_log, "r") as f:
+            return self.run_name in f.read()
 
-        glob_html = glob.glob(self.run_abspath + "/report*.html")
-
-        if len(glob_html) == 0:
-            error_message = f"Run {self.run_name} is marked as finished, but missing .html report file."
-            logger.error(error_message)
-            raise AssertionError(error_message)
-        elif len(glob_html) > 1:
-            error_message = f"Run {self.run_name} is marked as finished, but contains conflicting .html report files."
-            logger.error(error_message)
-            raise AssertionError(error_message)
-
-        logger.info(f"Transferring the run report to ngi-internal.")
-
-        # Transfer the MinKNOW .html report file to ngi-internal, renaming it to the full run ID. Requires password-free SSH access.
-        report_dest_path = os.path.join(
-            CONFIG["nanopore_analysis"]["ont_transfer"]["minknow_reports_dir"],
-            f"report_{self.run_name}.html",
-        )
-        transfer_object = RsyncAgent(
-            glob_html[0],
-            dest_path=report_dest_path,
-            validate=False,
-        )
-        try:
-            transfer_object.transfer()
-            logger.info(
-                f"Successfully transferred the MinKNOW report of run {self.run_name}"
-            )
-        except RsyncError:
-            msg = f"An error occurred while attempting to transfer the report {glob_html[0]} to {report_dest_path}"
-            logger.error(msg)
-            raise RsyncError(msg)
+    # DB update
 
     def update_db(self, force_update=False):
         """Check run vs statusdb. Create or update run entry."""
 
         logger.info("Updating database with run {}".format(self.run_name))
 
-        run_pattern = re.compile(
-            "^(\d{8})_(\d{4})_([0-9a-zA-Z]+)_([0-9a-zA-Z]+)_([0-9a-zA-Z]+)$"
-        )
-
         sesh = NanoporeRunsConnection(CONFIG["statusdb"], dbname="nanopore_runs")
-
-        if re.match(run_pattern, self.run_name):
-            logger.info(f"Run {self.run_name} looks like a run directory, continuing.")
-        else:
-            error_message = f"Run {self.run_name} does not match the regex of a run directory (yyyymmdd_hhmm_pos|device_fcID_hash)."
-            logger.error(error_message)
-            raise AssertionError(error_message)
 
         # If no run document exists in the database, ceate an ongoing run document
         if not sesh.check_run_exists(self):
@@ -238,22 +198,8 @@ class ONT_run(object):
 
         pore_activity = {}
 
-        # Find the pore activity file
-        pore_activity_filename = "pore_activity_*.csv"
-
-        glob_pore_activity = glob.glob(self.run_abspath + f"/{pore_activity_filename}")
-
-        if len(glob_pore_activity) == 0:
-            error_message = f"Run {self.run_name} is marked as finished, but missing {pore_activity_filename}"
-            logger.error(error_message)
-            raise AssertionError(error_message)
-        elif len(glob_pore_activity) > 1:
-            error_message = f"Run {self.run_name} is marked as finished, but contains conflicting {pore_activity_filename} files."
-            logger.error(error_message)
-            raise AssertionError(error_message)
-
         # Use pandas to pivot the data into a more manipulable dataframe
-        df = pd.read_csv(glob_pore_activity[0])
+        df = pd.read_csv(self.get_file("/pore_activity_*.csv"))
         df.sort_values(by="Experiment Time (minutes)", inplace=True)
         df = df.pivot_table(
             "State Time (samples)", "Experiment Time (minutes)", "Channel State"
@@ -292,18 +238,7 @@ class ONT_run(object):
 
         logger.info(f"Parsing report JSON of run {self.run_name}")
 
-        glob_report_json = glob.glob(self.run_abspath + "/report*.json")
-
-        if len(glob_report_json) == 0:
-            error_message = f"Run {self.run_name} is marked as finished, but missing .json report file."
-            logger.error(error_message)
-            raise AssertionError(error_message)
-        elif len(glob_report_json) > 1:
-            error_message = f"Run {self.run_name} is marked as finished, but contains conflicting .json report files."
-            logger.error(error_message)
-            raise AssertionError(error_message)
-
-        dict_json_report = json.load(open(glob_report_json[0], "r"))
+        dict_json_report = json.load(open(self.get_file("/report*.json"), "r"))
 
         # Initialize return dict
         parsed_data = {}
@@ -344,6 +279,92 @@ class ONT_run(object):
 
         # Add the parsed data to the db update
         db_update.update(parsed_data)
+
+    # Transfer metadata
+
+    def transfer_metadata(self):
+        """Copies run dir (excluding seq data) to metadata dir"""
+
+        exclude_patterns = [
+            # Main seq dirs
+            "**/bam*/***",
+            "**/fast5*/***",
+            "**/fastq*/***",
+            # Any files found elsewhere
+            "*.bam*",
+            "*.fast5*",
+            "*.fastq*",
+        ]
+
+        exclude_patterns_quoted = ["'" + pattern + "'" for pattern in exclude_patterns]
+
+        src = self.run_abspath
+        dst = self.metadata_dir
+
+        os.system(
+            f"rsync -rv --exclude={{{','.join(exclude_patterns_quoted)}}} {src} {dst}"
+        )
+
+    def transfer_html_report(self):
+
+        logger.info(f"Transferring the run report to ngi-internal.")
+
+        # Transfer the MinKNOW .html report file to ngi-internal, renaming it to the full run ID. Requires password-free SSH access.
+        report_src_path = self.get_file("/report*.html")
+        report_dest_path = os.path.join(
+            CONFIG["nanopore_analysis"]["ont_transfer"]["minknow_reports_dir"],
+            f"report_{self.run_name}.html",
+        )
+        transfer_object = RsyncAgent(
+            src_path=report_src_path,
+            dest_path=report_dest_path,
+            validate=False,
+        )
+        try:
+            transfer_object.transfer()
+            logger.info(
+                f"Successfully transferred the MinKNOW report of run {self.run_name}"
+            )
+        except RsyncError:
+            msg = f"An error occurred while attempting to transfer the report {report_src_path} to {report_dest_path}"
+            logger.error(msg)
+            raise RsyncError(msg)
+
+    # Transfer data
+
+    def transfer_run(self) -> bool:
+        """Transfer dir to destination specified in config file via rsync"""
+        destination = self.transfer_details.get("destination")
+        rsync_opts = self.transfer_details.get("rsync_options")
+        for k, v in rsync_opts.items():
+            if v == "None":
+                rsync_opts[k] = None
+        connection_details = self.transfer_details.get("analysis_server", None)
+        logger.info(
+            f"Transferring run {self.run_name} to {connection_details['host'] if connection_details else destination}"
+        )
+        if connection_details:
+            transfer_object = RsyncAgent(
+                self.run_abspath,
+                dest_path=destination,
+                remote_host=connection_details.get("host"),
+                remote_user=connection_details.get("user"),
+                validate=False,
+                opts=rsync_opts,
+            )
+        else:
+            transfer_object = RsyncAgent(
+                self.run_abspath, dest_path=destination, validate=False, opts=rsync_opts
+            )
+        try:
+            transfer_object.transfer()
+        except RsyncError:
+            logger.warn(
+                "An error occurred while transferring {} to the "
+                "analysis server. Please check the logfiles".format(self.run_abspath)
+            )
+            return False
+        return True
 
     def update_transfer_log(self):
         """Update transfer log with run id and date."""
@@ -392,51 +413,3 @@ class ONT_run(object):
                 "{}".format(self.run_abspath, e)
             )
             return False
-
-
-class ONTTransfer(ONT_run):
-    """Base class for transfer of ONT data to HPC cluster"""
-
-    def __init__(self, run_dir):
-        super(ONTTransfer, self).__init__(run_dir)
-        self.sync_finished_indicator = os.path.join(run_dir, ".sync_finished")
-
-    def archive_run(self):
-        """Move run directory to nosync."""
-        logger.info("Archiving run " + self.run_name)
-        try:
-            shutil.move(self.run_abspath, self.archive_dir)
-            logger.info("Successfully archived {}".format(self.run_name))
-            return True
-        except shutil.Error:
-            logger.warn(
-                "An error occurred when archiving {}. "
-                "Please check the logfile for more info.".format(self.run_abspath)
-            )
-            return False
-
-
-class PromethionTransfer(ONTTransfer):
-    """Class for transfer of PromethION data to HPC cluster"""
-
-    def __init__(self, run_dir):
-        super(PromethionTransfer, self).__init__(run_dir)
-        self.transfer_details = (
-            CONFIG.get("nanopore_analysis").get("ont_transfer").get("promethion")
-        )
-        self.transfer_log = self.transfer_details.get("transfer_file")
-        self.archive_dir = self.transfer_details.get("finished_dir")
-        self.metadata_dir = self.transfer_details.get("metadata_dir")
-
-
-class MinionTransfer(ONTTransfer):
-    """Class for transfer of MinION data to HPC cluster"""
-
-    def __init__(self, run_dir):
-        super(MinionTransfer, self).__init__(run_dir)
-        self.transfer_details = (
-            CONFIG.get("nanopore_analysis").get("ont_transfer").get("minion")
-        )
-        self.transfer_log = self.transfer_details.get("transfer_file")
-        self.archive_dir = self.transfer_details.get("finished_dir")
-        self.metadata_dir = self.transfer_details.get("metadata_dir")
