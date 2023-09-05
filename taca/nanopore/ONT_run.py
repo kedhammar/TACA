@@ -167,7 +167,7 @@ class ONT_run(object):
 
     def parse_pore_activity(self, db_update):
 
-        logger.info(f"Parsing pore activity of run {self.run_name}")
+        logger.info(f"{self.run_name}: Parsing pore activity...")
 
         pore_activity = {}
 
@@ -209,7 +209,7 @@ class ONT_run(object):
     def parse_minknow_json(self, db_update):
         """Parse useful stuff from the MinKNOW .json report to add to CouchDB"""
 
-        logger.info(f"Parsing report JSON of run {self.run_name}")
+        logger.info(f"{self.run_name}:Parsing report JSON...")
 
         dict_json_report = json.load(open(self.get_file("/report*.json"), "r"))
 
@@ -280,7 +280,7 @@ class ONT_run(object):
 
     def transfer_html_report(self):
 
-        logger.info(f"Transferring the run report to ngi-internal.")
+        logger.info(f"{self.run_name}: Transferring .html report to ngi-internal...")
 
         # Transfer the MinKNOW .html report file to ngi-internal, renaming it to the full run ID. Requires password-free SSH access.
         report_src_path = self.get_file("/report*.html")
@@ -314,7 +314,7 @@ class ONT_run(object):
                 rsync_opts[k] = None
         connection_details = self.transfer_details.get("analysis_server", None)
         logger.info(
-            f"Transferring run {self.run_name} to {connection_details['host'] if connection_details else destination}"
+            f"{self.run_name}: Transferring to {connection_details['host'] if connection_details else destination}..."
         )
         if connection_details:
             transfer_object = RsyncAgent(
@@ -349,10 +349,10 @@ class ONT_run(object):
 
     def archive_run(self):
         """Move directory to nosync."""
-        logger.info("Archiving run " + self.run_name)
+        logger.info(f"{self.run_name}: Archiving run...")
 
         src = self.run_abspath
         dst = os.path.join(self.run_abspath, os.pardir, "nosync")
 
         shutil.move(src, dst)
-        logger.info("Successfully archived {}".format(self.run_name))
+        logger.info(f"{self.run_name}: Archiving run successful.")

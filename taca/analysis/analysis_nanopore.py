@@ -6,7 +6,7 @@ import traceback
 
 from taca.utils.config import CONFIG
 from taca.utils.misc import send_mail
-from taca.nanopore import ONT_run, ONT_RUN_PATTERN
+from taca.nanopore.ONT_run import ONT_run, ONT_RUN_PATTERN
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,7 @@ def find_run_dirs(dir_to_search: str, skip_dirs: list):
             and found_dir not in skip_dirs
             and re.match(ONT_RUN_PATTERN, found_dir)
         ):
-            logger.info(f"Found ONT run {found_dir} in {dir_to_search}.")
+            logger.info(f"Found ONT run {found_dir}.")
             found_run_dirs.append(os.path.join(dir_to_search, found_dir))
 
     return found_run_dirs
@@ -63,10 +63,10 @@ def transfer_ont_run(ont_run: ONT_run):
     ont_run.touch_db_entry()
 
     if ont_run.is_synced():
-        logger.info(f"{ont_run.run_name}: Finished sequencing.")
+        logger.info(f"{ont_run.run_name}: Run is fully synced.")
 
         if not ont_run.is_transferred():
-            logger.info(f"{ont_run.run_name}: Processing...")
+            logger.info(f"{ont_run.run_name}: Processing transfer...")
 
             # Update StatusDB
             logger.info(f"{ont_run.run_name}: Updating StatusDB...")
@@ -100,10 +100,10 @@ def transfer_ont_run(ont_run: ONT_run):
 
         else:
             logger.warning(
-                f"{ont_run.run_name}: Already logged as transferred, skipping."
+                f"{ont_run.run_name}: Run is already logged as transferred, skipping."
             )
     else:
-        logger.info(f"{ont_run.run_name}: Not finished sequencing yet, skipping.")
+        logger.info(f"{ont_run.run_name}: Run is not fully synced, skipping.")
 
 
 def ont_transfer(run_abspath: str or None):
