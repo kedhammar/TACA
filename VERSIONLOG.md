@@ -1,5 +1,8 @@
 # TACA Version Log
 
+## 20230903.1
+Adapt MinKNOW .json trimming to new format from Dorado update.
+
 ## 20230823.1
 Allow manual database update of finished ONT runs
 
