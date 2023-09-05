@@ -30,10 +30,13 @@ def find_run_dirs(dir_to_search: str, skip_dirs: list):
     return found_run_dirs
 
 
-def send_error_mail(ont_run: ONT_run, error: BaseException):
+def send_error_mail(run_name, error: BaseException):
 
-    email_subject = f"Run processed with errors: {ont_run.run_name}"
-    email_message = f"{str(error)}\n\n{traceback.format_exc(error)}"
+    email_subject = f"Run processed with errors: {run_name}"
+    email_message = "{}\n\n{}".format(
+        str(error),
+        traceback.format_exc(),
+    )
     email_recipients = CONFIG.get("mail").get("recipients")
 
     send_mail(email_subject, email_message, email_recipients)
@@ -134,7 +137,7 @@ def ont_transfer(run_abspath: str or None):
                     ont_run = ONT_run(run_dir)
                     transfer_ont_run(ont_run)
                 except BaseException as e:
-                    send_error_mail(ont_run, e)
+                    send_error_mail(os.path.basename(run_dir), e)
 
 
 def ont_updatedb(run_abspath: str):
