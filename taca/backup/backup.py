@@ -8,22 +8,21 @@ import time
 
 from datetime import datetime
 from taca.utils.config import CONFIG
-from taca.utils import statusdb
-from taca.utils import filesystem, misc
+from taca.utils import statusdb, filesystem, misc
 from io import open
 
 logger = logging.getLogger(__name__)
 
 class run_vars(object):
     """A simple variable storage class."""
-    def __init__(self, run):
+    def __init__(self, run, archive_path):
         self.abs_path = os.path.abspath(run)
         self.path, self.name = os.path.split(self.abs_path)
         self.name = self.name.split('.', 1)[0]
-        self.zip = '{}.tar.gz'.format(self.name)
+        self.zip = os.path.join(archive_path, f'{self.name}.tar.gz')
         self.key = '{}.key'.format(self.name)
         self.key_encrypted = '{}.key.gpg'.format(self.name)
-        self.zip_encrypted = '{}.tar.gz.gpg'.format(self.name)
+        self.zip_encrypted = os.path.join(archive_path, f'{self.name}.tar.gz.gpg')
 
 class backup_utils(object):
     """A class object with main utility methods related to backing up."""
@@ -38,11 +37,14 @@ class backup_utils(object):
         try:
             self.data_dirs = CONFIG['backup']['data_dirs']
             self.archive_dirs = CONFIG['backup']['archive_dirs']
+            self.exclude_list = CONFIG['backup']['exclude_list']
             self.keys_path = CONFIG['backup']['keys_path']
             self.gpg_receiver = CONFIG['backup']['gpg_receiver']
             self.mail_recipients = CONFIG['mail']['recipients']
             self.check_demux = CONFIG.get('backup', {}).get('check_demux', False)
             self.couch_info = CONFIG.get('statusdb')
+            self.finished_run_indicator = CONFIG.get('storage', {}).get('finished_run_indicator', 'RTAComplete.txt')
+            self.copy_complete_indicator = CONFIG.get('storage', {}).get('copy_complete_indicator', 'CopyComplete.txt')
         except KeyError as e:
             logger.error('Config file is missing the key {}, make sure it have all required information'.format(str(e)))
             raise SystemExit
@@ -51,13 +53,16 @@ class backup_utils(object):
         """Collect runs from archive directories."""
         self.runs = []
         if self.run:
-            run = run_vars(self.run)
+            run_type = self._get_run_type(self.run)
+            archive_path = self.archive_dirs[run_type]
+            run = run_vars(self.run, archive_path)
             if not re.match(filesystem.RUN_RE, run.name):
                 logger.error('Given run {} did not match a FC pattern'.format(self.run))
                 raise SystemExit
-            self.runs.append(run)
+            if self._is_ready_to_archive(run):
+                self.runs.append(run)
         else:
-            for adir in self.archive_dirs.values():
+            for adir in self.data_dirs.values():
                 if not os.path.isdir(adir):
                     logger.warn('Path {} does not exist or it is not a directory'.format(adir))
                     continue
@@ -69,12 +74,16 @@ class backup_utils(object):
                     elif not os.path.isdir(os.path.join(adir, item)):
                         continue
                     if re.match(filesystem.RUN_RE, item) and item not in self.runs:
-                        self.runs.append(run_vars(os.path.join(adir, item)))
+                        run_type = self._get_run_type(self.run)
+                        archive_path = self.archive_dirs[run_type]
+                        run = run_vars(os.path.join(adir, item), archive_path)
+                        if self._is_ready_to_archive(run):
+                            self.runs.append(run)
 
     def avail_disk_space(self, path, run):
         """Check the space on file system based on parent directory of the run."""
         # not able to fetch runtype use the max size as precaution, size units in GB
-        illumina_run_sizes = {'hiseq': 500, 'hiseqx': 900, 'novaseq': 1800, 'miseq': 20, 'nextseq': 250}
+        illumina_run_sizes = {'hiseq': 500, 'hiseqx': 900, 'novaseq': 1800, 'miseq': 20, 'nextseq': 250, 'NovaSeqXPlus': 3600}
         required_size = illumina_run_sizes.get(self._get_run_type(run), 900) * 2
         # check for any ongoing runs and add up the required size accrdingly
         for ddir in self.data_dirs.values():
@@ -127,6 +136,8 @@ class backup_utils(object):
                 run_type = 'novaseq'
             elif '_NS' in run or  '_VH' in run:
                 run_type = 'nextseq'
+            elif '_LH' in run:
+                run_type = 'NovaSeqXPlus'
             else:
                 run_type = 'hiseq'
         except:
@@ -207,94 +218,108 @@ class backup_utils(object):
         except:
             logger.warn('Not able to log "pdc_archived" timestamp for run {}'.format(run))
 
+    def _is_ready_to_archive(self, run):
+        """Check if the run to be encrypted has finished sequencing and has been copied completely to nas"""
+        
+        archive_ready = False
+
+        run_path = run.abs_path
+        rta_file = os.path.join(run_path, self.finished_run_indicator)
+        cp_file = os.path.join(run_path, self.copy_complete_indicator)
+        if os.path.exists(rta_file) and os.path.exists(cp_file):
+            logger.info(f'Sequencing has finished and copying completed for run {os.path.basename(run_path)} and is ready for archiving')
+            archive_ready = True
+
+        return archive_ready
+    
+
     @classmethod
     def encrypt_runs(cls, run, force):
         """Encrypt the runs that have been collected."""
         bk = cls(run)
         bk.collect_runs(ext='.tar.gz')
-        logger.info('In total, found {} run(s) to be encrypted'.format(len(bk.runs)))
+        logger.info(f'In total, found {len(bk.runs)} run(s) to be encrypted')
         for run in bk.runs:
-            run.flag = '{}.encrypting'.format(run.name)
+            run.flag = f'{run.name}.encrypting'
             run.dst_key_encrypted = os.path.join(bk.keys_path, run.key_encrypted)
             tmp_files = [run.zip_encrypted, run.key_encrypted, run.key, run.flag]
-            logger.info('Encryption of run {} is now started'.format(run.name))
+            logger.info(f'Encryption of run {run.name} is now started')
             # Check if there is enough space and exit if not
             bk.avail_disk_space(run.path, run.name)
             # Check if the run in demultiplexed
             if not force and bk.check_demux:
                 if not misc.run_is_demuxed(run.name, bk.couch_info):
-                    logger.warn('Run {} is not demultiplexed yet, so skipping it'.format(run.name))
+                    logger.warn(f'Run {run.name} is not demultiplexed yet, so skipping it')
                     continue
-                logger.info('Run {} is demultiplexed and proceeding with encryption'.format(run.name))
+                logger.info(f'Run {run.name} is demultiplexed and proceeding with encryption')
             with filesystem.chdir(run.path):
                 # skip run if already ongoing
                 if os.path.exists(run.flag):
-                    logger.warn('Run {} is already being encrypted, so skipping now'.format(run.name))
+                    logger.warn(f'Run {run.name} is already being encrypted, so skipping now')
                     continue
                 flag = open(run.flag, 'w').close()
                 # zip the run directory
                 if os.path.exists(run.zip):
                     if os.path.isdir(run.name):
-                        logger.warn('Both run source and zipped archive exist for run {}, skipping run as precaution'.format(run.name))
+                        logger.warn(f'Both run source and zipped archive exist for run {run.name}, skipping run as precaution')
                         bk._clean_tmp_files([run.flag])
                         continue
-                    logger.info('Zipped archive already exist for run {}, so using it for encryption'.format(run.name))
+                    logger.info(f'Zipped archive already exist for run {run.name}, so using it for encryption')
                 else:
-                    logger.info('Creating zipped archive for run {}'.format(run.name))
-                    if bk._call_commands(cmd1='tar -cf - {}'.format(run.name), cmd2='pigz --fast -c -',
-                                         out_file=run.zip, mail_failed=True, tmp_files=[run.zip, run.flag]):
-                        logger.info('Run {} was successfully compressed, so removing the run source directory'.format(run.name))
-                        shutil.rmtree(run.name)
+                    exclude_files = " ".join([f'--exclude {x}' for x in bk.exclude_list])
+                    logger.info(f'Creating zipped archive for run {run.name}')
+                    if bk._call_commands(cmd1=f'tar {exclude_files} -cf - {run.name}', cmd2='pigz --fast -c -',
+                                        out_file=run.zip, mail_failed=True, tmp_files=[run.zip, run.flag]):
+                        logger.info(f'Run {run.name} was successfully compressed and transferred to {run.zip}')
                     else:
-                        logger.warn('Skipping run {} and moving on'.format(run.name))
+                        logger.warn(f'Skipping run {run.name} and moving on')
                         continue
                 # Remove encrypted file if already exists
                 if os.path.exists(run.zip_encrypted):
-                    logger.warn(('Removing already existing encrypted file for run {}, this is a precaution '
-                                 'to make sure the file was encrypted with correct key file'.format(run.name)))
+                    logger.warn((f'Removing already existing encrypted file for run {run.name}, this is a precaution '
+                                 'to make sure the file was encrypted with correct key file'))
                     bk._clean_tmp_files([run.zip_encrypted, run.key, run.key_encrypted, run.dst_key_encrypted])
                 # Generate random key to use as pasphrase
                 if not bk._call_commands(cmd1='gpg --gen-random 1 256', out_file=run.key, tmp_files=tmp_files):
-                    logger.warn('Skipping run {} and moving on'.format(run.name))
+                    logger.warn(f'Skipping run {run.name} and moving on')
                     continue
-                logger.info('Generated randon phrase key for run {}'.format(run.name))
+                logger.info(f'Generated random phrase key for run {run.name}')
                 # Calculate md5 sum pre encryption
                 if not force:
                     logger.info('Calculating md5sum before encryption')
-                    md5_call, md5_out = bk._call_commands(cmd1='md5sum {}'.format(run.zip), return_out=True, tmp_files=tmp_files)
+                    md5_call, md5_out = bk._call_commands(cmd1=f'md5sum {run.zip}', return_out=True, tmp_files=tmp_files)
                     if not md5_call:
-                        logger.warn('Skipping run {} and moving on'.format(run.name))
+                        logger.warn(f'Skipping run {run.name} and moving on')
                         continue
                     md5_pre_encrypt = md5_out.split()[0]
                 # Encrypt the zipped run file
                 logger.info('Encrypting the zipped run file')
-                if not bk._call_commands(cmd1=('gpg --symmetric --cipher-algo aes256 --passphrase-file {} --batch --compress-algo '
-                                               'none -o {} {}'.format(run.key, run.zip_encrypted, run.zip)), tmp_files=tmp_files):
-                    logger.warn('Skipping run {} and moving on'.format(run.name))
+                if not bk._call_commands(cmd1=(f'gpg --symmetric --cipher-algo aes256 --passphrase-file {run.key} --batch --compress-algo '
+                                               f'none -o {run.zip_encrypted} {run.zip}'), tmp_files=tmp_files):
+                    logger.warn(f'Skipping run {run.name} and moving on')
                     continue
                 # Decrypt and check for md5
                 if not force:
                     logger.info('Calculating md5sum after encryption')
-                    md5_call, md5_out = bk._call_commands(cmd1='gpg --decrypt --cipher-algo aes256 --passphrase-file {} --batch {}'.format(run.key, run.zip_encrypted),
+                    md5_call, md5_out = bk._call_commands(cmd1=f'gpg --decrypt --cipher-algo aes256 --passphrase-file {run.key} --batch {run.zip_encrypted}',
                                                           cmd2='md5sum', return_out=True, tmp_files=tmp_files)
                     if not md5_call:
-                        logger.warn('Skipping run {} and moving on'.format(run.name))
+                        logger.warn(f'Skipping run {run.name} and moving on')
                         continue
                     md5_post_encrypt = md5_out.split()[0]
                     if md5_pre_encrypt != md5_post_encrypt:
-                        logger.error(('md5sum did not match before {} and after {} encryption. Will remove temp files and '
-                                      'move on'.format(md5_pre_encrypt, md5_post_encrypt)))
+                        logger.error(f'md5sum did not match before {md5_pre_encrypt} and after {md5_post_encrypt} encryption. Will remove temp files and move on')
                         bk._clean_tmp_files(tmp_files)
                         continue
-                    logger.info('Md5sum is macthing before and after encryption')
+                    logger.info('Md5sum matches before and after encryption')
                 # Encrypt and move the key file
-                if bk._call_commands(cmd1='gpg -e -r {} -o {} {}'.format(bk.gpg_receiver, run.key_encrypted, run.key), tmp_files=tmp_files):
+                if bk._call_commands(cmd1=f'gpg -e -r {bk.gpg_receiver} -o {run.key_encrypted} {run.key}', tmp_files=tmp_files):
                     shutil.move(run.key_encrypted, run.dst_key_encrypted)
                 else:
-                    logger.error('Encrption of key file failed, skipping run')
+                    logger.error('Encryption of key file failed, skipping run')
                     continue
                 bk._clean_tmp_files([run.zip, run.key, run.flag])
-                logger.info('Encryption of run {} is successfully done, removing zipped run file'.format(run.name))
+                logger.info(f'Encryption of run {run.name} is successfully done, removing zipped run file')
 
     @classmethod
     def pdc_put(cls, run):

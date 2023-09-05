@@ -1,7 +1,8 @@
 """ Transfers new PromethION runs to ngi-nas using rsync.
 """
-__version__ = "1.0.7"
+__version__ = "1.0.9"
 
+import logging
 import os
 import re
 import shutil
@@ -11,9 +12,19 @@ import subprocess
 from glob import glob
 from datetime import datetime as dt
 
+
 def main(args):
     """Find promethion runs and transfer them to storage. 
     Archives the run when the transfer is complete."""
+
+    logging.basicConfig(
+        filename=args.log_path,
+        level=logging.DEBUG,
+        format="%(asctime)s - %(levelname)s - %(message)s",
+    )
+
+    logging.info("Starting script...")
+
     data_dir = args.source_dir
     run_pattern = re.compile("\d{8}_\d{4}_[A-Za-z0-9]+_[A-Za-z0-9]+_[A-Za-z0-9]+")
     destination_dir = args.dest_dir
@@ -21,26 +32,35 @@ def main(args):
     log_file = os.path.join(data_dir, 'rsync_log.txt')
     minknow_logs_dir = args.minknow_logs_dir
 
+    logging.info("Parsing PromethION position logs...")
     position_logs = parse_position_logs(minknow_logs_dir)
+    logging.info("Subsetting QC and MUX metrics...")
     pore_counts = get_pore_counts(position_logs)
 
+    logging.info("Finding runs...")
     runs = [
         path
         for path in glob(f"{data_dir}/*/*/*", recursive=True)
         if re.match(run_pattern, os.path.basename(path))
     ]
+    logging.info(f"Found {len(runs)} runs...")
 
     # Split finished and unfinished runs
     not_finished = []
     finished = []
     
     for run in runs:
+        logging.info(f"Handling {run}...")
+
+        logging.info(f"Dumping run path...")
+        dump_path(run)
+        logging.info(f"Dumping QC and MUX history...")
+        dump_pore_count_history(run, pore_counts)
+
         if sequencing_finished(run):
             finished.append(run)
         else:
             not_finished.append(run)
-        dump_path(run)
-        dump_pore_count_history(run, pore_counts)
 
     # Start transfer of unfinished runs first (detatched)
     for run in not_finished:
@@ -84,12 +104,13 @@ def sync_to_storage(run_dir, destination, log_file):
         destination,
     ]
     process_handle = subprocess.Popen(command)
-    print('Initiated rsync with the following parameters: {}'.format(command))
-    
+    logging.info("Initiated rsync with the following parameters: {}".format(command))
+
+
 def final_sync_to_storage(run_dir, destination, archive_dir, log_file):
     """Do a final sync of the run to storage, then archive it. 
     Skip if rsync is already running on the run."""
-    print("Performing a final sync of {} to storage".format(run_dir))
+    logging.info("Performing a final sync of {} to storage".format(run_dir))
     command = [
         "run-one",
         "rsync",
@@ -106,14 +127,18 @@ def final_sync_to_storage(run_dir, destination, archive_dir, log_file):
         process_handle = subprocess.run(sync_finished_indicator)
         archive_finished_run(run_dir, archive_dir)
     else:
-        print('Previous rsync might be running still. Skipping {} for now.'.format(run_dir))
+        logging.info(
+            "Previous rsync might be running still. Skipping {} for now.".format(
+                run_dir
+            )
+        )
         return
 
 
 def archive_finished_run(run_dir, archive_dir):
     """Move finished run to archive (nosync)."""
 
-    print(f"Archiving {run_dir}.")
+    logging.info(f"Archiving {run_dir}.")
 
     sample_dir = os.path.dirname(run_dir)
     exp_dir = os.path.dirname(sample_dir)
@@ -124,28 +149,38 @@ def archive_finished_run(run_dir, archive_dir):
 
     # Create archive experiment group dir, if none
     if not os.path.exists(os.path.join(archive_dir, exp_name)):
-        print(f"Creating {os.path.join(archive_dir, exp_name)}.")
+        logging.info(f"Creating {os.path.join(archive_dir, exp_name)}.")
         os.mkdir(os.path.join(archive_dir, exp_name))
     # Create archive sample dir, if none
     if not os.path.exists(os.path.join(archive_dir, exp_name, sample_name)):
-        print(f"Creating {os.path.join(archive_dir, exp_name, sample_name)}.")
+        logging.info(f"Creating {os.path.join(archive_dir, exp_name, sample_name)}.")
         os.mkdir(os.path.join(archive_dir, exp_name, sample_name))
 
     # Archive run
-    print(f"Archiving {run_dir} to {os.path.join(archive_dir, exp_name, sample_name)}.")
+    logging.info(
+        f"Archiving {run_dir} to {os.path.join(archive_dir, exp_name, sample_name)}."
+    )
     shutil.move(run_dir, os.path.join(archive_dir, exp_name, sample_name))
 
     # Remove sample dir, if empty
     if not os.listdir(sample_dir):
-        print(f"Sample folder {sample_dir} is empty. Removing it.")
+        logging.info(f"Sample folder {sample_dir} is empty. Removing it.")
         os.rmdir(sample_dir)
+    else:
+        logging.info(
+            f"Sample folder {sample_dir} is not empty ({os.listdir(sample_dir)}), leaving it."
+        )
     # Remove experiment group dir, if empty
     if not os.listdir(exp_dir):
-        print(f"Experiment group folder {exp_dir} is empty. Removing it.")
+        logging.info(f"Experiment group folder {exp_dir} is empty. Removing it.")
         os.rmdir(exp_dir)
+    else:
+        logging.info(
+            f"Experiment group folder {exp_dir} is not empty ({os.listdir(exp_dir)}), leaving it."
+        )
 
 
-def parse_position_logs(minknow_log_dir: str) -> list:
+def parse_position_logs(minknow_logs_dir: str) -> list:
     """Look through all flow cell position logs and boil down into a structured list of dicts
 
     Example output:
@@ -160,7 +195,6 @@ def parse_position_logs(minknow_log_dir: str) -> list:
 
     """
 
-    position_log_file_name = "control_server_log-0.txt"
     log_timestamp_format = "%Y-%m-%d %H:%M:%S.%f"
 
     positions = []
@@ -170,31 +204,37 @@ def parse_position_logs(minknow_log_dir: str) -> list:
 
     entries = []
     for position in positions:
-        with open(
-            f"{minknow_log_dir}/{position}/{position_log_file_name}", "r"
-        ) as stream:
-            lines = stream.readlines()
-            for i in range(0, len(lines)):
-                line = lines[i]
-                if line[0:4] != "    ":
-                    # Line is log header
-                    split_header = line.split(" ")
-                    timestamp = " ".join(split_header[0:2])
-                    category = " ".join(split_header[2:])
 
-                    entry = {
-                        "position": position,
-                        "timestamp": timestamp.strip(),
-                        "category": category.strip(),
-                    }
-                    entries.append(entry)
-                else:
-                    # Line is log body
-                    if "body" not in entry:
-                        entry["body"] = {}
-                    key = line.split(": ")[0].strip()
-                    val = ": ".join(line.split(": ")[1:]).strip()
-                    entry["body"][key] = val
+        log_files = glob(f"{minknow_logs_dir}/{position}/control_server_log-*.txt")
+        log_files.sort()
+
+        for log_file in log_files:
+            with open(log_file) as stream:
+                lines = stream.readlines()
+                for i in range(0, len(lines)):
+                    line = lines[i]
+                    if line[0:4] != "    ":
+                        # Line is log header
+                        split_header = line.split(" ")
+                        timestamp = " ".join(split_header[0:2])
+                        category = " ".join(split_header[2:])
+
+                        entry = {
+                            "position": position,
+                            "timestamp": timestamp.strip(),
+                            "category": category.strip(),
+                        }
+                        entries.append(entry)
+                    else:
+                        # Line is log body
+                        if "body" not in entry:
+                            entry["body"] = {}
+                        key = line.split(": ")[0].strip()
+                        val = ": ".join(line.split(": ")[1:]).strip()
+                        entry["body"][key] = val
+
+    entries.sort(key=lambda x: x["timestamp"])
+    logging.info(f"Parsed {len(entries)} log entries.")
 
     return entries
 
@@ -229,6 +269,8 @@ def get_pore_counts(position_logs: list) -> list:
             )
 
             pore_counts.append(new_entry)
+
+    logging.info(f"Subset {len(pore_counts)} QC and MUX log entries.")
 
     return pore_counts
 
@@ -289,6 +331,7 @@ if __name__ == "__main__":
         dest="minknow_logs_dir",
         help="Full path to the directory containing the MinKNOW position logs.",
     )
+    parser.add_argument("--log_path")
     parser.add_argument("--version", action="version", version=__version__)
     args = parser.parse_args()
     

@@ -42,16 +42,14 @@ def updatedb(rundir):
               help='Required. Specify if MinION run is for QC or delivery.')
 @click.option('-r', '--run', type=click.Path(exists=True), default=None,
               help='Process only a particular run')
-@click.option('--nanoseq_sample_sheet', type=click.Path(exists=True), default=None,
-              help='Manually edited sample sheet for running nanoseq')
 @click.option('--anglerfish_sample_sheet', type=click.Path(exists=True), default=None,
               help='Manually edited sample sheet for running anglerfish')
 
-def minion(runtype, run, nanoseq_sample_sheet, anglerfish_sample_sheet):
+def minion(runtype, run, anglerfish_sample_sheet):
     """Process MinION QC runs
     """
     if runtype == 'qc':
-        analysis_nanopore.process_minion_qc_runs(run, nanoseq_sample_sheet, anglerfish_sample_sheet)
+        analysis_nanopore.process_minion_qc_runs(run, anglerfish_sample_sheet)
     elif runtype == 'delivery':
         analysis_nanopore.process_minion_delivery_runs(run)
     else:
@@ -70,4 +68,5 @@ def ont_transfer(run):
 @analysis.command()
 @click.argument("run")
 def ont_updatedb(run):
+    """Update the database, regardless of run status"""
     analysis_nanopore.ont_updatedb_from_cli(run)

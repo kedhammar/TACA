@@ -1,5 +1,26 @@
 # TACA Version Log
 
+## 20230823.1
+Allow manual database update of finished ONT runs
+
+## 20230822.1
+Add pandas to requiresments to accomodate last PR
+
+## 20230821.1
+Copy ONT metadata to ngi-nas-ns.
+
+## 20230814.1
+Update path to store Anglerfish results.
+
+## 20230810.1
+Implement logging for PromethION script.
+
+## 20230809.2
+Update handling of MinION QC runs to not run nanoseq, only anglerfish.
+
+## 20230809.1
+Update PromethION script to extend the scope of the log file parsing.
+
 ## 20230724.1
 Enable TACA to retrieve error and warnings in bcl2fastq logs
 
