@@ -62,14 +62,20 @@ def transfer_ont_run(ont_run: ONT_run):
     Any errors raised here-in should be sent with traceback as an email.
     """
 
-    logger.info(f"{ont_run.run_name}: Inspecting StatusDB...")
+    logger.info(f"{ont_run.run_name}: Touching StatusDB...")
     ont_run.touch_db_entry()
+    logger.info(f"{ont_run.run_name}: Touching StatusDB successful...")
 
     if ont_run.is_synced():
         logger.info(f"{ont_run.run_name}: Run is fully synced.")
 
         if not ont_run.is_transferred():
             logger.info(f"{ont_run.run_name}: Processing transfer...")
+
+            # Assert all files are in place
+            logger.info(f"{ont_run.run_name}: Asserting run contents...")
+            ont_run.assert_contents()
+            logger.info(f"{ont_run.run_name}: Asserting run contents successful.")
 
             # Update StatusDB
             logger.info(f"{ont_run.run_name}: Updating StatusDB...")

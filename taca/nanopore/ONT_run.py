@@ -89,9 +89,6 @@ class ONT_run(object):
 
     # Evaluating run status
 
-    def is_finished(self) -> bool:
-        return self.has_file("/final_summary*.txt")
-
     def is_synced(self) -> bool:
         return self.has_file("/.sync_finished")
 
@@ -99,6 +96,25 @@ class ONT_run(object):
         """Return True if run ID in transfer.tsv, else False."""
         with open(self.transfer_log, "r") as f:
             return self.run_name in f.read()
+
+    def assert_contents(self) -> bool:
+        """Checklist function to assure run has all files necessary to proceed with processing"""
+
+        # Completion indicators
+        assert self.has_file("/.sync_finished")
+        assert self.has_file("/final_summary*.txt")
+
+        # NGI files from instrument
+        assert self.has_file("/pore_count_history.csv")
+        assert self.has_file("/run_path.txt")
+
+        # MinKNOW reports
+        assert self.has_file("/report_*.json")
+        assert self.has_file("/report_*.html")
+
+        # MinKNOW auxillary files
+        assert self.has_file("/final_summary*.txt")
+        assert self.has_file("/pore_activity*.csv")
 
     # DB update
 
@@ -131,8 +147,6 @@ class ONT_run(object):
 
     def update_db_entry(self, force_update=False):
         """Check run vs statusdb. Create or update run entry."""
-
-        logger.info(f"{self.run_name}: Checking StatusDB...")
 
         sesh = NanoporeRunsConnection(CONFIG["statusdb"], dbname="nanopore_runs")
 
@@ -253,7 +267,7 @@ class ONT_run(object):
         # Add the parsed data to the db update
         db_update.update(parsed_data)
 
-    # Transfer metadata
+    # Transferring metadata
 
     def transfer_metadata(self):
         """Copies run dir (excluding seq data) to metadata dir"""
