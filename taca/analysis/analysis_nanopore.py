@@ -43,7 +43,7 @@ def send_error_mail(run_name, error: BaseException):
 
 
 def transfer_ont_run(ont_run: ONT_run):
-    """This function orchestrates the sequential execution of the ONT_run class methods.
+    """This control function orchestrates the sequential execution of the ONT_run class methods.
 
     For a single ONT run...
 
@@ -51,6 +51,7 @@ def transfer_ont_run(ont_run: ONT_run):
             - Ensure there is a database entry corresponding to an ongoing run
 
         b) If finished:
+            - Ensure all necessary files to proceed with processing are present
             - Ensure there is a database entry corresponding to an ongoing run
             - Update the StatusDB entry
             - Copy metadata
