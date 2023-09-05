@@ -1,5 +1,8 @@
 # TACA Version Log
 
+## 20230905.1
+Fix bugs for encrypting and archiving runs on ngi-preproc
+
 ## 20230903.1
 Adapt MinKNOW .json trimming to new format from Dorado update.
 

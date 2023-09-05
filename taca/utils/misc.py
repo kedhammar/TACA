@@ -197,7 +197,7 @@ def run_is_demuxed(run, couch_info=None):
     run_name = '{}_{}'.format(run_date, run_fc)
     try:
         couch_connection = statusdb.StatusdbSession(couch_info).connection
-        fc_db = couch_connection[couch_info['db']]
+        fc_db = couch_connection[couch_info['xten_db']]
         for fc in fc_db.view('names/name', reduce=False, descending=True):
             if fc.key != run_name:
                 continue
