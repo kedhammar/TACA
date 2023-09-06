@@ -97,7 +97,7 @@ class ONT_run(object):
         with open(self.transfer_log, "r") as f:
             return self.run_name in f.read()
 
-    def assert_contents(self) -> bool:
+    def assert_contents(self):
         """Checklist function to assure run has all files necessary to proceed with processing"""
 
         # Completion indicators
@@ -319,7 +319,7 @@ class ONT_run(object):
 
     # Transfer data
 
-    def transfer_run(self) -> bool:
+    def transfer_run(self):
         """Transfer dir to destination specified in config file via rsync"""
         destination = self.transfer_details.get("destination")
         rsync_opts = self.transfer_details.get("rsync_options")
@@ -370,3 +370,8 @@ class ONT_run(object):
 
         shutil.move(src, dst)
         logger.info(f"{self.run_name}: Archiving run successful.")
+
+    # QC methods
+
+    def run_anglerfish(self):
+        pass
