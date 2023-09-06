@@ -64,7 +64,7 @@ class backup_utils(object):
             if self._is_ready_to_archive(run):
                 self.runs.append(run)
         else:
-            for adir in self.data_dirs.values():
+            for adir in self.archive_dirs.values():
                 if not os.path.isdir(adir):
                     logger.warn('Path {} does not exist or it is not a directory'.format(adir))
                     continue
@@ -76,7 +76,7 @@ class backup_utils(object):
                     elif not os.path.isdir(os.path.join(adir, item)):
                         continue
                     if re.match(filesystem.RUN_RE, item) and item not in self.runs:
-                        run_type = self._get_run_type(self.run)
+                        run_type = self._get_run_type(item)
                         archive_path = self.archive_dirs[run_type]
                         run = run_vars(os.path.join(adir, item), archive_path)
                         if self._is_ready_to_archive(run):
