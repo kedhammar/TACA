@@ -6,6 +6,7 @@ import glob
 import re
 import json
 import pandas as pd
+import subprocess
 
 from taca.utils.statusdb import NanoporeRunsConnection
 from datetime import datetime
@@ -373,5 +374,48 @@ class ONT_run(object):
 
     # QC methods
 
-    def run_anglerfish(self):
+    def fetch_anglerfish_samplesheet(self) -> bool:
+        """Fetch Anglerfish samplesheet belonging to the run from where it was
+        dumped by LIMS and put it in the run directory.
+
+        Return True on success and False if the file is not yet available.
+        """
         pass
+
+    def run_anglerfish(self, anglerfish_samplesheet_abspath):
+        """Run Anglerfish within it's own Conda environment and dump exit status."""
+
+        env_name = "anglerfish"
+        n_threads = 2  # This could possibly be changed
+        exitcode_filename = ".exitcode_for_anglerfish"
+
+        anglerfish_command = (
+            "anglerfish"
+            + f" --samplesheet {anglerfish_samplesheet_abspath}"
+            + f" --out_fastq {self.run_abspath}"
+            + f" --threads {n_threads}"
+            + f" --skip_demux"
+        )
+
+        full_command = (
+            f"source activate {env_name} && "
+            + f"{anglerfish_command} && "
+            + f"echo $? > {exitcode_filename} && "
+            + f"source deactivate"
+        )
+
+        try:
+            p_handle = subprocess.Popen(
+                full_command,
+                stdout=subprocess.PIPE,
+                shell=True,
+                cwd=self.run_abspath,
+            )
+            logger.info(
+                f"{self.run_abspath}: Started Anglerfish using: {anglerfish_command}"
+            )
+
+        except subprocess.CalledProcessError:
+            logger.warn(
+                f"{self.run_abspath}: An error occured when running Anglerfish using: {anglerfish_command}"
+            )
