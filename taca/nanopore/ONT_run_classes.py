@@ -7,6 +7,7 @@ import re
 import json
 import pandas as pd
 import subprocess
+import os
 
 from taca.utils.statusdb import NanoporeRunsConnection
 from datetime import datetime
@@ -29,7 +30,6 @@ class ONT_run(object):
     def __init__(self, run_abspath: str):
 
         # Get paths and names of MinKNOW experiment, sample and run
-
         self.run_name = os.path.basename(run_abspath)
         self.run_abspath = run_abspath
 
@@ -53,16 +53,12 @@ class ONT_run(object):
         # Get instrument
         self.instrument = "promethion" if len(self.position) == 2 else "minion"
 
-        # Get instument-specific transfer details
-        self.transfer_details = (
-            CONFIG.get("nanopore_analysis").get("ont_transfer").get(self.instrument)
-        )
-        self.transfer_log = self.transfer_details.get("transfer_file")
-        self.archive_dir = self.transfer_details.get("finished_dir")
-        self.metadata_dir = self.transfer_details.get("metadata_dir")
-
         # Get QC bool
         self.qc = True if self.sample_name[0:3] == "QC_" else False
+
+        # Get attributes from config
+        self.minknow_reports_dir = CONFIG["nanopore_analysis"]["minknow_reports_dir"]
+        self.db = NanoporeRunsConnection(CONFIG["statusdb"], dbname="nanopore_runs")
 
     # Looking for files within the run dir
 
@@ -93,11 +89,6 @@ class ONT_run(object):
     def is_synced(self) -> bool:
         return self.has_file("/.sync_finished")
 
-    def is_transferred(self) -> bool:
-        """Return True if run ID in transfer.tsv, else False."""
-        with open(self.transfer_log, "r") as f:
-            return self.run_name in f.read()
-
     def assert_contents(self):
         """Checklist function to assure run has all files necessary to proceed with processing"""
 
@@ -122,9 +113,7 @@ class ONT_run(object):
     def touch_db_entry(self):
         """Check run vs statusdb. Create entry if there is none."""
 
-        sesh = NanoporeRunsConnection(CONFIG["statusdb"], dbname="nanopore_runs")
-
-        if not sesh.check_run_exists(self):
+        if not self.db.check_run_exists(self):
             logger.info(
                 f"{self.run_name}: Run does not exist in the database, creating entry for ongoing run."
             )
@@ -139,7 +128,7 @@ class ONT_run(object):
                 pore_count_history_file
             ), f"Couldn't find {pore_count_history_file}"
 
-            sesh.create_ongoing_run(self, run_path_file, pore_count_history_file)
+            self.db.create_ongoing_run(self, run_path_file, pore_count_history_file)
             logger.info(
                 f"{self.run_name}: Successfully created database entry for ongoing run."
             )
@@ -149,15 +138,13 @@ class ONT_run(object):
     def update_db_entry(self, force_update=False):
         """Check run vs statusdb. Create or update run entry."""
 
-        sesh = NanoporeRunsConnection(CONFIG["statusdb"], dbname="nanopore_runs")
-
         # If no run document exists in the database, ceate an ongoing run document
         self.touch_db_entry()
 
         # If the run document is marked as "ongoing" or database is being manually updated
-        if sesh.check_run_status(self) == "ongoing" or force_update == True:
+        if self.db.check_run_status(self) == "ongoing" or force_update == True:
             logger.info(
-                f"{self.run_name}: Run exists in the database with run status: {sesh.check_run_status(self)}."
+                f"{self.run_name}: Run exists in the database with run status: {self.db.check_run_status(self)}."
             )
 
             logger.info(f"{self.run_name}: Updating...")
@@ -172,10 +159,10 @@ class ONT_run(object):
             self.parse_pore_activity(db_update)
 
             # Update the DB entry
-            sesh.finish_ongoing_run(self, db_update)
+            self.db.finish_ongoing_run(self, db_update)
 
         # If the run document is marked as "finished"
-        elif sesh.check_run_status(self) == "finished":
+        elif self.db.check_run_status(self) == "finished":
             logger.info(
                 f"Run {self.run_name} exists in the database as an finished run, do nothing."
             )
@@ -270,7 +257,7 @@ class ONT_run(object):
 
     # Transferring metadata
 
-    def transfer_metadata(self):
+    def copy_metadata(self):
         """Copies run dir (excluding seq data) to metadata dir"""
 
         exclude_patterns = [
@@ -293,14 +280,14 @@ class ONT_run(object):
             f"rsync -rv --exclude={{{','.join(exclude_patterns_quoted)}}} {src} {dst}"
         )
 
-    def transfer_html_report(self):
+    def copy_html_report(self):
 
         logger.info(f"{self.run_name}: Transferring .html report to ngi-internal...")
 
         # Transfer the MinKNOW .html report file to ngi-internal, renaming it to the full run ID. Requires password-free SSH access.
         report_src_path = self.get_file("/report*.html")
         report_dest_path = os.path.join(
-            CONFIG["nanopore_analysis"]["ont_transfer"]["minknow_reports_dir"],
+            self.minknow_reports_dir,
             f"report_{self.run_name}.html",
         )
         transfer_object = RsyncAgent(
@@ -318,7 +305,37 @@ class ONT_run(object):
             logger.error(msg)
             raise RsyncError(msg)
 
-    # Transfer data
+    # Archive run
+
+    def archive_run(self):
+        """Move directory to nosync."""
+        logger.info(f"{self.run_name}: Archiving run...")
+
+        src = self.run_abspath
+        dst = os.path.join(self.run_abspath, os.pardir, "nosync")
+
+        shutil.move(src, dst)
+        logger.info(f"{self.run_name}: Archiving run successful.")
+
+
+class ONT_user_run(ONT_run):
+    """ONT user run, has class methods and attributes specific to user runs."""
+
+    def __init__(self, run_abspath: str):
+        super(ONT_user_run, self).__init__(run_abspath)
+
+        # Get attributes from config
+        self.transfer_details = CONFIG["nanopore_analysis"]["user_run"][self.instrument]
+        self.transfer_log = self.transfer_details["transfer_file"]
+        self.archive_dir = self.transfer_details["finished_dir"]
+        self.metadata_dir = self.transfer_details["metadata_dir"]
+
+    # User run methods
+
+    def is_transferred(self) -> bool:
+        """Return True if run ID in transfer.tsv, else False."""
+        with open(self.transfer_log, "r") as f:
+            return self.run_name in f.read()
 
     def transfer_run(self):
         """Transfer dir to destination specified in config file via rsync"""
@@ -362,15 +379,18 @@ class ONT_run(object):
             logger.error(msg)
             raise IOError(msg)
 
-    def archive_run(self):
-        """Move directory to nosync."""
-        logger.info(f"{self.run_name}: Archiving run...")
 
-        src = self.run_abspath
-        dst = os.path.join(self.run_abspath, os.pardir, "nosync")
+class ONT_qc_run(ONT_run):
+    """ONT QC run, has class methods and attributes specific to QC runs"""
 
-        shutil.move(src, dst)
-        logger.info(f"{self.run_name}: Archiving run successful.")
+    def __init__(self, run_abspath: str):
+        super(ONT_qc_run, self).__init__(run_abspath)
+
+        # Get attributes from config
+        paths = CONFIG["nanopore_analysis"]["qc_run"]
+        self.archive_dir = paths["finished_dir"]
+        self.metadata_dir = paths["metadata_dir"]
+        self.anglerfish_samplesheets_dir = paths["anglerfish_samplesheets_dir"]
 
     # QC methods
 
@@ -378,11 +398,47 @@ class ONT_run(object):
         """Fetch Anglerfish samplesheet belonging to the run from where it was
         dumped by LIMS and put it in the run directory.
 
-        Return True on success and False if the file is not yet available.
-        """
-        pass
+        a) If file(s) is available, copy to run folder. On success, return True and
+        add new samplesheet abspath as object attribute.
 
-    def run_anglerfish(self, anglerfish_samplesheet_abspath):
+        b) If the file is not yet available, return False.
+        """
+
+        # Following line assumes run was started same year as samplesheet was generated
+        current_year = self.date[0:4]
+        expected_file_pattern = f"anglerfish_samplesheet_{self.experiment_name}_*.csv"
+
+        # Finalize query pattern
+        pattern_abspath = os.path.join(
+            self.anglerfish_samplesheets_dir, current_year, expected_file_pattern
+        )
+
+        glob_results = glob.glob(pattern_abspath)
+
+        if len(glob_results) == 0:
+            return False
+
+        else:
+            # Sort by ascending date
+            glob_results.sort()
+
+            # Grab abspath of latest samplesheet
+            src = glob_results[-1]
+            dst = os.path.join(self.run_abspath, os.path.basename(src))
+
+            # Copy into run directory
+            if os.system(f"rsync -v {src} {dst}") == 0:
+                self.anglerfish_samplesheet = dst
+                return True
+            else:
+                raise RsyncError(
+                    f"{self.run_name}: Error occured when copying anglerfish samplesheet to run dir."
+                )
+
+    def check_anglerfish_status(self):
+        """Check whether Anglerfish"""
+
+    def run_anglerfish(self):
         """Run Anglerfish within it's own Conda environment and dump exit status."""
 
         env_name = "anglerfish"
@@ -391,7 +447,7 @@ class ONT_run(object):
 
         anglerfish_command = (
             "anglerfish"
-            + f" --samplesheet {anglerfish_samplesheet_abspath}"
+            + f" --samplesheet {self.anglerfish_samplesheet}"
             + f" --out_fastq {self.run_abspath}"
             + f" --threads {n_threads}"
             + f" --skip_demux"

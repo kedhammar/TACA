@@ -6,7 +6,12 @@ import traceback
 
 from taca.utils.config import CONFIG
 from taca.utils.misc import send_mail
-from taca.nanopore.ONT_run import ONT_run, ONT_RUN_PATTERN
+from taca.nanopore.ONT_run_classes import (
+    ONT_run,
+    ONT_user_run,
+    ONT_qc_run,
+    ONT_RUN_PATTERN,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +29,7 @@ def find_run_dirs(dir_to_search: str, skip_dirs: list):
             and found_dir not in skip_dirs
             and re.match(ONT_RUN_PATTERN, found_dir)
         ):
-            logger.info(f"Found ONT run {found_dir}.")
+            logger.info(f"Found ONT run {found_dir} in {dir_to_search}")
             found_run_dirs.append(os.path.join(dir_to_search, found_dir))
 
     return found_run_dirs
@@ -37,15 +42,15 @@ def send_error_mail(run_name, error: BaseException):
         str(error),
         traceback.format_exc(),
     )
-    email_recipients = CONFIG.get("mail").get("recipients")
+    email_recipients = CONFIG["mail"]["recipients"]
 
     send_mail(email_subject, email_message, email_recipients)
 
 
-def transfer_ont_run(ont_run: ONT_run):
-    """This control function orchestrates the sequential execution of the ONT_run class methods.
+def process_user_run(ONT_user_run: ONT_run):
+    """This control function orchestrates the sequential execution of the ONT_user_run class methods.
 
-    For a single ONT run...
+    For a single ONT user run...
 
         a) If not finished:
             - Ensure there is a database entry corresponding to an ongoing run
@@ -63,57 +68,103 @@ def transfer_ont_run(ont_run: ONT_run):
     Any errors raised here-in should be sent with traceback as an email.
     """
 
-    logger.info(f"{ont_run.run_name}: Touching StatusDB...")
-    ont_run.touch_db_entry()
-    logger.info(f"{ont_run.run_name}: Touching StatusDB successful...")
+    logger.info(f"{ONT_user_run.run_name}: Touching StatusDB...")
+    ONT_user_run.touch_db_entry()
+    logger.info(f"{ONT_user_run.run_name}: Touching StatusDB successful...")
 
-    if ont_run.is_synced():
-        logger.info(f"{ont_run.run_name}: Run is fully synced.")
+    if ONT_user_run.is_synced():
+        logger.info(f"{ONT_user_run.run_name}: Run is fully synced.")
 
-        if not ont_run.is_transferred():
-            logger.info(f"{ont_run.run_name}: Processing transfer...")
+        if not ONT_user_run.is_transferred():
+            logger.info(f"{ONT_user_run.run_name}: Processing transfer...")
 
             # Assert all files are in place
-            logger.info(f"{ont_run.run_name}: Asserting run contents...")
-            ont_run.assert_contents()
-            logger.info(f"{ont_run.run_name}: Asserting run contents successful.")
+            logger.info(f"{ONT_user_run.run_name}: Asserting run contents...")
+            ONT_user_run.assert_contents()
+            logger.info(f"{ONT_user_run.run_name}: Asserting run contents successful.")
 
             # Update StatusDB
-            logger.info(f"{ont_run.run_name}: Updating StatusDB...")
-            ont_run.update_db_entry()
-            logger.info(f"{ont_run.run_name}: Updating StatusDB successful.")
+            logger.info(f"{ONT_user_run.run_name}: Updating StatusDB...")
+            ONT_user_run.update_db_entry()
+            logger.info(f"{ONT_user_run.run_name}: Updating StatusDB successful.")
 
-            # Transfer HTML report
-            logger.info(f"{ont_run.run_name}: Put HTML report on GenStat...")
-            ont_run.transfer_html_report()
-            logger.info(f"{ont_run.run_name}: Put HTML report on GenStat successful.")
+            # Copy HTML report
+            logger.info(f"{ONT_user_run.run_name}: Put HTML report on GenStat...")
+            ONT_user_run.copy_html_report()
+            logger.info(
+                f"{ONT_user_run.run_name}: Put HTML report on GenStat successful."
+            )
 
             # Copy metadata
-            logger.info(f"{ont_run.run_name}: Copying metadata...")
-            ont_run.transfer_metadata()
-            logger.info(f"{ont_run.run_name}: Copying metadata successful.")
+            logger.info(f"{ONT_user_run.run_name}: Copying metadata...")
+            ONT_user_run.copy_metadata()
+            logger.info(f"{ONT_user_run.run_name}: Copying metadata successful.")
 
             # Transfer run
-            logger.info(f"{ont_run.run_name}: Transferring to cluster...")
-            ont_run.transfer_run()
-            logger.info(f"{ont_run.run_name}: Transferring to cluster successful.")
+            logger.info(f"{ONT_user_run.run_name}: Transferring to cluster...")
+            ONT_user_run.transfer_run()
+            logger.info(f"{ONT_user_run.run_name}: Transferring to cluster successful.")
 
             # Update transfer log
-            logger.info(f"{ont_run.run_name}: Updating transfer log...")
-            ont_run.update_transfer_log()
-            logger.info(f"{ont_run.run_name}: Updating transfer log successful.")
+            logger.info(f"{ONT_user_run.run_name}: Updating transfer log...")
+            ONT_user_run.update_transfer_log()
+            logger.info(f"{ONT_user_run.run_name}: Updating transfer log successful.")
 
             # Archive run
-            logger.info(f"{ont_run.run_name}: Archiving run...")
-            ont_run.archive_run()
-            logger.info(f"{ont_run.run_name}: Archiving run successful.")
+            logger.info(f"{ONT_user_run.run_name}: Archiving run...")
+            ONT_user_run.archive_run()
+            logger.info(f"{ONT_user_run.run_name}: Archiving run successful.")
 
         else:
             logger.warning(
-                f"{ont_run.run_name}: Run is already logged as transferred, skipping."
+                f"{ONT_user_run.run_name}: Run is already logged as transferred, skipping."
             )
     else:
-        logger.info(f"{ont_run.run_name}: Run is not fully synced, skipping.")
+        logger.info(f"{ONT_user_run.run_name}: Run is not fully synced, skipping.")
+
+
+def process_qc_run(ont_qc_run: ONT_qc_run):
+    """This control function orchestrates the sequential execution of the ONT_qc_run class methods.
+
+    Any errors raised here-in should be sent with traceback as an email.
+    """
+
+    logger.info(f"{ont_qc_run.run_name}: Touching StatusDB...")
+    ont_qc_run.touch_db_entry()
+    logger.info(f"{ont_qc_run.run_name}: Touching StatusDB successful...")
+
+    if ont_qc_run.is_synced():
+        logger.info(f"{ont_qc_run.run_name}: Run is fully synced.")
+
+        logger.info(
+            f"{ont_qc_run.run_name}: Run is QC, checking for Anglerfish samplesheet..."
+        )
+
+        if ont_qc_run.fetch_anglerfish_samplesheet():
+            logger.info(
+                f"{ont_qc_run.run_name}: Anglerfish samplesheet found and copied to run dir."
+            )
+
+            logger.info(f"{ont_qc_run.run_name}: Running Anglerfish...")
+            ont_qc_run.run_anglerfish()
+            logger.info(f"{ont_qc_run.run_name}: Running Anglerfish successful.")
+
+        else:
+            logger.info(
+                f"{ont_qc_run.run_name}: Anglerfish samplesheet not found, skipping."
+            )
+
+
+def process_run(run_abspath: str):
+    """This gate function instantiates an appropriate subclass
+    for the ONT run and processes it"""
+
+    ont_run = ONT_run(run_abspath)
+
+    if ont_run.qc:
+        process_qc_run(ONT_qc_run(run_abspath))
+    else:
+        process_user_run(ONT_user_run(run_abspath))
 
 
 def ont_transfer(run_abspath: str or None):
@@ -123,28 +174,29 @@ def ont_transfer(run_abspath: str or None):
     """
 
     if run_abspath:
-        # No need to send mails for manual command, CLI will show errors
-        ont_run = ONT_run(os.path.abspath(run_abspath))
-        transfer_ont_run(ont_run)
+        process_run(run_abspath)
 
+    # If no run is specified, locate all runs
     else:
-        # If no run is specified, locate all runs
-        ont_data_dirs = (
-            CONFIG.get("nanopore_analysis").get("ont_transfer").get("data_dirs")
-        )
-        skip_dirs = (
-            CONFIG.get("nanopore_analysis").get("ont_transfer").get("ignore_dirs")
-        )
 
-        for data_dir in ont_data_dirs:
-            run_dirs = find_run_dirs(data_dir, skip_dirs)
-            for run_dir in run_dirs:
-                # Send error mails at run-level
-                try:
-                    ont_run = ONT_run(run_dir)
-                    transfer_ont_run(ont_run)
-                except BaseException as e:
-                    send_error_mail(os.path.basename(run_dir), e)
+        for run_type in ["user_run", "qc_run"]:
+
+            logger.info(f"Looking for runs of type '{run_type}'...")
+
+            data_dirs = CONFIG["nanopore_analysis"][run_type]["data_dirs"]
+            ignore_dirs = CONFIG["nanopore_analysis"][run_type]["ignore_dirs"]
+
+            for data_dir in data_dirs:
+
+                run_dirs = find_run_dirs(data_dir, ignore_dirs)
+                for run_dir in run_dirs:
+
+                    # Send error mails at run-level
+                    try:
+                        process_run(run_dir)
+
+                    except BaseException as e:
+                        send_error_mail(os.path.basename(run_dir), e)
 
 
 def ont_updatedb(run_abspath: str):
