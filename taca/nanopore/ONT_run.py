@@ -399,8 +399,8 @@ class ONT_run(object):
 
         full_command = (
             f"source activate {env_name} && "
-            + f"{anglerfish_command} && "
-            + f"echo $? > {exitcode_filename} && "
+            + f"{anglerfish_command} ; "  # ";" will run subsequent command regardless of exit status
+            + f"echo $? > {os.path.join(self.run_abspath, exitcode_filename)} && "
             + f"source deactivate"
         )
 
