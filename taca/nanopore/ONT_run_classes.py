@@ -474,7 +474,9 @@ class ONT_qc_run(ONT_run):
                 )
 
     def run_anglerfish(self):
-        """Run Anglerfish as subprocess within it's own Conda environment and dump exit status."""
+        """Run Anglerfish as subprocess within it's own Conda environment.
+        Dump files to indicate ongoing and finished processes.
+        """
 
         n_threads = 2  # This could possibly be changed
 
@@ -487,7 +489,7 @@ class ONT_qc_run(ONT_run):
         )
 
         full_command = (
-            # Initialize Conda. If not needed, omit from config.
+            # Some systems need Conda to be initialized in the subshell
             f"source {self.conda_init_path} && "
             if self.conda_init_path
             else ""
@@ -513,6 +515,4 @@ class ONT_qc_run(ONT_run):
                 os.system(f"echo '{process.pid}' > {self.anglerfish_ongoing_abspath}")
 
         except subprocess.CalledProcessError:
-            logger.warn(
-                f"{self.run_name}: An error occured when running Anglerfish using: {anglerfish_command}"
-            )
+            logger.warn(f"{self.run_name}: An error occured when running Anglerfish.")

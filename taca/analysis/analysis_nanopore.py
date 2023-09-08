@@ -147,7 +147,7 @@ def process_qc_run(ont_qc_run: ONT_qc_run):
 
             If Anglerfish has been run:
                 If Anglerfish failed:
-                    - Throw error TODO
+                    - Throw error
 
                 If Anglerfish finished successfully:
                     TODO
