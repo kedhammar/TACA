@@ -305,32 +305,7 @@ class ONT_run(object):
             logger.error(msg)
             raise RsyncError(msg)
 
-    # Archive run
-
-    def archive_run(self):
-        """Move directory to nosync."""
-        logger.info(f"{self.run_name}: Archiving run...")
-
-        src = self.run_abspath
-        dst = os.path.join(self.run_abspath, os.pardir, "nosync")
-
-        shutil.move(src, dst)
-        logger.info(f"{self.run_name}: Archiving run successful.")
-
-
-class ONT_user_run(ONT_run):
-    """ONT user run, has class methods and attributes specific to user runs."""
-
-    def __init__(self, run_abspath: str):
-        super(ONT_user_run, self).__init__(run_abspath)
-
-        # Get attributes from config
-        self.transfer_details = CONFIG["nanopore_analysis"]["user_run"][self.instrument]
-        self.transfer_log = self.transfer_details["transfer_file"]
-        self.archive_dir = self.transfer_details["finished_dir"]
-        self.metadata_dir = self.transfer_details["metadata_dir"]
-
-    # User run methods
+    # Transfer run
 
     def is_transferred(self) -> bool:
         """Return True if run ID in transfer.tsv, else False."""
@@ -378,6 +353,31 @@ class ONT_user_run(ONT_run):
             msg = f"{self.run_name}: Could not update the transfer logfile {self.transfer_log}"
             logger.error(msg)
             raise IOError(msg)
+
+    # Archive run
+
+    def archive_run(self):
+        """Move directory to nosync."""
+        logger.info(f"{self.run_name}: Archiving run...")
+
+        src = self.run_abspath
+        dst = os.path.join(self.run_abspath, os.pardir, "nosync")
+
+        shutil.move(src, dst)
+        logger.info(f"{self.run_name}: Archiving run successful.")
+
+
+class ONT_user_run(ONT_run):
+    """ONT user run, has class methods and attributes specific to user runs."""
+
+    def __init__(self, run_abspath: str):
+        super(ONT_user_run, self).__init__(run_abspath)
+
+        # Get attributes from config
+        self.transfer_details = CONFIG["nanopore_analysis"]["user_run"][self.instrument]
+        self.transfer_log = self.transfer_details["transfer_file"]
+        self.archive_dir = self.transfer_details["finished_dir"]
+        self.metadata_dir = self.transfer_details["metadata_dir"]
 
 
 class ONT_qc_run(ONT_run):
