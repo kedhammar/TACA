@@ -168,19 +168,19 @@ def process_qc_run(ont_qc_run: ONT_qc_run):
         logger.info(f"{ont_qc_run.run_name}: Run is fully synced.")
 
         # Assert all files are in place
-        logger.info(f"{ONT_user_run.run_name}: Asserting run contents...")
-        ONT_user_run.assert_contents()
-        logger.info(f"{ONT_user_run.run_name}: Asserting run contents successful.")
+        logger.info(f"{ont_qc_run.run_name}: Asserting run contents...")
+        ont_qc_run.assert_contents()
+        logger.info(f"{ont_qc_run.run_name}: Asserting run contents successful.")
 
         # Update StatusDB
-        logger.info(f"{ONT_user_run.run_name}: Updating StatusDB...")
-        ONT_user_run.update_db_entry()
-        logger.info(f"{ONT_user_run.run_name}: Updating StatusDB successful.")
+        logger.info(f"{ont_qc_run.run_name}: Updating StatusDB...")
+        ont_qc_run.update_db_entry()
+        logger.info(f"{ont_qc_run.run_name}: Updating StatusDB successful.")
 
         # Copy HTML report
-        logger.info(f"{ONT_user_run.run_name}: Put HTML report on GenStat...")
-        ONT_user_run.copy_html_report()
-        logger.info(f"{ONT_user_run.run_name}: Put HTML report on GenStat successful.")
+        logger.info(f"{ont_qc_run.run_name}: Put HTML report on GenStat...")
+        ont_qc_run.copy_html_report()
+        logger.info(f"{ont_qc_run.run_name}: Put HTML report on GenStat successful.")
 
         # Has Anglerfish been run?
         logger.info(
@@ -219,12 +219,11 @@ def process_qc_run(ont_qc_run: ONT_qc_run):
                 )
                 if not ont_qc_run.fetch_anglerfish_samplesheet():
                     f"{ont_qc_run.run_name}: Could not find Anglerfish sample sheet, skipping."
-
                 else:
                     f"{ont_qc_run.run_name}: Fetching Anglerfish samplesheet successful."
 
                     # Run Anglerfish
-                    f"{ont_qc_run.run_name}: Running Anglerfish..."
+                    logger.info(f"{ont_qc_run.run_name}: Running Anglerfish...")
                     ont_qc_run.run_anglerfish()
 
         # Anglerfish finished successfully
@@ -240,10 +239,12 @@ def process_run(run_abspath: str):
 
     ont_run = ONT_run(run_abspath)
 
-    if ont_run.qc:
+    if ont_run.run_type == "user_run":
+        process_user_run(ONT_user_run(run_abspath))
+    elif ont_run.run_type == "qc_run":
         process_qc_run(ONT_qc_run(run_abspath))
     else:
-        process_user_run(ONT_user_run(run_abspath))
+        raise AssertionError("Run type invalid.")
 
 
 def ont_transfer(run_abspath: str or None):
@@ -262,8 +263,10 @@ def ont_transfer(run_abspath: str or None):
 
             logger.info(f"Looking for runs of type '{run_type}'...")
 
-            data_dirs = CONFIG["nanopore_analysis"][run_type]["data_dirs"]
-            ignore_dirs = CONFIG["nanopore_analysis"][run_type]["ignore_dirs"]
+            data_dirs = CONFIG["nanopore_analysis"]["run_types"][run_type]["data_dirs"]
+            ignore_dirs = CONFIG["nanopore_analysis"]["run_types"][run_type][
+                "ignore_dirs"
+            ]
 
             for data_dir in data_dirs:
 

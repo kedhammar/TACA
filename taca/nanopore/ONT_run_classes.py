@@ -58,11 +58,13 @@ class ONT_run(object):
 
         # Get attributes from config
         self.minknow_reports_dir = CONFIG["nanopore_analysis"]["minknow_reports_dir"]
+        self.analysis_server = CONFIG["nanopore_analysis"]["analysis_server"]
+        self.rsync_options = CONFIG["nanopore_analysis"]["rsync_options"]
         self.db = NanoporeRunsConnection(CONFIG["statusdb"], dbname="nanopore_runs")
 
         self.transfer_details = CONFIG["nanopore_analysis"]["run_types"][self.run_type][
-            self.instrument
-        ]
+            "instruments"
+        ][self.instrument]
 
     # Looking for files within the run dir
 
@@ -318,27 +320,29 @@ class ONT_run(object):
 
     def transfer_run(self):
         """Transfer dir to destination specified in config file via rsync"""
-        destination = self.transfer_details.get("destination")
-        rsync_opts = self.transfer_details.get("rsync_options")
-        for k, v in rsync_opts.items():
+        destination = self.transfer_details["destination"]
+
+        for k, v in self.rsync_options.items():
             if v == "None":
-                rsync_opts[k] = None
-        connection_details = self.transfer_details.get("analysis_server", None)
+                self.rsync_options[k] = None
         logger.info(
-            f"{self.run_name}: Transferring to {connection_details['host'] if connection_details else destination}..."
+            f"{self.run_name}: Transferring to {self.analysis_server['host'] if self.analysis_server else destination}..."
         )
-        if connection_details:
+        if self.analysis_server:
             transfer_object = RsyncAgent(
                 self.run_abspath,
                 dest_path=destination,
-                remote_host=connection_details.get("host"),
-                remote_user=connection_details.get("user"),
+                remote_host=self.analysis_server["host"],
+                remote_user=self.analysis_server["user"],
                 validate=False,
-                opts=rsync_opts,
+                opts=self.rsync_options,
             )
         else:
             transfer_object = RsyncAgent(
-                self.run_abspath, dest_path=destination, validate=False, opts=rsync_opts
+                self.run_abspath,
+                dest_path=destination,
+                validate=False,
+                opts=self.rsync_options,
             )
         try:
             transfer_object.transfer()
@@ -389,9 +393,9 @@ class ONT_qc_run(ONT_run):
         self.anglerfish_ongoing_abspath = f"{self.run_abspath}/.anglerfish_ongoing"
 
         # Get Anglerfish attributes from config
-        self.anglerfish_config = CONFIG["nanopore_analysis"][self.run_type][
-            "anglerfish"
-        ]
+        self.anglerfish_config = CONFIG["nanopore_analysis"]["run_types"][
+            self.run_type
+        ]["anglerfish"]
 
         self.anglerfish_samplesheets_dir = self.anglerfish_config[
             "anglerfish_samplesheets_dir"
@@ -473,21 +477,24 @@ class ONT_qc_run(ONT_run):
         Dump files to indicate ongoing and finished processes.
         """
 
+        ss_basename = os.path.basename(self.anglerfish_samplesheet)
+        pid_yymmdd_hhmm = ss_basename.split(".")[0].split("_")[-3:]
+        anglerfish_run_name = f"anglerfish_run_using_ss_{'_'.join(pid_yymmdd_hhmm)}_on"
+
         n_threads = 2  # This could possibly be changed
 
         anglerfish_command = (
             "anglerfish"
             + f" --samplesheet {self.anglerfish_samplesheet}"
             + f" --out_fastq {self.run_abspath}"
+            + f" --run_name {anglerfish_run_name}"
             + f" --threads {n_threads}"
             + f" --skip_demux"
         )
 
         full_command = (
             # Some systems need Conda to be initialized in the subshell
-            f"source {self.conda_init_path} && "
-            if self.conda_init_path
-            else ""
+            (f"source {self.conda_init_path} && " if self.conda_init_path else "")
             # Activate environment
             + f"conda activate {self.anglerfish_env_name}"
             # On success: Run Anglerfish
