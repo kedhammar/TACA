@@ -52,12 +52,12 @@ def process_user_run(ONT_user_run: ONT_run):
 
     For a single ONT user run...
 
-        a) If not finished:
-            - Ensure there is a database entry corresponding to an ongoing run
+        - Ensure there is a database entry corresponding to an ongoing run
 
-        b) If finished:
+        If not fully synced:
+            - Skip
+        If fully synced:
             - Ensure all necessary files to proceed with processing are present
-            - Ensure there is a database entry corresponding to an ongoing run
             - Update the StatusDB entry
             - Copy metadata
             - Copy HTML report to GenStat
@@ -126,6 +126,36 @@ def process_user_run(ONT_user_run: ONT_run):
 def process_qc_run(ont_qc_run: ONT_qc_run):
     """This control function orchestrates the sequential execution of the ONT_qc_run class methods.
 
+    For a single ONT QC run...
+
+        - Ensure there is a database entry corresponding to an ongoing run
+
+        If not fully synced:
+            - Skip
+
+        If fully synced:
+            - Ensure all necessary files to proceed with processing are present
+            - Update the StatusDB entry
+            - Copy HTML report to GenStat
+
+            If Anglerfish has not been run:
+                If Anglerfish is ongoing:
+                    - Skip
+
+                If Anglerfish is not ongoing:
+                    - Run Anglerfish
+
+            If Anglerfish has been run:
+                If Anglerfish failed:
+                    - Throw error TODO
+
+                If Anglerfish finished successfully:
+                    TODO
+                    - Copy metadata
+                    - Transfer run to cluster
+                    - Update transfer log
+                    - Archive run
+
     Any errors raised here-in should be sent with traceback as an email.
     """
 
@@ -133,25 +163,74 @@ def process_qc_run(ont_qc_run: ONT_qc_run):
     ont_qc_run.touch_db_entry()
     logger.info(f"{ont_qc_run.run_name}: Touching StatusDB successful...")
 
+    # Is the run fully synced?
     if ont_qc_run.is_synced():
         logger.info(f"{ont_qc_run.run_name}: Run is fully synced.")
 
+        # Assert all files are in place
+        logger.info(f"{ONT_user_run.run_name}: Asserting run contents...")
+        ONT_user_run.assert_contents()
+        logger.info(f"{ONT_user_run.run_name}: Asserting run contents successful.")
+
+        # Update StatusDB
+        logger.info(f"{ONT_user_run.run_name}: Updating StatusDB...")
+        ONT_user_run.update_db_entry()
+        logger.info(f"{ONT_user_run.run_name}: Updating StatusDB successful.")
+
+        # Copy HTML report
+        logger.info(f"{ONT_user_run.run_name}: Put HTML report on GenStat...")
+        ONT_user_run.copy_html_report()
+        logger.info(f"{ONT_user_run.run_name}: Put HTML report on GenStat successful.")
+
+        # Has Anglerfish been run?
         logger.info(
-            f"{ont_qc_run.run_name}: Run is QC, checking for Anglerfish samplesheet..."
+            f"{ont_qc_run.run_name}: Checking whether Anglerfish has been run..."
         )
 
-        if ont_qc_run.fetch_anglerfish_samplesheet():
+        anglerfish_exit_code = ont_qc_run.get_anglerfish_exit_code()
+
+        # Anglerfish run and failed
+        if anglerfish_exit_code and anglerfish_exit_code > 0:
+            logger.warning(
+                f"{ont_qc_run.run_name}: Anglerfish has failed, throwing error."
+            )
+            raise AssertionError(f"{ont_qc_run.run_name}: Anglerfish failed.")
+
+        # Anglerfish not run
+        elif not anglerfish_exit_code:
+            logger.info(f"{ont_qc_run.run_name}: Anglerfish has not been run.")
+
+            # Is Anglerfish currently running?
             logger.info(
-                f"{ont_qc_run.run_name}: Anglerfish samplesheet found and copied to run dir."
+                f"{ont_qc_run.run_name}: Checking whether Anglerfish is ongoing..."
             )
 
-            logger.info(f"{ont_qc_run.run_name}: Running Anglerfish...")
-            ont_qc_run.run_anglerfish()
-            logger.info(f"{ont_qc_run.run_name}: Running Anglerfish successful.")
+            anglerfish_pid = ont_qc_run.get_anglerfish_pid()
+            if anglerfish_pid:
+                logger.info(
+                    f"{ont_qc_run.run_name}: Anglerfish is ongoing with process ID {anglerfish_pid}"
+                )
+            else:
+                logger.info(f"{ont_qc_run.run_name}: Anglerfish is not ongoing.")
 
-        else:
+                # Is the Anglerfish samplesheet available?
+                logger.info(
+                    f"{ont_qc_run.run_name}: Fetching Anglerfish samplesheet..."
+                )
+                if not ont_qc_run.fetch_anglerfish_samplesheet():
+                    f"{ont_qc_run.run_name}: Could not find Anglerfish sample sheet, skipping."
+
+                else:
+                    f"{ont_qc_run.run_name}: Fetching Anglerfish samplesheet successful."
+
+                    # Run Anglerfish
+                    f"{ont_qc_run.run_name}: Running Anglerfish..."
+                    ont_qc_run.run_anglerfish()
+
+        # Anglerfish finished successfully
+        elif anglerfish_exit_code and anglerfish_exit_code == 0:
             logger.info(
-                f"{ont_qc_run.run_name}: Anglerfish samplesheet not found, skipping."
+                f"{ont_qc_run.run_name}: Anglerfish has finished successfully, proceeding with processing..."
             )
 
 

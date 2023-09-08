@@ -386,20 +386,58 @@ class ONT_qc_run(ONT_run):
     def __init__(self, run_abspath: str):
         super(ONT_qc_run, self).__init__(run_abspath)
 
-        # Get attributes from config
+        self.anglerfish_done_abspath = f"{self.run_abspath}/.anglerfish_done"
+        self.anglerfish_ongoing_abspath = f"{self.run_abspath}/.anglerfish_ongoing"
+
+        # Get QC run dir attributes from config
         paths = CONFIG["nanopore_analysis"]["qc_run"]
+
         self.archive_dir = paths["finished_dir"]
         self.metadata_dir = paths["metadata_dir"]
-        self.anglerfish_samplesheets_dir = paths["anglerfish_samplesheets_dir"]
+
+        # Get Anglerfish attributes from config
+        anglerfish_config = CONFIG["nanopore_analysis"]["qc_run"]["anglerfish"]
+
+        self.anglerfish_samplesheets_dir = anglerfish_config[
+            "anglerfish_samplesheets_dir"
+        ]
+        self.anglerfish_samplesheets_dir = anglerfish_config[
+            "anglerfish_samplesheets_dir"
+        ]
+        self.anglerfish_env_name = anglerfish_config["anglerfish_env_name"]
+        # Depending on the Conda installation, Conda may need to be initialized when used in a subprocess
+        if "conda_init_path" in anglerfish_config:
+            self.conda_init_path = anglerfish_config["conda_init_path"]
+        else:
+            self.conda_init_path = None
 
     # QC methods
 
-    def fetch_anglerfish_samplesheet(self) -> bool:
+    def get_anglerfish_exit_code(self) -> int or None:
+        """Check whether Anglerfish has finished.
+
+        Return exit code or None.
+        """
+        if os.path.exists(self.anglerfish_done_abspath):
+            return int(open(self.anglerfish_done_abspath, "r").read())
+        else:
+            return None
+
+    def get_anglerfish_pid(self) -> str or None:
+        """Check whether Anglerfish is ongoing.
+
+        Return process ID or None."""
+        if os.path.exists(self.anglerfish_ongoing_abspath):
+            return str(open(self.anglerfish_ongoing_abspath, "r").read())
+        else:
+            return None
+
+    def fetch_anglerfish_samplesheet(self) -> str:
         """Fetch Anglerfish samplesheet belonging to the run from where it was
         dumped by LIMS and put it in the run directory.
 
         a) If file(s) is available, copy to run folder. On success, return True and
-        add new samplesheet abspath as object attribute.
+        add new samplesheet abspath as run object attribute.
 
         b) If the file is not yet available, return False.
         """
@@ -435,15 +473,10 @@ class ONT_qc_run(ONT_run):
                     f"{self.run_name}: Error occured when copying anglerfish samplesheet to run dir."
                 )
 
-    def check_anglerfish_status(self):
-        """Check whether Anglerfish"""
-
     def run_anglerfish(self):
-        """Run Anglerfish within it's own Conda environment and dump exit status."""
+        """Run Anglerfish as subprocess within it's own Conda environment and dump exit status."""
 
-        env_name = "anglerfish"
         n_threads = 2  # This could possibly be changed
-        exitcode_filename = ".exitcode_for_anglerfish"
 
         anglerfish_command = (
             "anglerfish"
@@ -454,24 +487,32 @@ class ONT_qc_run(ONT_run):
         )
 
         full_command = (
-            f"source activate {env_name} && "
-            + f"{anglerfish_command} ; "  # ";" will run subsequent command regardless of exit status
-            + f"echo $? > {os.path.join(self.run_abspath, exitcode_filename)} && "
-            + f"source deactivate"
+            # Initialize Conda. If not needed, omit from config.
+            f"source {self.conda_init_path} && "
+            if self.conda_init_path
+            else ""
+            # Activate environment
+            + f"conda activate {self.anglerfish_env_name}"
+            # On success: Run Anglerfish
+            + f" && {anglerfish_command}"
+            # Dump Anglerfish exit status in file
+            + f" ; echo $? > {self.anglerfish_done_abspath}"
+            # Remove file indicating ongoing run
+            + f" ; rm {self.anglerfish_ongoing_abspath}"
         )
 
         try:
-            p_handle = subprocess.Popen(
+            # Start Anglerfish
+            with subprocess.Popen(
                 full_command,
-                stdout=subprocess.PIPE,
                 shell=True,
-                cwd=self.run_abspath,
-            )
-            logger.info(
-                f"{self.run_abspath}: Started Anglerfish using: {anglerfish_command}"
-            )
+                stdout=subprocess.PIPE,
+                encoding="utf-8",
+            ) as process:
+                # Create file indicating ongoing run, containing process id
+                os.system(f"echo '{process.pid}' > {self.anglerfish_ongoing_abspath}")
 
         except subprocess.CalledProcessError:
             logger.warn(
-                f"{self.run_abspath}: An error occured when running Anglerfish using: {anglerfish_command}"
+                f"{self.run_name}: An error occured when running Anglerfish using: {anglerfish_command}"
             )
