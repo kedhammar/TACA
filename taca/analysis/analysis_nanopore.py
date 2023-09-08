@@ -242,25 +242,6 @@ def process_qc_run(ont_qc_run: ONT_qc_run):
             else:
                 logger.info(f"{ont_qc_run.run_name}: Processing transfer...")
 
-                # Assert all files are in place
-                logger.info(f"{ont_qc_run.run_name}: Asserting run contents...")
-                ont_qc_run.assert_contents()
-                logger.info(
-                    f"{ont_qc_run.run_name}: Asserting run contents successful."
-                )
-
-                # Update StatusDB
-                logger.info(f"{ont_qc_run.run_name}: Updating StatusDB...")
-                ont_qc_run.update_db_entry()
-                logger.info(f"{ont_qc_run.run_name}: Updating StatusDB successful.")
-
-                # Copy HTML report
-                logger.info(f"{ont_qc_run.run_name}: Put HTML report on GenStat...")
-                ont_qc_run.copy_html_report()
-                logger.info(
-                    f"{ont_qc_run.run_name}: Put HTML report on GenStat successful."
-                )
-
                 # Copy metadata
                 logger.info(f"{ont_qc_run.run_name}: Copying metadata...")
                 ont_qc_run.copy_metadata()
@@ -311,7 +292,6 @@ def ont_transfer(run_abspath: str or None):
     else:
 
         for run_type in ["user_run", "qc_run"]:
-
             logger.info(f"Looking for runs of type '{run_type}'...")
 
             data_dirs = CONFIG["nanopore_analysis"]["run_types"][run_type]["data_dirs"]
@@ -320,14 +300,12 @@ def ont_transfer(run_abspath: str or None):
             ]
 
             for data_dir in data_dirs:
-
                 run_dirs = find_run_dirs(data_dir, ignore_dirs)
-                for run_dir in run_dirs:
 
+                for run_dir in run_dirs:
                     # Send error mails at run-level
                     try:
                         process_run(run_dir)
-
                     except BaseException as e:
                         send_error_mail(os.path.basename(run_dir), e)
 
