@@ -47,7 +47,7 @@ def send_error_mail(run_name, error: BaseException):
     send_mail(email_subject, email_message, email_recipients)
 
 
-def process_user_run(ONT_user_run: ONT_run):
+def process_user_run(ont_user_run: ONT_user_run):
     """This control function orchestrates the sequential execution of the ONT_user_run class methods.
 
     For a single ONT user run...
@@ -68,58 +68,58 @@ def process_user_run(ONT_user_run: ONT_run):
     Any errors raised here-in should be sent with traceback as an email.
     """
 
-    logger.info(f"{ONT_user_run.run_name}: Touching StatusDB...")
-    ONT_user_run.touch_db_entry()
-    logger.info(f"{ONT_user_run.run_name}: Touching StatusDB successful...")
+    logger.info(f"{ont_user_run.run_name}: Touching StatusDB...")
+    ont_user_run.touch_db_entry()
+    logger.info(f"{ont_user_run.run_name}: Touching StatusDB successful...")
 
-    if not ONT_user_run.is_synced():
-        logger.info(f"{ONT_user_run.run_name}: Run is not fully synced, skipping.")
+    if not ont_user_run.is_synced():
+        logger.info(f"{ont_user_run.run_name}: Run is not fully synced, skipping.")
     else:
-        logger.info(f"{ONT_user_run.run_name}: Run is fully synced, proceeding.")
+        logger.info(f"{ont_user_run.run_name}: Run is fully synced, proceeding.")
 
-        if ONT_user_run.is_transferred():
+        if ont_user_run.is_transferred():
             logger.warning(
-                f"{ONT_user_run.run_name}: Run is already logged as transferred, skipping."
+                f"{ont_user_run.run_name}: Run is already logged as transferred, skipping."
             )
         else:
-            logger.info(f"{ONT_user_run.run_name}: Processing transfer...")
+            logger.info(f"{ont_user_run.run_name}: Processing transfer...")
 
             # Assert all files are in place
-            logger.info(f"{ONT_user_run.run_name}: Asserting run contents...")
-            ONT_user_run.assert_contents()
-            logger.info(f"{ONT_user_run.run_name}: Asserting run contents successful.")
+            logger.info(f"{ont_user_run.run_name}: Asserting run contents...")
+            ont_user_run.assert_contents()
+            logger.info(f"{ont_user_run.run_name}: Asserting run contents successful.")
 
             # Update StatusDB
-            logger.info(f"{ONT_user_run.run_name}: Updating StatusDB...")
-            ONT_user_run.update_db_entry()
-            logger.info(f"{ONT_user_run.run_name}: Updating StatusDB successful.")
+            logger.info(f"{ont_user_run.run_name}: Updating StatusDB...")
+            ont_user_run.update_db_entry()
+            logger.info(f"{ont_user_run.run_name}: Updating StatusDB successful.")
 
             # Copy HTML report
-            logger.info(f"{ONT_user_run.run_name}: Put HTML report on GenStat...")
-            ONT_user_run.copy_html_report()
+            logger.info(f"{ont_user_run.run_name}: Put HTML report on GenStat...")
+            ont_user_run.copy_html_report()
             logger.info(
-                f"{ONT_user_run.run_name}: Put HTML report on GenStat successful."
+                f"{ont_user_run.run_name}: Put HTML report on GenStat successful."
             )
 
             # Copy metadata
-            logger.info(f"{ONT_user_run.run_name}: Copying metadata...")
-            ONT_user_run.copy_metadata()
-            logger.info(f"{ONT_user_run.run_name}: Copying metadata successful.")
+            logger.info(f"{ont_user_run.run_name}: Copying metadata...")
+            ont_user_run.copy_metadata()
+            logger.info(f"{ont_user_run.run_name}: Copying metadata successful.")
 
             # Transfer run
-            logger.info(f"{ONT_user_run.run_name}: Transferring to cluster...")
-            ONT_user_run.transfer_run()
-            logger.info(f"{ONT_user_run.run_name}: Transferring to cluster successful.")
+            logger.info(f"{ont_user_run.run_name}: Transferring to cluster...")
+            ont_user_run.transfer_run()
+            logger.info(f"{ont_user_run.run_name}: Transferring to cluster successful.")
 
             # Update transfer log
-            logger.info(f"{ONT_user_run.run_name}: Updating transfer log...")
-            ONT_user_run.update_transfer_log()
-            logger.info(f"{ONT_user_run.run_name}: Updating transfer log successful.")
+            logger.info(f"{ont_user_run.run_name}: Updating transfer log...")
+            ont_user_run.update_transfer_log()
+            logger.info(f"{ont_user_run.run_name}: Updating transfer log successful.")
 
             # Archive run
-            logger.info(f"{ONT_user_run.run_name}: Archiving run...")
-            ONT_user_run.archive_run()
-            logger.info(f"{ONT_user_run.run_name}: Archiving run successful.")
+            logger.info(f"{ont_user_run.run_name}: Archiving run...")
+            ont_user_run.archive_run()
+            logger.info(f"{ont_user_run.run_name}: Archiving run successful.")
 
 
 def process_qc_run(ont_qc_run: ONT_qc_run):
@@ -232,56 +232,54 @@ def process_qc_run(ont_qc_run: ONT_qc_run):
                 f"{ont_qc_run.run_name}: Anglerfish has finished successfully, proceeding with processing..."
             )
 
-            if ONT_user_run.is_transferred():
+            if ont_qc_run.is_transferred():
                 logger.warning(
-                    f"{ONT_user_run.run_name}: Run is already logged as transferred, skipping."
+                    f"{ont_qc_run.run_name}: Run is already logged as transferred, skipping."
                 )
 
             else:
-                logger.info(f"{ONT_user_run.run_name}: Processing transfer...")
+                logger.info(f"{ont_qc_run.run_name}: Processing transfer...")
 
                 # Assert all files are in place
-                logger.info(f"{ONT_user_run.run_name}: Asserting run contents...")
-                ONT_user_run.assert_contents()
+                logger.info(f"{ont_qc_run.run_name}: Asserting run contents...")
+                ont_qc_run.assert_contents()
                 logger.info(
-                    f"{ONT_user_run.run_name}: Asserting run contents successful."
+                    f"{ont_qc_run.run_name}: Asserting run contents successful."
                 )
 
                 # Update StatusDB
-                logger.info(f"{ONT_user_run.run_name}: Updating StatusDB...")
-                ONT_user_run.update_db_entry()
-                logger.info(f"{ONT_user_run.run_name}: Updating StatusDB successful.")
+                logger.info(f"{ont_qc_run.run_name}: Updating StatusDB...")
+                ont_qc_run.update_db_entry()
+                logger.info(f"{ont_qc_run.run_name}: Updating StatusDB successful.")
 
                 # Copy HTML report
-                logger.info(f"{ONT_user_run.run_name}: Put HTML report on GenStat...")
-                ONT_user_run.copy_html_report()
+                logger.info(f"{ont_qc_run.run_name}: Put HTML report on GenStat...")
+                ont_qc_run.copy_html_report()
                 logger.info(
-                    f"{ONT_user_run.run_name}: Put HTML report on GenStat successful."
+                    f"{ont_qc_run.run_name}: Put HTML report on GenStat successful."
                 )
 
                 # Copy metadata
-                logger.info(f"{ONT_user_run.run_name}: Copying metadata...")
-                ONT_user_run.copy_metadata()
-                logger.info(f"{ONT_user_run.run_name}: Copying metadata successful.")
+                logger.info(f"{ont_qc_run.run_name}: Copying metadata...")
+                ont_qc_run.copy_metadata()
+                logger.info(f"{ont_qc_run.run_name}: Copying metadata successful.")
 
                 # Transfer run
-                logger.info(f"{ONT_user_run.run_name}: Transferring to cluster...")
-                ONT_user_run.transfer_run()
+                logger.info(f"{ont_qc_run.run_name}: Transferring to cluster...")
+                ont_qc_run.transfer_run()
                 logger.info(
-                    f"{ONT_user_run.run_name}: Transferring to cluster successful."
+                    f"{ont_qc_run.run_name}: Transferring to cluster successful."
                 )
 
                 # Update transfer log
-                logger.info(f"{ONT_user_run.run_name}: Updating transfer log...")
-                ONT_user_run.update_transfer_log()
-                logger.info(
-                    f"{ONT_user_run.run_name}: Updating transfer log successful."
-                )
+                logger.info(f"{ont_qc_run.run_name}: Updating transfer log...")
+                ont_qc_run.update_transfer_log()
+                logger.info(f"{ont_qc_run.run_name}: Updating transfer log successful.")
 
                 # Archive run
-                logger.info(f"{ONT_user_run.run_name}: Archiving run...")
-                ONT_user_run.archive_run()
-                logger.info(f"{ONT_user_run.run_name}: Archiving run successful.")
+                logger.info(f"{ont_qc_run.run_name}: Archiving run...")
+                ont_qc_run.archive_run()
+                logger.info(f"{ont_qc_run.run_name}: Archiving run successful.")
 
 
 def process_run(run_abspath: str):
