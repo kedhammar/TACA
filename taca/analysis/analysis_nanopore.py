@@ -208,10 +208,12 @@ def process_qc_run(ont_qc_run: ONT_qc_run):
             anglerfish_pid = ont_qc_run.get_anglerfish_pid()
             if anglerfish_pid:
                 logger.info(
-                    f"{ont_qc_run.run_name}: Anglerfish is ongoing with process ID {anglerfish_pid}"
+                    f"{ont_qc_run.run_name}: Anglerfish is ongoing with process ID {anglerfish_pid}, skipping."
                 )
             else:
-                logger.info(f"{ont_qc_run.run_name}: Anglerfish is not ongoing.")
+                logger.info(
+                    f"{ont_qc_run.run_name}: Anglerfish is not ongoing, continuing."
+                )
 
                 # Is the Anglerfish samplesheet available?
                 logger.info(
