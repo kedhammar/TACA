@@ -53,12 +53,16 @@ class ONT_run(object):
         # Get instrument
         self.instrument = "promethion" if len(self.position) == 2 else "minion"
 
-        # Get QC bool
-        self.qc = True if self.sample_name[0:3] == "QC_" else False
+        # Get run type
+        self.run_type = "qc_run" if self.sample_name[0:3] == "QC_" else "user_run"
 
         # Get attributes from config
         self.minknow_reports_dir = CONFIG["nanopore_analysis"]["minknow_reports_dir"]
         self.db = NanoporeRunsConnection(CONFIG["statusdb"], dbname="nanopore_runs")
+
+        self.transfer_details = CONFIG["nanopore_analysis"]["run_types"][self.run_type][
+            self.instrument
+        ]
 
     # Looking for files within the run dir
 
@@ -274,7 +278,7 @@ class ONT_run(object):
         exclude_patterns_quoted = ["'" + pattern + "'" for pattern in exclude_patterns]
 
         src = self.run_abspath
-        dst = self.metadata_dir
+        dst = self.transfer_details["metadata_dir"]
 
         os.system(
             f"rsync -rv --exclude={{{','.join(exclude_patterns_quoted)}}} {src} {dst}"
@@ -309,7 +313,7 @@ class ONT_run(object):
 
     def is_transferred(self) -> bool:
         """Return True if run ID in transfer.tsv, else False."""
-        with open(self.transfer_log, "r") as f:
+        with open(self.transfer_details["transfer_log"], "r") as f:
             return self.run_name in f.read()
 
     def transfer_run(self):
@@ -346,11 +350,11 @@ class ONT_run(object):
     def update_transfer_log(self):
         """Update transfer log with run id and date."""
         try:
-            with open(self.transfer_log, "a") as f:
+            with open(self.transfer_details["transfer_log"], "a") as f:
                 tsv_writer = csv.writer(f, delimiter="\t")
                 tsv_writer.writerow([self.run_name, str(datetime.now())])
         except IOError:
-            msg = f"{self.run_name}: Could not update the transfer logfile {self.transfer_log}"
+            msg = f"{self.run_name}: Could not update the transfer logfile {self.transfer_details['transfer_log']}"
             logger.error(msg)
             raise IOError(msg)
 
@@ -373,12 +377,6 @@ class ONT_user_run(ONT_run):
     def __init__(self, run_abspath: str):
         super(ONT_user_run, self).__init__(run_abspath)
 
-        # Get attributes from config
-        self.transfer_details = CONFIG["nanopore_analysis"]["user_run"][self.instrument]
-        self.transfer_log = self.transfer_details["transfer_file"]
-        self.archive_dir = self.transfer_details["finished_dir"]
-        self.metadata_dir = self.transfer_details["metadata_dir"]
-
 
 class ONT_qc_run(ONT_run):
     """ONT QC run, has class methods and attributes specific to QC runs"""
@@ -386,28 +384,25 @@ class ONT_qc_run(ONT_run):
     def __init__(self, run_abspath: str):
         super(ONT_qc_run, self).__init__(run_abspath)
 
+        # Get Anglerfish attributes from run
         self.anglerfish_done_abspath = f"{self.run_abspath}/.anglerfish_done"
         self.anglerfish_ongoing_abspath = f"{self.run_abspath}/.anglerfish_ongoing"
 
-        # Get QC run dir attributes from config
-        paths = CONFIG["nanopore_analysis"]["qc_run"]
-
-        self.archive_dir = paths["finished_dir"]
-        self.metadata_dir = paths["metadata_dir"]
-
         # Get Anglerfish attributes from config
-        anglerfish_config = CONFIG["nanopore_analysis"]["qc_run"]["anglerfish"]
+        self.anglerfish_config = CONFIG["nanopore_analysis"][self.run_type][
+            "anglerfish"
+        ]
 
-        self.anglerfish_samplesheets_dir = anglerfish_config[
+        self.anglerfish_samplesheets_dir = self.anglerfish_config[
             "anglerfish_samplesheets_dir"
         ]
-        self.anglerfish_samplesheets_dir = anglerfish_config[
+        self.anglerfish_samplesheets_dir = self.anglerfish_config[
             "anglerfish_samplesheets_dir"
         ]
-        self.anglerfish_env_name = anglerfish_config["anglerfish_env_name"]
+        self.anglerfish_env_name = self.anglerfish_config["anglerfish_env_name"]
         # Depending on the Conda installation, Conda may need to be initialized when used in a subprocess
-        if "conda_init_path" in anglerfish_config:
-            self.conda_init_path = anglerfish_config["conda_init_path"]
+        if "conda_init_path" in self.anglerfish_config:
+            self.conda_init_path = self.anglerfish_config["conda_init_path"]
         else:
             self.conda_init_path = None
 
