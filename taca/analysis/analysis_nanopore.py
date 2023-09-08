@@ -182,25 +182,24 @@ def process_qc_run(ont_qc_run: ONT_qc_run):
         ont_qc_run.copy_html_report()
         logger.info(f"{ont_qc_run.run_name}: Put HTML report on GenStat successful.")
 
-        # Has Anglerfish been run?
+        # Anglerfish
         logger.info(
             f"{ont_qc_run.run_name}: Checking whether Anglerfish has been run..."
         )
 
         anglerfish_exit_code = ont_qc_run.get_anglerfish_exit_code()
 
-        # Anglerfish run and failed
         if anglerfish_exit_code and anglerfish_exit_code > 0:
             logger.warning(
                 f"{ont_qc_run.run_name}: Anglerfish has failed, throwing error."
             )
             raise AssertionError(f"{ont_qc_run.run_name}: Anglerfish failed.")
 
-        # Anglerfish not run
         elif not anglerfish_exit_code:
-            logger.info(f"{ont_qc_run.run_name}: Anglerfish has not been run.")
+            logger.info(
+                f"{ont_qc_run.run_name}: Anglerfish has not been run, continuing."
+            )
 
-            # Is Anglerfish currently running?
             logger.info(
                 f"{ont_qc_run.run_name}: Checking whether Anglerfish is ongoing..."
             )
@@ -215,23 +214,20 @@ def process_qc_run(ont_qc_run: ONT_qc_run):
                     f"{ont_qc_run.run_name}: Anglerfish is not ongoing, continuing."
                 )
 
-                # Is the Anglerfish samplesheet available?
                 logger.info(
                     f"{ont_qc_run.run_name}: Fetching Anglerfish samplesheet..."
                 )
                 if not ont_qc_run.fetch_anglerfish_samplesheet():
                     f"{ont_qc_run.run_name}: Could not find Anglerfish sample sheet, skipping."
                 else:
-                    f"{ont_qc_run.run_name}: Fetching Anglerfish samplesheet successful."
+                    f"{ont_qc_run.run_name}: Fetching Anglerfish samplesheet successful, continuing."
 
-                    # Run Anglerfish
                     logger.info(f"{ont_qc_run.run_name}: Starting Anglerfish...")
                     ont_qc_run.run_anglerfish()
 
-        # Anglerfish finished successfully
         elif anglerfish_exit_code and anglerfish_exit_code == 0:
             logger.info(
-                f"{ont_qc_run.run_name}: Anglerfish has finished successfully, proceeding with processing..."
+                f"{ont_qc_run.run_name}: Anglerfish has finished successfully, continuing."
             )
 
             if ont_qc_run.is_transferred():
