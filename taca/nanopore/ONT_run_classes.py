@@ -515,6 +515,9 @@ class ONT_qc_run(ONT_run):
             ) as process:
                 # Create file indicating ongoing run, containing process id
                 os.system(f"echo '{process.pid}' > {self.anglerfish_ongoing_abspath}")
+                logger.info(
+                    f"{self.run_name}: Anglerfish started with process ID {process.pid}."
+                )
 
         except subprocess.CalledProcessError:
             logger.warn(f"{self.run_name}: An error occured when running Anglerfish.")
