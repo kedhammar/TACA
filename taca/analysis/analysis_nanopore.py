@@ -218,9 +218,13 @@ def process_qc_run(ont_qc_run: ONT_qc_run):
                     f"{ont_qc_run.run_name}: Fetching Anglerfish samplesheet..."
                 )
                 if not ont_qc_run.fetch_anglerfish_samplesheet():
-                    f"{ont_qc_run.run_name}: Could not find Anglerfish sample sheet, skipping."
+                    logger.info(
+                        f"{ont_qc_run.run_name}: Could not find Anglerfish sample sheet, skipping."
+                    )
                 else:
-                    f"{ont_qc_run.run_name}: Fetching Anglerfish samplesheet successful, continuing."
+                    logger.info(
+                        f"{ont_qc_run.run_name}: Fetching Anglerfish samplesheet successful, continuing."
+                    )
 
                     logger.info(f"{ont_qc_run.run_name}: Starting Anglerfish...")
                     ont_qc_run.run_anglerfish()

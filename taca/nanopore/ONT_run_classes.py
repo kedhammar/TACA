@@ -512,6 +512,7 @@ class ONT_qc_run(ONT_run):
                 shell=True,
                 stdout=subprocess.PIPE,
                 encoding="utf-8",
+                cwd=self.run_abspath,
             ) as process:
                 # Create file indicating ongoing run, containing process id
                 os.system(f"echo '{process.pid}' > {self.anglerfish_ongoing_abspath}")
