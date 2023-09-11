@@ -229,8 +229,10 @@ class backup_utils(object):
         rta_file = os.path.join(run_path, self.finished_run_indicator)
         cp_file = os.path.join(run_path, self.copy_complete_indicator)
         if os.path.exists(rta_file) and os.path.exists(cp_file):
-            logger.info(f'Sequencing has finished and copying completed for run {os.path.basename(run_path)} and is ready for archiving')
-            archive_ready = True
+            #If the file does not exist in PDC and the file has already been encrypted (run.tar.gz.gpg exists)
+            if not self.file_in_pdc(run.zip_encrypted) and not os.path.exists(run.zip_encrypted):
+                logger.info(f'Sequencing has finished and copying completed for run {os.path.basename(run_path)} and is ready for archiving')
+                archive_ready = True
 
         return archive_ready
 
