@@ -114,6 +114,11 @@ class ONT_run(object):
         assert self.has_file("/final_summary*.txt")
         assert self.has_file("/pore_activity*.csv")
 
+    def is_transferred(self) -> bool:
+        """Return True if run ID in transfer.tsv, else False."""
+        with open(self.transfer_details["transfer_log"], "r") as f:
+            return self.run_name in f.read()
+
     # DB update
 
     def touch_db_entry(self):
@@ -312,11 +317,6 @@ class ONT_run(object):
             raise RsyncError(msg)
 
     # Transfer run
-
-    def is_transferred(self) -> bool:
-        """Return True if run ID in transfer.tsv, else False."""
-        with open(self.transfer_details["transfer_log"], "r") as f:
-            return self.run_name in f.read()
 
     def transfer_run(self):
         """Transfer dir to destination specified in config file via rsync"""

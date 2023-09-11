@@ -189,13 +189,13 @@ def process_qc_run(ont_qc_run: ONT_qc_run):
 
         anglerfish_exit_code = ont_qc_run.get_anglerfish_exit_code()
 
-        if anglerfish_exit_code and anglerfish_exit_code > 0:
+        if isinstance(anglerfish_exit_code, int) and anglerfish_exit_code > 0:
             logger.warning(
                 f"{ont_qc_run.run_name}: Anglerfish has failed, throwing error."
             )
             raise AssertionError(f"{ont_qc_run.run_name}: Anglerfish failed.")
 
-        elif not anglerfish_exit_code:
+        elif anglerfish_exit_code is None:
             logger.info(
                 f"{ont_qc_run.run_name}: Anglerfish has not been run, continuing."
             )
@@ -225,7 +225,7 @@ def process_qc_run(ont_qc_run: ONT_qc_run):
                     logger.info(f"{ont_qc_run.run_name}: Starting Anglerfish...")
                     ont_qc_run.run_anglerfish()
 
-        elif anglerfish_exit_code and anglerfish_exit_code == 0:
+        elif isinstance(anglerfish_exit_code, int) and anglerfish_exit_code == 0:
             logger.info(
                 f"{ont_qc_run.run_name}: Anglerfish has finished successfully, continuing."
             )
