@@ -5,6 +5,7 @@ import re
 import shutil
 import subprocess as sp
 import time
+import csv
 
 from datetime import datetime
 from taca.utils.config import CONFIG
@@ -45,6 +46,7 @@ class backup_utils(object):
             self.couch_info = CONFIG.get('statusdb')
             self.finished_run_indicator = CONFIG.get('storage', {}).get('finished_run_indicator', 'RTAComplete.txt')
             self.copy_complete_indicator = CONFIG.get('storage', {}).get('copy_complete_indicator', 'CopyComplete.txt')
+            self.archive_log_location = CONFIG['backup']['archive_log']
         except KeyError as e:
             logger.error('Config file is missing the key {}, make sure it have all required information'.format(str(e)))
             raise SystemExit
@@ -62,7 +64,7 @@ class backup_utils(object):
             if self._is_ready_to_archive(run):
                 self.runs.append(run)
         else:
-            for adir in self.data_dirs.values():
+            for adir in self.archive_dirs.values():
                 if not os.path.isdir(adir):
                     logger.warn('Path {} does not exist or it is not a directory'.format(adir))
                     continue
@@ -74,7 +76,7 @@ class backup_utils(object):
                     elif not os.path.isdir(os.path.join(adir, item)):
                         continue
                     if re.match(filesystem.RUN_RE, item) and item not in self.runs:
-                        run_type = self._get_run_type(self.run)
+                        run_type = self._get_run_type(item)
                         archive_path = self.archive_dirs[run_type]
                         run = run_vars(os.path.join(adir, item), archive_path)
                         if self._is_ready_to_archive(run):
@@ -227,11 +229,18 @@ class backup_utils(object):
         rta_file = os.path.join(run_path, self.finished_run_indicator)
         cp_file = os.path.join(run_path, self.copy_complete_indicator)
         if os.path.exists(rta_file) and os.path.exists(cp_file):
-            logger.info(f'Sequencing has finished and copying completed for run {os.path.basename(run_path)} and is ready for archiving')
-            archive_ready = True
+            #If the file does not exist in PDC and the file has already been encrypted (run.tar.gz.gpg exists)
+            if not self.file_in_pdc(run.zip_encrypted) and not os.path.exists(run.zip_encrypted):
+                logger.info(f'Sequencing has finished and copying completed for run {os.path.basename(run_path)} and is ready for archiving')
+                archive_ready = True
 
         return archive_ready
 
+    def log_archived_run(self, file_name):
+        """Write files archived to PDC to log file"""
+        with open(self.archive_log_location, 'a') as archive_file:
+            tsv_writer = csv.writer(archive_file, delimiter='\t')
+            tsv_writer.writerow([file_name, str(datetime.now())])
 
     @classmethod
     def encrypt_runs(cls, run, force):
@@ -347,7 +356,7 @@ class backup_utils(object):
                     logger.warn('Run {} is already being archived, so skipping now'.format(run.name))
                     continue
                 if bk.file_in_pdc(run.zip_encrypted, silent=False) or bk.file_in_pdc(run.dst_key_encrypted, silent=False):
-                    logger.warn('Seems like files realted to run {} already exist in PDC, check and cleanup'.format(run.name))
+                    logger.warn('Seems like files related to run {} already exist in PDC, check and cleanup'.format(run.name))
                     continue
                 flag = open(run.flag, 'w').close()
                 logger.info('Sending file {} to PDC'.format(run.zip_encrypted))
@@ -357,6 +366,7 @@ class backup_utils(object):
                         time.sleep(5) # give some time just in case 'dsmc' needs to settle
                         if bk.file_in_pdc(run.zip_encrypted) and bk.file_in_pdc(run.dst_key_encrypted):
                             logger.info('Successfully sent file {} to PDC, removing file locally from {}'.format(run.zip_encrypted, run.path))
+                            bk.log_archived_run(run.zip_encrypted)
                             if bk.couch_info:
                                 bk._log_pdc_statusdb(run.name)
                             bk._clean_tmp_files([run.zip_encrypted, run.dst_key_encrypted, run.flag])
