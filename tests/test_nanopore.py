@@ -5,12 +5,12 @@ import filecmp
 import os
 import subprocess
 
-from taca.nanopore.ONT_run import ONT_run
-from taca.nanopore.ont_transfer_class import ONTTransfer
+from taca.nanopore.ONT_run_classes import ONT_run
 from taca.nanopore.minion_run_class import MinIONqc
-from taca.utils import config as conf
+from taca.utils import config
 
-CONFIG = conf.load_yaml_config('data/taca_test_nanopore_cfg.yaml')
+CONFIG = config.load_yaml_config("data/taca_test_nanopore_cfg.yaml")
+
 
 class TestNanopore(unittest.TestCase):
     """Test Nanopore class"""
