@@ -50,10 +50,9 @@ class ONT_run(object):
             self.run_hash,
         ) = self.run_name.split("_")
 
-        """Get instrument.
-         - For PromethION, the positions will be "1A, 2A, ..., 3G".
-         - For MinION the position will be the instrument ID e.g. MN19414.
-         """
+        # Get instrument
+        # - For PromethION, the positions will be "1A, 2A, ..., 3G".
+        # - For MinION the position will be the instrument ID e.g. MN19414.
         self.instrument = "promethion" if len(self.position) == 2 else "minion"
 
         # Get run type
