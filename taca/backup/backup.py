@@ -61,7 +61,7 @@ class backup_utils(object):
             if not re.match(filesystem.RUN_RE, run.name):
                 logger.error('Given run {} did not match a FC pattern'.format(self.run))
                 raise SystemExit
-            if self._is_ready_to_archive(run):
+            if self._is_ready_to_archive(run, ext):
                 self.runs.append(run)
         else:
             for adir in self.archive_dirs.values():
@@ -79,7 +79,7 @@ class backup_utils(object):
                         run_type = self._get_run_type(item)
                         archive_path = self.archive_dirs[run_type]
                         run = run_vars(os.path.join(adir, item), archive_path)
-                        if self._is_ready_to_archive(run):
+                        if self._is_ready_to_archive(run, ext):
                             self.runs.append(run)
 
     def avail_disk_space(self, path, run):
@@ -220,7 +220,7 @@ class backup_utils(object):
         except:
             logger.warn('Not able to log "pdc_archived" timestamp for run {}'.format(run))
 
-    def _is_ready_to_archive(self, run):
+    def _is_ready_to_archive(self, run, ext):
         """Check if the run to be encrypted has finished sequencing and has been copied completely to nas"""
 
         archive_ready = False
@@ -228,10 +228,16 @@ class backup_utils(object):
         run_path = run.abs_path
         rta_file = os.path.join(run_path, self.finished_run_indicator)
         cp_file = os.path.join(run_path, self.copy_complete_indicator)
-        if os.path.exists(rta_file) and os.path.exists(cp_file):
-            #If the file does not exist in PDC and the file has already been encrypted (run.tar.gz.gpg exists)
-            if not self.file_in_pdc(run.zip_encrypted) and not os.path.exists(run.zip_encrypted):
+        if os.path.exists(rta_file) and os.path.exists(cp_file) and (not self.file_in_pdc(run.zip_encrypted)):
+            # Case for encrypting
+            # Run has NOT been encrypted (run.tar.gz.gpg not exists)
+            if ext == '.tar.gz' and (not os.path.exists(run.zip_encrypted)):
                 logger.info(f'Sequencing has finished and copying completed for run {os.path.basename(run_path)} and is ready for archiving')
+                archive_ready = True
+            # Case for putting data to PDC
+            # Run has already been encrypted (run.tar.gz.gpg exists)
+            elif ext == '.tar.gz.gpg' and os.path.exists(run.zip_encrypted):
+                logger.info(f'Sequencing has finished and copying completed for run {os.path.basename(run_path)} and is ready for sending to PDC')
                 archive_ready = True
 
         return archive_ready
