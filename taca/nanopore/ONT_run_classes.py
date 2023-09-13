@@ -278,6 +278,7 @@ class ONT_run(object):
             "**/fastq*/***",
             # Any files found elsewhere
             "*.bam*",
+            "*.bai*",
             "*.fast5*",
             "*.fastq*",
         ]
