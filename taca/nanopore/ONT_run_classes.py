@@ -490,36 +490,47 @@ class ONT_qc_run(ONT_run):
             + f" --out_fastq {self.run_abspath}"
             + f" --run_name {anglerfish_run_name}"
             + f" --threads {n_threads}"
-            + f" --skip_demux"
+            + " --skip_demux"
         )
 
         full_command = (
+            # Print intialization of subprocess
+            "echo 'Command initialized with PID:' $$"
+            # Dump subprocess PID into 'run-ongoing'-indicator file.
+            + (
+                f" && echo $$ > {self.anglerfish_ongoing_abspath}"
+                + f" && echo 'Dumped PID into {self.anglerfish_ongoing_abspath}'"
+            )
             # Some systems need Conda to be initialized in the subshell
-            (f"source {self.conda_init_path} && " if self.conda_init_path else "")
+            + (
+                (
+                    " && echo 'Initializing Conda...'"
+                    + f" && source {self.conda_init_path}"
+                    + " && echo 'Initialized Conda.'"
+                )
+                if self.conda_init_path
+                else ""
+            )
             # Activate environment
-            + f"conda activate {self.anglerfish_env_name}"
-            # On success: Run Anglerfish
+            + f" && echo 'Activating Conda env {self.anglerfish_env_name}...'"
+            + f" && conda activate {self.anglerfish_env_name}"
+            + f" && echo 'Activated Conda env {self.anglerfish_env_name}.'"
+            # Run Anglerfish
+            + " && echo 'Running Anglerfish...'"
             + f" && {anglerfish_command}"
-            # Dump Anglerfish exit status in file
+            # Regardless of exit status: Dump exit status in file
             + f" ; echo $? > {self.anglerfish_done_abspath}"
-            # Remove file indicating ongoing run
+            # Regardless of exit status: Remove 'run-ongoing'-indicator file.
             + f" ; rm {self.anglerfish_ongoing_abspath}"
         )
 
-        try:
-            # Start Anglerfish
-            with subprocess.Popen(
-                full_command,
-                shell=True,
-                stdout=subprocess.PIPE,
-                encoding="utf-8",
-                cwd=self.run_abspath,
-            ) as process:
-                # Create file indicating ongoing run, containing process id
-                os.system(f"echo '{process.pid}' > {self.anglerfish_ongoing_abspath}")
-                logger.info(
-                    f"{self.run_name}: Anglerfish started with process ID {process.pid}."
-                )
-
-        except subprocess.CalledProcessError:
-            logger.warn(f"{self.run_name}: An error occured when running Anglerfish.")
+        # Start Anglerfish subprocess
+        process = subprocess.Popen(
+            full_command,
+            shell=True,
+            cwd=self.run_abspath,
+            close_fds=True,
+        )
+        logger.info(
+            f"{self.run_name}: Anglerfish subprocess started with process ID {process.pid}."
+        )
