@@ -486,49 +486,55 @@ class ONT_qc_run(ONT_run):
 
         n_threads = 2  # This could possibly be changed
 
-        anglerfish_command = (
-            "anglerfish"
-            + f" --samplesheet {self.anglerfish_samplesheet}"
-            + f" --out_fastq {self.run_abspath}"
-            + f" --run_name {anglerfish_run_name}"
-            + f" --threads {n_threads}"
-            + " --skip_demux"
-        )
+        anglerfish_command = [
+            "anglerfish",
+            f"--samplesheet {self.anglerfish_samplesheet}",
+            f"--out_fastq {self.run_abspath}",
+            f"--run_name {anglerfish_run_name}",
+            f"--threads {n_threads}",
+            "--skip_demux",
+        ]
 
-        full_command = (
+        initialization_lines = [
+            "echo 'Initializing Conda...'",
+            f"source {self.conda_init_path}",
+            "echo 'Initialized Conda.'",
+        ]
+
+        full_command_lines = [
+            # Get process start timestamp
+            "timestamp=$(date +'%Y-%m-%d %H:%M:%S')"
             # Print intialization of subprocess
-            "echo 'Command initialized with PID:' $$"
+            "echo 'Command initialized at ${{timestamp}} with PID:' $$",
             # Dump subprocess PID into 'run-ongoing'-indicator file.
-            + (
-                f" && echo $$ > {self.anglerfish_ongoing_abspath}"
-                + f" && echo 'Dumped PID into {self.anglerfish_ongoing_abspath}'"
-            )
+            f"echo $$ > {self.anglerfish_ongoing_abspath}",
+            f"echo 'Dumped PID into {self.anglerfish_ongoing_abspath}'",
             # Some systems need Conda to be initialized in the subshell
-            + (
-                (
-                    " && echo 'Initializing Conda...'"
-                    + f" && source {self.conda_init_path}"
-                    + " && echo 'Initialized Conda.'"
-                )
-                if self.conda_init_path
-                else ""
-            )
+            *(initialization_lines if self.conda_init_path else []),
             # Activate environment
-            + f" && echo 'Activating Conda env {self.anglerfish_env_name}...'"
-            + f" && conda activate {self.anglerfish_env_name}"
-            + f" && echo 'Activated Conda env {self.anglerfish_env_name}.'"
+            f"echo 'Activating Conda env {self.anglerfish_env_name}...'",
+            f"conda activate {self.anglerfish_env_name}",
+            f"echo 'Activated Conda env {self.anglerfish_env_name}.'",
             # Run Anglerfish
-            + " && echo 'Running Anglerfish...'"
-            + f" && {anglerfish_command}"
-            # Regardless of exit status: Dump exit status in file
-            + f" ; echo $? > {self.anglerfish_done_abspath}"
+            "echo 'Running Anglerfish...'",
+            " ".join(anglerfish_command),
+            # Dump Anglerfish exit code into file
+            f"anglerfish_exit_code=$?",
+            f"echo ${{anglerfish_exit_code}} > {self.anglerfish_done_abspath}",
+            # If Anglerfish exit code is 0, dump samplesheet in the latest rundir
+            f"if [ ${{anglerfish_exit_code}} -eq 0 ]",
+            "then last_anglerfish_rundir=$(ls -d anglerfish_run* | sort -V | tail -n 1)",
+            f"cp {self.anglerfish_samplesheet} ${{last_anglerfish_rundir}}/",
+            "fi",
             # Regardless of exit status: Remove 'run-ongoing'-indicator file.
-            + f" ; rm {self.anglerfish_ongoing_abspath}"
-        )
+            f"rm {self.anglerfish_ongoing_abspath}",
+        ]
+
+        full_command_string = "; ".join(full_command_lines)
 
         # Start Anglerfish subprocess
         process = subprocess.Popen(
-            full_command,
+            full_command_string,
             shell=True,
             cwd=self.run_abspath,
             close_fds=True,
