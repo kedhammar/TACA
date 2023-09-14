@@ -366,13 +366,10 @@ class ONT_run(object):
 
     def archive_run(self):
         """Move directory to nosync."""
-        logger.info(f"{self.run_name}: Archiving run...")
-
         src = self.run_abspath
         dst = os.path.join(self.run_abspath, os.pardir, "nosync")
 
         shutil.move(src, dst)
-        logger.info(f"{self.run_name}: Archiving run successful.")
 
 
 class ONT_user_run(ONT_run):
@@ -529,7 +526,6 @@ class ONT_qc_run(ONT_run):
             "; ".join(full_command),
             shell=True,
             cwd=self.run_abspath,
-            close_fds=True,
         )
         logger.info(
             f"{self.run_name}: Anglerfish subprocess started with process ID {process.pid}."
