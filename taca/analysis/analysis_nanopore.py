@@ -75,7 +75,7 @@ def process_user_run(ont_user_run: ONT_user_run):
     if not ont_user_run.is_synced():
         logger.info(f"{ont_user_run.run_name}: Run is not fully synced, skipping.")
     else:
-        logger.info(f"{ont_user_run.run_name}: Run is fully synced, continuning.")
+        logger.info(f"{ont_user_run.run_name}: Run is fully synced, continuing.")
 
         if ont_user_run.is_transferred():
             logger.warning(
