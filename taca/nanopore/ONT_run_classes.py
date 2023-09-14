@@ -480,10 +480,7 @@ class ONT_qc_run(ONT_run):
         Dump files to indicate ongoing and finished processes.
         """
 
-        ss_basename = os.path.basename(self.anglerfish_samplesheet)
-        pid_yymmdd_hhmm = ss_basename.split(".")[0].split("_")[-3:]
         anglerfish_run_name = "anglerfish_run"
-
         n_threads = 2  # This could possibly be changed
 
         anglerfish_command = [
@@ -503,7 +500,7 @@ class ONT_qc_run(ONT_run):
 
         full_command_lines = [
             # Print intialization of subprocess
-            "echo 'Command initialized at ${{timestamp}} with PID:' $$",
+            "echo 'Command initialized with PID:' $$",
             # Dump subprocess PID into 'run-ongoing'-indicator file.
             f"echo $$ > {self.anglerfish_ongoing_abspath}",
             f"echo 'Dumped PID into {self.anglerfish_ongoing_abspath}'",
@@ -519,10 +516,11 @@ class ONT_qc_run(ONT_run):
             # Dump Anglerfish exit code into file
             f"anglerfish_exit_code=$?",
             f"echo ${{anglerfish_exit_code}} > {self.anglerfish_done_abspath}",
-            # If an Anglerfish run directory is found that has a birth time younger than
+            # If a single Anglerfish run directory is found that has a birth time younger than
             #  the modification time of the 'run-ongoing'-indicator file, copy the samplesheet into it
             f"new_runs=$(find . -type d -name 'anglerfish_run*' -newerBm {self.anglerfish_ongoing_abspath})",
-            'if [[ (echo "$new_runs" | wc -l) -eq 1 ]]',
+            'n_new_runs=$(echo "${new_runs}" | wc -l)',
+            "if [[ ${n_new_runs} -eq 1 ]]",
             f"then cp {self.anglerfish_samplesheet} ${{new_runs}}/",
             "fi",
             # Regardless of exit status: Remove 'run-ongoing'-indicator file.
