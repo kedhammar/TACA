@@ -157,7 +157,7 @@ class ONT_run(object):
     def update_db_entry(self, force_update=False):
         """Check run vs statusdb. Create or update run entry."""
 
-        # If no run document exists in the database, ceate an ongoing run document
+        # If no run document exists in the database, create an ongoing run document
         self.touch_db_entry()
 
         # If the run document is marked as "ongoing" or database is being manually updated
