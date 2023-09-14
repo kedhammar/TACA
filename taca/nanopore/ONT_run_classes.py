@@ -62,11 +62,17 @@ class ONT_run(object):
         self.minknow_reports_dir = CONFIG["nanopore_analysis"]["minknow_reports_dir"]
         self.analysis_server = CONFIG["nanopore_analysis"]["analysis_server"]
         self.rsync_options = CONFIG["nanopore_analysis"]["rsync_options"]
-        self.db = NanoporeRunsConnection(CONFIG["statusdb"], dbname="nanopore_runs")
+        for k, v in self.rsync_options.items():
+            if v == "None":
+                self.rsync_options[k] = None
 
+        # Get transfer details, depending on run type and instrument
         self.transfer_details = CONFIG["nanopore_analysis"]["run_types"][self.run_type][
             "instruments"
         ][self.instrument]
+
+        # Get DB
+        self.db = NanoporeRunsConnection(CONFIG["statusdb"], dbname="nanopore_runs")
 
     # Looking for files within the run dir
 
@@ -325,28 +331,19 @@ class ONT_run(object):
         """Transfer dir to destination specified in config file via rsync"""
         destination = self.transfer_details["destination"]
 
-        for k, v in self.rsync_options.items():
-            if v == "None":
-                self.rsync_options[k] = None
         logger.info(
             f"{self.run_name}: Transferring to {self.analysis_server['host'] if self.analysis_server else destination}..."
         )
-        if self.analysis_server:
-            transfer_object = RsyncAgent(
-                self.run_abspath,
-                dest_path=destination,
-                remote_host=self.analysis_server["host"],
-                remote_user=self.analysis_server["user"],
-                validate=False,
-                opts=self.rsync_options,
-            )
-        else:
-            transfer_object = RsyncAgent(
-                self.run_abspath,
-                dest_path=destination,
-                validate=False,
-                opts=self.rsync_options,
-            )
+
+        transfer_object = RsyncAgent(
+            self.run_abspath,
+            dest_path=destination,
+            remote_host=self.analysis_server["host"] if self.analysis_server else None,
+            remote_user=self.analysis_server["user"] if self.analysis_server else None,
+            validate=False,
+            opts=self.rsync_options,
+        )
+
         try:
             transfer_object.transfer()
         except RsyncError:
