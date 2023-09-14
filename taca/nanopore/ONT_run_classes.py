@@ -397,15 +397,7 @@ class ONT_qc_run(ONT_run):
         self.anglerfish_samplesheets_dir = self.anglerfish_config[
             "anglerfish_samplesheets_dir"
         ]
-        self.anglerfish_samplesheets_dir = self.anglerfish_config[
-            "anglerfish_samplesheets_dir"
-        ]
-        self.anglerfish_env_name = self.anglerfish_config["anglerfish_env_name"]
-        # Depending on the Conda installation, Conda may need to be initialized when used in a subprocess
-        if "conda_init_path" in self.anglerfish_config:
-            self.conda_init_path = self.anglerfish_config["conda_init_path"]
-        else:
-            self.conda_init_path = None
+        self.anglerfish_path = self.anglerfish_config["anglerfish_path"]
 
     # QC methods
 
@@ -478,7 +470,7 @@ class ONT_qc_run(ONT_run):
         n_threads = 2  # This could possibly be changed
 
         anglerfish_command = [
-            "anglerfish",
+            self.anglerfish_path,
             f"--samplesheet {self.anglerfish_samplesheet}",
             f"--out_fastq {self.run_abspath}",
             f"--run_name {anglerfish_run_name}",
@@ -486,37 +478,17 @@ class ONT_qc_run(ONT_run):
             "--skip_demux",
         ]
 
-        initialization_lines = [
-            "echo 'Initializing Conda...'",
-            f"source {self.conda_init_path}",
-            "echo 'Initialized Conda.'",
-        ]
-
         full_command = [
-            # Print intialization of subprocess
-            "echo 'Command initialized with PID:' $$",
             # Dump subprocess PID into 'run-ongoing'-indicator file.
             f"echo $$ > {self.anglerfish_ongoing_abspath}",
-            f"echo 'Dumped PID into {self.anglerfish_ongoing_abspath}'",
-            # Some systems need Conda to be initialized in the subshell
-            *(initialization_lines if self.conda_init_path else []),
-            # Activate environment
-            f"echo 'Activating Conda env {self.anglerfish_env_name}...'",
-            f"conda activate {self.anglerfish_env_name}",
-            f"echo 'Activated Conda env {self.anglerfish_env_name}.'",
             # Run Anglerfish
-            "echo 'Running Anglerfish...'",
             " ".join(anglerfish_command),
             # Dump Anglerfish exit code into file
-            f"anglerfish_exit_code=$?",
-            f"echo ${{anglerfish_exit_code}} > {self.anglerfish_done_abspath}",
+            f"echo $? > {self.anglerfish_done_abspath}",
             # If a single Anglerfish run directory is found that has a birth time younger than
             #  the modification time of the 'run-ongoing'-indicator file, copy the samplesheet into it
             f"new_runs=$(find . -type d -name 'anglerfish_run*' -newerBm {self.anglerfish_ongoing_abspath})",
-            'n_new_runs=$(echo "${new_runs}" | wc -l)',
-            "if [[ ${n_new_runs} -eq 1 ]]",
-            f"then cp {self.anglerfish_samplesheet} ${{new_runs}}/",
-            "fi",
+            f"if [[ $(echo '${{new_runs}}' | wc -l) -eq 1 ]] ; then cp {self.anglerfish_samplesheet} ${{new_runs}}/ ; fi",
             # Regardless of exit status: Remove 'run-ongoing'-indicator file.
             f"rm {self.anglerfish_ongoing_abspath}",
         ]
