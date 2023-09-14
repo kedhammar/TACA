@@ -498,7 +498,7 @@ class ONT_qc_run(ONT_run):
             "echo 'Initialized Conda.'",
         ]
 
-        full_command_lines = [
+        full_command = [
             # Print intialization of subprocess
             "echo 'Command initialized with PID:' $$",
             # Dump subprocess PID into 'run-ongoing'-indicator file.
@@ -527,11 +527,9 @@ class ONT_qc_run(ONT_run):
             f"rm {self.anglerfish_ongoing_abspath}",
         ]
 
-        full_command_string = "; ".join(full_command_lines)
-
         # Start Anglerfish subprocess
         process = subprocess.Popen(
-            full_command_string,
+            "; ".join(full_command),
             shell=True,
             cwd=self.run_abspath,
             close_fds=True,
