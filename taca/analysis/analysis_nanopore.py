@@ -165,7 +165,7 @@ def process_qc_run(ont_qc_run: ONT_qc_run):
     if not ont_qc_run.is_synced():
         logger.info(f"{ont_qc_run.run_name}: Run is not fully synced, skipping.")
     else:
-        logger.info(f"{ont_qc_run.run_name}: Run is fully synced, continuning.")
+        logger.info(f"{ont_qc_run.run_name}: Run is fully synced, continuing.")
 
         # Assert all files are in place
         logger.info(f"{ont_qc_run.run_name}: Asserting run contents...")
