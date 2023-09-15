@@ -80,7 +80,7 @@ def process_user_run(ont_user_run: ONT_user_run):
                 f"{ont_user_run.run_name}: Run is already logged as transferred, skipping."
             )
         else:
-            logger.info(f"{ont_user_run.run_name}: Processing transfer..."
+            logger.info(f"{ont_user_run.run_name}: Processing transfer...")
 
             # Assert all files are in place
             logger.info(f"{ont_user_run.run_name}: Asserting run contents...")
