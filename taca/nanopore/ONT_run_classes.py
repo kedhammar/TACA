@@ -317,9 +317,6 @@ class ONT_run(object):
         )
         try:
             transfer_object.transfer()
-            logger.info(
-                f"Successfully transferred the MinKNOW report of run {self.run_name}"
-            )
         except RsyncError:
             msg = f"{self.run_name}: An error occurred while attempting to transfer the report {report_src_path} to {report_dest_path}."
             logger.error(msg)
