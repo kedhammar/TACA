@@ -318,5 +318,5 @@ def ont_updatedb(run_abspath: str):
     logger.info(
         f"{ont_run.run_name}: Manually updating StatusDB, ignoring run status..."
     )
-    ont_run.update_db(force_update=True)
+    ont_run.update_db_entry(force_update=True)
     logger.info(f"{ont_run.run_name}: Manually updating StatusDB successful.")
