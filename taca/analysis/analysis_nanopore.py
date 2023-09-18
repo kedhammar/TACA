@@ -38,10 +38,7 @@ def find_run_dirs(dir_to_search: str, skip_dirs: list):
 def send_error_mail(run_name, error: BaseException):
 
     email_subject = f"Run processed with errors: {run_name}"
-    email_message = "{}\n\n{}".format(
-        str(error),
-        traceback.format_exc(),
-    )
+    email_message = f"{str(error)}\n\n{traceback.format_exc()}"
     email_recipients = CONFIG["mail"]["recipients"]
 
     send_mail(email_subject, email_message, email_recipients)
