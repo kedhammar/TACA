@@ -1,6 +1,6 @@
-""" Transfers new PromethION runs to ngi-nas using rsync.
+""" This is a stand-alone script run on ONT instrument computers. It transfers new ONT runs to NAS using rsync.
 """
-__version__ = "1.0.9"
+__version__ = "1.0.11"
 
 import logging
 import os
@@ -14,7 +14,7 @@ from datetime import datetime as dt
 
 
 def main(args):
-    """Find promethion runs and transfer them to storage. 
+    """Find ONT runs and transfer them to storage.
     Archives the run when the transfer is complete."""
 
     logging.basicConfig(
@@ -29,10 +29,10 @@ def main(args):
     run_pattern = re.compile("\d{8}_\d{4}_[A-Za-z0-9]+_[A-Za-z0-9]+_[A-Za-z0-9]+")
     destination_dir = args.dest_dir
     archive_dir = args.archive_dir
-    log_file = os.path.join(data_dir, 'rsync_log.txt')
+    log_file = os.path.join(data_dir, "rsync_log.txt")
     minknow_logs_dir = args.minknow_logs_dir
 
-    logging.info("Parsing PromethION position logs...")
+    logging.info("Parsing instrument position logs...")
     position_logs = parse_position_logs(minknow_logs_dir)
     logging.info("Subsetting QC and MUX metrics...")
     pore_counts = get_pore_counts(position_logs)
@@ -48,7 +48,7 @@ def main(args):
     # Split finished and unfinished runs
     not_finished = []
     finished = []
-    
+
     for run in runs:
         logging.info(f"Handling {run}...")
 
@@ -66,34 +66,38 @@ def main(args):
     for run in not_finished:
         sync_to_storage(run, destination_dir, log_file)
     for run in finished:
-        final_sync_to_storage(run, destination_dir, archive_dir, log_file) 
+        final_sync_to_storage(run, destination_dir, archive_dir, log_file)
+
 
 def sequencing_finished(run_dir):
-    sequencing_finished_indicator = 'final_summary'
-    run_dir_content = os.listdir(run_dir) 
+    sequencing_finished_indicator = "final_summary"
+    run_dir_content = os.listdir(run_dir)
     for item in run_dir_content:
         if sequencing_finished_indicator in item:
             return True
     return False
 
+
 def dump_path(run_path):
-    """Dump path to run to a file that can be
-    used when uploading stats to statusdb from preproc."""
-    new_file = os.path.join(run_path, 'run_path.txt')
-    proj, sample, run = run_path.split('/')[-3:]
+    """Dump path <minknow_experiment_id>/<minknow_sample_id>/<minknow_run_id>
+    to a file. Used for transferring info on ongoing runs to StatusDB."""
+    new_file = os.path.join(run_path, "run_path.txt")
+    proj, sample, run = run_path.split("/")[-3:]
     path_to_write = os.path.join(proj, sample, run)
-    with open(new_file, 'w') as f:
+    with open(new_file, "w") as f:
         f.write(path_to_write)
-    
+
+
 def write_finished_indicator(run_path):
-    """Write a hidden file to indicate 
+    """Write a hidden file to indicate
     when the finial rsync is finished."""
-    new_file = os.path.join(run_path, '.sync_finished')
+    new_file = os.path.join(run_path, ".sync_finished")
     pathlib.Path(new_file).touch()
     return new_file
 
+
 def sync_to_storage(run_dir, destination, log_file):
-    """Sync the run to storage using rsync. 
+    """Sync the run to storage using rsync.
     Skip if rsync is already running on the run."""
     command = [
         "run-one",
@@ -108,7 +112,7 @@ def sync_to_storage(run_dir, destination, log_file):
 
 
 def final_sync_to_storage(run_dir, destination, archive_dir, log_file):
-    """Do a final sync of the run to storage, then archive it. 
+    """Do a final sync of the run to storage, then archive it.
     Skip if rsync is already running on the run."""
     logging.info("Performing a final sync of {} to storage".format(run_dir))
     command = [
@@ -123,7 +127,7 @@ def final_sync_to_storage(run_dir, destination, archive_dir, log_file):
     if process_handle.returncode == 0:
         finished_indicator = write_finished_indicator(run_dir)
         dest = os.path.join(destination, os.path.basename(run_dir))
-        sync_finished_indicator = ['rsync', finished_indicator, dest]
+        sync_finished_indicator = ["rsync", finished_indicator, dest]
         process_handle = subprocess.run(sync_finished_indicator)
         archive_finished_run(run_dir, archive_dir)
     else:
@@ -181,7 +185,7 @@ def archive_finished_run(run_dir, archive_dir):
 
 
 def parse_position_logs(minknow_logs_dir: str) -> list:
-    """Look through all flow cell position logs and boil down into a structured list of dicts
+    """Look through all position logs and boil down into a structured list of dicts
 
     Example output:
     [{
@@ -197,7 +201,9 @@ def parse_position_logs(minknow_logs_dir: str) -> list:
 
     log_timestamp_format = "%Y-%m-%d %H:%M:%S.%f"
 
-    positions = []
+    # MinION
+    positions = ["MN19414"]
+    # PromethION
     for col in "123":
         for row in "ABCDEFGH":
             positions.append(col + row)
@@ -276,6 +282,8 @@ def get_pore_counts(position_logs: list) -> list:
 
 
 def dump_pore_count_history(run, pore_counts):
+    """For a recently started run, dump all QC and MUX events that the instrument remembers
+    for the flow cell as a file in the run dir."""
 
     flowcell_id = os.path.basename(run).split("_")[-2]
     run_start_time = dt.strptime(os.path.basename(run)[0:13], "%Y%m%d_%H%M")
@@ -331,8 +339,12 @@ if __name__ == "__main__":
         dest="minknow_logs_dir",
         help="Full path to the directory containing the MinKNOW position logs.",
     )
-    parser.add_argument("--log_path")
+    parser.add_argument(
+        "--log_path",
+        dest="log_path",
+        help="Full path to the script log file.",
+    )
     parser.add_argument("--version", action="version", version=__version__)
     args = parser.parse_args()
-    
+
     main(args)

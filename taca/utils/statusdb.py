@@ -2,8 +2,9 @@
 
 import couchdb
 import logging
-from datetime import datetime
 import csv
+
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -94,19 +95,21 @@ class NanoporeRunsConnection(StatusdbSession):
         super(NanoporeRunsConnection, self).__init__(config)
         self.db = self.connection[dbname]
 
-    def check_run_exists(self, ont_run):
+    def check_run_exists(self, ont_run) -> bool:
         view_names = self.db.view('names/name')
-        if len(view_names[ont_run.run_id].rows) > 0:
+        if len(view_names[ont_run.run_name].rows) > 0:
             return True
         else:
             return False
     
-    def check_run_status(self, ont_run):
+    def check_run_status(self, ont_run) -> str:
         view_all_stats = self.db.view('names/name')
-        doc_id = view_all_stats[ont_run.run_id].rows[0].id
+        doc_id = view_all_stats[ont_run.run_name].rows[0].id
         return self.db[doc_id]["run_status"]
 
-    def create_ongoing_run(self, ont_run, run_path_file, pore_count_history_file):
+    def create_ongoing_run(
+        self, ont_run, run_path_file: str, pore_count_history_file: str
+    ):
 
         run_path = open(run_path_file, "r").read().strip()
 
@@ -122,11 +125,13 @@ class NanoporeRunsConnection(StatusdbSession):
         }
 
         new_doc_id, new_doc_rev = self.db.save(new_doc)
-        logger.info(f"New database entry created: {ont_run.run_id}, id {new_doc_id}, rev {new_doc_rev}")
+        logger.info(
+            f"New database entry created: {ont_run.run_name}, id {new_doc_id}, rev {new_doc_rev}"
+        )
 
-    def finish_ongoing_run(self, ont_run, dict_json):
+    def finish_ongoing_run(self, ont_run, dict_json: dict):
         view_names = self.db.view('names/name')
-        doc_id = view_names[ont_run.run_id].rows[0].id
+        doc_id = view_names[ont_run.run_name].rows[0].id
         doc = self.db[doc_id]
 
         doc.update(dict_json)
