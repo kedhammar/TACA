@@ -25,53 +25,49 @@ def main(args):
 
     logging.info("Starting script...")
 
-    data_dir = args.source_dir
     run_pattern = re.compile("\d{8}_\d{4}_[A-Za-z0-9]+_[A-Za-z0-9]+_[A-Za-z0-9]+")
-    destination_dir = args.dest_dir
-    archive_dir = args.archive_dir
-    log_file = os.path.join(data_dir, "rsync_log.txt")
-    minknow_logs_dir = args.minknow_logs_dir
+    rsync_log = os.path.join(args.source_dir, "rsync_log.txt")
 
     logging.info("Parsing instrument position logs...")
-    position_logs = parse_position_logs(minknow_logs_dir)
+    position_logs = parse_position_logs(args.minknow_logs_dir)
     logging.info("Subsetting QC and MUX metrics...")
     pore_counts = get_pore_counts(position_logs)
 
     logging.info("Finding runs...")
-    runs = [
+    # Look for dirs matching run pattern 3 levels deep from source
+    run_paths = [
         path
-        for path in glob(f"{data_dir}/*/*/*", recursive=True)
+        for path in glob(os.path.join(args.source_dir, "*", "*", "*"), recursive=True)
         if re.match(run_pattern, os.path.basename(path))
     ]
-    logging.info(f"Found {len(runs)} runs...")
+    logging.info(f"Found {len(run_paths)} runs...")
 
-    # Split finished and unfinished runs
-    not_finished = []
-    finished = []
+    # Iterate over runs
+    for run_path in run_paths:
 
-    for run in runs:
-        logging.info(f"Handling {run}...")
+        logging.info(f"Handling {run_path}...")
+
+        if args.dest_dir_qc and os.path.dirname(run_path)[0:3] == "QC_":
+            # For QC runs, the sample name should start with "QC_"
+            logging.info(f"Run categorized as QC.")
+            rsync_dest = args.dest_dir_qc
+        else:
+            rsync_dest = args.dest_dir
 
         logging.info(f"Dumping run path...")
-        dump_path(run)
+        dump_path(run_path)
         logging.info(f"Dumping QC and MUX history...")
-        dump_pore_count_history(run, pore_counts)
+        dump_pore_count_history(run_path, pore_counts)
 
-        if sequencing_finished(run):
-            finished.append(run)
+        if not sequencing_finished(run_path):
+            sync_to_storage(run_path, rsync_dest, rsync_log)
         else:
-            not_finished.append(run)
-
-    # Start transfer of unfinished runs first (detatched)
-    for run in not_finished:
-        sync_to_storage(run, destination_dir, log_file)
-    for run in finished:
-        final_sync_to_storage(run, destination_dir, archive_dir, log_file)
+            final_sync_to_storage(run_path, rsync_dest, args.archive_dir, rsync_log)
 
 
-def sequencing_finished(run_dir):
+def sequencing_finished(run_path):
     sequencing_finished_indicator = "final_summary"
-    run_dir_content = os.listdir(run_dir)
+    run_dir_content = os.listdir(run_path)
     for item in run_dir_content:
         if sequencing_finished_indicator in item:
             return True
@@ -82,7 +78,7 @@ def dump_path(run_path):
     """Dump path <minknow_experiment_id>/<minknow_sample_id>/<minknow_run_id>
     to a file. Used for transferring info on ongoing runs to StatusDB."""
     new_file = os.path.join(run_path, "run_path.txt")
-    proj, sample, run = run_path.split("/")[-3:]
+    proj, sample, run = run_path.split(os.sep)[-3:]
     path_to_write = os.path.join(proj, sample, run)
     with open(new_file, "w") as f:
         f.write(path_to_write)
@@ -96,39 +92,47 @@ def write_finished_indicator(run_path):
     return new_file
 
 
-def sync_to_storage(run_dir, destination, log_file):
+def sync_to_storage(run_dir, destination, log):
     """Sync the run to storage using rsync.
     Skip if rsync is already running on the run."""
+
     command = [
         "run-one",
         "rsync",
         "-rvu",
-        "--log-file=" + log_file,
+        "--log-file=" + log,
         run_dir,
         destination,
     ]
-    process_handle = subprocess.Popen(command)
-    logging.info("Initiated rsync with the following parameters: {}".format(command))
+
+    p = subprocess.Popen(command)
+    logging.info(
+        f"Initiated rsync with PID {p.pid} and the following command: {command}"
+    )
 
 
-def final_sync_to_storage(run_dir, destination, archive_dir, log_file):
+def final_sync_to_storage(run_dir, destination, archive_dir, log):
     """Do a final sync of the run to storage, then archive it.
     Skip if rsync is already running on the run."""
+
     logging.info("Performing a final sync of {} to storage".format(run_dir))
+
     command = [
         "run-one",
         "rsync",
         "-rvu",
-        "--log-file=" + log_file,
+        "--log-file=" + log,
         run_dir,
         destination,
     ]
-    process_handle = subprocess.run(command)
-    if process_handle.returncode == 0:
+
+    p = subprocess.run(command)
+
+    if p.returncode == 0:
         finished_indicator = write_finished_indicator(run_dir)
         dest = os.path.join(destination, os.path.basename(run_dir))
         sync_finished_indicator = ["rsync", finished_indicator, dest]
-        process_handle = subprocess.run(sync_finished_indicator)
+        p = subprocess.run(sync_finished_indicator)
         archive_finished_run(run_dir, archive_dir)
     else:
         logging.info(
@@ -211,7 +215,7 @@ def parse_position_logs(minknow_logs_dir: str) -> list:
     entries = []
     for position in positions:
 
-        log_files = glob(f"{minknow_logs_dir}/{position}/control_server_log-*.txt")
+        log_files = os.path.join(minknow_logs_dir, position, "control_server_log-*.txt")
         log_files.sort()
 
         for log_file in log_files:
@@ -331,7 +335,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--dest_qc",
-        dest="dest_qc_dir",
+        dest="dest_dir_qc",
         help="Full path to destination directory to sync QC runs to.",
     )
     parser.add_argument(
@@ -345,7 +349,7 @@ if __name__ == "__main__":
         help="Full path to the directory containing the MinKNOW position logs.",
     )
     parser.add_argument(
-        "--log_path",
+        "--log",
         dest="log_path",
         help="Full path to the script log file.",
     )
