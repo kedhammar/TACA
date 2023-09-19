@@ -41,7 +41,13 @@ def send_error_mail(run_name, error: BaseException):
     email_message = f"{str(error)}\n\n{traceback.format_exc()}"
     email_recipients = CONFIG["mail"]["recipients"]
 
+    logger.warning(
+        f"Error encountered for run {run_name}.\nTraceback:\n{email_message}"
+    )
+
     send_mail(email_subject, email_message, email_recipients)
+
+    logger.info("Sent error mail.")
 
 
 def process_user_run(ont_user_run: ONT_user_run):
