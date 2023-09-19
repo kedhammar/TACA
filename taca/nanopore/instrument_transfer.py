@@ -327,7 +327,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dest",
         dest="dest_dir",
-        help="Full path to destination directory to sync runs to.",
+        help="Full path to destination directory to sync default runs to.",
+    )
+    parser.add_argument(
+        "--dest_qc",
+        dest="dest_qc_dir",
+        help="Full path to destination directory to sync QC runs to.",
     )
     parser.add_argument(
         "--archive",
