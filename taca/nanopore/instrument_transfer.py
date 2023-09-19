@@ -203,8 +203,6 @@ def parse_position_logs(minknow_logs_dir: str) -> list:
 
     """
 
-    log_timestamp_format = "%Y-%m-%d %H:%M:%S.%f"
-
     # MinION
     positions = ["MN19414"]
     # PromethION
@@ -215,33 +213,37 @@ def parse_position_logs(minknow_logs_dir: str) -> list:
     entries = []
     for position in positions:
 
-        log_files = os.path.join(minknow_logs_dir, position, "control_server_log-*.txt")
-        log_files.sort()
+        log_files = glob(
+            os.path.join(minknow_logs_dir, position, "control_server_log-*.txt")
+        )
 
-        for log_file in log_files:
-            with open(log_file) as stream:
-                lines = stream.readlines()
-                for i in range(0, len(lines)):
-                    line = lines[i]
-                    if line[0:4] != "    ":
-                        # Line is log header
-                        split_header = line.split(" ")
-                        timestamp = " ".join(split_header[0:2])
-                        category = " ".join(split_header[2:])
+        if log_files:
+            log_files.sort()
 
-                        entry = {
-                            "position": position,
-                            "timestamp": timestamp.strip(),
-                            "category": category.strip(),
-                        }
-                        entries.append(entry)
-                    else:
-                        # Line is log body
-                        if "body" not in entry:
-                            entry["body"] = {}
-                        key = line.split(": ")[0].strip()
-                        val = ": ".join(line.split(": ")[1:]).strip()
-                        entry["body"][key] = val
+            for log_file in log_files:
+                with open(log_file) as stream:
+                    lines = stream.readlines()
+                    for i in range(0, len(lines)):
+                        line = lines[i]
+                        if line[0:4] != "    ":
+                            # Line is log header
+                            split_header = line.split(" ")
+                            timestamp = " ".join(split_header[0:2])
+                            category = " ".join(split_header[2:])
+
+                            entry = {
+                                "position": position,
+                                "timestamp": timestamp.strip(),
+                                "category": category.strip(),
+                            }
+                            entries.append(entry)
+                        else:
+                            # Line is log body
+                            if "body" not in entry:
+                                entry["body"] = {}
+                            key = line.split(": ")[0].strip()
+                            val = ": ".join(line.split(": ")[1:]).strip()
+                            entry["body"][key] = val
 
     entries.sort(key=lambda x: x["timestamp"])
     logging.info(f"Parsed {len(entries)} log entries.")
