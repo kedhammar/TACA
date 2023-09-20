@@ -41,12 +41,23 @@ def updatedb(rundir):
 # Nanopore analysis subcommands
 
 @analysis.command()
-@click.option('-r', '--run', type=click.Path(exists=True), default=None,
-              help='Transfer only a particular run')
-def ont_transfer(run):
-    """Transfer runs present in the data directories to HPC cluster.
-    """
-    analysis_nanopore.ont_transfer(run)
+@click.option(
+    "-r",
+    "--run",
+    type=click.Path(exists=True),
+    default=None,
+    help="Process only a particular run",
+)
+@click.option(
+    "-q",
+    "--qc",
+    is_flag=True,
+    default=False,
+    help="Run is QC",
+)
+def ont_transfer(run, qc):
+    """Find and process all runs"""
+    analysis_nanopore.ont_transfer(run, qc)
 
 @analysis.command()
 @click.argument("run")

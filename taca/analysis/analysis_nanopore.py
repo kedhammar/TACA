@@ -242,28 +242,17 @@ def process_qc_run(ont_qc_run: ONT_qc_run):
                 ont_qc_run.archive_run()
 
 
-def process_run(run_abspath: str):
-    """This gate function instantiates an appropriate subclass
-    for the ONT run and processes it"""
-
-    ont_run = ONT_run(run_abspath)
-
-    if ont_run.run_type == "user_run":
-        process_user_run(ONT_user_run(run_abspath))
-    elif ont_run.run_type == "qc_run":
-        process_qc_run(ONT_qc_run(run_abspath))
-    else:
-        raise AssertionError("Run type invalid.")
-
-
-def ont_transfer(run_abspath: str or None):
+def ont_transfer(run_abspath: str or None, qc: bool = False):
     """CLI entry function.
 
     Find finished ONT runs in ngi-nas and transfer to HPC cluster.
     """
 
     if run_abspath:
-        process_run(run_abspath)
+        if qc:
+            process_qc_run(ONT_qc_run(run_abspath))
+        else:
+            process_user_run(ONT_user_run(run_abspath))
 
     # If no run is specified, locate all runs
     else:
@@ -282,7 +271,10 @@ def ont_transfer(run_abspath: str or None):
                 for run_dir in run_dirs:
                     # Send error mails at run-level
                     try:
-                        process_run(run_dir)
+                        if run_type == "user_run":
+                            process_user_run(ONT_user_run(run_dir))
+                        else:
+                            process_qc_run(ONT_qc_run(run_dir))
                     except BaseException as e:
                         send_error_mail(os.path.basename(run_dir), e)
 
