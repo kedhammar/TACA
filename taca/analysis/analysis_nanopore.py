@@ -78,7 +78,10 @@ def process_user_run(ont_user_run: ONT_user_run):
 
         if ont_user_run.is_transferred():
             logger.warning(
-                f"{ont_user_run.run_name}: Run is already logged as transferred, skipping."
+                f"{ont_user_run.run_name}: Run is already logged as transferred, sending mail."
+            )
+            raise AssertionError(
+                "Run is logged as transferred, but has not been archived."
             )
         else:
             logger.info(f"{ont_user_run.run_name}: Processing transfer...")
