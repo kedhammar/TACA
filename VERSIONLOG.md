@@ -1,5 +1,8 @@
 # TACA Version Log
 
+## 20230915.1
+Major overhaul of Nanopore stuff. Use generalized local script instead of installed TACA for both instruments and harmonize the way TACA handles Nanopore data from preprocessing. Implement automated handling of MinION QC runs.
+
 ## 20230913.1
 Fix bugs for encrypting and archiving runs on ngi-preproc cont.
 

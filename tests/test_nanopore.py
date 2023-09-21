@@ -5,23 +5,23 @@ import filecmp
 import os
 import subprocess
 
-from taca.nanopore.nanopore import Nanopore
-from taca.nanopore.ont_transfer import ONTTransfer
-from taca.nanopore.minion import MinIONqc
-from taca.utils import config as conf
+from taca.nanopore.ONT_run_classes import ONT_run
+from taca.nanopore.minion_run_class import MinIONqc
+from taca.utils import config
 
-CONFIG = conf.load_yaml_config('data/taca_test_nanopore_cfg.yaml')
+CONFIG = config.load_yaml_config("data/taca_test_nanopore_cfg.yaml")
+
 
 class TestNanopore(unittest.TestCase):
     """Test Nanopore class"""
     def test_is_not_transferred(self):
         """Check if nanopore run has been transferred."""
         run_dir = 'data/nanopore_data/run4/done_demuxing/20200104_1412_MN19414_AAU644_68125dc2'
-        np_run = Nanopore(run_dir)
+        np_run = ONT_run(run_dir)
         np_run.transfer_log = CONFIG.get('nanopore_analysis').get('minion_qc_run').get('transfer').get('transfer_file')
         self.assertTrue(np_run.is_not_transferred())
         run_dir_transf = 'data/nanopore_data/run4/done_demuxing/20200105_1412_MN19414_AAU645_68125dc2'
-        np_run_transf = Nanopore(run_dir_transf)
+        np_run_transf = ONT_run(run_dir_transf)
         np_run_transf.transfer_log = CONFIG.get('nanopore_analysis').get('minion_qc_run').get('transfer').get('transfer_file')
         self.assertFalse(np_run_transf.is_not_transferred())
 
@@ -29,7 +29,7 @@ class TestNanopore(unittest.TestCase):
     def test_transfer_run(self, mock_rsync):
         """Start rsync of finished run."""
         run_dir = 'data/nanopore_data/run4/done_demuxing/20200104_1412_MN19414_AAU644_68125dc2'
-        np_run = Nanopore(run_dir)
+        np_run = ONT_run(run_dir)
         transfer_details = CONFIG.get('nanopore_analysis').get('minion_qc_run').get('transfer')
         np_run.transfer_run(transfer_details)
         rsync_opts = {'-Lav': None,
@@ -48,7 +48,7 @@ class TestNanopore(unittest.TestCase):
     def test_archive_run(self, mock_move):
         """Move directory to archive."""
         run_dir = 'data/nanopore_data/run4/done_demuxing/20200104_1412_MN19414_AAU644_68125dc2'
-        np_run = Nanopore(run_dir)
+        np_run = ONT_run(run_dir)
         np_run.archive_dir = '/some/dir'
         np_run.archive_run()
         mock_move.assert_called_once()
