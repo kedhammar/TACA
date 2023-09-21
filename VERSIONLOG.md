@@ -1,5 +1,8 @@
 # TACA Version Log
 
+## 20230921.1
+Remove the temp change of creating links
+
 ## 20230915.1
 Major overhaul of Nanopore stuff. Use generalized local script instead of installed TACA for both instruments and harmonize the way TACA handles Nanopore data from preprocessing. Implement automated handling of MinION QC runs.
 

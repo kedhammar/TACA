@@ -612,11 +612,7 @@ class Run(object):
                     if "Stats" not in element: #skip this folder and treat it differently to take into account the NoIndex case
                         source = os.path.join(demux_id_folder, element)
                         dest = os.path.join(self.run_dir, self.demux_dir, element)
-                        # Temporary (hopefully) fix until ngi_data allows symlinks
-                        if 'ngi_data' in dest:
-                            os.link(source, dest)
-                        else:
-                            os.symlink(source, dest)
+                        os.symlink(source, dest)
                 os.makedirs(os.path.join(self.run_dir, "Demultiplexing", "Stats"))
                 # Fetch the lanes that have NoIndex
                 statsFiles = glob.glob(os.path.join(demux_id_folder, "Stats", "*" ))
