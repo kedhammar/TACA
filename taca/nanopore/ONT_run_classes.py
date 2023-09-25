@@ -55,9 +55,6 @@ class ONT_run(object):
         # - For MinION, the position will be the instrument ID e.g. "MN19414".
         self.instrument = "promethion" if len(self.position) == 2 else "minion"
 
-        # Get run type
-        self.run_type = "qc_run" if self.sample_name[0:3] == "QC_" else "user_run"
-
         # Get attributes from config
         self.minknow_reports_dir = CONFIG["nanopore_analysis"]["minknow_reports_dir"]
         self.analysis_server = CONFIG["nanopore_analysis"]["analysis_server"]
@@ -373,6 +370,7 @@ class ONT_user_run(ONT_run):
     """ONT user run, has class methods and attributes specific to user runs."""
 
     def __init__(self, run_abspath: str):
+        self.run_type = "user_run"
         super(ONT_user_run, self).__init__(run_abspath)
 
 
@@ -380,6 +378,7 @@ class ONT_qc_run(ONT_run):
     """ONT QC run, has class methods and attributes specific to QC runs"""
 
     def __init__(self, run_abspath: str):
+        self.run_type = "qc_run"
         super(ONT_qc_run, self).__init__(run_abspath)
 
         # Get Anglerfish attributes from run
