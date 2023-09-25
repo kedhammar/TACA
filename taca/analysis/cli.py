@@ -53,7 +53,7 @@ def updatedb(rundir):
     "--qc",
     is_flag=True,
     default=False,
-    help="Run is QC",
+    help="Specified run is a QC run, ignored if --run is not given",
 )
 def ont_transfer(run, qc):
     """Find and process all runs"""
