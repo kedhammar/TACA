@@ -47,7 +47,7 @@ def main(args):
 
         logging.info(f"Handling {run_path}...")
 
-        if args.dest_dir_qc and os.path.dirname(run_path)[0:3] == "QC_":
+        if args.dest_dir_qc and run_path.split(os.sep)[-2][0:3] == "QC_":
             # For QC runs, the sample name should start with "QC_"
             logging.info(f"Run categorized as QC.")
             rsync_dest = args.dest_dir_qc
