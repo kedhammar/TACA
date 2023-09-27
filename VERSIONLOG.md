@@ -3,6 +3,9 @@
 ## 20230921.1
 Remove the temp change of creating links
 
+## 20230920.1
+Supplement last PR, primary purpose is to differentiate user runs from QC runs in the instrument transfer script rather than the installed TACA.
+
 ## 20230915.1
 Major overhaul of Nanopore stuff. Use generalized local script instead of installed TACA for both instruments and harmonize the way TACA handles Nanopore data from preprocessing. Implement automated handling of MinION QC runs.
 
