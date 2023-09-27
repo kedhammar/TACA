@@ -1,5 +1,8 @@
 # TACA Version Log
 
+## 20230921.1
+Remove the temp change of creating links
+
 ## 20230920.1
 Supplement last PR, primary purpose is to differentiate user runs from QC runs in the instrument transfer script rather than the installed TACA.
 
