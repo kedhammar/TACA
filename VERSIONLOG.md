@@ -1,7 +1,10 @@
 # TACA Version Log
 
+## 20231016.1
+Support multiple project ID for run folder transfer
+
 ## 20230927.1
-Fix bug that NovaSeqXPlus date format cause error in writing pdc_archived timestamp 
+Fix bug that NovaSeqXPlus date format cause error in writing pdc_archived timestamp
 
 ## 20230921.1
 Remove the temp change of creating links
