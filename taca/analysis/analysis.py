@@ -160,7 +160,7 @@ def transfer_runfolder(run_dir, pid, exclude_lane):
 
     """
     original_sample_sheet = os.path.join(run_dir, 'SampleSheet.csv')
-    pid_list = list(set(pid.strip().split(',')))
+    pid_list = list(set([x.strip() for x in pid.split(',')]))
     new_sample_sheet = os.path.join(run_dir, '_'.join(pid_list) + '_SampleSheet.txt')
 
     # Write new sample sheet including only rows for the specified project
