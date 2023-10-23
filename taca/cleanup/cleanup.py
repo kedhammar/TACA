@@ -1,10 +1,7 @@
 """Storage methods and utilities"""
-import getpass
 import logging
 import os
 import re
-import shutil
-import time
 
 from collections import defaultdict
 from datetime import datetime
@@ -16,38 +13,6 @@ from io import open
 from six.moves import map
 
 logger = logging.getLogger(__name__)
-
-# This is used by many of the functions in this module
-finished_run_indicator = CONFIG.get('storage', {}).get('finished_run_indicator', 'RTAComplete.txt')
-
-def cleanup_processing(seconds):
-    """Cleanup runs in processing server.
-
-    :param int seconds: Days/hours converted as second to consider a run to be old
-    """
-    try:
-        #Remove old runs from archiving dirs
-        for archive_dir in CONFIG.get('storage').get('archive_dirs').values():
-            logger.info('Removing old runs in {}'.format(archive_dir))
-            with filesystem.chdir(archive_dir):
-                for run in [r for r in os.listdir(archive_dir) if re.match(filesystem.RUN_RE, r)]:
-                    rta_file = os.path.join(run, finished_run_indicator)
-                    if os.path.exists(rta_file):
-                        if os.stat(rta_file).st_mtime < time.time() - seconds:
-                            logger.info('Removing run {} to nosync directory'.format(os.path.basename(run)))
-                            shutil.rmtree(run)
-                        else:
-                            logger.info('{} file exists but is not older than given time, skipping run {}'.format(
-                                        finished_run_indicator, run))
-    except IOError:
-        sbj = 'Cannot archive old runs in processing server'
-        msg = ('Could not find transfer.tsv file, so I cannot decide if I should '
-               'archive any run or not.')
-        cnt = CONFIG.get('contact', None)
-        if not cnt:
-            cnt = '{}@localhost'.format(getpass.getuser())
-        logger.error(msg)
-        misc.send_mail(sbj, msg, cnt)
 
 def cleanup_miarka(days_fastq, days_analysis,
                  only_fastq, only_analysis,
