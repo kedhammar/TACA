@@ -1,5 +1,8 @@
 # TACA Version Log
 
+## 20231024.1
+Fix functionality issues for Anglerfish launch by running via "conda run", fix erroneous file name reference and improve static typing.
+
 ## 20230920.1
 Supplement last PR, primary purpose is to differentiate user runs from QC runs in the instrument transfer script rather than the installed TACA.
 
