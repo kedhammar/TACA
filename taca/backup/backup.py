@@ -208,7 +208,11 @@ class backup_utils(object):
         """Log the time stamp in statusDB if a file is succussfully sent to PDC."""
         try:
             run_vals = run.split('_')
-            run_fc = '{}_{}'.format(run_vals[0], run_vals[-1])
+            if len(run_vals[0]) == 8:
+                run_date = run_vals[0][2:]
+            else:
+                run_date = run_vals[0]
+            run_fc = '{}_{}'.format(run_date, run_vals[-1])
             couch_connection = statusdb.StatusdbSession(self.couch_info).connection
             db = couch_connection[self.couch_info['db']]
             fc_names = {e.key:e.id for e in db.view('names/name', reduce=False)}

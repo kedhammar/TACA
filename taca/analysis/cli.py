@@ -21,7 +21,7 @@ def demultiplex(run):
 	an.run_preprocessing(run)
 
 @analysis.command()
-@click.option('--runfolder-project', is_flag=False, help='Project ID for runfolder transfer')
+@click.option('--runfolder-project', is_flag=False, help='Project IDs for runfolder transfer separated by comma')
 @click.option('--exclude-lane', default='', help='Lanes to exclude separated by comma')
 @click.argument('rundir')
 def transfer(rundir, runfolder_project, exclude_lane):
