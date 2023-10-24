@@ -1,5 +1,10 @@
 # TACA Version Log
 
+
+## 20231024.1
+
+Fix functionality issues for Anglerfish launch by running via "conda run", fix erroneous file name reference and improve static typing.
+
 ## 20231023.1
 
 Remove redundant cleanup_processing function in cleanup
@@ -15,6 +20,7 @@ Fix bug that NovaSeqXPlus date format cause error in writing pdc_archived timest
 ## 20230921.1
 
 Remove the temp change of creating links
+
 
 ## 20230920.1
 

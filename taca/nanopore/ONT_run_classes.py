@@ -8,6 +8,7 @@ import json
 import pandas as pd
 import subprocess
 import os
+from typing import Union
 
 from taca.utils.statusdb import NanoporeRunsConnection
 from datetime import datetime
@@ -397,7 +398,7 @@ class ONT_qc_run(ONT_run):
 
     # QC methods
 
-    def get_anglerfish_exit_code(self) -> int or None:
+    def get_anglerfish_exit_code(self) -> Union[int, None]:
         """Check whether Anglerfish has finished.
 
         Return exit code or None.
@@ -407,7 +408,7 @@ class ONT_qc_run(ONT_run):
         else:
             return None
 
-    def get_anglerfish_pid(self) -> str or None:
+    def get_anglerfish_pid(self) -> Union[str, None]:
         """Check whether Anglerfish is ongoing.
 
         Return process ID or None."""
@@ -416,7 +417,7 @@ class ONT_qc_run(ONT_run):
         else:
             return None
 
-    def fetch_anglerfish_samplesheet(self) -> str:
+    def fetch_anglerfish_samplesheet(self) -> bool:
         """Fetch Anglerfish samplesheet belonging to the run from where it was
         dumped by LIMS and put it in the run directory.
 
@@ -428,7 +429,7 @@ class ONT_qc_run(ONT_run):
 
         # Following line assumes run was started same year as samplesheet was generated
         current_year = self.date[0:4]
-        expected_file_pattern = f"anglerfish_samplesheet_{self.experiment_name}_*.csv"
+        expected_file_pattern = f"Anglerfish_samplesheet_{self.experiment_name}_*.csv"
 
         # Finalize query pattern
         pattern_abspath = os.path.join(
@@ -477,15 +478,15 @@ class ONT_qc_run(ONT_run):
         full_command = [
             # Dump subprocess PID into 'run-ongoing'-indicator file.
             f"echo $$ > {self.anglerfish_ongoing_abspath}",
-            # Run Anglerfish
-            " ".join(anglerfish_command),
+            # Run Anglerfish in its own environment
+            "conda run -n anglerfish " + " ".join(anglerfish_command),
             # Dump Anglerfish exit code into file
             f"echo $? > {self.anglerfish_done_abspath}",
-            # If a single Anglerfish run directory is found that has a birth time younger than
-            #  the modification time of the 'run-ongoing'-indicator file, copy the samplesheet into it
-            f"new_runs=$(find . -type d -name 'anglerfish_run*' -newerBm {self.anglerfish_ongoing_abspath})",
+            # Copy the Anglerfish samplesheet used to start the run into the run dir, for traceability
+            # (The correct anglerfish run dir is identified by it being younger than the "run-ongoing" file)
+            f"new_runs=$(find . -type d -name 'anglerfish_run*' -newer {self.anglerfish_ongoing_abspath})",
             f"if [[ $(echo '${{new_runs}}' | wc -l) -eq 1 ]] ; then cp {self.anglerfish_samplesheet} ${{new_runs}}/ ; fi",
-            # Regardless of exit status: Remove 'run-ongoing'-indicator file.
+            # Regardless of exit status: Remove 'run-ongoing' file.
             f"rm {self.anglerfish_ongoing_abspath}",
         ]
 
