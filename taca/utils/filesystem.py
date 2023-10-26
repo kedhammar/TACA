@@ -4,6 +4,7 @@ import os
 import shutil
 
 RUN_RE = '^\d{6,8}_[a-zA-Z\d\-]+_\d{2,}_[AB0][A-Z\d\-]+$'
+RUN_RE_ONT = '^(\d{8})_(\d{4})_([0-9a-zA-Z]+)_([0-9a-zA-Z]+)_([0-9a-zA-Z]+)$' 
 
 @contextlib.contextmanager
 def chdir(new_dir):

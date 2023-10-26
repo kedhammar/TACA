@@ -180,30 +180,41 @@ def return_unique(seq):
     seen_add = seen.add
     return [ x for x in seq if not (x in seen or seen_add(x))]
 
-def run_is_demuxed(run, couch_info=None):
-    """Check in StatusDB 'x_flowcells' database if the given run has an entry which means it was
+def run_is_demuxed(run, couch_info=None, seq_run_type=None):
+    """ 
+    For ONT runs:
+    check that .sync_finished exists, which is created by TACA when the sync is finalized. Since demux is done on the sequencers
+    in parallel to sequencing, the presence of this file also implies that demux is done.
+    
+    For Illumina runs:
+    Check in StatusDB 'x_flowcells' database if the given run has an entry which means it was
     demultiplexed (as TACA only creates a document upon successfull demultiplexing)
 
     :param str run: run name
     :param dict couch_info: a dict with 'statusDB' info
     """
-    if not couch_info:
-        raise SystemExit('To check for demultiplexing is enabled in config file but no "statusDB" info was given')
-    run_terms = run.split('_')
-    run_date = run_terms[0]
-    if len(run_date)>6:
-        run_date = run_date[2:]
-    run_fc = run_terms[-1]
-    run_name = '{}_{}'.format(run_date, run_fc)
-    try:
-        couch_connection = statusdb.StatusdbSession(couch_info).connection
-        fc_db = couch_connection[couch_info['xten_db']]
-        for fc in fc_db.view('names/name', reduce=False, descending=True):
-            if fc.key != run_name:
-                continue
-            fc_doc = fc_db.get(fc.id)
-            if not fc_doc or not fc_doc.get('illumina', {}).get('Demultiplex_Stats', {}):
-                return False
+    if (seq_run_type == 'promethion' or seq_run_type == 'minion'):
+        if os.path.exists("/".join([os.getcwd(), run, ".sync_finished"])):
             return True
-    except Exception as e:
-        raise e
+    else:
+        if not couch_info:
+            raise SystemExit('To check for demultiplexing is enabled in config file but no "statusDB" info was given')
+        run_terms = run.split('_')
+        run_date = run_terms[0]
+        if len(run_date)>6:
+            run_date = run_date[2:]
+        run_fc = run_terms[-1]
+        run_name = '{}_{}'.format(run_date, run_fc)
+        try:
+            couch_connection = statusdb.StatusdbSession(couch_info).connection
+            fc_db = couch_connection[couch_info['xten_db']]
+            for fc in fc_db.view('names/name', reduce=False, descending=True):
+                if fc.key != run_name:
+                    continue
+                fc_doc = fc_db.get(fc.id)
+                if not fc_doc or not fc_doc.get('illumina', {}).get('Demultiplex_Stats', {}):
+                    return False
+                return True
+        except Exception as e:
+            raise e
+    

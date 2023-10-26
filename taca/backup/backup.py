@@ -6,6 +6,7 @@ import shutil
 import subprocess as sp
 import time
 import csv
+import re #added this to allow pattern match
 
 from datetime import datetime
 from taca.utils.config import CONFIG
@@ -58,7 +59,7 @@ class backup_utils(object):
             run_type = self._get_run_type(self.run)
             archive_path = self.archive_dirs[run_type]
             run = run_vars(self.run, archive_path)
-            if not re.match(filesystem.RUN_RE, run.name):
+            if not (re.match(filesystem.RUN_RE, run.name) or re.match(filesystem.RUN_RE_ONT, run.name)):
                 logger.error('Given run {} did not match a FC pattern'.format(self.run))
                 raise SystemExit
             if self._is_ready_to_archive(run, ext):
@@ -75,7 +76,7 @@ class backup_utils(object):
                         item = item.replace(ext, '')
                     elif not os.path.isdir(os.path.join(adir, item)):
                         continue
-                    if re.match(filesystem.RUN_RE, item) and item not in self.runs:
+                    if (re.match(filesystem.RUN_RE, item) or re.match(filesystem.RUN_RE_ONT, item)) and item not in self.runs:
                         run_type = self._get_run_type(item)
                         archive_path = self.archive_dirs[run_type]
                         run = run_vars(os.path.join(adir, item), archive_path)
@@ -85,7 +86,7 @@ class backup_utils(object):
     def avail_disk_space(self, path, run):
         """Check the space on file system based on parent directory of the run."""
         # not able to fetch runtype use the max size as precaution, size units in GB
-        illumina_run_sizes = {'hiseq': 500, 'hiseqx': 900, 'novaseq': 1800, 'miseq': 20, 'nextseq': 250, 'NovaSeqXPlus': 3600}
+        illumina_run_sizes = {'hiseq': 500, 'hiseqx': 900, 'novaseq': 1800, 'miseq': 20, 'nextseq': 250, 'NovaSeqXPlus': 3600, 'promethion': 3000, 'minion': 1000}
         required_size = illumina_run_sizes.get(self._get_run_type(run), 900) * 2
         # check for any ongoing runs and add up the required size accrdingly
         for ddir in self.data_dirs.values():
@@ -140,6 +141,10 @@ class backup_utils(object):
                 run_type = 'nextseq'
             elif '_LH' in run:
                 run_type = 'NovaSeqXPlus'
+            elif '_MN' in run:
+                run_type = 'minion'
+            elif re.match("^(\d{8})_(\d{4})_([1-3][A-H])_([0-9a-zA-Z]+)_([0-9a-zA-Z]+)$",run):
+                run_type = 'promethion'
             else:
                 run_type = 'hiseq'
         except:
@@ -226,20 +231,30 @@ class backup_utils(object):
 
     def _is_ready_to_archive(self, run, ext):
         """Check if the run to be encrypted has finished sequencing and has been copied completely to nas"""
-
         archive_ready = False
-
         run_path = run.abs_path
         rta_file = os.path.join(run_path, self.finished_run_indicator)
         cp_file = os.path.join(run_path, self.copy_complete_indicator)
-        if os.path.exists(rta_file) and os.path.exists(cp_file) and (not self.file_in_pdc(run.zip_encrypted)):
+        if self._get_run_type(run.name) == 'promethion' or self._get_run_type(run.name) == 'minion':
+            if os.path.exists("/".join([run_path, ".sync_finished"])):
+                # Case for encrypting
+                # Run has NOT been encrypted (run.tar.gz.gpg not exists)
+                if ext == '.tar.gz' and (not os.path.exists(run.zip_encrypted)):
+                    logger.info(f'Sequencing has finished and copying completed for run {os.path.basename(run_path)} and is ready for archiving')
+                    archive_ready = True
+                # Case for putting data to PDC
+                # Run has already been encrypted (run.tar.gz.gpg exists
+                elif ext == '.tar.gz.gpg' and os.path.exists(run.zip_encrypted):
+                    logger.info(f'Sequencing has finished and copying completed for run {os.path.basename(run_path)} and is ready for sending to PDC')
+                    archive_ready = True
+        elif os.path.exists(rta_file) and os.path.exists(cp_file) and (not self.file_in_pdc(run.zip_encrypted)):
             # Case for encrypting
             # Run has NOT been encrypted (run.tar.gz.gpg not exists)
             if ext == '.tar.gz' and (not os.path.exists(run.zip_encrypted)):
                 logger.info(f'Sequencing has finished and copying completed for run {os.path.basename(run_path)} and is ready for archiving')
                 archive_ready = True
             # Case for putting data to PDC
-            # Run has already been encrypted (run.tar.gz.gpg exists)
+            # Run has already been encrypted (run.tar.gz.gpg exists
             elif ext == '.tar.gz.gpg' and os.path.exists(run.zip_encrypted):
                 logger.info(f'Sequencing has finished and copying completed for run {os.path.basename(run_path)} and is ready for sending to PDC')
                 archive_ready = True
@@ -267,7 +282,7 @@ class backup_utils(object):
             bk.avail_disk_space(run.path, run.name)
             # Check if the run in demultiplexed
             if not force and bk.check_demux:
-                if not misc.run_is_demuxed(run.name, bk.couch_info):
+                if not misc.run_is_demuxed(run.name, bk.couch_info, bk._get_run_type(run.name)):
                     logger.warn(f'Run {run.name} is not demultiplexed yet, so skipping it')
                     continue
                 logger.info(f'Run {run.name} is demultiplexed and proceeding with encryption')
