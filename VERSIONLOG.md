@@ -1,5 +1,7 @@
 # TACA Version Log
 
+## 20231026.1
+Fix bug with rsync permission issue
 
 ## 20231024.1
 
