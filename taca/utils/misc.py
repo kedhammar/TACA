@@ -194,8 +194,10 @@ def run_is_demuxed(run, couch_info=None, seq_run_type=None):
     :param dict couch_info: a dict with 'statusDB' info
     """
     if (seq_run_type == 'promethion' or seq_run_type == 'minion'):
-        if os.path.exists("/".join([os.getcwd(), run, ".sync_finished"])):
+        if os.path.exists(os.path.join(os.getcwd(), run, ".sync_finished")):
             return True
+        else:
+            return False
     else:
         if not couch_info:
             raise SystemExit('To check for demultiplexing is enabled in config file but no "statusDB" info was given')
