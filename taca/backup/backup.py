@@ -281,7 +281,7 @@ class backup_utils(object):
             bk.avail_disk_space(run.path, run.name)
             # Check if the run in demultiplexed
             if not force and bk.check_demux:
-                if not misc.run_is_demuxed(run.name, bk.couch_info, bk._get_run_type(run.name)):
+                if not misc.run_is_demuxed(run, bk.couch_info, bk._get_run_type(run.name)):
                     logger.warn(f'Run {run.name} is not demultiplexed yet, so skipping it')
                     continue
                 logger.info(f'Run {run.name} is demultiplexed and proceeding with encryption')
