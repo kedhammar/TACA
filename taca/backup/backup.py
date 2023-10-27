@@ -234,18 +234,6 @@ class backup_utils(object):
         run_path = run.abs_path
         rta_file = os.path.join(run_path, self.finished_run_indicator)
         cp_file = os.path.join(run_path, self.copy_complete_indicator)
-        #if self._get_run_type(run.name) == 'promethion' or self._get_run_type(run.name) == 'minion':
-            #if os.path.exists(os.path.join(run_path, ".sync_finished")):
-                # Case for encrypting
-                # Run has NOT been encrypted (run.tar.gz.gpg not exists)
-                #if ext == '.tar.gz' and (not os.path.exists(run.zip_encrypted)):
-                    #logger.info(f'Sequencing has finished and copying completed for run {os.path.basename(run_path)} and is ready for archiving')
-                    #archive_ready = True
-                # Case for putting data to PDC
-                # Run has already been encrypted (run.tar.gz.gpg exists)
-                #elif ext == '.tar.gz.gpg' and os.path.exists(run.zip_encrypted):
-                    #logger.info(f'Sequencing has finished and copying completed for run {os.path.basename(run_path)} and is ready for sending to PDC')
-                    #archive_ready = True
         if (os.path.exists(rta_file) and os.path.exists(cp_file) and (not self.file_in_pdc(run.zip_encrypted))) or (self._get_run_type(run.name) in ['promethion', 'minion'] and os.path.exists(os.path.join(run_path, ".sync_finished"))):
             # Case for encrypting
             # Run has NOT been encrypted (run.tar.gz.gpg not exists)
