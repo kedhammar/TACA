@@ -190,16 +190,17 @@ def run_is_demuxed(run, couch_info=None, seq_run_type=None):
     Check in StatusDB 'x_flowcells' database if the given run has an entry which means it was
     demultiplexed (as TACA only creates a document upon successfull demultiplexing)
 
-    :param str run: run name
     :param dict couch_info: a dict with 'statusDB' info
     """
     if (seq_run_type == 'promethion' or seq_run_type == 'minion'):
-        if os.path.exists("/".join([os.getcwd(), run, ".sync_finished"])):
+        if os.path.exists(os.path.join(run.abs_path, ".sync_finished")):
             return True
+        else:
+            return False
     else:
         if not couch_info:
             raise SystemExit('To check for demultiplexing is enabled in config file but no "statusDB" info was given')
-        run_terms = run.split('_')
+        run_terms = run.name.split('_')
         run_date = run_terms[0]
         if len(run_date)>6:
             run_date = run_date[2:]
