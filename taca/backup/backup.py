@@ -6,7 +6,6 @@ import shutil
 import subprocess as sp
 import time
 import csv
-import re #added this to allow pattern match
 
 from datetime import datetime
 from taca.utils.config import CONFIG
@@ -254,7 +253,7 @@ class backup_utils(object):
                 logger.info(f'Sequencing has finished and copying completed for run {os.path.basename(run_path)} and is ready for archiving')
                 archive_ready = True
             # Case for putting data to PDC
-            # Run has already been encrypted (run.tar.gz.gpg exists
+            # Run has already been encrypted (run.tar.gz.gpg exists)
             elif ext == '.tar.gz.gpg' and os.path.exists(run.zip_encrypted):
                 logger.info(f'Sequencing has finished and copying completed for run {os.path.basename(run_path)} and is ready for sending to PDC')
                 archive_ready = True
