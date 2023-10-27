@@ -194,7 +194,6 @@ def run_is_demuxed(run, couch_info=None, seq_run_type=None):
     """
     if (seq_run_type == 'promethion' or seq_run_type == 'minion'):
         if os.path.exists(os.path.join(run.abs_path, ".sync_finished")):
-
             return True
         else:
             return False
