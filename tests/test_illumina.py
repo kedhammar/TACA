@@ -313,7 +313,7 @@ class TestRuns(unittest.TestCase):
     def test_transfer_run(self, mock_call_external_command):
         """Call external rsync."""
         self.completed.transfer_run(self.transfer_file)
-        command_line = ['rsync', '-Lav', '--no-o', '--no-g', '--chmod=g+rw',
+        command_line = ['rsync', '-LtDrv', '--chmod=g+rw',
                         '--exclude=Demultiplexing_*/*_*',
                         '--include=*/', '--include=*.file',
                         '--exclude=*', '--prune-empty-dirs',
