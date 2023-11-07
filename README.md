@@ -40,7 +40,7 @@ python setup.py develop
 pip install -r ./requirements-dev.txt 
 
 # Check that tests pass:
-cd tests && nosetests -v -s
+python -m unittest discover -s tests -p "test_*.py"
 ```
 
 There is also a [plugin for the deliver command](https://github.com/SciLifeLab/taca-ngi-pipeline). To install this in the same development environment:
