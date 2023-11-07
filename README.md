@@ -13,6 +13,16 @@
 
 This package contains several tools for projects and data management in the [National Genomics Infrastructure](https://portal.scilifelab.se/genomics/) in Stockholm, Sweden.
 
+
+### Run tests in docker
+
+```shell
+git clone https://github.com/SciLifeLab/TACA.git
+cd TACA
+docker build -t taca_testing --target testing .
+docker run -it taca_testing
+```
+
 ### Install for development
 You can install your own fork of taca in for instance a local conda environment for development. Provided you have conda installed:
 
