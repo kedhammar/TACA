@@ -155,17 +155,18 @@ def transfer_runfolder(run_dir, pid, exclude_lane):
     """Transfer the entire run folder for a specified project and run to uppmax.
 
     :param: string run_dir: the run to transfer
-    :param: string pid: the project to include in the SampleSheet
+    :param: string pid: the projects to include in the SampleSheet separated by comma
     :param: string exclude_lane: lanes to exclude separated by comma
 
     """
     original_sample_sheet = os.path.join(run_dir, 'SampleSheet.csv')
-    new_sample_sheet = os.path.join(run_dir, pid + '_SampleSheet.txt')
+    pid_list = list(set([x.strip() for x in pid.split(',')]))
+    new_sample_sheet = os.path.join(run_dir, '_'.join(pid_list) + '_SampleSheet.txt')
 
     # Write new sample sheet including only rows for the specified project
     try:
         with open(new_sample_sheet, 'w') as nss:
-            nss.write(extract_project_samplesheet(original_sample_sheet, pid))
+            nss.write(extract_project_samplesheet(original_sample_sheet, pid_list))
     except IOError as e:
         logger.error('An error occured while parsing the samplesheet. '
         'Please check the sample sheet and try again.')
@@ -246,14 +247,14 @@ def transfer_runfolder(run_dir, pid, exclude_lane):
         raise e
     return
 
-def extract_project_samplesheet(sample_sheet, pid):
+def extract_project_samplesheet(sample_sheet, pid_list):
     header_line = ''
     project_entries = ''
     with open(sample_sheet) as f:
         for line in f:
             if line.split(',')[0] in ('Lane', 'FCID'):  # include the header
                 header_line += line
-            elif pid in line:
+            elif any(pid in line for pid in pid_list):
                 project_entries += line  # include only lines related to the specified project
     new_samplesheet_content = header_line + project_entries
     return new_samplesheet_content
