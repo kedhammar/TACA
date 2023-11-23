@@ -1,5 +1,9 @@
 # TACA Version Log
 
+## 20231103.1
+
+Fix bug with rsync permission issue cont.
+
 ## 20231031.1
 Improve run_folder transfer
 

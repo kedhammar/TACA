@@ -224,9 +224,7 @@ def transfer_runfolder(run_dir, pid, exclude_lane):
 
     # Rsync the files to the analysis cluster
     destination = CONFIG['analysis']['deliver_runfolder'].get('destination')
-    rsync_opts = {'-Lav': None,
-                  '--no-o': None,
-                  '--no-g': None,
+    rsync_opts = {'-LtDrv': None,
                   '--chmod': 'g+rw'}
     connection_details = CONFIG['analysis']['deliver_runfolder'].get('analysis_server')
     archive_transfer = RsyncAgent(archive,

@@ -14,11 +14,11 @@ nanopore_analysis:
       transfer_file: data/nanopore_data/transfer.tsv
       analysis_server:
         host: some_host
-        port: 
+        port:
         user: some_user
       destination: some_dir
       rsync_options:
-        '-Lav': None
+        '-LtDrv': None
         '--chown': ':ngi2016003'
         '--chmod' : 'Dg+s,g+rw'
         '-r' : None
