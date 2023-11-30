@@ -643,7 +643,7 @@ def _generate_samplesheet_subset(ssparser, samples_to_include, runSetup, softwar
         if CONFIG.get('bclconvert'):
             if CONFIG['bclconvert'].get('settings'):
                 # Put common settings
-                if CONFIG['bclconvert']['settings'].get('common')
+                if CONFIG['bclconvert']['settings'].get('common'):
                     for setting in CONFIG['bclconvert']['settings']['common']:
                         for k, v in setting.items():
                             output += '{},{}{}'.format(k, v, os.linesep)

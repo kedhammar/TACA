@@ -7,7 +7,7 @@ import subprocess
 
 from shutil import copyfile
 from shutil import copytree
-from taca.illumina.Standard_Runs import Standard_Runs
+from taca.illumina.Standard_Runs import Standard_Run
 from taca.illumina.MiSeq_Runs import MiSeq_Run
 from taca.illumina.NextSeq_Runs import NextSeq_Run
 from taca.illumina.NovaSeq_Runs import NovaSeq_Run

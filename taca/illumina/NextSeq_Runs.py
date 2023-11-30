@@ -1,7 +1,7 @@
-from taca.illumina.Standard_Runs import Standard_Runs
+from taca.illumina.Standard_Runs import Standard_Run
 
 
-class NextSeq_Run(Standard_Runs):
+class NextSeq_Run(Standard_Run):
     def __init__(self, run_dir, software, configuration):
         super(Standard_Runs, self).__init__( run_dir, software, configuration)
         self._set_sequencer_type()
