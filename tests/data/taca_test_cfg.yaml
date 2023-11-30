@@ -23,50 +23,25 @@ analysis:
         user: sara.sjunnebo
       destination: test
     mfs_path:
-      hiseq: data/
       miseq: data/
       hiseqx: data/
       novaseq: data/
-    HiSeqX:
-        QC:
-            max_percentage_undetermined_indexes_pooled_lane: 5
-            max_percentage_undetermined_indexes_unpooled_lane: 20
-            minimum_percentage_Q30_bases_per_lane: 75
-            minimum_yield_per_lane: 305000000
-            max_frequency_most_represented_und_index_pooled_lane: 5
-            max_frequency_most_represented_und_index_unpooled_lane: 40
+    NovaSeq:
         bcl2fastq:
             bin: path_to_bcl_to_fastq
             tenX_index_path: "data/test_10X_indexes"
             smartseq_index_path: "data/test_smartseq_indexes"
-            options_10X: a
-            options_SMARTSEQ: d
-            options_10X_ST: e
             options:
-                - output-dir: Demultiplexing
-                - opt: b
-                - c
-        samplesheets_dir: "data"
-        analysis_server:
-            host:
-            port:
-            user:
-            sync:
-                data_archive:
-                include:
-                    - "*.file"
-    HiSeq:
-        QC:
-            max_number_undetermined_reads_simple_lane: 5000000
-            max_percentage_undetermined_indexes_simple_lane: 5
-            max_percentage_undetermined_indexes_NoIndex_lane: 30
-            max_frequency_most_represented_und_index_NoIndex_lane: 40
-        bcl2fastq:
-            bin: path_to_bcl_to_fastq
-            options:
-                - output-dir: Demultiplexing
-                - some-opt: some_val
-                - other-opt
+                common:
+                    - output-dir: Demultiplexing
+                    - opt: b
+                    - c
+                SMARTSEQ:
+                    - d
+                10X_SINGLE:
+                    - a
+                10X_DUAL:
+                    - e
         samplesheets_dir: "data"
         analysis_server:
             host:
@@ -77,15 +52,11 @@ analysis:
                 include:
                     - "*.file"
     MiSeq:
-        QC:
-            max_number_undetermined_reads_simple_lane: 5000000
-            max_percentage_undetermined_indexes_simple_lane: 5
-            max_percentage_undetermined_indexes_NoIndex_lane: 30
-            max_frequency_most_represented_und_index_NoIndex_lane: 40
         bcl2fastq:
             bin: path_to_bcl_to_fastq
             options:
-                - output-dir: Demultiplexing
+                common:
+                    - output-dir: Demultiplexing
         samplesheets_dir: "data"
         analysis_server:
             host:
@@ -102,23 +73,8 @@ analysis:
             tenX_index_path: "data/test_10X_indexes"
             smartseq_index_path: "data/test_smartseq_indexes"
             options:
-                - output-dir: Demultiplexing
-        analysis_server:
-            host:
-            port:
-            user:
-            sync:
-                data_archive:
-                include:
-                    - "*.file"
-    NovaSeq:
-        samplesheets_dir: "data"
-        bcl2fastq:
-            bin: path_to_bcl_to_fastq
-            tenX_index_path: "data/test_10X_indexes"
-            smartseq_index_path: "data/test_smartseq_indexes"
-            options:
-                - output-dir: Demultiplexing
+                common:
+                    - output-dir: Demultiplexing
         analysis_server:
             host:
             port:

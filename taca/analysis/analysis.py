@@ -6,8 +6,8 @@ import sys
 import subprocess
 
 from shutil import copyfile
-from taca.illumina.HiSeqX_Runs import HiSeqX_Run
-from taca.illumina.HiSeq_Runs import HiSeq_Run
+from shutil import copytree
+from taca.illumina.Standard_Runs import Standard_Runs
 from taca.illumina.MiSeq_Runs import MiSeq_Run
 from taca.illumina.NextSeq_Runs import NextSeq_Run
 from taca.illumina.NovaSeq_Runs import NovaSeq_Run
@@ -22,7 +22,7 @@ from io import open
 logger = logging.getLogger(__name__)
 
 
-def get_runObj(run):
+def get_runObj(run, software):
     """Tries to read runParameters.xml to parse the type of sequencer
         and then return the respective Run object (MiSeq, HiSeq..)
 
@@ -66,32 +66,28 @@ def get_runObj(run):
                 # (in case ApplicationName is not found, get returns None)
                 runtype = run_parameters.data['RunParameters']['Setup'].get('ApplicationName', '')
 
-        if 'HiSeq X' in runtype:
-            return HiSeqX_Run(run, CONFIG['analysis']['HiSeqX'])
-        elif 'HiSeq' in runtype or 'TruSeq' in runtype:
-            return HiSeq_Run(run, CONFIG['analysis']['HiSeq'])
-        elif 'MiSeq' in runtype:
-            return MiSeq_Run(run, CONFIG['analysis']['MiSeq'])
+        if 'MiSeq' in runtype:
+            return MiSeq_Run(run, software, CONFIG['analysis']['MiSeq'])
         elif 'NextSeq' in runtype:
-            return NextSeq_Run(run, CONFIG['analysis']['NextSeq'])
+            return NextSeq_Run(run, software, CONFIG['analysis']['NextSeq'])
         elif 'NovaSeqXPlus' in runtype:
-            return NovaSeqXPlus_Run(run, CONFIG['analysis']['NovaSeqXPlus'])
+            return NovaSeqXPlus_Run(run, software, CONFIG['analysis']['NovaSeqXPlus'])
         elif 'NovaSeq' in runtype:
-            return NovaSeq_Run(run, CONFIG['analysis']['NovaSeq'])
+            return NovaSeq_Run(run, software, CONFIG['analysis']['NovaSeq'])
         else:
             logger.warn('Unrecognized run type {}, cannot archive the run {}. '
                         'Someone as likely bought a new sequencer without telling '
                         'it to the bioinfo team'.format(runtype, run))
     return None
 
-def upload_to_statusdb(run_dir):
+def upload_to_statusdb(run_dir, software):
     """Function to upload run_dir informations to statusDB directly from click interface.
 
     :param run_dir: run name identifier
     :type run: string
     :rtype: None
     """
-    runObj = get_runObj(run_dir)
+    runObj = get_runObj(run_dir, software)
     if runObj:
         # runObj can be None
         # Make the actual upload
@@ -144,7 +140,7 @@ def transfer_run(run_dir):
 
     :param: string run_dir: the run to tranfer
     """
-    runObj = get_runObj(run_dir)
+    runObj = get_runObj(run_dir, software)
     mail_recipients = CONFIG.get('mail', {}).get('recipients')
     if runObj is None:
         mail_recipients = CONFIG.get('mail', {}).get('recipients')
@@ -265,7 +261,7 @@ def extract_project_samplesheet(sample_sheet, pid_list):
     new_samplesheet_content = header_line + project_entries
     return new_samplesheet_content
 
-def run_preprocessing(run):
+def run_preprocessing(run, software):
     """Run demultiplexing in all data directories.
 
     :param str run: Process a particular run instead of looking for runs
@@ -345,18 +341,30 @@ def run_preprocessing(run):
                     """.format(run=run.id)
                 run.send_mail(sbt, msg, rcp=CONFIG['mail']['recipients'])
 
-            # Copy demultiplex stats file to shared file system for LIMS purpose
+            # Copy demultiplex stats file, InterOp meta data and run xml files to shared file system for LIMS purpose
             if 'mfs_path' in CONFIG['analysis']:
                 try:
                     mfs_dest = os.path.join(CONFIG['analysis']['mfs_path'][run.sequencer_type.lower()],run.id)
-                    logger.info('Copying demultiplex stats for run {} to {}'.format(run.id, mfs_dest))
+                    logger.info('Copying demultiplex stats, InterOp metadata and XML files for run {} to {}'.format(run.id, mfs_dest))
                     if not os.path.exists(mfs_dest):
                         os.mkdir(mfs_dest)
                     demulti_stat_src = os.path.join(run.run_dir, run.demux_dir, 'Reports',
                                                     'html', run.flowcell_id, 'all', 'all', 'all', 'laneBarcode.html')
                     copyfile(demulti_stat_src, os.path.join(mfs_dest, 'laneBarcode.html'))
+                    # Copy RunInfo.xml
+                    run_info_xml_src = os.path.join(run.run_dir, 'RunInfo.xml')
+                    if os.path.isfile(run_info_xml_src):
+                        copyfile(run_info_xml_src, os.path.join(mfs_dest, 'RunInfo.xml'))
+                    # Copy RunParameters.xml
+                    run_parameters_xml_src = os.path.join(run.run_dir, 'RunParameters.xml')
+                    if os.path.isfile(run_info_xml_src):
+                        copyfile(run_parameters_xml_src, os.path.join(mfs_dest, 'RunParameters.xml'))
+                    # Copy InterOp
+                    interop_src = os.path.join(run.run_dir, 'InterOp')
+                    if os.path.exists(interop_src):
+                        copytree(interop_src, os.path.join(mfs_dest, 'InterOp'), dirs_exist_ok=True)
                 except:
-                    logger.warn('Could not copy demultiplex stat file for run {}'.format(run.id))
+                    logger.warn('Could not copy demultiplex stats, InterOp metadata or XML files for run {}'.format(run.id))
 
             # Transfer to analysis server if flag is True
             if run.transfer_to_analysis_server:
@@ -373,7 +381,7 @@ def run_preprocessing(run):
 
     if run:
         # Determine the run type
-        runObj = get_runObj(run)
+        runObj = get_runObj(run, software)
         if not runObj:
             raise RuntimeError('Unrecognized instrument type or incorrect run folder {}'.format(run))
         else:
@@ -384,7 +392,7 @@ def run_preprocessing(run):
             # Run folder looks like DATE_*_*_*, the last section is the FC name.
             runs = glob.glob(os.path.join(data_dir, '[1-9]*_*_*_*'))
             for _run in runs:
-                runObj = get_runObj(_run)
+                runObj = get_runObj(_run, software)
                 if not runObj:
                     logger.warning('Unrecognized instrument type or incorrect run folder {}'.format(run))
                 else:

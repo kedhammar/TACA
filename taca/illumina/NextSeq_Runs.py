@@ -1,10 +1,9 @@
-from taca.illumina.HiSeqX_Runs import HiSeqX_Run
+from taca.illumina.Standard_Runs import Standard_Runs
 
 
-class NextSeq_Run(HiSeqX_Run):
-
-    def __init__(self,  run_dir, samplesheet_folders):
-        super(HiSeqX_Run, self).__init__(run_dir, samplesheet_folders)
+class NextSeq_Run(Standard_Runs):
+    def __init__(self, run_dir, software, configuration):
+        super(Standard_Runs, self).__init__( run_dir, software, configuration)
         self._set_sequencer_type()
         self._set_run_type()
         # NextSeq2000 has a different FC ID pattern that ID contains the first letter for position

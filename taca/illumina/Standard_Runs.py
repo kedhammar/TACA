@@ -18,16 +18,16 @@ IDT_UMI_PAT = re.compile('([ATCG]{4,}N+$)')
 RECIPE_PAT = re.compile('[0-9]+-[0-9]+')
 
 
-class HiSeqX_Run(Run):
+class Standard_Run(Run):
 
-    def __init__(self,  run_dir, configuration):
-        super(HiSeqX_Run, self).__init__( run_dir, configuration)
+    def __init__(self, run_dir, software, configuration):
+        super(Standard_Run, self).__init__(run_dir, software, configuration)
         self._set_sequencer_type()
         self._set_run_type()
         self._copy_samplesheet()
 
     def _set_sequencer_type(self):
-        self.sequencer_type = 'HiSeqX'
+        self.sequencer_type = ''
 
     def _set_run_type(self):
         self.run_type = 'NGI-RUN'
@@ -39,12 +39,12 @@ class HiSeqX_Run(Run):
         runSetup = self.runParserObj.runinfo.get_read_configuration()
         # Loading index files
         try:
-            indexfile['tenX'] = self.CONFIG['bcl2fastq']['tenX_index_path']
+            indexfile['tenX'] = self.CONFIG[self.software]['tenX_index_path']
         except KeyError:
             logger.error('Path to index file (10X) not found in the config file')
             raise RuntimeError
         try:
-            indexfile['smartseq'] = self.CONFIG['bcl2fastq']['smartseq_index_path']
+            indexfile['smartseq'] = self.CONFIG[self.software]['smartseq_index_path']
         except KeyError:
             logger.error('Path to index file (Smart-seq) not found in the config file')
             raise RuntimeError
@@ -78,8 +78,8 @@ class HiSeqX_Run(Run):
         """
            Demultiplex a run:
             - Make sub-samplesheet based on sample classes
-            - Decide correct bcl2fastq command parameters based on sample classes
-            - run bcl2fastq conversion
+            - Decide correct bcl2fastq/bclconvert command parameters based on sample classes
+            - run bcl2fastq/bclconvert conversion
         """
         runSetup = self.runParserObj.runinfo.get_read_configuration()
         # Check sample types
@@ -92,7 +92,7 @@ class HiSeqX_Run(Run):
                     sample_type_list.append(sample_type)
 
         # Go through sample_table for demultiplexing
-        bcl2fastq_cmd_counter = 0
+        bcl_cmd_counter = 0
         for sample_type in sorted(sample_type_list):
             # Looking for lanes with multiple masks under the same sample type
             lane_table = dict()
@@ -109,8 +109,17 @@ class HiSeqX_Run(Run):
                                 lane_table[lane].append((sample_index_length, sample_umi_length, sample_read_length))
                         else:
                             lane_table.update({lane:[(sample_index_length, sample_umi_length, sample_read_length)]})
+
             # Determine the number of demux needed for the same sample type
-            demux_number_with_the_same_sample_type = len(max([v for k, v in lane_table.items()],key=len))
+            if self.software == 'bcl2fastq':
+                demux_number_with_the_same_sample_type = len(max([v for k, v in lane_table.items()],key=len))
+            elif self.software == 'bclconvert':
+                unique_masks = set()
+                for v in lane_table.values():
+                    for item in v:
+                        unique_masks.add(item)
+                unique_masks = list(unique_masks)
+                demux_number_with_the_same_sample_type = len(unique_masks)
             # Prepare sub-samplesheets, masks and commands
             for i in range(0,demux_number_with_the_same_sample_type):
                 # Prepare sub-samplesheet
@@ -118,32 +127,67 @@ class HiSeqX_Run(Run):
                 samples_to_include = dict()
                 # A dictionary with lane and index length for generating masks
                 mask_table = dict()
-                for lane, lane_contents in self.sample_table.items():
-                    try:
-                        (index_length, umi_length, read_length) = lane_table[lane][i]
-                        mask_table.update({lane: (index_length, umi_length, read_length)})
-                        for sample in lane_contents:
-                            sample_name = sample[0]
-                            sample_detail = sample[1]
-                            sample_type_t = sample_detail['sample_type']
-                            sample_index_length = sample_detail['index_length']
-                            sample_umi_length = sample_detail['umi_length']
-                            sample_read_length = sample_detail['read_length']
-                            if sample_type_t == sample_type and sample_index_length == index_length and sample_umi_length == umi_length and sample_read_length == read_length:
-                                if samples_to_include.get(lane):
-                                    samples_to_include[lane].append(sample_name)
-                                else:
-                                    samples_to_include.update({lane:[sample_name]})
-                    except (KeyError, IndexError) as err:
-                        logger.info(('No corresponding mask in lane {}. Skip it.'.format(lane)))
-                        continue
+                if self.software == 'bcl2fastq':
+                    for lane, lane_contents in self.sample_table.items():
+                        try:
+                            (index_length, umi_length, read_length) = lane_table[lane][i]
+                            mask_table.update({lane: (index_length, umi_length, read_length)})
+                            for sample in lane_contents:
+                                sample_name = sample[0]
+                                sample_detail = sample[1]
+                                sample_type_t = sample_detail['sample_type']
+                                sample_index_length = sample_detail['index_length']
+                                sample_umi_length = sample_detail['umi_length']
+                                sample_read_length = sample_detail['read_length']
+                                if sample_type_t == sample_type and sample_index_length == index_length and sample_umi_length == umi_length and sample_read_length == read_length:
+                                    if samples_to_include.get(lane):
+                                        samples_to_include[lane].append(sample_name)
+                                    else:
+                                        samples_to_include.update({lane:[sample_name]})
+                        except (KeyError, IndexError) as err:
+                            logger.info(('No corresponding mask in lane {}. Skip it.'.format(lane)))
+                            continue
+                elif self.software == 'bclconvert':
+                    mask = unique_masks[i]
+                    for lane, lane_contents in self.sample_table.items():
+                        if mask in lane_table[lane]:
+                            mask_table.update({lane: mask})
+                            for sample in lane_contents:
+                                sample_name = sample[0]
+                                sample_detail = sample[1]
+                                sample_type_t = sample_detail['sample_type']
+                                sample_index_length = sample_detail['index_length']
+                                sample_umi_length = sample_detail['umi_length']
+                                sample_read_length = sample_detail['read_length']
+                                if sample_type_t == sample_type and sample_index_length == mask[0] and sample_umi_length == mask[1] and sample_read_length == mask[2]:
+                                    if samples_to_include.get(lane):
+                                        samples_to_include[lane].append(sample_name)
+                                    else:
+                                        samples_to_include.update({lane:[sample_name]})
 
+                if self.software == 'bclconvert':
+                    runSetup = self.runParserObj.runinfo.get_read_configuration()
+                    (index_length, umi_length, read_length) = list(set(mask_table.values()))[0]
+                    index1_size = int(index_length.split('-')[0])
+                    index2_size = int(index_length.split('-')[1])
+                    umi1_size = int(umi_length.split('-')[0])
+                    umi2_size = int(umi_length.split('-')[1])
+                    read1_size = int(read_length.split('-')[0])
+                    read2_size = int(read_length.split('-')[1])
+                    is_dual_index = False
+                    if (index1_size != 0 and index2_size != 0) or (index1_size == 0 and index2_size != 0):
+                        is_dual_index = True
+                    base_mask = self._compute_base_mask(runSetup, sample_type, index1_size, is_dual_index, index2_size, umi1_size, umi2_size, read1_size, read2_size)
+                else:
+                    index1_size = 0
+                    index2_size = 0
+                    base_mask = []
                 # Make sub-samplesheet
                 with chdir(self.run_dir):
-                    samplesheet_dest='SampleSheet_{}.csv'.format(bcl2fastq_cmd_counter)
+                    samplesheet_dest='SampleSheet_{}.csv'.format(bcl_cmd_counter)
                     with open(samplesheet_dest, 'w') as fcd:
                         fcd.write(_generate_samplesheet_subset(self.runParserObj.samplesheet,
-                                                               samples_to_include, runSetup))
+                                                               samples_to_include, runSetup, self.software, sample_type, index1_size, index2_size, base_mask, self.CONFIG))
 
                 # Prepare demultiplexing dir
                 with chdir(self.run_dir):
@@ -155,17 +199,17 @@ class HiSeqX_Run(Run):
                 with chdir(self.run_dir):
                     cmd = self.generate_bcl_command(sample_type,
                                                     mask_table,
-                                                    bcl2fastq_cmd_counter)
+                                                    bcl_cmd_counter)
                     misc.call_external_command_detached(cmd,
                                                         with_log_files = True,
-                                                        prefix='demux_{}'.format(bcl2fastq_cmd_counter))
+                                                        prefix='demux_{}'.format(bcl_cmd_counter))
                     logger.info(('BCL to FASTQ conversion and demultiplexing ' \
                     'started for run {} on {}'.format(os.path.basename(self.id),
                                                       datetime.now())))
 
                 # Demutiplexing done for one mask type and scripts will continue
                 # Working with the next type. Command counter should increase by 1
-                bcl2fastq_cmd_counter += 1
+                bcl_cmd_counter += 1
         return True
 
     def _aggregate_demux_results(self):
@@ -174,39 +218,41 @@ class HiSeqX_Run(Run):
         """
         self._aggregate_demux_results_simple_complex()
 
-    def generate_bcl_command(self, sample_type, mask_table, bcl2fastq_cmd_counter):
-        # I have everything to run demultiplexing now.
-        logger.info('Building a bcl2fastq command')
-        per_lane_base_masks = self._generate_per_lane_base_mask(sample_type, mask_table)
+    def generate_bcl_command(self, sample_type, mask_table, bcl_cmd_counter):
         with chdir(self.run_dir):
-            cl = [self.CONFIG.get('bcl2fastq')['bin']]
-            output_dir = 'Demultiplexing_{}'.format(bcl2fastq_cmd_counter)
-            cl.extend(['--output-dir', output_dir])
+            # Software
+            cl = [self.CONFIG.get(self.software)['bin']]
+            # Case with bcl2fastq
+            if self.software == 'bcl2fastq':
+                logger.info('Building a bcl2fastq command')
+                per_lane_base_masks = self._generate_per_lane_base_mask(sample_type, mask_table)
+                # Add the base_mask for each lane
+                lanes = list(mask_table.keys())
+                for lane in sorted(lanes):
+                    # Iterate thorugh each lane and add the correct --use-bases-mask for that lane
+                    base_mask = [per_lane_base_masks[lane][bm]['base_mask'] for bm in per_lane_base_masks[lane]][0] # Get the base_mask
+                    base_mask_expr = '{}:'.format(lane) + ','.join(base_mask)
+                    cl.extend(['--use-bases-mask', base_mask_expr])
+            # Case with bclconvert
+            elif self.software == 'bclconvert':
+                logger.info('Building a bclconvert command')
+                cl.extend(['--bcl-input-directory', self.run_dir])
+            # Output dir
+            output_dir = os.path.join(self.run_dir, 'Demultiplexing_{}'.format(bcl_cmd_counter))
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
+            cl.extend(['--output-dir', output_dir])
+            # Samplesheet
+            cl.extend(['--sample-sheet', os.path.join(os.path.join(self.run_dir, 'SampleSheet_{}.csv'.format(bcl_cmd_counter)))])
+            # Demux options
             cl_options = []
-            if 'options' in self.CONFIG.get('bcl2fastq'):
-                for option in self.CONFIG['bcl2fastq']['options']:
-                    cl_options.extend([option])
-                # Add the extra 10X command options if we have 10X single indexes
-                if sample_type == '10X_SINGLE':
-                    cl_options.extend(self.CONFIG['bcl2fastq']['options_10X_SINGLE'])
-                # Add the extra 10X command options if we have 10X dual indexes
-                if sample_type == '10X_DUAL':
-                    cl_options.extend(self.CONFIG['bcl2fastq']['options_10X_DUAL'])
-                # Add the extra command option if we have samples with IDT UMI
-                if sample_type == 'IDT_UMI':
-                    cl_options.extend(self.CONFIG['bcl2fastq']['options_IDT_UMI'])
-                # Add the extra Smart-seq command options if we have SMARTSEQ indexes
-                if sample_type == 'SMARTSEQ':
-                    cl_options.extend(self.CONFIG['bcl2fastq']['options_SMARTSEQ'])
-                # Add the extra NOINDEX command options if NOINDEX sample but still want the index sequences
-                if sample_type == 'NOINDEX':
-                    cl_options.extend(self.CONFIG['bcl2fastq']['options_NOINDEX'])
-                # Add the extra command option if we have samples with single short index
-                if sample_type == 'short_single_index':
-                    cl_options.extend(self.CONFIG['bcl2fastq']['options_short_single_index'])
-                # Append all options that appear in the configuration file to the main command.
+            if 'options' in self.CONFIG.get(self.software):
+                if self.CONFIG[self.software]['options'].get('common'):
+                    for option in self.CONFIG[self.software]['options']['common']:
+                        cl_options.extend([option])
+                if self.CONFIG[self.software]['options'].get(sample_type):
+                    for option in self.CONFIG[self.software]['options'][sample_type]:
+                        cl_options.extend([option])
                 for option in cl_options:
                     if isinstance(option, dict):
                         opt, val = list(option.items())[0]
@@ -214,15 +260,6 @@ class HiSeqX_Run(Run):
                             cl.extend(['--{}'.format(opt), str(val)])
                     else:
                         cl.append('--{}'.format(option))
-
-            cl.extend(['--sample-sheet',  os.path.join(os.path.join(self.run_dir, 'SampleSheet_{}.csv'.format(bcl2fastq_cmd_counter)))])
-            # Add the base_mask for each lane
-            lanes = list(mask_table.keys())
-            for lane in sorted(lanes):
-                # Iterate thorugh each lane and add the correct --use-bases-mask for that lane
-                base_mask = [per_lane_base_masks[lane][bm]['base_mask'] for bm in per_lane_base_masks[lane]][0] # Get the base_mask
-                base_mask_expr = '{}:'.format(lane) + ','.join(base_mask)
-                cl.extend(['--use-bases-mask', base_mask_expr])
         return cl
 
     def _generate_per_lane_base_mask(self, sample_type, mask_table):
@@ -313,9 +350,19 @@ class HiSeqX_Run(Run):
                         if sample_type == 'IDT_UMI': # Case of IDT UMI
                             if umi1_size != 0:
                                 if i_remainder - umi1_size > 0:
-                                    bm.append('I' + str(index1_size) + 'Y' + str(umi1_size) + 'N' + str(i_remainder - umi1_size))
+                                    if self.software == 'bcl2fastq':
+                                        bm.append('I' + str(index1_size) + 'Y' + str(umi1_size) + 'N' + str(i_remainder - umi1_size))
+                                    elif self.software == 'bclconvert':
+                                        bm.append('I' + str(index1_size) + 'U' + str(umi1_size) + 'N' + str(i_remainder - umi1_size))
+                                    else:
+                                        raise RuntimeError('Unrecognized software!')
                                 elif i_remainder - umi1_size == 0:
-                                    bm.append('I' + str(index1_size) + 'Y' + str(umi1_size))
+                                    if self.software == 'bcl2fastq':
+                                        bm.append('I' + str(index1_size) + 'Y' + str(umi1_size))
+                                    elif self.software == 'bclconvert':
+                                        bm.append('I' + str(index1_size) + 'U' + str(umi1_size))
+                                    else:
+                                        raise RuntimeError('Unrecognized software!')
                                 else:
                                     raise RuntimeError('when generating base_masks for UMI samples' \
                                                        ' some UMI1 length is longer than specified in RunInfo.xml')
@@ -335,17 +382,32 @@ class HiSeqX_Run(Run):
                                            ' samplesheet larger than the index specifed in RunInfo.xml')
                     # When working on the second read index I need to know if the sample is dual index or not
                     if is_dual_index or sample_type == '10X_SINGLE':
-                        if sample_type == '10X_SINGLE': # Case of 10X single indexes, demultiplex the whole index 2 cycles as FastQ
-                            bm.append('Y' + str(cycles))
+                        if sample_type == '10X_SINGLE': # Case of 10X single indexes, demultiplex the whole index 2 cycles as FastQ for bcl2fastq. But this has to be ignored for bclconvert
+                            if self.software == 'bcl2fastq':
+                                bm.append('Y' + str(cycles))
+                            elif self.software == 'bclconvert':
+                                bm.append('N' + str(cycles))
+                            else:
+                                raise RuntimeError('Unrecognized software!')
                         else:
                             i_remainder = cycles - index2_size
                             if i_remainder > 0:
                                 if sample_type == 'IDT_UMI': # Case of IDT UMI
                                     if umi2_size != 0:
                                         if i_remainder - umi2_size > 0:
-                                            bm.append('I' + str(index2_size) + 'Y' + str(umi2_size) + 'N' + str(i_remainder - umi2_size))
+                                            if self.software == 'bcl2fastq':
+                                                bm.append('I' + str(index2_size) + 'Y' + str(umi2_size) + 'N' + str(i_remainder - umi2_size))
+                                            elif self.software == 'bclconvert':
+                                                bm.append('I' + str(index2_size) + 'U' + str(umi2_size) + 'N' + str(i_remainder - umi2_size))
+                                            else:
+                                                raise RuntimeError('Unrecognized software!')
                                         elif i_remainder - umi2_size == 0:
-                                            bm.append('I' + str(index2_size) + 'Y' + str(umi2_size))
+                                            if self.software == 'bcl2fastq':
+                                                bm.append('I' + str(index2_size) + 'Y' + str(umi2_size))
+                                            elif self.software == 'bclconvert':
+                                                bm.append('I' + str(index2_size) + 'U' + str(umi2_size))
+                                            else:
+                                                raise RuntimeError('Unrecognized software!')
                                         else:
                                             raise RuntimeError('when generating base_masks for UMI samples' \
                                                                ' some UMI2 length is longer than specified in RunInfo.xml')
@@ -558,7 +620,7 @@ def parse_smartseq_indexes(indexfile):
                 index_dict.update({line_[0]:[(line_[1],line_[2])]})
     return index_dict
 
-def _generate_samplesheet_subset(ssparser, samples_to_include, runSetup):
+def _generate_samplesheet_subset(ssparser, samples_to_include, runSetup, software, sample_type, index1_size, index2_size, base_mask, CONFIG):
     output = u''
     # Prepare index cycles
     index_cycles = [0, 0]
@@ -573,6 +635,24 @@ def _generate_samplesheet_subset(ssparser, samples_to_include, runSetup):
     for field in sorted(ssparser.header):
         output += '{},{}'.format(field.rstrip(), ssparser.header[field].rstrip())
         output += os.linesep
+    # Settings for BCL Convert
+    if software == 'bclconvert':
+        output += '[Settings]{}'.format(os.linesep)
+        output += 'OverrideCycles,{}{}'.format(';'.join(base_mask), os.linesep)
+
+        if CONFIG.get('bclconvert'):
+            if CONFIG['bclconvert'].get('settings'):
+                # Put common settings
+                if CONFIG['bclconvert']['settings'].get('common')
+                    for setting in CONFIG['bclconvert']['settings']['common']:
+                        for k, v in setting.items():
+                            output += '{},{}{}'.format(k, v, os.linesep)
+                # Put special settings:
+                if sample_type in CONFIG['bclconvert']['settings'].keys():
+                    for setting in CONFIG['bclconvert']['settings'][sample_type]:
+                        for k, v in setting.items():
+                            if (k == 'BarcodeMismatchesIndex1' and index1_size != 0) or (k == 'BarcodeMismatchesIndex2' and index2_size != 0) or 'BarcodeMismatchesIndex' not in k:
+                                output += '{},{}{}'.format(k, v, os.linesep)
     # Data
     output += '[Data]{}'.format(os.linesep)
     datafields = []
