@@ -32,7 +32,7 @@ class TestNanopore(unittest.TestCase):
         np_run = ONT_run(run_dir)
         transfer_details = CONFIG.get('nanopore_analysis').get('minion_qc_run').get('transfer')
         np_run.transfer_run(transfer_details)
-        rsync_opts = {'-Lav': None,
+        rsync_opts = {'-LtDrv': None,
                       '--chown': ':ngi2016003',
                       '--chmod' : 'Dg+s,g+rw',
                       '-r' : None,
@@ -53,7 +53,7 @@ class TestNanopore(unittest.TestCase):
         np_run.archive_run()
         mock_move.assert_called_once()
 
-    
+
 class TestMinION(unittest.TestCase):
     """Test MinION class"""
 
@@ -153,7 +153,7 @@ class TestMinION(unittest.TestCase):
         sample_sheet_104 = 'data/nanopore_data/run4/done_demuxing/20200104_1412_MN19414_AAU644_68125dc2/SQK-LSK109_sample_sheet.csv'
         run_104 = MinIONqc(run_dir, sample_sheet_104, None)
         got_kit_104 = run_104._get_barcode_kit()
-        
+
         sample_sheet_114 = 'data/nanopore_data/run8/demux_failed/20200108_1412_MN19414_AAU648_68125dc2/SQK-LSK109_sample_sheet.csv'
         run_114 = MinIONqc(run_dir, sample_sheet_114, None)
         got_kit_114 = run_114._get_barcode_kit()

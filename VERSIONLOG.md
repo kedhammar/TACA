@@ -4,6 +4,16 @@
 
 Run Anglerfish v0.6.0 with --lenient and --ont_barcodes options.
 
+## 20231103.1
+
+Fix bug with rsync permission issue cont.
+
+## 20231031.1
+Improve run_folder transfer
+
+## 20231026.1
+Fix bug with rsync permission issue
+
 ## 20231024.1
 
 Fix functionality issues for Anglerfish launch by running via "conda run", fix erroneous file name reference and improve static typing.

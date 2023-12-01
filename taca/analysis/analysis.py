@@ -2,6 +2,7 @@
 import glob
 import logging
 import os
+import sys
 import subprocess
 
 from shutil import copyfile
@@ -159,6 +160,12 @@ def transfer_runfolder(run_dir, pid, exclude_lane):
     :param: string exclude_lane: lanes to exclude separated by comma
 
     """
+    # Validate whether run_dir exists or is valid
+    run_dir = os.path.abspath(run_dir)
+    if not os.path.exists(run_dir) or not os.path.isdir(run_dir):
+        logger.error('Unable to locate the specified run directory for transfer.')
+        sys.exit()
+
     original_sample_sheet = os.path.join(run_dir, 'SampleSheet.csv')
     pid_list = list(set([x.strip() for x in pid.split(',')]))
     new_sample_sheet = os.path.join(run_dir, '_'.join(pid_list) + '_SampleSheet.txt')
@@ -174,7 +181,7 @@ def transfer_runfolder(run_dir, pid, exclude_lane):
 
     # Create a tar archive of the runfolder
     dir_name = os.path.basename(run_dir)
-    archive = dir_name + '.tar.gz'
+    archive = run_dir + '.tar.gz'
     run_dir_path = os.path.dirname(run_dir)
 
     # Prepare the options for excluding lanes
@@ -204,11 +211,12 @@ def transfer_runfolder(run_dir, pid, exclude_lane):
         logger.error('Error creating tar archive')
         raise e
 
-    # Generate the md5sum
+    # Generate the md5sum under the same folder as run_dir
     md5file = archive + '.md5'
     try:
         f = open(md5file, 'w')
-        subprocess.call(['md5sum', archive], stdout=f)
+        os.chdir(run_dir_path)
+        subprocess.call(['md5sum', os.path.basename(archive)], stdout=f)
         f.close()
     except subprocess.CalledProcessError as e:
         logger.error('Error creating md5 file')
@@ -216,9 +224,7 @@ def transfer_runfolder(run_dir, pid, exclude_lane):
 
     # Rsync the files to the analysis cluster
     destination = CONFIG['analysis']['deliver_runfolder'].get('destination')
-    rsync_opts = {'-Lav': None,
-                  '--no-o': None,
-                  '--no-g': None,
+    rsync_opts = {'-LtDrv': None,
                   '--chmod': 'g+rw'}
     connection_details = CONFIG['analysis']['deliver_runfolder'].get('analysis_server')
     archive_transfer = RsyncAgent(archive,
