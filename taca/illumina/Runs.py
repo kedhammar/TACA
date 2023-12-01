@@ -19,24 +19,26 @@ class Run(object):
     """ Defines an Illumina run
     """
 
-    def __init__(self, run_dir, configuration):
+    def __init__(self, run_dir, software, configuration):
         if not os.path.exists(run_dir):
-            raise RuntimeError('Could not locate run directory {}'.format(run_dir))
+            raise RuntimeError("Could not locate run directory {}".format(run_dir))
 
         if 'analysis_server' not in configuration or \
             'bcl2fastq' not in configuration or \
+            'bclconvert' not in configuration or \
             'samplesheets_dir' not in configuration:
             raise RuntimeError("configuration missing required entries "
-                               "(analysis_server, bcl2fastq, samplesheets_dir)")
+                               "(analysis_server, bcl2fastq, bclconvert, samplesheets_dir)")
         if not os.path.exists(os.path.join(run_dir, 'runParameters.xml')) \
         and os.path.exists(os.path.join(run_dir, 'RunParameters.xml')):
             # In NextSeq runParameters is named RunParameters
             logger.warning("Creating link from runParameters.xml to RunParameters.xml")
             os.symlink('RunParameters.xml', os.path.join(run_dir, 'runParameters.xml'))
         elif not os.path.exists(os.path.join(run_dir, 'runParameters.xml')):
-            raise RuntimeError('Could not locate runParameters.xml in run directory {}'.format(run_dir))
+            raise RuntimeError("Could not locate runParameters.xml in run directory {}".format(run_dir))
 
         self.run_dir = os.path.abspath(run_dir)
+        self.software = software
         self.id = os.path.basename(os.path.normpath(run_dir))
         pattern = r'(\d{6,8})_([ST-]*\w+\d+)_\d+_([AB]?)([A-Z0-9\-]+)'
         m = re.match(pattern, self.id)
@@ -46,6 +48,7 @@ class Run(object):
         self.flowcell_id = m.group(4)
         self.CONFIG = configuration
         self.demux_dir = "Demultiplexing"
+        self.legacy_dir = "legacy"
         self.demux_summary = dict()
         self.runParserObj = RunParser(self.run_dir)
         # This flag tells TACA to move demultiplexed files to the analysis server
@@ -72,8 +75,16 @@ class Run(object):
             # Check if this job is done
             if os.path.exists(os.path.join(run_dir, demux_folder, 'Stats', 'DemultiplexingStats.xml')):
                 all_demux_done = all_demux_done and True
-                demux_log = os.path.join(run_dir, "demux_{}_bcl2fastq.err".format(demux_id))
-                errors, warnings, error_and_warning_messages = self._check_demux_log(demux_id, demux_log)
+                if self.software == 'bcl2fastq':
+                    demux_log = os.path.join(run_dir, "demux_{}_bcl2fastq.err".format(demux_id))
+                elif self.software == 'bclconvert':
+                    demux_log = os.path.join(run_dir, "demux_{}_bcl-convert.err".format(demux_id))
+                else:
+                    raise RuntimeError("Unrecognized software!")
+                if os.path.isfile(demux_log):
+                    errors, warnings, error_and_warning_messages = self._check_demux_log(demux_id, demux_log)
+                else:
+                    raise RuntimeError("No demux log file found for sub-demultiplexing {}!".format(demux_id))
                 self.demux_summary[demux_id] = {'errors' : errors,
                                                 'warnings' : warnings,
                                                 'error_and_warning_messages' : error_and_warning_messages
@@ -102,24 +113,39 @@ class Run(object):
 
     def _check_demux_log(self, demux_id, demux_log):
         """
-        This function checks the log files of bcl2fastq
+        This function checks the log files of bcl2fastq/bclconvert
         Errors or warnings will be captured and email notifications will be sent
         """
         with open(demux_log, 'r') as demux_log_file:
             demux_log_content = demux_log_file.readlines()
-            pattern = r'Processing completed with (\d+) errors and (\d+) warnings'
-            match = re.search(pattern, demux_log_content[-1])
-            if match:
-                errors = int(match.group(1))
-                warnings = int(match.group(2))
+            if self.software == 'bcl2fastq':
+                pattern = r'Processing completed with (\d+) errors and (\d+) warnings'
+                match = re.search(pattern, demux_log_content[-1])
+                if match:
+                    errors = int(match.group(1))
+                    warnings = int(match.group(2))
+                    error_and_warning_messages = []
+                    if errors or warnings:
+                        for line in demux_log_content:
+                            if 'ERROR' in line or 'WARN' in line:
+                                error_and_warning_messages.append(line)
+                    return errors, warnings, error_and_warning_messages
+                else:
+                    raise RuntimeError("Bad format with log file demux_{}_bcl2fastq.err".format(demux_id))
+            elif self.software == 'bclconvert':
+                errors = 0
+                warnings = 0
                 error_and_warning_messages = []
-                if errors or warnings:
-                    for line in demux_log_content:
-                        if 'ERROR' in line or 'WARN' in line:
-                            error_and_warning_messages.append(line)
+                for line in demux_log_content:
+                    if 'ERROR' in line:
+                        errors += 1
+                        error_and_warning_messages.append(line)
+                    elif 'WARNING' in line:
+                        warnnings += 1
+                        error_and_warning_messages.append(line)
                 return errors, warnings, error_and_warning_messages
             else:
-                raise RuntimeError("Bad format with log file demux_{}_bcl2fastq.err".format(demux_id))
+                raise RuntimeError("Unrecognized software!")
 
     def _set_run_type(self):
         raise NotImplementedError("Please Implement this method")
@@ -186,7 +212,7 @@ class Run(object):
         elif not sequencing_done:
             return 'SEQUENCING'
         else:
-            raise RuntimeError('Unexpected status in get_run_status')
+            raise RuntimeError("Unexpected status in get_run_status")
 
     def _generate_per_lane_base_mask(self):
         """
@@ -457,6 +483,14 @@ class Run(object):
         runSetup = self.runParserObj.runinfo.get_read_configuration()
         demux_folder = os.path.join(self.run_dir , self.demux_dir)
         samplesheets = glob.glob(os.path.join(run_dir, "*_[0-9].csv"))
+        if self.software == 'bcl2fastq':
+            legacy_reports = ''
+            legacy_stats = ''
+        elif self.software == 'bclconvert':
+            legacy_reports = "{}/Reports".format(self.legacy_dir)
+            legacy_stats = "Reports/{}/Stats".format(self.legacy_dir)
+        else:
+            raise RuntimeError("Unrecognized software!")
 
         index_cycles = [0, 0]
         for read in runSetup:
@@ -532,7 +566,7 @@ class Run(object):
                         logger.info("For undet sample {}, renaming {} to {}".format(sample.replace('Sample_',''), old_name, new_name))
                     sample_counter += 1
                 # Make a softlink of lane.html
-                html_report_lane_source = os.path.join(run_dir, demux_id_folder_name, "Reports", "html", self.flowcell_id, "all", "all", "all", "lane.html")
+                html_report_lane_source = os.path.join(run_dir, demux_id_folder_name, "Reports", legacy_reports, "html", self.flowcell_id, "all", "all", "all", "lane.html")
                 html_report_lane_dest = os.path.join(demux_folder, "Reports", "html", self.flowcell_id, "all", "all", "all", "lane.html")
                 if not os.path.isdir(os.path.dirname(html_report_lane_dest)):
                     os.makedirs(os.path.dirname(html_report_lane_dest))
@@ -542,6 +576,7 @@ class Run(object):
                 html_report_laneBarcode = os.path.join(run_dir,
                                                        demux_id_folder_name,
                                                        "Reports",
+                                                       legacy_reports,
                                                        "html",
                                                        self.flowcell_id,
                                                        "all",
@@ -578,7 +613,7 @@ class Run(object):
                 if not os.path.exists(os.path.join(demux_folder, "Stats")):
                     os.makedirs(os.path.join(demux_folder, "Stats"))
                 # Modify the Stats.json file
-                stat_json_source = os.path.join(run_dir, demux_id_folder_name, "Stats", "Stats.json")
+                stat_json_source = os.path.join(run_dir, demux_id_folder_name, legacy_stats, "Stats", "Stats.json")
                 stat_json_new = os.path.join(demux_folder, "Stats", "Stats.json")
                 with open(stat_json_source) as json_data:
                     data = json.load(json_data)
@@ -595,15 +630,15 @@ class Run(object):
                     json.dump(data, stat_json_new_file)
             # This is the simple case, Demultiplexing dir is simply a symlink to the only sub-demultiplexing dir
             else:
-                elements = [element for element  in  os.listdir(demux_id_folder) ]
+                elements = [element for element in os.listdir(demux_id_folder) ]
                 for element in elements:
-                    if "Stats" not in element: #skip this folder and treat it differently to take into account the NoIndex case
+                    if "Stats" not in element and "Reports" not in element: #skip this folder and treat it differently to take into account the NoIndex case
                         source = os.path.join(demux_id_folder, element)
                         dest = os.path.join(self.run_dir, self.demux_dir, element)
                         os.symlink(source, dest)
                 os.makedirs(os.path.join(self.run_dir, "Demultiplexing", "Stats"))
                 # Fetch the lanes that have NoIndex
-                statsFiles = glob.glob(os.path.join(demux_id_folder, "Stats", "*" ))
+                statsFiles = glob.glob(os.path.join(demux_id_folder, legacy_stats, "Stats", "*" ))
                 for source in statsFiles:
                     source_name = os.path.split(source)[1]
                     if source_name not in ["DemultiplexingStats.xml", "AdapterTrimming.txt", "ConversionStats.xml", "Stats.json"]:
@@ -612,9 +647,17 @@ class Run(object):
                             dest = os.path.join(self.run_dir, self.demux_dir, "Stats", source_name)
                             os.symlink(source, dest)
                 for file in ["DemultiplexingStats.xml", "AdapterTrimming.txt", "ConversionStats.xml", "Stats.json"]:
-                    source = os.path.join(self.run_dir, demux_id_folder_name, "Stats", file)
+                    source = os.path.join(self.run_dir, demux_id_folder_name, legacy_stats, "Stats", file)
                     dest = os.path.join(self.run_dir, "Demultiplexing", "Stats", file)
                     os.symlink(source, dest)
+                source = os.path.join(demux_id_folder, "Reports", legacy_reports)
+                dest = os.path.join(self.run_dir, "Demultiplexing", "Reports")
+                if os.path.exists(dest):
+                    try:
+                        os.rmdir(dest)
+                    except NotADirectoryError as e:
+                        os.unlink(dest)
+                os.symlink(source, dest)
             return True
 
         # Case with multiple sub-demultiplexings
@@ -628,6 +671,7 @@ class Run(object):
             html_report_lane = os.path.join(run_dir,
                                             "Demultiplexing_{}".format(demux_id),
                                             "Reports",
+                                            legacy_reports,
                                             "html",
                                             self.flowcell_id,
                                             "all",
@@ -643,6 +687,7 @@ class Run(object):
             html_report_laneBarcode = os.path.join(run_dir,
                                                    "Demultiplexing_{}".format(demux_id),
                                                    "Reports",
+                                                   legacy_reports,
                                                    "html",
                                                    self.flowcell_id,
                                                    "all",
@@ -655,7 +700,7 @@ class Run(object):
             else:
                 raise RuntimeError("Not able to find html report {}: possible cause is problem in demultiplexing".format(html_report_laneBarcode))
 
-            stat_json = os.path.join(run_dir, "Demultiplexing_{}".format(demux_id), "Stats", "Stats.json")
+            stat_json = os.path.join(run_dir, "Demultiplexing_{}".format(demux_id), legacy_stats, "Stats", "Stats.json")
             if os.path.exists(stat_json):
                 stats_json.append(stat_json)
             else:
@@ -730,6 +775,7 @@ class Run(object):
                             os.symlink(fastqfile, os.path.join(demux_folder, os.path.split(fastqfile)[1]))
                         DemuxSummaryFiles = glob.glob(os.path.join(run_dir,
                                                                    "Demultiplexing_{}".format(demux_id),
+                                                                   legacy_stats,
                                                                    "Stats",
                                                                    "*L{}*txt".format(lane)))
                         if not os.path.exists(os.path.join(demux_folder, "Stats")):

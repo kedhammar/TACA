@@ -1,5 +1,12 @@
 # TACA Version Log
 
+## 20231130.1
+
+Version 1.0.0
+(1) Support BCL Convert
+(2) Remove redundant codes and obsoleted platforms
+(3) Other refactors to improve performance
+
 ## 20231103.1
 
 Fix bug with rsync permission issue cont.
