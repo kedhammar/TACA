@@ -59,6 +59,7 @@ class Standard_Run(Run):
                 with open(samplesheet_dest, 'w') as fcd:
                     fcd.write(_generate_clean_samplesheet(ssparser,
                                                           indexfile,
+                                                          fields_to_remove=None,
                                                           rename_samples=True,
                                                           rename_qPCR_suffix = True,
                                                           fields_qPCR=[ssparser.dfield_snm]))
