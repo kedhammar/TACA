@@ -257,7 +257,7 @@ class backup_utils(object):
 
     def _move_run_to_archived(self, run):
         """Move a run folder from nosync to archived"""
-        run_type = self._get_run_type(run)
+        run_type = self._get_run_type(run.name)
         archived_path = self.archived_dirs[run_type]
         if os.path.isdir(archived_path):
             logger.info('Moving run {} to the archived folder'.format(run.name))
