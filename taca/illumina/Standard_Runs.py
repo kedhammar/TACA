@@ -114,11 +114,12 @@ class Standard_Run(Run):
             if self.software == 'bcl2fastq':
                 demux_number_with_the_same_sample_type = len(max([v for k, v in lane_table.items()],key=len))
             elif self.software == 'bclconvert':
-                unique_masks = set()
+                all_masks = []
                 for v in lane_table.values():
                     for item in v:
-                        unique_masks.add(item)
-                unique_masks = list(unique_masks)
+                        all_masks.append(item)
+                unique_masks = list({tuple(map(tuple, item)) for item in all_masks})
+                unique_masks = [list(item) for item in unique_masks]
                 demux_number_with_the_same_sample_type = len(unique_masks)
             # Prepare sub-samplesheets, masks and commands
             for i in range(0,demux_number_with_the_same_sample_type):
@@ -150,20 +151,21 @@ class Standard_Run(Run):
                 elif self.software == 'bclconvert':
                     mask = unique_masks[i]
                     for lane, lane_contents in self.sample_table.items():
-                        if mask in lane_table[lane]:
-                            mask_table.update({lane: mask})
-                            for sample in lane_contents:
-                                sample_name = sample[0]
-                                sample_detail = sample[1]
-                                sample_type_t = sample_detail['sample_type']
-                                sample_index_length = sample_detail['index_length']
-                                sample_umi_length = sample_detail['umi_length']
-                                sample_read_length = sample_detail['read_length']
-                                if sample_type_t == sample_type and sample_index_length == mask[0] and sample_umi_length == mask[1] and sample_read_length == mask[2]:
-                                    if samples_to_include.get(lane):
-                                        samples_to_include[lane].append(sample_name)
-                                    else:
-                                        samples_to_include.update({lane:[sample_name]})
+                        if lane_table.get(lane):
+                            if mask in lane_table[lane]:
+                                mask_table.update({lane: mask})
+                                for sample in lane_contents:
+                                    sample_name = sample[0]
+                                    sample_detail = sample[1]
+                                    sample_type_t = sample_detail['sample_type']
+                                    sample_index_length = sample_detail['index_length']
+                                    sample_umi_length = sample_detail['umi_length']
+                                    sample_read_length = sample_detail['read_length']
+                                    if sample_type_t == sample_type and sample_index_length == mask[0] and sample_umi_length == mask[1] and sample_read_length == mask[2]:
+                                        if samples_to_include.get(lane):
+                                            samples_to_include[lane].append(sample_name)
+                                        else:
+                                            samples_to_include.update({lane:[sample_name]})
 
                 if self.software == 'bclconvert':
                     runSetup = self.runParserObj.runinfo.get_read_configuration()
