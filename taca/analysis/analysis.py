@@ -383,7 +383,7 @@ def run_preprocessing(run, software):
         # Determine the run type
         runObj = get_runObj(run, software)
         if not runObj:
-            raise RuntimeError('Unrecognized instrument type or incorrect run folder {}'.format(run))
+            raise RuntimeError("Unrecognized instrument type or incorrect run folder {}".format(run))
         else:
             _process(runObj)
     else:

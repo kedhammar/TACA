@@ -39,7 +39,7 @@ class MiSeq_Run(Standard_Run):
             shutil.copy(ssname, os.path.join(self.run_dir, '{}.csv'.format(self.flowcell_id)))
             ssname = os.path.join(self.run_dir, os.path.split(ssname)[1])
         except:
-            raise RuntimeError('unable to copy file {} to destination {}'.format(ssname, self.run_dir))
+            raise RuntimeError("unable to copy file {} to destination {}".format(ssname, self.run_dir))
 
         # This sample sheet has been created by the LIMS and copied by a sequencing operator. It is not ready
         # to be used it needs some editing.

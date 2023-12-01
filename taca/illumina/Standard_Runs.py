@@ -114,12 +114,11 @@ class Standard_Run(Run):
             if self.software == 'bcl2fastq':
                 demux_number_with_the_same_sample_type = len(max([v for k, v in lane_table.items()],key=len))
             elif self.software == 'bclconvert':
-                all_masks = []
-                for v in lane_table.values():
-                    for item in v:
-                        all_masks.append(item)
-                unique_masks = list({tuple(map(tuple, item)) for item in all_masks})
-                unique_masks = [list(item) for item in unique_masks]
+                unique_masks = []
+                for masks in lane_table.values():
+                    for mask in masks:
+                        if mask not in unique_masks:
+                            unique_masks.append(mask)
                 demux_number_with_the_same_sample_type = len(unique_masks)
             # Prepare sub-samplesheets, masks and commands
             for i in range(0,demux_number_with_the_same_sample_type):
@@ -169,13 +168,13 @@ class Standard_Run(Run):
 
                 if self.software == 'bclconvert':
                     runSetup = self.runParserObj.runinfo.get_read_configuration()
-                    (index_length, umi_length, read_length) = list(set(mask_table.values()))[0]
-                    index1_size = int(index_length.split('-')[0])
-                    index2_size = int(index_length.split('-')[1])
-                    umi1_size = int(umi_length.split('-')[0])
-                    umi2_size = int(umi_length.split('-')[1])
-                    read1_size = int(read_length.split('-')[0])
-                    read2_size = int(read_length.split('-')[1])
+                    (index_length, umi_length, read_length) = mask
+                    index1_size = int(index_length[0])
+                    index2_size = int(index_length[1])
+                    umi1_size = int(umi_length[0])
+                    umi2_size = int(umi_length[1])
+                    read1_size = int(read_length[0])
+                    read2_size = int(read_length[1])
                     is_dual_index = False
                     if (index1_size != 0 and index2_size != 0) or (index1_size == 0 and index2_size != 0):
                         is_dual_index = True
@@ -239,6 +238,8 @@ class Standard_Run(Run):
             elif self.software == 'bclconvert':
                 logger.info('Building a bclconvert command')
                 cl.extend(['--bcl-input-directory', self.run_dir])
+            else:
+                raise RuntimeError("Unrecognized software!")
             # Output dir
             output_dir = os.path.join(self.run_dir, 'Demultiplexing_{}'.format(bcl_cmd_counter))
             if not os.path.exists(output_dir):
@@ -259,7 +260,7 @@ class Standard_Run(Run):
                     if isinstance(option, dict):
                         opt, val = list(option.items())[0]
                         if 'output-dir' not in opt:
-                            cl.extend(['--{}'.format(opt), str(val)])
+                            cl.extend(['--{}'.format(opt), str(val).lower()])
                     else:
                         cl.append('--{}'.format(option))
         return cl
@@ -281,7 +282,7 @@ class Standard_Run(Run):
         runSetup = self.runParserObj.runinfo.get_read_configuration()
         base_masks = {}
         if not self.runParserObj.samplesheet:
-            raise RuntimeError('Samplesheet not yet initialised')
+            raise RuntimeError("Samplesheet not yet initialised")
 
         for lane, lane_contents in mask_table.items():
             if lane not in base_masks:
@@ -312,8 +313,8 @@ class Standard_Run(Run):
         bm = []
         dual_index_run = False
         if len(runSetup) > 4:
-            raise RuntimeError('when generating base_masks looks like there are' \
-                               ' more than 4 reads in the RunSetup.xml')
+            raise RuntimeError("when generating base_masks looks like there are" \
+                               " more than 4 reads in the RunSetup.xml")
 
         for read in runSetup:
             cycles = int(read['NumCycles'])
@@ -345,8 +346,8 @@ class Standard_Run(Run):
                     # The size of the index of the sample sheet is larger than the
                     # one specified by RunInfo.xml, somethig must be wrong
                     if index1_size > cycles:
-                        raise RuntimeError('when generating base_masks found index 1 in' \
-                                           ' samplesheet larger than the index specifed in RunInfo.xml')
+                        raise RuntimeError("when generating base_masks found index 1 in" \
+                                           " samplesheet larger than the index specifed in RunInfo.xml")
                     i_remainder = cycles - index1_size
                     if i_remainder > 0:
                         if sample_type == 'IDT_UMI': # Case of IDT UMI
@@ -357,17 +358,17 @@ class Standard_Run(Run):
                                     elif self.software == 'bclconvert':
                                         bm.append('I' + str(index1_size) + 'U' + str(umi1_size) + 'N' + str(i_remainder - umi1_size))
                                     else:
-                                        raise RuntimeError('Unrecognized software!')
+                                        raise RuntimeError("Unrecognized software!")
                                 elif i_remainder - umi1_size == 0:
                                     if self.software == 'bcl2fastq':
                                         bm.append('I' + str(index1_size) + 'Y' + str(umi1_size))
                                     elif self.software == 'bclconvert':
                                         bm.append('I' + str(index1_size) + 'U' + str(umi1_size))
                                     else:
-                                        raise RuntimeError('Unrecognized software!')
+                                        raise RuntimeError("Unrecognized software!")
                                 else:
-                                    raise RuntimeError('when generating base_masks for UMI samples' \
-                                                       ' some UMI1 length is longer than specified in RunInfo.xml')
+                                    raise RuntimeError("when generating base_masks for UMI samples" \
+                                                       " some UMI1 length is longer than specified in RunInfo.xml")
                             else:
                                 bm.append('I' + str(index1_size) + 'N' + str(i_remainder))
                         elif index1_size == 0:
@@ -380,8 +381,8 @@ class Standard_Run(Run):
                     # The size of the index of the sample sheet is larger than the
                     # one specified by RunInfo.xml, somethig must be wrong
                     if index2_size > cycles:
-                        raise RuntimeError('when generating base_masks found index 2 in' \
-                                           ' samplesheet larger than the index specifed in RunInfo.xml')
+                        raise RuntimeError("when generating base_masks found index 2 in" \
+                                           " samplesheet larger than the index specifed in RunInfo.xml")
                     # When working on the second read index I need to know if the sample is dual index or not
                     if is_dual_index or sample_type == '10X_SINGLE':
                         if sample_type == '10X_SINGLE': # Case of 10X single indexes, demultiplex the whole index 2 cycles as FastQ for bcl2fastq. But this has to be ignored for bclconvert
@@ -390,7 +391,7 @@ class Standard_Run(Run):
                             elif self.software == 'bclconvert':
                                 bm.append('N' + str(cycles))
                             else:
-                                raise RuntimeError('Unrecognized software!')
+                                raise RuntimeError("Unrecognized software!")
                         else:
                             i_remainder = cycles - index2_size
                             if i_remainder > 0:
@@ -402,17 +403,17 @@ class Standard_Run(Run):
                                             elif self.software == 'bclconvert':
                                                 bm.append('I' + str(index2_size) + 'U' + str(umi2_size) + 'N' + str(i_remainder - umi2_size))
                                             else:
-                                                raise RuntimeError('Unrecognized software!')
+                                                raise RuntimeError("Unrecognized software!")
                                         elif i_remainder - umi2_size == 0:
                                             if self.software == 'bcl2fastq':
                                                 bm.append('I' + str(index2_size) + 'Y' + str(umi2_size))
                                             elif self.software == 'bclconvert':
                                                 bm.append('I' + str(index2_size) + 'U' + str(umi2_size))
                                             else:
-                                                raise RuntimeError('Unrecognized software!')
+                                                raise RuntimeError("Unrecognized software!")
                                         else:
-                                            raise RuntimeError('when generating base_masks for UMI samples' \
-                                                               ' some UMI2 length is longer than specified in RunInfo.xml')
+                                            raise RuntimeError("when generating base_masks for UMI samples" \
+                                                               " some UMI2 length is longer than specified in RunInfo.xml")
                                     else:
                                         bm.append('I' + str(index2_size) + 'N' + str(i_remainder))
                                 elif index2_size == 0:

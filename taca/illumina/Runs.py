@@ -21,7 +21,7 @@ class Run(object):
 
     def __init__(self, run_dir, software, configuration):
         if not os.path.exists(run_dir):
-            raise RuntimeError('Could not locate run directory {}'.format(run_dir))
+            raise RuntimeError("Could not locate run directory {}".format(run_dir))
 
         if 'analysis_server' not in configuration or \
             'bcl2fastq' not in configuration or \
@@ -35,7 +35,7 @@ class Run(object):
             logger.warning("Creating link from runParameters.xml to RunParameters.xml")
             os.symlink('RunParameters.xml', os.path.join(run_dir, 'runParameters.xml'))
         elif not os.path.exists(os.path.join(run_dir, 'runParameters.xml')):
-            raise RuntimeError('Could not locate runParameters.xml in run directory {}'.format(run_dir))
+            raise RuntimeError("Could not locate runParameters.xml in run directory {}".format(run_dir))
 
         self.run_dir = os.path.abspath(run_dir)
         self.software = software
@@ -75,8 +75,16 @@ class Run(object):
             # Check if this job is done
             if os.path.exists(os.path.join(run_dir, demux_folder, 'Stats', 'DemultiplexingStats.xml')):
                 all_demux_done = all_demux_done and True
-                demux_log = os.path.join(run_dir, "demux_{}_bcl2fastq.err".format(demux_id))
-                errors, warnings, error_and_warning_messages = self._check_demux_log(demux_id, demux_log)
+                if self.software == 'bcl2fastq':
+                    demux_log = os.path.join(run_dir, "demux_{}_bcl2fastq.err".format(demux_id))
+                elif self.software == 'bclconvert':
+                    demux_log = os.path.join(run_dir, "demux_{}_bcl-convert.err".format(demux_id))
+                else:
+                    raise RuntimeError("Unrecognized software!")
+                if os.path.isfile(demux_log):
+                    errors, warnings, error_and_warning_messages = self._check_demux_log(demux_id, demux_log)
+                else:
+                    raise RuntimeError("No demux log file found for sub-demultiplexing {}!".format(demux_id))
                 self.demux_summary[demux_id] = {'errors' : errors,
                                                 'warnings' : warnings,
                                                 'error_and_warning_messages' : error_and_warning_messages
@@ -105,24 +113,39 @@ class Run(object):
 
     def _check_demux_log(self, demux_id, demux_log):
         """
-        This function checks the log files of bcl2fastq
+        This function checks the log files of bcl2fastq/bclconvert
         Errors or warnings will be captured and email notifications will be sent
         """
         with open(demux_log, 'r') as demux_log_file:
             demux_log_content = demux_log_file.readlines()
-            pattern = r'Processing completed with (\d+) errors and (\d+) warnings'
-            match = re.search(pattern, demux_log_content[-1])
-            if match:
-                errors = int(match.group(1))
-                warnings = int(match.group(2))
+            if self.software == 'bcl2fastq':
+                pattern = r'Processing completed with (\d+) errors and (\d+) warnings'
+                match = re.search(pattern, demux_log_content[-1])
+                if match:
+                    errors = int(match.group(1))
+                    warnings = int(match.group(2))
+                    error_and_warning_messages = []
+                    if errors or warnings:
+                        for line in demux_log_content:
+                            if 'ERROR' in line or 'WARN' in line:
+                                error_and_warning_messages.append(line)
+                    return errors, warnings, error_and_warning_messages
+                else:
+                    raise RuntimeError("Bad format with log file demux_{}_bcl2fastq.err".format(demux_id))
+            elif self.software == 'bclconvert':
+                errors = 0
+                warnings = 0
                 error_and_warning_messages = []
-                if errors or warnings:
-                    for line in demux_log_content:
-                        if 'ERROR' in line or 'WARN' in line:
-                            error_and_warning_messages.append(line)
+                for line in demux_log_content:
+                    if 'ERROR' in line:
+                        errors += 1
+                        error_and_warning_messages.append(line)
+                    elif 'WARNING' in line:
+                        warnnings += 1
+                        error_and_warning_messages.append(line)
                 return errors, warnings, error_and_warning_messages
             else:
-                raise RuntimeError("Bad format with log file demux_{}_bcl2fastq.err".format(demux_id))
+                raise RuntimeError("Unrecognized software!")
 
     def _set_run_type(self):
         raise NotImplementedError("Please Implement this method")
@@ -189,7 +212,7 @@ class Run(object):
         elif not sequencing_done:
             return 'SEQUENCING'
         else:
-            raise RuntimeError('Unexpected status in get_run_status')
+            raise RuntimeError("Unexpected status in get_run_status")
 
     def _generate_per_lane_base_mask(self):
         """
