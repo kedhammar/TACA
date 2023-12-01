@@ -1,5 +1,9 @@
 # TACA Version Log
 
+## 20231201.1
+
+Run Anglerfish v0.6.0 with --lenient and --ont_barcodes options.
+
 ## 20231103.1
 
 Fix bug with rsync permission issue cont.
