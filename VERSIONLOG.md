@@ -1,5 +1,9 @@
 # TACA Version Log
 
+## 20231204.1
+
+Update ONT instrument transfer script to ignore runs started in the 3rd PromethION column, which will be used by Clinical Genomics.
+
 ## 20231201.1
 
 Run Anglerfish v0.6.0 with --lenient and --ont_barcodes options.

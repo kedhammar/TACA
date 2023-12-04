@@ -1,6 +1,6 @@
 """ This is a stand-alone script run on ONT instrument computers. It transfers new ONT runs to NAS using rsync.
 """
-__version__ = "1.0.12"
+__version__ = "1.0.13"
 
 import logging
 import os
