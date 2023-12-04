@@ -105,8 +105,8 @@ class Standard_Run(Run):
     def _classify_samples(self, indexfile, ssparser, runSetup):
         """Given an ssparser object, go through all samples and decide sample types."""
         sample_table = dict()
-        index_dict_tenX = self._parse_10X_indexes(self, indexfile['tenX'])
-        index_dict_smartseq = self._parse_smartseq_indexes(self, indexfile['smartseq'])
+        index_dict_tenX = self._parse_10X_indexes(indexfile['tenX'])
+        index_dict_smartseq = self._parse_smartseq_indexes(indexfile['smartseq'])
         index_cycles = [0, 0]
         read_cycles = [0, 0]
         for read in runSetup:
@@ -550,8 +550,8 @@ def _generate_clean_samplesheet(ssparser, indexfile, fields_to_remove=None, rena
     """
     output = u''
     # Expand the ssparser if there are lanes with 10X or Smart-seq samples
-    index_dict_tenX = self._parse_10X_indexes(self, indexfile['tenX'])
-    index_dict_smartseq = self._parse_smartseq_indexes(self, indexfile['smartseq'])
+    index_dict_tenX = self._parse_10X_indexes(indexfile['tenX'])
+    index_dict_smartseq = self._parse_smartseq_indexes(indexfile['smartseq'])
     # Replace 10X or Smart-seq indices
     for sample in ssparser.data:
         if sample['index'] in index_dict_tenX.keys():

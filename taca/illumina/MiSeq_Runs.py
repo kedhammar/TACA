@@ -102,8 +102,8 @@ class MiSeq_Run(Standard_Run):
         output = u''
         compl = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A'}
         # Expand the ssparser if there are lanes with 10X or Smart-seq samples
-        index_dict_tenX = self._parse_10X_indexes(self, indexfile['tenX'])
-        index_dict_smartseq = self._parse_smartseq_indexes(self, indexfile['smartseq'])
+        index_dict_tenX = self._parse_10X_indexes(indexfile['tenX'])
+        index_dict_smartseq = self._parse_smartseq_indexes(indexfile['smartseq'])
         # Replace 10X or Smart-seq indices
         for sample in ssparser.data:
             if sample['index'] in index_dict_tenX.keys():
