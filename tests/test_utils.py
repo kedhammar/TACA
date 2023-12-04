@@ -118,7 +118,8 @@ class TestMisc(unittest.TestCase):
         couch_info = {'url': 'url',
                       'username': 'username',
                       'password': 'pwd',
-                      'db': 'db'}
+                      'db': 'db',
+                      'xten_db': 'xten_db'}
         is_demultiplexed = misc.run_is_demuxed(run, couch_info=couch_info)
         #TODO: should add a check here but not sure how to mock this properly
 
@@ -616,6 +617,8 @@ class TestBioinfoTab(unittest.TestCase):
 
     @classmethod
     def setUpClass(self):
+        # Populate the CONFIG variable inside the functions tested
+        config.load_yaml_config("data/taca_test_cfg.yaml")
         self.rootdir = tempfile.mkdtemp(prefix='test_taca_bt')
         self.new_run = os.path.join(self.rootdir,'nosync', '190821_M01545_0252_000000001')
         os.makedirs(self.new_run)
