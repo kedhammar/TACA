@@ -25,7 +25,9 @@ def main(args):
 
     logging.info("Starting script...")
 
-    run_pattern = re.compile("\d{8}_\d{4}_[A-Za-z0-9]+_[A-Za-z0-9]+_[A-Za-z0-9]+")
+    run_pattern = re.compile(
+        r"\d{8}_\d{4}_([1-2A-H])|(MN19414)_[A-Za-z0-9]+_[A-Za-z0-9]+"
+    )
     rsync_log = os.path.join(args.source_dir, "rsync_log.txt")
 
     logging.info("Parsing instrument position logs...")
