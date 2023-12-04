@@ -784,7 +784,7 @@ class Run(object):
 
         open(os.path.join(DemultiplexingStats_xml_dir, 'DemultiplexingStats.xml'), 'a').close()
 
-    def _process_demux_with_complex_lanes(self, samplesheets, legacy_path, index_cycles, simple_lanes, complex_lanes, noindex_lanes):
+    def _process_demux_with_complex_lanes(self, demux_folder, samplesheets, legacy_path, index_cycles, simple_lanes, complex_lanes, noindex_lanes):
         html_reports_lane = []
         html_reports_laneBarcode = []
         stats_json = []
@@ -952,7 +952,6 @@ class Run(object):
         self._fix_demultiplexingstats_xml_dir(demux_folder, stats_json, samplesheets, index_cycles, simple_lanes, complex_lanes, noindex_lanes)
 
         return True
-
 
 def _create_folder_structure(root, dirs):
     """Creates a fodler stucture rooted in root usinf all dirs listed in dirs (a list)
