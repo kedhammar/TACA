@@ -65,6 +65,10 @@ class Run(object):
         """
         run_dir    =  self.run_dir
         dex_status =  self.get_run_status()
+        if self.software == 'bcl2fastq':
+            legacy_path = ''
+        elif self.software == 'bclconvert':
+            legacy_path = "Reports/{}".format(self.legacy_dir)
         # Check the status of running demux
         # Collect all samplesheets generated before
         samplesheets =  glob.glob(os.path.join(run_dir, "*_[0-9].csv")) # A single digit, this hypothesis should hold for a while
@@ -73,7 +77,7 @@ class Run(object):
             demux_id = os.path.splitext(os.path.split(samplesheet)[1])[0].split("_")[1]
             demux_folder = os.path.join(run_dir, "Demultiplexing_{}".format(demux_id))
             # Check if this job is done
-            if os.path.exists(os.path.join(run_dir, demux_folder, 'Stats', 'DemultiplexingStats.xml')):
+            if os.path.exists(os.path.join(run_dir, demux_folder, legacy_path, 'Stats', 'DemultiplexingStats.xml')):
                 all_demux_done = all_demux_done and True
                 if self.software == 'bcl2fastq':
                     demux_log = os.path.join(run_dir, "demux_{}_bcl2fastq.err".format(demux_id))
@@ -484,11 +488,9 @@ class Run(object):
         demux_folder = os.path.join(self.run_dir , self.demux_dir)
         samplesheets = glob.glob(os.path.join(run_dir, "*_[0-9].csv"))
         if self.software == 'bcl2fastq':
-            legacy_reports = ''
-            legacy_stats = ''
+            legacy_path = ''
         elif self.software == 'bclconvert':
-            legacy_reports = "{}/Reports".format(self.legacy_dir)
-            legacy_stats = "Reports/{}/Stats".format(self.legacy_dir)
+            legacy_path = "Reports/{}".format(self.legacy_dir)
         else:
             raise RuntimeError("Unrecognized software!")
 
@@ -566,7 +568,7 @@ class Run(object):
                         logger.info("For undet sample {}, renaming {} to {}".format(sample.replace('Sample_',''), old_name, new_name))
                     sample_counter += 1
                 # Make a softlink of lane.html
-                html_report_lane_source = os.path.join(run_dir, demux_id_folder_name, "Reports", legacy_reports, "html", self.flowcell_id, "all", "all", "all", "lane.html")
+                html_report_lane_source = os.path.join(run_dir, demux_id_folder_name, legacy_path, "Reports", "html", self.flowcell_id, "all", "all", "all", "lane.html")
                 html_report_lane_dest = os.path.join(demux_folder, "Reports", "html", self.flowcell_id, "all", "all", "all", "lane.html")
                 if not os.path.isdir(os.path.dirname(html_report_lane_dest)):
                     os.makedirs(os.path.dirname(html_report_lane_dest))
@@ -575,8 +577,8 @@ class Run(object):
                 # Modify the laneBarcode.html file
                 html_report_laneBarcode = os.path.join(run_dir,
                                                        demux_id_folder_name,
+                                                       legacy_path,
                                                        "Reports",
-                                                       legacy_reports,
                                                        "html",
                                                        self.flowcell_id,
                                                        "all",
@@ -613,7 +615,7 @@ class Run(object):
                 if not os.path.exists(os.path.join(demux_folder, "Stats")):
                     os.makedirs(os.path.join(demux_folder, "Stats"))
                 # Modify the Stats.json file
-                stat_json_source = os.path.join(run_dir, demux_id_folder_name, legacy_stats, "Stats", "Stats.json")
+                stat_json_source = os.path.join(run_dir, demux_id_folder_name, legacy_path, "Stats", "Stats.json")
                 stat_json_new = os.path.join(demux_folder, "Stats", "Stats.json")
                 with open(stat_json_source) as json_data:
                     data = json.load(json_data)
@@ -638,7 +640,7 @@ class Run(object):
                         os.symlink(source, dest)
                 os.makedirs(os.path.join(self.run_dir, "Demultiplexing", "Stats"))
                 # Fetch the lanes that have NoIndex
-                statsFiles = glob.glob(os.path.join(demux_id_folder, legacy_stats, "Stats", "*" ))
+                statsFiles = glob.glob(os.path.join(demux_id_folder, legacy_path, "Stats", "*" ))
                 for source in statsFiles:
                     source_name = os.path.split(source)[1]
                     if source_name not in ["DemultiplexingStats.xml", "AdapterTrimming.txt", "ConversionStats.xml", "Stats.json"]:
@@ -647,10 +649,10 @@ class Run(object):
                             dest = os.path.join(self.run_dir, self.demux_dir, "Stats", source_name)
                             os.symlink(source, dest)
                 for file in ["DemultiplexingStats.xml", "AdapterTrimming.txt", "ConversionStats.xml", "Stats.json"]:
-                    source = os.path.join(self.run_dir, demux_id_folder_name, legacy_stats, "Stats", file)
+                    source = os.path.join(self.run_dir, demux_id_folder_name, legacy_path, "Stats", file)
                     dest = os.path.join(self.run_dir, "Demultiplexing", "Stats", file)
                     os.symlink(source, dest)
-                source = os.path.join(demux_id_folder, "Reports", legacy_reports)
+                source = os.path.join(demux_id_folder, legacy_path, "Reports")
                 dest = os.path.join(self.run_dir, "Demultiplexing", "Reports")
                 if os.path.exists(dest):
                     try:
@@ -670,8 +672,8 @@ class Run(object):
             demux_id_folder = os.path.join(run_dir, "Demultiplexing_{}".format(demux_id))
             html_report_lane = os.path.join(run_dir,
                                             "Demultiplexing_{}".format(demux_id),
+                                            legacy_path,
                                             "Reports",
-                                            legacy_reports,
                                             "html",
                                             self.flowcell_id,
                                             "all",
@@ -686,8 +688,8 @@ class Run(object):
 
             html_report_laneBarcode = os.path.join(run_dir,
                                                    "Demultiplexing_{}".format(demux_id),
+                                                   legacy_path,
                                                    "Reports",
-                                                   legacy_reports,
                                                    "html",
                                                    self.flowcell_id,
                                                    "all",
@@ -700,7 +702,7 @@ class Run(object):
             else:
                 raise RuntimeError("Not able to find html report {}: possible cause is problem in demultiplexing".format(html_report_laneBarcode))
 
-            stat_json = os.path.join(run_dir, "Demultiplexing_{}".format(demux_id), legacy_stats, "Stats", "Stats.json")
+            stat_json = os.path.join(run_dir, "Demultiplexing_{}".format(demux_id), legacy_path, "Stats", "Stats.json")
             if os.path.exists(stat_json):
                 stats_json.append(stat_json)
             else:
@@ -775,7 +777,7 @@ class Run(object):
                             os.symlink(fastqfile, os.path.join(demux_folder, os.path.split(fastqfile)[1]))
                         DemuxSummaryFiles = glob.glob(os.path.join(run_dir,
                                                                    "Demultiplexing_{}".format(demux_id),
-                                                                   legacy_stats,
+                                                                   legacy_path,
                                                                    "Stats",
                                                                    "*L{}*txt".format(lane)))
                         if not os.path.exists(os.path.join(demux_folder, "Stats")):
