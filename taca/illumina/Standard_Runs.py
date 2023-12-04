@@ -52,7 +52,7 @@ class Standard_Run(Run):
         # If this is not the case then create it and take special care of modification to be done on the SampleSheet
         samplesheet_dest = os.path.join(self.run_dir, 'SampleSheet.csv')
         # Function that goes through the original sample sheet and check for sample types
-        self.sample_table = _classify_samples(indexfile, ssparser, runSetup)
+        self.sample_table = self._classify_samples(indexfile, ssparser, runSetup)
         # Check that the samplesheet is not already present. In this case go the next step
         if not os.path.exists(samplesheet_dest):
             try:
@@ -74,6 +74,119 @@ class Standard_Run(Run):
         self.runParserObj.samplesheet  = SampleSheetParser(os.path.join(self.run_dir, 'SampleSheet.csv'))
         if not self.runParserObj.obj.get('samplesheet_csv'):
             self.runParserObj.obj['samplesheet_csv'] = self.runParserObj.samplesheet.data
+
+    def _parse_10X_indexes(self, indexfile):
+        """
+        Takes a file of 10X indexes and returns them as a dict.
+        Todo: Set it up to take the file from config instead
+        """
+        index_dict = {}
+        with open(indexfile, 'r') as f:
+            for line in f:
+                line_ = line.rstrip().split(',')
+                index_dict[line_[0]] = line_[1:5]
+        return index_dict
+
+    def _parse_smartseq_indexes(self, indexfile):
+        """
+        Takes a file of Smart-seq indexes and returns them as a dict.
+        Todo: Set it up to take the file from config instead
+        """
+        index_dict = {}
+        with open(indexfile, 'r') as f:
+            for line in f:
+                line_ = line.rstrip().split(',')
+                if index_dict.get(line_[0]):
+                    index_dict[line_[0]].append((line_[1],line_[2]))
+                else:
+                    index_dict.update({line_[0]:[(line_[1],line_[2])]})
+        return index_dict
+
+    def _classify_samples(self, indexfile, ssparser, runSetup):
+        """Given an ssparser object, go through all samples and decide sample types."""
+        sample_table = dict()
+        index_dict_tenX = self._parse_10X_indexes(self, indexfile['tenX'])
+        index_dict_smartseq = self._parse_smartseq_indexes(self, indexfile['smartseq'])
+        index_cycles = [0, 0]
+        read_cycles = [0, 0]
+        for read in runSetup:
+            if read['IsIndexedRead'] == 'Y':
+                if int(read['Number']) == 2:
+                    index_cycles[0] = int(read['NumCycles'])
+                else:
+                    index_cycles[1] = int(read['NumCycles'])
+            elif read['IsIndexedRead'] == 'N':
+                if int(read['Number']) == 1:
+                    read_cycles[0] = int(read['NumCycles'])
+                else:
+                    read_cycles[1] = int(read['NumCycles'])
+        for sample in ssparser.data:
+            lane = sample['Lane']
+            sample_name = sample.get('Sample_Name') or sample.get('SampleName')
+            umi_length = [0, 0]
+            read_length = read_cycles
+            # Read the length of read 1 and read 2 from the field Recipe
+            if sample.get('Recipe') and RECIPE_PAT.findall(sample.get('Recipe')):
+                ss_read_length = [int(sample.get('Recipe').split('-')[0]), int(sample.get('Recipe').split('-')[1])]
+            else:
+                ss_read_length = [0, 0]
+            # By default use the read cycles from the sequncing setup. Otherwise use the shorter read length
+            if ss_read_length != [0, 0]:
+                read_length = [min(rd) for rd in zip(ss_read_length, read_length)]
+            # 10X single index
+            if TENX_SINGLE_PAT.findall(sample['index']):
+                index_length = [len(index_dict_tenX[sample['index']][0]),0]
+                sample_type = '10X_SINGLE'
+            # 10X dual index
+            elif TENX_DUAL_PAT.findall(sample['index']):
+                index_length = [len(index_dict_tenX[sample['index']][0]),len(index_dict_tenX[sample['index']][1])]
+                sample_type = '10X_DUAL'
+            # IDT UMI samples
+            elif IDT_UMI_PAT.findall(sample['index']) or IDT_UMI_PAT.findall(sample['index2']):
+                # Index length after removing "N" part
+                index_length = [len(sample['index'].replace('N', '')),
+                                len(sample['index2'].replace('N', ''))]
+                sample_type = 'IDT_UMI'
+                umi_length = [sample['index'].upper().count('N'), sample['index2'].upper().count('N')]
+            # Smart-seq
+            elif SMARTSEQ_PAT.findall(sample['index']):
+                smartseq_index = sample['index'].split('-')[1]
+                index_length = [len(index_dict_smartseq[smartseq_index][0][0]),len(index_dict_smartseq[smartseq_index][0][1])]
+                sample_type = 'SMARTSEQ'
+            # No Index case 1. We will write indexes to separate FastQ files
+            elif sample['index'].upper() == 'NOINDEX' and index_cycles != [0, 0]:
+                index_length = index_cycles
+                sample_type = 'NOINDEX'
+            # No Index case 2. Both index 1 and 2 are empty, it will be the same index type but will be handled in the next case
+            elif sample['index'].upper() == 'NOINDEX' and index_cycles == [0, 0]:
+                index_length = [0, 0]
+                sample_type = 'ordinary'
+            # Ordinary samples
+            else:
+                index_length = [len(sample['index']),len(sample['index2'])]
+                # Short single index (<=6nt)
+                if (index_length[0] <= 8 and index_length[1] == 0) or (index_length[0] == 0 and index_length[1] <= 8):
+                    sample_type = 'short_single_index'
+                else:
+                    sample_type = 'ordinary'
+
+            # Write in sample table
+            # {'1': [('101', {'sample_type': 'ordinary', 'index_length': [8, 8]}), ('102', {'sample_type': 'ordinary', 'index_length': [8, 8]})]}
+            if sample_table.get(lane):
+                sample_table[lane].append((sample_name,
+                                           {'sample_type': sample_type,
+                                            'index_length': index_length,
+                                            'umi_length': umi_length,
+                                            'read_length': read_length}))
+            else:
+                sample_table.update({lane:[(sample_name,
+                                            {'sample_type': sample_type,
+                                             'index_length': index_length,
+                                             'umi_length': umi_length,
+                                             'read_length': read_length})]})
+
+        return sample_table
+
 
     def demultiplex_run(self):
         """
@@ -437,8 +550,8 @@ def _generate_clean_samplesheet(ssparser, indexfile, fields_to_remove=None, rena
     """
     output = u''
     # Expand the ssparser if there are lanes with 10X or Smart-seq samples
-    index_dict_tenX = parse_10X_indexes(indexfile['tenX'])
-    index_dict_smartseq = parse_smartseq_indexes(indexfile['smartseq'])
+    index_dict_tenX = self._parse_10X_indexes(self, indexfile['tenX'])
+    index_dict_smartseq = self._parse_smartseq_indexes(self, indexfile['smartseq'])
     # Replace 10X or Smart-seq indices
     for sample in ssparser.data:
         if sample['index'] in index_dict_tenX.keys():
@@ -511,118 +624,6 @@ def _generate_clean_samplesheet(ssparser, indexfile, fields_to_remove=None, rena
         output += ','.join(line_ar)
         output += os.linesep
     return output
-
-def _classify_samples(indexfile, ssparser, runSetup):
-    """Given an ssparser object, go through all samples and decide sample types."""
-    sample_table = dict()
-    index_dict_tenX = parse_10X_indexes(indexfile['tenX'])
-    index_dict_smartseq = parse_smartseq_indexes(indexfile['smartseq'])
-    index_cycles = [0, 0]
-    read_cycles = [0, 0]
-    for read in runSetup:
-        if read['IsIndexedRead'] == 'Y':
-            if int(read['Number']) == 2:
-                index_cycles[0] = int(read['NumCycles'])
-            else:
-                index_cycles[1] = int(read['NumCycles'])
-        elif read['IsIndexedRead'] == 'N':
-            if int(read['Number']) == 1:
-                read_cycles[0] = int(read['NumCycles'])
-            else:
-                read_cycles[1] = int(read['NumCycles'])
-    for sample in ssparser.data:
-        lane = sample['Lane']
-        sample_name = sample.get('Sample_Name') or sample.get('SampleName')
-        umi_length = [0, 0]
-        read_length = read_cycles
-        # Read the length of read 1 and read 2 from the field Recipe
-        if sample.get('Recipe') and RECIPE_PAT.findall(sample.get('Recipe')):
-            ss_read_length = [int(sample.get('Recipe').split('-')[0]), int(sample.get('Recipe').split('-')[1])]
-        else:
-            ss_read_length = [0, 0]
-        # By default use the read cycles from the sequncing setup. Otherwise use the shorter read length
-        if ss_read_length != [0, 0]:
-            read_length = [min(rd) for rd in zip(ss_read_length, read_length)]
-        # 10X single index
-        if TENX_SINGLE_PAT.findall(sample['index']):
-            index_length = [len(index_dict_tenX[sample['index']][0]),0]
-            sample_type = '10X_SINGLE'
-        # 10X dual index
-        elif TENX_DUAL_PAT.findall(sample['index']):
-            index_length = [len(index_dict_tenX[sample['index']][0]),len(index_dict_tenX[sample['index']][1])]
-            sample_type = '10X_DUAL'
-        # IDT UMI samples
-        elif IDT_UMI_PAT.findall(sample['index']) or IDT_UMI_PAT.findall(sample['index2']):
-            # Index length after removing "N" part
-            index_length = [len(sample['index'].replace('N', '')),
-                            len(sample['index2'].replace('N', ''))]
-            sample_type = 'IDT_UMI'
-            umi_length = [sample['index'].upper().count('N'), sample['index2'].upper().count('N')]
-        # Smart-seq
-        elif SMARTSEQ_PAT.findall(sample['index']):
-            smartseq_index = sample['index'].split('-')[1]
-            index_length = [len(index_dict_smartseq[smartseq_index][0][0]),len(index_dict_smartseq[smartseq_index][0][1])]
-            sample_type = 'SMARTSEQ'
-        # No Index case 1. We will write indexes to separate FastQ files
-        elif sample['index'].upper() == 'NOINDEX' and index_cycles != [0, 0]:
-            index_length = index_cycles
-            sample_type = 'NOINDEX'
-        # No Index case 2. Both index 1 and 2 are empty, it will be the same index type but will be handled in the next case
-        elif sample['index'].upper() == 'NOINDEX' and index_cycles == [0, 0]:
-            index_length = [0, 0]
-            sample_type = 'ordinary'
-        # Ordinary samples
-        else:
-            index_length = [len(sample['index']),len(sample['index2'])]
-            # Short single index (<=6nt)
-            if (index_length[0] <= 8 and index_length[1] == 0) or (index_length[0] == 0 and index_length[1] <= 8):
-                sample_type = 'short_single_index'
-            else:
-                sample_type = 'ordinary'
-
-        # Write in sample table
-        # {'1': [('101', {'sample_type': 'ordinary', 'index_length': [8, 8]}), ('102', {'sample_type': 'ordinary', 'index_length': [8, 8]})]}
-        if sample_table.get(lane):
-            sample_table[lane].append((sample_name,
-                                       {'sample_type': sample_type,
-                                        'index_length': index_length,
-                                        'umi_length': umi_length,
-                                        'read_length': read_length}))
-        else:
-            sample_table.update({lane:[(sample_name,
-                                        {'sample_type': sample_type,
-                                         'index_length': index_length,
-                                         'umi_length': umi_length,
-                                         'read_length': read_length})]})
-
-    return sample_table
-
-def parse_10X_indexes(indexfile):
-    """
-    Takes a file of 10X indexes and returns them as a dict.
-    Todo: Set it up to take the file from config instead
-    """
-    index_dict = {}
-    with open(indexfile, 'r') as f:
-        for line in f:
-            line_ = line.rstrip().split(',')
-            index_dict[line_[0]] = line_[1:5]
-    return index_dict
-
-def parse_smartseq_indexes(indexfile):
-    """
-    Takes a file of Smart-seq indexes and returns them as a dict.
-    Todo: Set it up to take the file from config instead
-    """
-    index_dict = {}
-    with open(indexfile, 'r') as f:
-        for line in f:
-            line_ = line.rstrip().split(',')
-            if index_dict.get(line_[0]):
-                index_dict[line_[0]].append((line_[1],line_[2]))
-            else:
-                index_dict.update({line_[0]:[(line_[1],line_[2])]})
-    return index_dict
 
 def _generate_samplesheet_subset(ssparser, samples_to_include, runSetup, software, sample_type, index1_size, index2_size, base_mask, CONFIG):
     output = u''

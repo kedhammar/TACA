@@ -86,7 +86,7 @@ class backup_utils(object):
     def avail_disk_space(self, path, run):
         """Check the space on file system based on parent directory of the run."""
         # not able to fetch runtype use the max size as precaution, size units in GB
-        illumina_run_sizes = {'hiseq': 500, 'hiseqx': 900, 'novaseq': 1800, 'miseq': 20, 'nextseq': 250, 'NovaSeqXPlus': 3600, 'promethion': 3000, 'minion': 1000}
+        illumina_run_sizes = {'novaseq': 1800, 'miseq': 20, 'nextseq': 250, 'NovaSeqXPlus': 3600, 'promethion': 3000, 'minion': 1000}
         required_size = illumina_run_sizes.get(self._get_run_type(run), 900) * 2
         # check for any ongoing runs and add up the required size accrdingly
         for ddir in self.data_dirs.values():
@@ -131,12 +131,10 @@ class backup_utils(object):
         """Returns run type based on the flowcell name."""
         run_type = ''
         try:
-            if 'ST-' in run:
-                run_type = 'hiseqx'
+            if '_A0' in run:
+                run_type = 'novaseq'
             elif '-' in run.split('_')[-1]:
                 run_type = 'miseq'
-            elif '_A0' in run:
-                run_type = 'novaseq'
             elif '_NS' in run or  '_VH' in run:
                 run_type = 'nextseq'
             elif '_LH' in run:
@@ -146,7 +144,7 @@ class backup_utils(object):
             elif re.match("^(\d{8})_(\d{4})_([1-3][A-H])_([0-9a-zA-Z]+)_([0-9a-zA-Z]+)$",run):
                 run_type = 'promethion'
             else:
-                run_type = 'hiseq'
+                run_type = ''
         except:
             logger.warn('Could not fetch run type for run {}'.format(run))
         return run_type

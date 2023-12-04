@@ -1,11 +1,24 @@
+import os
+import re
+import shutil
+import logging
+from flowcell_parser.classes import SampleSheetParser
 from taca.illumina.Standard_Runs import Standard_Run
 
+logger = logging.getLogger(__name__)
+
+TENX_SINGLE_PAT = re.compile('SI-(?:GA|NA)-[A-H][1-9][0-2]?')
+TENX_DUAL_PAT = re.compile('SI-(?:TT|NT|NN|TN|TS)-[A-H][1-9][0-2]?')
+SMARTSEQ_PAT = re.compile('SMARTSEQ[1-9]?-[1-9][0-9]?[A-P]')
+IDT_UMI_PAT = re.compile('([ATCG]{4,}N+$)')
+RECIPE_PAT = re.compile('[0-9]+-[0-9]+')
 
 class MiSeq_Run(Standard_Run):
     def __init__(self, run_dir, software, configuration):
-        super(MiSeq_Run, self).__init__( run_dir, software, configuration)
+        super(MiSeq_Run, self).__init__(run_dir, software, configuration)
         self._set_sequencer_type()
         self._set_run_type()
+        self._get_samplesheet()
         self._copy_samplesheet()
 
     def _set_sequencer_type(self):
@@ -30,6 +43,7 @@ class MiSeq_Run(Standard_Run):
 
     def _copy_samplesheet(self):
         ssname = self._get_samplesheet()
+        runSetup = self.runParserObj.runinfo.get_read_configuration()
         # Load index files
         indexfile = dict()
         try:
@@ -45,6 +59,7 @@ class MiSeq_Run(Standard_Run):
         if ssname is None:
             return None
         ssparser = SampleSheetParser(ssname)
+        self.sample_table = self._classify_samples(indexfile, ssparser, runSetup)
         # Copy the original samplesheet locally.
         # Copy again if already done as there might have been changes to the samplesheet
         try:
@@ -63,11 +78,11 @@ class MiSeq_Run(Standard_Run):
         try:
             with open(samplesheet_dest, 'w') as fcd:
                 fcd.write(self._generate_clean_samplesheet(ssparser,
-                                                           indexfile,
-                                                           fields_to_remove=None,
-                                                           rename_samples=True,
-                                                           rename_qPCR_suffix = True,
-                                                           fields_qPCR=[ssparser.dfield_snm]))
+                                                      indexfile,
+                                                      fields_to_remove=None,
+                                                      rename_samples=True,
+                                                      rename_qPCR_suffix = True,
+                                                      fields_qPCR=[ssparser.dfield_snm]))
         except Exception as e:
             logger.error(e)
             return False
@@ -78,7 +93,7 @@ class MiSeq_Run(Standard_Run):
         if not self.runParserObj.obj.get('samplesheet_csv'):
             self.runParserObj.obj['samplesheet_csv'] = self.runParserObj.samplesheet.data
 
-    def _generate_clean_samplesheet(self, sparser, indexfile, fields_to_remove=None, rename_samples=True, rename_qPCR_suffix = False, fields_qPCR= None):
+    def _generate_clean_samplesheet(self, ssparser, indexfile, fields_to_remove=None, rename_samples=True, rename_qPCR_suffix = False, fields_qPCR= None):
         """Generate a 'clean' samplesheet, the given fields will be removed.
         If rename_samples is True, samples prepended with 'Sample_'  are renamed to match the sample name
         Will also replace 10X or Smart-seq indicies (e.g. SI-GA-A3 into TGTGCGGG)
@@ -87,8 +102,8 @@ class MiSeq_Run(Standard_Run):
         output = u''
         compl = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A'}
         # Expand the ssparser if there are lanes with 10X or Smart-seq samples
-        index_dict_tenX = parse_10X_indexes(indexfile['tenX'])
-        index_dict_smartseq = parse_smartseq_indexes(indexfile['smartseq'])
+        index_dict_tenX = self._parse_10X_indexes(self, indexfile['tenX'])
+        index_dict_smartseq = self._parse_smartseq_indexes(self, indexfile['smartseq'])
         # Replace 10X or Smart-seq indices
         for sample in ssparser.data:
             if sample['index'] in index_dict_tenX.keys():
