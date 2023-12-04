@@ -386,7 +386,7 @@ class backup_utils(object):
                     if bk._call_commands(cmd1='dsmc archive {}'.format(run.dst_key_encrypted), tmp_files=[run.flag]):
                         time.sleep(5) # give some time just in case 'dsmc' needs to settle
                         if bk.file_in_pdc(run.zip_encrypted) and bk.file_in_pdc(run.dst_key_encrypted):
-                            logger.info('Successfully sent file {} to PDC, removing file locally from {} to archived folder'.format(run.zip_encrypted, run.path))
+                            logger.info('Successfully sent file {} to PDC, moving file locally from {} to archived folder'.format(run.zip_encrypted, run.path))
                             bk.log_archived_run(run.zip_encrypted)
                             if bk.couch_info:
                                 bk._log_pdc_statusdb(run.name)
