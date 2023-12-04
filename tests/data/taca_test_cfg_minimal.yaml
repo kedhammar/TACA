@@ -5,4 +5,3 @@ statusdb:
   url: url
   username: username
   password: pwd
-  port: port
