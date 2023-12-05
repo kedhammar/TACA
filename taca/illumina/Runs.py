@@ -529,7 +529,7 @@ class Run(object):
         with open(stat_json_new, 'w') as stat_json_new_file:
             json.dump(data, stat_json_new_file)
 
-    def _process_simple_lane_with_single_demux(self, demux_id, legacy_path):
+    def _process_simple_lane_with_single_demux(self, demux_id, legacy_path, noindex_lanes):
         elements = [element for element in os.listdir(os.path.join(self.run_dir, "Demultiplexing_{}".format(demux_id))) ]
         for element in elements:
             if "Stats" not in element and "Reports" not in element: #skip this folder and treat it differently to take into account the NoIndex case
@@ -939,14 +939,14 @@ class Run(object):
                 self._process_noindex_sample_with_fake_index_with_single_demux(demux_id, legacy_path)
             # This is the simple case, Demultiplexing dir is simply a symlink to the only sub-demultiplexing dir
             else:
-                self._process_simple_lane_with_single_demux(demux_id, legacy_path)
+                self._process_simple_lane_with_single_demux(demux_id, legacy_path, noindex_lanes)
             return True
 
         # Case with multiple sub-demultiplexings
         (html_reports_lane, html_reports_laneBarcode, stats_json) = self._process_demux_with_complex_lanes(samplesheets, legacy_path, index_cycles, simple_lanes, complex_lanes, noindex_lanes)
 
         # Create the html reports
-        self._fix_html_reports_for_complex_lanes(demux_folder, index_cycles, complex_lanes, noindex_lanes, html_reports_lane, html_reports_laneBarcode):
+        self._fix_html_reports_for_complex_lanes(demux_folder, index_cycles, complex_lanes, noindex_lanes, html_reports_lane, html_reports_laneBarcode)
 
         # Fix contents under the DemultiplexingStats folder
         self._fix_demultiplexingstats_xml_dir(demux_folder, stats_json, samplesheets, index_cycles, simple_lanes, complex_lanes, noindex_lanes)
