@@ -57,12 +57,12 @@ class Standard_Run(Run):
         if not os.path.exists(samplesheet_dest):
             try:
                 with open(samplesheet_dest, 'w') as fcd:
-                    fcd.write(_generate_clean_samplesheet(ssparser,
-                                                          indexfile,
-                                                          fields_to_remove=None,
-                                                          rename_samples=True,
-                                                          rename_qPCR_suffix = True,
-                                                          fields_qPCR=[ssparser.dfield_snm]))
+                    fcd.write(self._generate_clean_samplesheet(ssparser,
+                                                               indexfile,
+                                                               fields_to_remove=None,
+                                                               rename_samples=True,
+                                                               rename_qPCR_suffix = True,
+                                                               fields_qPCR=[ssparser.dfield_snm]))
             except Exception as e:
                 logger.error('Encountered the following exception {}'.format(e))
                 return False
@@ -301,8 +301,8 @@ class Standard_Run(Run):
                 with chdir(self.run_dir):
                     samplesheet_dest='SampleSheet_{}.csv'.format(bcl_cmd_counter)
                     with open(samplesheet_dest, 'w') as fcd:
-                        fcd.write(_generate_samplesheet_subset(self.runParserObj.samplesheet,
-                                                               samples_to_include, runSetup, self.software, sample_type, index1_size, index2_size, base_mask, self.CONFIG))
+                        fcd.write(self._generate_samplesheet_subset(self.runParserObj.samplesheet,
+                                                                    samples_to_include, runSetup, self.software, sample_type, index1_size, index2_size, base_mask, self.CONFIG))
 
                 # Prepare demultiplexing dir
                 with chdir(self.run_dir):
@@ -543,147 +543,147 @@ class Standard_Run(Run):
         return bm
 
 
-def _generate_clean_samplesheet(ssparser, indexfile, fields_to_remove=None, rename_samples=True, rename_qPCR_suffix = False, fields_qPCR= None):
-    """Generate a 'clean' samplesheet, the given fields will be removed.
-    If rename_samples is True, samples prepended with 'Sample_'  are renamed to match the sample name
-    Will also replace 10X or Smart-seq indicies (e.g. SI-GA-A3 into TGTGCGGG)
-    """
-    output = u''
-    # Expand the ssparser if there are lanes with 10X or Smart-seq samples
-    index_dict_tenX = self._parse_10X_indexes(indexfile['tenX'])
-    index_dict_smartseq = self._parse_smartseq_indexes(indexfile['smartseq'])
-    # Replace 10X or Smart-seq indices
-    for sample in ssparser.data:
-        if sample['index'] in index_dict_tenX.keys():
-            tenX_index = sample['index']
-            # In the case of 10X dual indexes, replace index and index2
-            if TENX_DUAL_PAT.findall(tenX_index):
-                sample['index'] = index_dict_tenX[tenX_index][0]
-                sample['index2'] = index_dict_tenX[tenX_index][1]
-            # In the case of 10X single indexes, replace the index name with the 4 actual indicies
-            else:
+    def _generate_clean_samplesheet(self, ssparser, indexfile, fields_to_remove=None, rename_samples=True, rename_qPCR_suffix = False, fields_qPCR= None):
+        """Generate a 'clean' samplesheet, the given fields will be removed.
+        If rename_samples is True, samples prepended with 'Sample_'  are renamed to match the sample name
+        Will also replace 10X or Smart-seq indicies (e.g. SI-GA-A3 into TGTGCGGG)
+        """
+        output = u''
+        # Expand the ssparser if there are lanes with 10X or Smart-seq samples
+        index_dict_tenX = self._parse_10X_indexes(indexfile['tenX'])
+        index_dict_smartseq = self._parse_smartseq_indexes(indexfile['smartseq'])
+        # Replace 10X or Smart-seq indices
+        for sample in ssparser.data:
+            if sample['index'] in index_dict_tenX.keys():
+                tenX_index = sample['index']
+                # In the case of 10X dual indexes, replace index and index2
+                if TENX_DUAL_PAT.findall(tenX_index):
+                    sample['index'] = index_dict_tenX[tenX_index][0]
+                    sample['index2'] = index_dict_tenX[tenX_index][1]
+                # In the case of 10X single indexes, replace the index name with the 4 actual indicies
+                else:
+                    x = 0
+                    indices_number = len(index_dict_tenX[tenX_index])
+                    while x < indices_number - 1:
+                        new_sample = dict(sample)
+                        new_sample['index'] = index_dict_tenX[tenX_index][x]
+                        ssparser.data.append(new_sample)
+                        x += 1
+                    # Set the original 10X index to the 4th correct index
+                    sample['index'] = index_dict_tenX[tenX_index][x]
+            elif SMARTSEQ_PAT.findall(sample['index']):
                 x = 0
-                indices_number = len(index_dict_tenX[tenX_index])
+                smartseq_index = sample['index'].split('-')[1]
+                indices_number = len(index_dict_smartseq[smartseq_index])
                 while x < indices_number - 1:
                     new_sample = dict(sample)
-                    new_sample['index'] = index_dict_tenX[tenX_index][x]
+                    new_sample['index'] = index_dict_smartseq[smartseq_index][x][0]
+                    new_sample['index2'] = index_dict_smartseq[smartseq_index][x][1]
                     ssparser.data.append(new_sample)
                     x += 1
-                # Set the original 10X index to the 4th correct index
-                sample['index'] = index_dict_tenX[tenX_index][x]
-        elif SMARTSEQ_PAT.findall(sample['index']):
-            x = 0
-            smartseq_index = sample['index'].split('-')[1]
-            indices_number = len(index_dict_smartseq[smartseq_index])
-            while x < indices_number - 1:
-                new_sample = dict(sample)
-                new_sample['index'] = index_dict_smartseq[smartseq_index][x][0]
-                new_sample['index2'] = index_dict_smartseq[smartseq_index][x][1]
-                ssparser.data.append(new_sample)
-                x += 1
-            sample['index'] = index_dict_smartseq[smartseq_index][x][0]
-            sample['index2'] = index_dict_smartseq[smartseq_index][x][1]
+                sample['index'] = index_dict_smartseq[smartseq_index][x][0]
+                sample['index2'] = index_dict_smartseq[smartseq_index][x][1]
 
-    # Sort to get the added indicies from 10x in the right place
-    # Python 3 doesn't support sorting a list of dicts implicitly. Sort by lane and then Sample_ID
-    ssparser.data.sort(key=lambda item: (item.get('Lane'), item.get('Sample_ID')))
+        # Sort to get the added indicies from 10x in the right place
+        # Python 3 doesn't support sorting a list of dicts implicitly. Sort by lane and then Sample_ID
+        ssparser.data.sort(key=lambda item: (item.get('Lane'), item.get('Sample_ID')))
 
-    if not fields_to_remove:
-        fields_to_remove = []
-    # Header
-    output += '[Header]{}'.format(os.linesep)
-    for field in sorted(ssparser.header):
-        output += '{},{}'.format(field.rstrip(), ssparser.header[field].rstrip())
+        if not fields_to_remove:
+            fields_to_remove = []
+        # Header
+        output += '[Header]{}'.format(os.linesep)
+        for field in sorted(ssparser.header):
+            output += '{},{}'.format(field.rstrip(), ssparser.header[field].rstrip())
+            output += os.linesep
+        # Data
+        output += '[Data]{}'.format(os.linesep)
+        datafields = []
+        for field in ssparser.datafields:
+            if field not in fields_to_remove:
+                datafields.append(field)
+        output += ','.join(datafields)
         output += os.linesep
-    # Data
-    output += '[Data]{}'.format(os.linesep)
-    datafields = []
-    for field in ssparser.datafields:
-        if field not in fields_to_remove:
-            datafields.append(field)
-    output += ','.join(datafields)
-    output += os.linesep
-    for line in ssparser.data:
-        line_ar = []
-        for field in datafields:
-            value = line[field]
-            if rename_samples and ssparser.dfield_sid in field:
-                try:
-                    if rename_qPCR_suffix and ssparser.dfield_snm in fields_qPCR:
-                        # Substitute SampleID with SampleName, add Sample_ as prefix and remove __qPCR_ suffix
-                        value = re.sub('__qPCR_$', '', 'Sample_{}'.format(line[ssparser.dfield_snm]))
-                    else:
-                        # Substitute SampleID with SampleName, add Sample_ as prefix
-                        value ='Sample_{}'.format(line[ssparser.dfield_snm])
-                except:
-                        # Otherwise add Sample_ as prefix
-                        value = 'Sample_{}'.format(line[ssparser.dfield_sid])
-            elif rename_qPCR_suffix and field in fields_qPCR:
-                value = re.sub('__qPCR_$', '', line[field])
-            line_ar.append(value)
-        output += ','.join(line_ar)
-        output += os.linesep
-    return output
+        for line in ssparser.data:
+            line_ar = []
+            for field in datafields:
+                value = line[field]
+                if rename_samples and ssparser.dfield_sid in field:
+                    try:
+                        if rename_qPCR_suffix and ssparser.dfield_snm in fields_qPCR:
+                            # Substitute SampleID with SampleName, add Sample_ as prefix and remove __qPCR_ suffix
+                            value = re.sub('__qPCR_$', '', 'Sample_{}'.format(line[ssparser.dfield_snm]))
+                        else:
+                            # Substitute SampleID with SampleName, add Sample_ as prefix
+                            value ='Sample_{}'.format(line[ssparser.dfield_snm])
+                    except:
+                            # Otherwise add Sample_ as prefix
+                            value = 'Sample_{}'.format(line[ssparser.dfield_sid])
+                elif rename_qPCR_suffix and field in fields_qPCR:
+                    value = re.sub('__qPCR_$', '', line[field])
+                line_ar.append(value)
+            output += ','.join(line_ar)
+            output += os.linesep
+        return output
 
-def _generate_samplesheet_subset(ssparser, samples_to_include, runSetup, software, sample_type, index1_size, index2_size, base_mask, CONFIG):
-    output = u''
-    # Prepare index cycles
-    index_cycles = [0, 0]
-    for read in runSetup:
-        if read['IsIndexedRead'] == 'Y':
-            if int(read['Number']) == 2:
-                index_cycles[0] = int(read['NumCycles'])
-            else:
-                index_cycles[1] = int(read['NumCycles'])
-    # Header
-    output += '[Header]{}'.format(os.linesep)
-    for field in sorted(ssparser.header):
-        output += '{},{}'.format(field.rstrip(), ssparser.header[field].rstrip())
-        output += os.linesep
-    # Settings for BCL Convert
-    if software == 'bclconvert':
-        output += '[Settings]{}'.format(os.linesep)
-        output += 'OverrideCycles,{}{}'.format(';'.join(base_mask), os.linesep)
+    def _generate_samplesheet_subset(self, ssparser, samples_to_include, runSetup, software, sample_type, index1_size, index2_size, base_mask, CONFIG):
+        output = u''
+        # Prepare index cycles
+        index_cycles = [0, 0]
+        for read in runSetup:
+            if read['IsIndexedRead'] == 'Y':
+                if int(read['Number']) == 2:
+                    index_cycles[0] = int(read['NumCycles'])
+                else:
+                    index_cycles[1] = int(read['NumCycles'])
+        # Header
+        output += '[Header]{}'.format(os.linesep)
+        for field in sorted(ssparser.header):
+            output += '{},{}'.format(field.rstrip(), ssparser.header[field].rstrip())
+            output += os.linesep
+        # Settings for BCL Convert
+        if software == 'bclconvert':
+            output += '[Settings]{}'.format(os.linesep)
+            output += 'OverrideCycles,{}{}'.format(';'.join(base_mask), os.linesep)
 
-        if CONFIG.get('bclconvert'):
-            if CONFIG['bclconvert'].get('settings'):
-                # Put common settings
-                if CONFIG['bclconvert']['settings'].get('common'):
-                    for setting in CONFIG['bclconvert']['settings']['common']:
-                        for k, v in setting.items():
-                            output += '{},{}{}'.format(k, v, os.linesep)
-                # Put special settings:
-                if sample_type in CONFIG['bclconvert']['settings'].keys():
-                    for setting in CONFIG['bclconvert']['settings'][sample_type]:
-                        for k, v in setting.items():
-                            if (k == 'BarcodeMismatchesIndex1' and index1_size != 0) or (k == 'BarcodeMismatchesIndex2' and index2_size != 0) or 'BarcodeMismatchesIndex' not in k:
+            if CONFIG.get('bclconvert'):
+                if CONFIG['bclconvert'].get('settings'):
+                    # Put common settings
+                    if CONFIG['bclconvert']['settings'].get('common'):
+                        for setting in CONFIG['bclconvert']['settings']['common']:
+                            for k, v in setting.items():
                                 output += '{},{}{}'.format(k, v, os.linesep)
-    # Data
-    output += '[Data]{}'.format(os.linesep)
-    datafields = []
-    for field in ssparser.datafields:
-        datafields.append(field)
-    output += ','.join(datafields)
-    output += os.linesep
-    for line in ssparser.data:
-        sample_name = line.get('Sample_Name') or line.get('SampleName')
-        lane = line['Lane']
-        noindex_flag = False
-        if lane in samples_to_include.keys():
-            if sample_name in samples_to_include.get(lane):
-                line_ar = []
-                for field in datafields:
-                    # Case with NoIndex
-                    if field == 'index' and 'NOINDEX' in line['index'].upper():
-                        line[field] = 'T'*index_cycles[0] if index_cycles[0] !=0 else ''
-                        noindex_flag = True
-                    if field == 'index2' and noindex_flag:
-                        line[field] = 'A'*index_cycles[1] if index_cycles[1] !=0 else ''
-                        noindex_flag = False
-                    # Case of IDT UMI
-                    if (field == 'index' or field == 'index2') and IDT_UMI_PAT.findall(line[field]):
-                        line[field] = line[field].replace('N', '')
-                    line_ar.append(line[field])
-                output += ','.join(line_ar)
-                output += os.linesep
-    return output
+                    # Put special settings:
+                    if sample_type in CONFIG['bclconvert']['settings'].keys():
+                        for setting in CONFIG['bclconvert']['settings'][sample_type]:
+                            for k, v in setting.items():
+                                if (k == 'BarcodeMismatchesIndex1' and index1_size != 0) or (k == 'BarcodeMismatchesIndex2' and index2_size != 0) or 'BarcodeMismatchesIndex' not in k:
+                                    output += '{},{}{}'.format(k, v, os.linesep)
+        # Data
+        output += '[Data]{}'.format(os.linesep)
+        datafields = []
+        for field in ssparser.datafields:
+            datafields.append(field)
+        output += ','.join(datafields)
+        output += os.linesep
+        for line in ssparser.data:
+            sample_name = line.get('Sample_Name') or line.get('SampleName')
+            lane = line['Lane']
+            noindex_flag = False
+            if lane in samples_to_include.keys():
+                if sample_name in samples_to_include.get(lane):
+                    line_ar = []
+                    for field in datafields:
+                        # Case with NoIndex
+                        if field == 'index' and 'NOINDEX' in line['index'].upper():
+                            line[field] = 'T'*index_cycles[0] if index_cycles[0] !=0 else ''
+                            noindex_flag = True
+                        if field == 'index2' and noindex_flag:
+                            line[field] = 'A'*index_cycles[1] if index_cycles[1] !=0 else ''
+                            noindex_flag = False
+                        # Case of IDT UMI
+                        if (field == 'index' or field == 'index2') and IDT_UMI_PAT.findall(line[field]):
+                            line[field] = line[field].replace('N', '')
+                        line_ar.append(line[field])
+                    output += ','.join(line_ar)
+                    output += os.linesep
+        return output
