@@ -472,6 +472,8 @@ class ONT_qc_run(ONT_run):
             f"--out_fastq {self.run_abspath}",
             f"--run_name {anglerfish_run_name}",
             f"--threads {n_threads}",
+            "--lenient",
+            "--ont_barcodes",
             "--skip_demux",
         ]
 

@@ -1,11 +1,20 @@
 # TACA Version Log
 
+## 20231204.1
+
+Update ONT instrument transfer script to ignore runs started in the 3rd PromethION column, which will be used by Clinical Genomics.
+
+## 20231201.1
+
+Run Anglerfish v0.6.0 with --lenient and --ont_barcodes options.
+
 ## 20231130.1
 
 Version 1.0.0
 (1) Support BCL Convert
 (2) Remove redundant codes and obsoleted platforms
-(3) Other refactors to improve performance
+(3) Switch MiSeq to Illumina V3 samplesheet
+(4) Other refactors to improve performance
 
 ## 20231103.1
 
