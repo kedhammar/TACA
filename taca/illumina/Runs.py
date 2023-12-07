@@ -238,8 +238,7 @@ class Run(object):
         }
 
         """
-        base_masks = {}
-        return base_masks
+        raise NotImplementedError("Please Implement this method")
 
     def _compute_base_mask(self):
         """
@@ -247,8 +246,7 @@ class Run(object):
             - if runSetup is of size 3, then single index run
             - if runSetup is of size 4, then dual index run
         """
-        bm = []
-        return bm
+        raise NotImplementedError("Please Implement this method")
 
     def transfer_run(self, t_file, mail_recipients=None):
         """ Transfer a run to the analysis server. Will add group R/W permissions to
