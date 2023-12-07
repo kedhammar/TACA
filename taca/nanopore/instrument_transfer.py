@@ -1,6 +1,6 @@
 """ This is a stand-alone script run on ONT instrument computers. It transfers new ONT runs to NAS using rsync.
 """
-__version__ = "1.0.12"
+__version__ = "1.0.13"
 
 import logging
 import os
@@ -25,7 +25,11 @@ def main(args):
 
     logging.info("Starting script...")
 
-    run_pattern = re.compile("\d{8}_\d{4}_[A-Za-z0-9]+_[A-Za-z0-9]+_[A-Za-z0-9]+")
+    run_pattern = re.compile(
+        # Run folder name expected as yyyymmdd_HHMM_1A-3H/MN19414_flowCellId_randomHash
+        # As of december 2023, the third column (3A-3H) is excluded, because it will be used by Clinical Genomics
+        r"^\d{8}_\d{4}_(([1-2][A-H])|(MN19414))_[A-Za-z0-9]+_[A-Za-z0-9]+$"
+    )
     rsync_log = os.path.join(args.source_dir, "rsync_log.txt")
 
     logging.info("Parsing instrument position logs...")
