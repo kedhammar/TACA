@@ -472,8 +472,8 @@ Experiment Name,CIDXX
 Investigator Name,Test
 [Data]
 Lane,Sample_ID,Sample_Name,index,index2,Sample_Project,FCID,SampleRef,Description,Control,Recipe,Operator
-1,Sample_Sample_P10000_1001,Sample_P10000_1001,CGCGCAG,CTGCGCG,A_Test_18_01,HISEQFCIDXX,Human (Homo sapiens GRCh37),A_Test_18_01,N,50-50,Some_One
-1,Sample_Sample_P10000_1005,Sample_P10000_1005,AGGTACC,,A_Test_18_01,HISEQFCIDXX,Human (Homo sapiens GRCh37),A_Test_18_01,N,50-50,Some_One
+1,Sample_Sample_P10000_1001,Sample_P10000_1001,CGCGCAG,CTGCGCG,A_Test_18_01,HISEQFCIDXX,Human (Homo sapiens GRCh37),A_Test_18_01,N,2x50,Some_One
+1,Sample_Sample_P10000_1005,Sample_P10000_1005,AGGTACC,,A_Test_18_01,HISEQFCIDXX,Human (Homo sapiens GRCh37),A_Test_18_01,N,2x50,Some_One
 '''
         got_samplesheet = self.running._generate_clean_samplesheet(ssparser)
         self.assertEqual(got_samplesheet, expected_samplesheet)
@@ -615,35 +615,7 @@ Lane,Sample_ID,Sample_Name,index,index2,Sample_Project,FCID,SampleRef,Descriptio
     def test_aggregate_demux_results(self, mock_aggregate_demux_results_simple_complex):
         """Aggregate the results from different demultiplexing steps HiSeq."""
         self.to_start._aggregate_demux_results()
-        mock_aggregate_demux_results_simple_complex.assert_called_with({'1':
-                                                                       {'Y151I7N3N10':
-                                                                        {'base_mask': ['Y151', 'I7N3', 'N10'],
-                                                                         'data': [{'Control': 'N',
-                                                                                   'index': 'CGCGCAG',
-                                                                                   'Lane': '1',
-                                                                                   'Description': 'A_Test_18_01',
-                                                                                   'Sample_ID': 'Sample_Sample_P10000_1001',
-                                                                                   'Recipe': '50-50',
-                                                                                   'FCID': 'HISEQFCIDXX',
-                                                                                   'SampleRef': 'Human (Homo sapiens GRCh37)',
-                                                                                   'Operator': 'Some_One',
-                                                                                   'Sample_Project': 'A_Test_18_01',
-                                                                                   'Sample_Name': 'Sample_P10000_1001',
-                                                                                   'index2': ''},
-                                                                                  {'Control': 'N',
-                                                                                   'index': 'AGGTACC',
-                                                                                   'Lane': '1',
-                                                                                   'Description': 'A_Test_18_01',
-                                                                                   'Sample_ID': 'Sample_Sample_P10000_1005',
-                                                                                   'Recipe': '50-50',
-                                                                                   'FCID': 'HISEQFCIDXX',
-                                                                                   'SampleRef': 'Human (Homo sapiens GRCh37)',
-                                                                                   'Operator': 'Some_One',
-                                                                                   'Sample_Project': 'A_Test_18_01',
-                                                                                   'Sample_Name': 'Sample_P10000_1005',
-                                                                                   'index2': ''}]
-                                                                        }
-                                                                       }}, {})
+        mock_aggregate_demux_results_simple_complex.assert_called_with()
 
     @mock.patch('taca.illumina.HiSeq_Runs.HiSeq_Run._aggregate_demux_results_simple_complex')
     @mock.patch('taca.illumina.HiSeq_Runs.HiSeq_Run._generate_per_lane_base_mask')
@@ -658,14 +630,7 @@ Lane,Sample_ID,Sample_Name,index,index2,Sample_Project,FCID,SampleRef,Descriptio
                                     'data': []}
                                   }}
         self.to_start._aggregate_demux_results()
-        mock_aggregate_demux_results_simple_complex.assert_called_once_with({}, {'1':
-                                                                       {'Y151I7N1Y151':
-                                                                        {'base_mask': ['Y151', 'I7N1', 'Y151'],
-                                                                         'data': []},
-                                                                        'Y150I7N1Y151':
-                                                                        {'base_mask': ['Y150', 'I7N1', 'Y151'],
-                                                                         'data': []}
-                                                                       }})
+        mock_aggregate_demux_results_simple_complex.assert_called_once_with()
 
 class TestHiSeqXRuns(unittest.TestCase):
     """Tests for the HiSeqX_Run run class."""
@@ -782,7 +747,7 @@ Lane,Sample_ID,Sample_Name,Sample_Plate,Sample_Well,index,index2,Project,Descrip
     def test_aggregate_demux_results(self, mockaggregate_demux_results_simple_complex):
         """Aggregate the results from different demultiplexing steps HiSeqX."""
         self.to_start._aggregate_demux_results()
-        mockaggregate_demux_results_simple_complex.assert_called_with({'1': 0, '3': 0, '2': 0, '4': 0}, {})
+        mockaggregate_demux_results_simple_complex.assert_called_with()
 
     def test_generate_bcl_command(self):
         """Generate bcl command HiSeqX."""
