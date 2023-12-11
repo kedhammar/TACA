@@ -342,7 +342,7 @@ class TestRuns(unittest.TestCase):
     @mock.patch('taca.illumina.Runs.misc.send_mail')
     def test_send_mail(self, mock_send_mail):
         """Send mail to user."""
-        self.completed.send_mail('Hello', 'user@email.com')
+        self.completed.send_mail(None, 'Hello', 'user@email.com')
         mock_send_mail.assert_called_once_with('141124_ST-COMPLETED1_01_AFCIDXX', 'Hello', 'user@email.com')
 
     def test_is_unpooled_lane(self):
