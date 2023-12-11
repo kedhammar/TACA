@@ -313,7 +313,7 @@ class TestRuns(unittest.TestCase):
     def test_transfer_run(self, mock_call_external_command):
         """Call external rsync."""
         self.completed.transfer_run(self.transfer_file)
-        command_line = ['rsync', '-Lav', '--no-o', '--no-g', '--chmod=g+rw',
+        command_line = ['rsync', '-LtDrv', '--chmod=g+rw',
                         '--exclude=Demultiplexing_*/*_*',
                         '--include=*/', '--include=*.file',
                         '--exclude=*', '--prune-empty-dirs',
@@ -903,8 +903,7 @@ class TestMiSeqRuns(unittest.TestCase):
         |__ 141124_ST-RUNNING_03_AMISEQFCIDXX
         |   |__ RunInfo.xml
         |__ 141124_ST-TOSTART_04_AMISEQFCIDXX
-            |__Data/Intensities/BaseCalls
-            |                   |__SampleSheet.csv
+            |__ SampleSheet.csv
             |__ RunInfo.xml
             |__ RTAComplete.txt
         """
@@ -917,9 +916,8 @@ class TestMiSeqRuns(unittest.TestCase):
         os.makedirs(self.tmp_dir)
         os.makedirs(running)
         os.makedirs(to_start)
-        os.makedirs(os.path.join(self.tmp_dir, '141124_ST-TOSTART1_04_AMISEQFCIDXX', 'Data', 'Intensities', 'BaseCalls'))
 
-        sample_sheet_dest = os.path.join(self.tmp_dir, '141124_ST-TOSTART1_04_AMISEQFCIDXX', 'Data', 'Intensities', 'BaseCalls','SampleSheet.csv')
+        sample_sheet_dest = os.path.join(self.tmp_dir, '141124_ST-TOSTART1_04_AMISEQFCIDXX', 'SampleSheet.csv')
         shutil.copy('data/miseq_test_samplesheet.csv', sample_sheet_dest)
 
         # Create files indicating that the run is finished
