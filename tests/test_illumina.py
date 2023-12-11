@@ -936,7 +936,7 @@ Lane,Sample_ID,Sample_Name,index,Sample_Project,I7_Index_ID,index2,I5_Index_ID,S
     def test_get_samplesheet(self):
         """Get sample sheet location MiSeq or return None."""
         found_sample_sheet = self.to_start._get_samplesheet()
-        expected_sample_sheet = os.path.join(self.tmp_dir,'141124_ST-TOSTART1_04_AMISEQFCIDXX/Data/Intensities/BaseCalls/SampleSheet.csv')
+        expected_sample_sheet = os.path.join(self.tmp_dir,'141124_ST-TOSTART1_04_AMISEQFCIDXX/SampleSheet.csv')
         self.assertEqual(found_sample_sheet, expected_sample_sheet)
         missing_sample_sheet = self.running._get_samplesheet()
         self.assertIsNone(missing_sample_sheet)
