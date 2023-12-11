@@ -123,9 +123,10 @@ class TestRuns(unittest.TestCase):
         os.makedirs(os.path.join(complex_run_dir,'Demultiplexing_0', 'Reports', 'html','FCIDXX', 'all', 'all', 'all'))
         os.makedirs(os.path.join(complex_run_dir,'Demultiplexing_1', 'Reports', 'html','FCIDXX', 'all', 'all', 'all'))
 
-        # Create files indicating that the run is finished
+        # Create files indicating that a run is finished
         for run in finished_runs:
             open(os.path.join(run, 'RTAComplete.txt'), 'w').close()
+            open(os.path.join(run, 'CopyComplete.txt'), 'w').close()
 
         # Create sample sheets for running demultiplexing
         open(os.path.join(in_progress, 'SampleSheet_0.csv'), 'w').close()
