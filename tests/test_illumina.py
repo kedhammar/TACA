@@ -656,7 +656,9 @@ class TestHiSeqXRuns(unittest.TestCase):
         os.makedirs(to_start)
 
         # Create files indicating that the run is finished
-        open(os.path.join(running, 'RTAComplete.txt'), 'w').close()
+        for run_dir in [running, to_start]:
+            open(os.path.join(run_dir, 'RTAComplete.txt'), 'w').close()
+            open(os.path.join(run_dir, 'CopyComplete.txt'), 'w').close()
 
         # Move sample RunInfo.xml file to every run directory
         for run in [running, to_start]:
