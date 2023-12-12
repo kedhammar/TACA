@@ -46,6 +46,32 @@ analysis:
                 - output-dir: Demultiplexing
                 - opt: b
                 - c
+            options_10X_SINGLE:
+                - minimum-trimmed-read-length: 8
+                - mask-short-adapter-reads: 8
+                - ignore-missing-positions
+                - ignore-missing-controls
+                - ignore-missing-filter
+                - ignore-missing-bcls
+                - create-fastq-for-index-reads
+            options_10X_DUAL:
+                - minimum-trimmed-read-length: 8
+                - mask-short-adapter-reads: 8
+                - ignore-missing-positions
+                - ignore-missing-controls
+                - ignore-missing-filter
+                - ignore-missing-bcls
+            options_IDT_UMI:
+                - minimum-trimmed-read-length: 0
+                - mask-short-adapter-reads: 0
+            options_SMARTSEQ:
+                - create-fastq-for-index-reads
+                - no-lane-splitting
+            options_NOINDEX:
+                - create-fastq-for-index-reads
+                - barcode-mismatches: 0
+            options_short_single_index:
+                - barcode-mismatches: 0
         samplesheets_dir: "data"
         analysis_server:
             host:
