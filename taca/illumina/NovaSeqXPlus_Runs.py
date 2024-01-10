@@ -1,9 +1,9 @@
-from taca.illumina.HiSeqX_Runs import HiSeqX_Run
+from taca.illumina.Standard_Runs import Standard_Run
 
 
-class NovaSeqXPlus_Run(HiSeqX_Run):
-    def __init__(self, run_dir, configuration):
-        super(NovaSeqXPlus_Run, self).__init__(run_dir, configuration)
+class NovaSeqXPlus_Run(Standard_Run):
+    def __init__(self, run_dir, software, configuration):
+        super(NovaSeqXPlus_Run, self).__init__(run_dir, software, configuration)
         self._set_sequencer_type()
         self._set_run_type()
 

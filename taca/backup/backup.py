@@ -38,6 +38,7 @@ class backup_utils(object):
         try:
             self.data_dirs = CONFIG['backup']['data_dirs']
             self.archive_dirs = CONFIG['backup']['archive_dirs']
+            self.archived_dirs = CONFIG['backup']['archived_dirs']
             self.exclude_list = CONFIG['backup']['exclude_list']
             self.keys_path = CONFIG['backup']['keys_path']
             self.gpg_receiver = CONFIG['backup']['gpg_receiver']
@@ -85,7 +86,7 @@ class backup_utils(object):
     def avail_disk_space(self, path, run):
         """Check the space on file system based on parent directory of the run."""
         # not able to fetch runtype use the max size as precaution, size units in GB
-        illumina_run_sizes = {'hiseq': 500, 'hiseqx': 900, 'novaseq': 1800, 'miseq': 20, 'nextseq': 250, 'NovaSeqXPlus': 3600, 'promethion': 3000, 'minion': 1000}
+        illumina_run_sizes = {'novaseq': 1800, 'miseq': 20, 'nextseq': 250, 'NovaSeqXPlus': 3600, 'promethion': 3000, 'minion': 1000}
         required_size = illumina_run_sizes.get(self._get_run_type(run), 900) * 2
         # check for any ongoing runs and add up the required size accrdingly
         for ddir in self.data_dirs.values():
@@ -130,12 +131,10 @@ class backup_utils(object):
         """Returns run type based on the flowcell name."""
         run_type = ''
         try:
-            if 'ST-' in run:
-                run_type = 'hiseqx'
+            if '_A0' in run:
+                run_type = 'novaseq'
             elif '-' in run.split('_')[-1]:
                 run_type = 'miseq'
-            elif '_A0' in run:
-                run_type = 'novaseq'
             elif '_NS' in run or  '_VH' in run:
                 run_type = 'nextseq'
             elif '_LH' in run:
@@ -145,7 +144,7 @@ class backup_utils(object):
             elif re.match("^(\d{8})_(\d{4})_([1-3][A-H])_([0-9a-zA-Z]+)_([0-9a-zA-Z]+)$",run):
                 run_type = 'promethion'
             else:
-                run_type = 'hiseq'
+                run_type = ''
         except:
             logger.warn('Could not fetch run type for run {}'.format(run))
         return run_type
@@ -253,6 +252,16 @@ class backup_utils(object):
         with open(self.archive_log_location, 'a') as archive_file:
             tsv_writer = csv.writer(archive_file, delimiter='\t')
             tsv_writer.writerow([file_name, str(datetime.now())])
+
+    def _move_run_to_archived(self, run):
+        """Move a run folder from nosync to archived"""
+        run_type = self._get_run_type(run.name)
+        archived_path = self.archived_dirs[run_type]
+        if os.path.isdir(archived_path):
+            logger.info('Moving run {} to the archived folder'.format(run.name))
+            shutil.move(run.name, archived_path)
+        else:
+            logger.warning("Cannot move run to archived, destination does not exist")
 
     @classmethod
     def encrypt_runs(cls, run, force):
@@ -377,10 +386,11 @@ class backup_utils(object):
                     if bk._call_commands(cmd1='dsmc archive {}'.format(run.dst_key_encrypted), tmp_files=[run.flag]):
                         time.sleep(5) # give some time just in case 'dsmc' needs to settle
                         if bk.file_in_pdc(run.zip_encrypted) and bk.file_in_pdc(run.dst_key_encrypted):
-                            logger.info('Successfully sent file {} to PDC, removing file locally from {}'.format(run.zip_encrypted, run.path))
+                            logger.info('Successfully sent file {} to PDC, moving file locally from {} to archived folder'.format(run.zip_encrypted, run.path))
                             bk.log_archived_run(run.zip_encrypted)
                             if bk.couch_info:
                                 bk._log_pdc_statusdb(run.name)
                             bk._clean_tmp_files([run.zip_encrypted, run.dst_key_encrypted, run.flag])
+                            bk._move_run_to_archived(run)
                         continue
                 logger.warn('Sending file {} to PDC failed'.format(run.zip_encrypted))
