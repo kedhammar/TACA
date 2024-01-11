@@ -69,7 +69,7 @@ def main(args):
             final_sync_to_storage(run_path, rsync_dest, args.archive_dir, rsync_log)
 
 
-def sequencing_finished(run_path):
+def sequencing_finished(run_path: str) -> bool:
     sequencing_finished_indicator = "final_summary"
     run_dir_content = os.listdir(run_path)
     for item in run_dir_content:
@@ -78,7 +78,7 @@ def sequencing_finished(run_path):
     return False
 
 
-def dump_path(run_path):
+def dump_path(run_path: str):
     """Dump path <minknow_experiment_id>/<minknow_sample_id>/<minknow_run_id>
     to a file. Used for transferring info on ongoing runs to StatusDB."""
     new_file = os.path.join(run_path, "run_path.txt")
@@ -86,14 +86,14 @@ def dump_path(run_path):
     path_to_write = os.path.join(proj, sample, run)
     with open(new_file, "w") as f:
         f.write(path_to_write)
+    return path_to_write
 
 
 def write_finished_indicator(run_path):
     """Write a hidden file to indicate
     when the finial rsync is finished."""
     new_file = os.path.join(run_path, ".sync_finished")
-    pathlib.Path(new_file).touch()
-    return new_file
+    open(new_file, "w").close()
 
 
 def sync_to_storage(run_dir, destination, log):
