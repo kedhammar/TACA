@@ -115,7 +115,7 @@ def sync_to_storage(run_dir, destination, log):
     )
 
 
-def final_sync_to_storage(run_dir, destination, archive_dir, log):
+def final_sync_to_storage(run_dir: str, destination: str, archive_dir: str, log: list[str]):
     """Do a final sync of the run to storage, then archive it.
     Skip if rsync is already running on the run."""
 
