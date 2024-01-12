@@ -95,7 +95,6 @@ def test_final_sync_to_storage(
 
 
 def test_archive_finished_run():
-    
     # Set up combinatorial testing for cases
     archive_dirs = [
         "/data/nosync",
@@ -110,7 +109,6 @@ def test_archive_finished_run():
 
     for archive_dir in archive_dirs:
         for neighbor_dir in neighbor_dirs:
-
             # Set up tmp dir
             tmp = tempfile.TemporaryDirectory()
             tmp_path = tmp.name
@@ -152,10 +150,60 @@ def test_archive_finished_run():
             tmp.cleanup()
 
 
-@pytest.mark.skip
 def test_parse_position_logs():
-    # TODO
-    pass
+
+    tmp = tempfile.TemporaryDirectory()
+
+    # For each instrument position dir and corresponding flowcell name...
+    for position_dir, flowcell_name in {
+        "1A": "PAM12345",
+        "MN19414": "FLG12345",
+    }.items():
+        
+        # --> Create position dir
+        position_path = tmp.name + f"/log/{position_dir}"
+        os.makedirs(position_path)
+
+        # --> Populate each position dir with two log files
+        for file_n in range(1, 3):
+            # --> Populate each log file with two entries
+            lines = []
+            for entry_n in range(1, 3):
+                lines += [
+                    "2023-10-31 15:12:54.1354    INFO: mux_scan_result (user_messages)",
+                    f"    flow_cell_id: {flowcell_name}",
+                    f"    num_pores: {file_n}",
+                    f"    total_pores: {entry_n}",
+                ]
+
+            with open(position_path + f"/control_server_log-{file_n}.txt", "w") as file:
+                file.write("\n".join(lines))
+
+    # Run code
+    logs = instrument_transfer.parse_position_logs(tmp.name + "/log")
+
+    # Create template to compare output against
+    template = []
+    for position_dir, flowcell_name in {
+        "MN19414": "FLG12345",
+        "1A": "PAM12345",
+    }.items():
+        for file_n in range(1, 3):
+            template += [
+                {
+                    "position": position_dir,
+                    "timestamp": "2023-10-31 15:12:54.1354",
+                    "category": "INFO: mux_scan_result (user_messages)",
+                    "body": {
+                        "flow_cell_id": flowcell_name,
+                        "num_pores": str(file_n),
+                        "total_pores": str(entry_n),
+                    },
+                }
+                for entry_n in range(1, 3)
+            ]
+    
+    assert logs == template
 
 
 @pytest.mark.skip
