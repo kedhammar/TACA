@@ -6,7 +6,6 @@ import logging
 import os
 import re
 import shutil
-import pathlib
 import argparse
 import subprocess
 from glob import glob
@@ -147,7 +146,7 @@ def final_sync_to_storage(run_dir: str, destination: str, archive_dir: str, log:
         return
 
 
-def archive_finished_run(run_dir, archive_dir):
+def archive_finished_run(run_dir: str, archive_dir: str):
     """Move finished run to archive (nosync)."""
 
     logging.info(f"Archiving {run_dir}.")

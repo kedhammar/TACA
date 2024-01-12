@@ -2,6 +2,9 @@ from taca.nanopore import instrument_transfer
 from unittest.mock import patch, mock_open, call, Mock
 import tempfile
 import pytest
+import os
+
+DUMMY_RUN_NAME = "20240112_2342_MN19414_TEST12345_randomhash"
 
 
 def test_sequencing_finished():
@@ -90,30 +93,75 @@ def test_final_sync_to_storage(
 
     assert mock_run.call_count == 3
 
-@pytest.mark.skip
-def test_archive_finished_run():
-    # TODO
-    pass
-    # Creating directory
-    # 1. Archive is empty --> Create experiment dir and sample dir
-    # 2. Archive has matching experiment dir --> Create sample dir
-    # 3. Archive has matching experiment dir and sample dir --> Do nothing
 
-    # Cleaning up
-    # 1. Sample folder is not empty --> Keep it
-    # 2. Sample folder is empty --> Remove it
-    # 3. Experiment folder is not empty --> Keep it
-    # 4. Experiment folder is empty --> Remove it
+def test_archive_finished_run():
+    
+    # Set up combinatorial testing for cases
+    archive_dirs = [
+        "/data/nosync",
+        "/data/nosync/experiment/sample",
+        "/data/nosync/experiment/sample/run",
+    ]
+    neighbor_dirs = [
+        None,
+        "/data/experiment/sample/run2",
+        "/data/experiment/sample2",
+    ]
+
+    for archive_dir in archive_dirs:
+        for neighbor_dir in neighbor_dirs:
+
+            # Set up tmp dir
+            tmp = tempfile.TemporaryDirectory()
+            tmp_path = tmp.name
+
+            # Create run dir
+            experiment_path = tmp_path + "/data/experiment"
+            sample_path = experiment_path + "/sample"
+            run_path = sample_path + f"/{DUMMY_RUN_NAME}"
+            os.makedirs(run_path)
+
+            # Create neightbor dir, if any
+            if neighbor_dir:
+                neighbor_path = tmp_path + neighbor_dir
+                os.mkdir(neighbor_path)
+
+            # Create archive dir
+            archive_path = tmp_path + archive_dir
+            os.makedirs(archive_path)
+
+            # Execute code
+            instrument_transfer.archive_finished_run(run_path, archive_path)
+
+            # Assert run is moved to archive dir
+            assert os.path.exists(archive_path + f"/experiment/sample/{DUMMY_RUN_NAME}")
+
+            # Assert run is removed from original location
+            assert not os.path.exists(run_path)
+
+            # Assert experiment and sample dirs are removed if appropriate
+            if neighbor_dir:
+                if neighbor_dir == "/data/experiment/sample/run2":
+                    assert os.path.exists(sample_path)
+                else:
+                    assert not os.path.exists(sample_path)
+            else:
+                assert not os.path.exists(experiment_path)
+
+            tmp.cleanup()
+
 
 @pytest.mark.skip
 def test_parse_position_logs():
     # TODO
     pass
 
+
 @pytest.mark.skip
 def test_get_pore_counts():
     # TODO
     pass
+
 
 @pytest.mark.skip
 def test_dump_pore_count_history():
