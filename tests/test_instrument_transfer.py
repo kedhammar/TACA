@@ -139,8 +139,9 @@ def test_archive_finished_run():
             # Assert run is removed from original location
             assert not os.path.exists(run_path)
 
-            # Assert experiment and sample dirs are removed if appropriate
+            # Assert experiment and sample dirs are removed if empty
             if neighbor_dir:
+                assert os.path.exists(neighbor_path)
                 if neighbor_dir == "/data/experiment/sample/run2":
                     assert os.path.exists(sample_path)
                 else:
