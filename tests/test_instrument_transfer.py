@@ -150,8 +150,7 @@ def test_archive_finished_run():
             tmp.cleanup()
 
 
-def test_parse_position_logs():
-
+def create_logs() -> list:
     tmp = tempfile.TemporaryDirectory()
 
     # For each instrument position dir and corresponding flowcell name...
@@ -159,7 +158,6 @@ def test_parse_position_logs():
         "1A": "PAM12345",
         "MN19414": "FLG12345",
     }.items():
-        
         # --> Create position dir
         position_path = tmp.name + f"/log/{position_dir}"
         os.makedirs(position_path)
@@ -182,6 +180,12 @@ def test_parse_position_logs():
     # Run code
     logs = instrument_transfer.parse_position_logs(tmp.name + "/log")
 
+    return logs
+
+
+def test_parse_position_logs():
+    logs = create_logs()
+
     # Create template to compare output against
     template = []
     for position_dir, flowcell_name in {
@@ -202,14 +206,33 @@ def test_parse_position_logs():
                 }
                 for entry_n in range(1, 3)
             ]
-    
+
     assert logs == template
 
 
-@pytest.mark.skip
 def test_get_pore_counts():
-    # TODO
-    pass
+    logs = create_logs()
+    pore_counts = instrument_transfer.get_pore_counts(logs)
+
+    template = []
+    for pos, fc in {
+        "MN19414": "FLG12345",
+        "1A": "PAM12345",
+    }.items():
+        for i in range(1, 3):
+            for j in range(1, 3):
+                template.append(
+                    {
+                        "flow_cell_id": fc,
+                        "timestamp": "2023-10-31 15:12:54.1354",
+                        "position": pos,
+                        "type": "mux",
+                        "num_pores": str(i),
+                        "total_pores": str(j),
+                    }
+                )
+
+    assert pore_counts == template
 
 
 @pytest.mark.skip
