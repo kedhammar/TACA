@@ -290,7 +290,7 @@ def get_pore_counts(position_logs: list) -> list:
     return pore_counts
 
 
-def dump_pore_count_history(run, pore_counts):
+def dump_pore_count_history(run: str, pore_counts: list) -> str:
     """For a recently started run, dump all QC and MUX events that the instrument remembers
     for the flow cell as a file in the run dir."""
 
@@ -322,7 +322,11 @@ def dump_pore_count_history(run, pore_counts):
             for row in rows:
                 f.write(",".join(row) + "\n")
     else:
-        open(new_file_path, "a").close()
+        # Create an empty file if there is not one already
+        if not os.path.exists(new_file_path):
+            open(new_file_path, "w").close()
+
+    return new_file_path
 
 
 if __name__ == "__main__":

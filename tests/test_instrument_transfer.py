@@ -214,6 +214,7 @@ def test_get_pore_counts():
     logs = create_logs()
     pore_counts = instrument_transfer.get_pore_counts(logs)
 
+    # Create template to compare output against
     template = []
     for pos, fc in {
         "MN19414": "FLG12345",
@@ -235,7 +236,45 @@ def test_get_pore_counts():
     assert pore_counts == template
 
 
-@pytest.mark.skip
 def test_dump_pore_count_history():
-    # TODO
-    pass
+    logs = create_logs()
+    pore_counts = instrument_transfer.get_pore_counts(logs)
+
+    # Nothing to add, no file
+    tmp = tempfile.TemporaryDirectory()
+    run_path = tmp.name + f"/experiment/sample/{DUMMY_RUN_NAME}"
+    os.makedirs(run_path)
+    new_file = instrument_transfer.dump_pore_count_history(run_path, pore_counts)
+    assert open(new_file, "r").read() == ""
+    tmp.cleanup()
+
+    # Nothing to add, file is present
+    tmp = tempfile.TemporaryDirectory()
+    run_path = tmp.name + f"/experiment/sample/{DUMMY_RUN_NAME}"
+    os.makedirs(run_path)
+    open(run_path + "/pore_count_history.csv", "w").write("test")
+    new_file = instrument_transfer.dump_pore_count_history(run_path, pore_counts)
+    assert open(new_file, "r").read() == "test"
+    tmp.cleanup()
+
+    # Something to add
+    tmp = tempfile.TemporaryDirectory()
+    run_path = tmp.name + f"/experiment/sample/{DUMMY_RUN_NAME.replace('TEST','FLG')}"
+    os.makedirs(run_path)
+    new_file = instrument_transfer.dump_pore_count_history(run_path, pore_counts)
+
+    template = (
+        "\n".join(
+            [
+                "flow_cell_id,timestamp,position,type,num_pores,total_pores",
+                "FLG12345,2023-10-31 15:12:54.1354,MN19414,mux,1,1",
+                "FLG12345,2023-10-31 15:12:54.1354,MN19414,mux,1,2",
+                "FLG12345,2023-10-31 15:12:54.1354,MN19414,mux,2,1",
+                "FLG12345,2023-10-31 15:12:54.1354,MN19414,mux,2,2",
+            ]
+        )
+        + "\n"
+    )
+
+    assert open(new_file, "r").read() == template
+    tmp.cleanup()
