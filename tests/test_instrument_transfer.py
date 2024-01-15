@@ -6,6 +6,8 @@ import os
 
 DUMMY_RUN_NAME = "20240112_2342_MN19414_TEST12345_randomhash"
 
+# To check coverage, use
+# pytest --cov=taca.nanopore.instrument_transfer test_instrument_transfer.py
 
 def test_sequencing_finished():
     with patch("os.listdir") as mock_listdir:

@@ -7,3 +7,4 @@ _build
 .DS*
 .vagrant/
 .benchmarks
+.coverage
