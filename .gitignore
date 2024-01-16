@@ -8,3 +8,4 @@ _build
 .vagrant/
 .benchmarks
 .coverage
+__pycache__
