@@ -26,8 +26,9 @@ def main(args):
 
     run_pattern = re.compile(
         # Run folder name expected as yyyymmdd_HHMM_1A-3H/MN19414_flowCellId_randomHash
+        # Flow cell names starting with "CTC" are configuration test cells and should not be included
         # As of december 2023, the third column (3A-3H) is excluded, because it will be used by Clinical Genomics
-        r"^\d{8}_\d{4}_(([1-2][A-H])|(MN19414))_[A-Za-z0-9]+_[A-Za-z0-9]+$"
+        r"^\d{8}_\d{4}_(([1-2][A-H])|(MN19414))_(?!CTC)[A-Za-z0-9]+_[A-Za-z0-9]+$"
     )
     rsync_log = os.path.join(args.source_dir, "rsync_log.txt")
 

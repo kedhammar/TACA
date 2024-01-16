@@ -75,6 +75,45 @@ def setup_test_fixture() -> (Mock, tempfile.TemporaryDirectory, dict):
     tmp.cleanup()
 
 
+def test_main_ignore_CTC(setup_test_fixture):
+    """Check so that runs on configuration test cells are not picked up.
+    """
+
+    # Run fixture
+    args, tmp, file_paths = setup_test_fixture
+
+    # Setup run
+    run_path = f"{args.source_dir}/experiment/sample/{DUMMY_RUN_NAME.replace('TEST', 'CTC')}"
+    os.makedirs(run_path)
+
+    with patch("taca.nanopore.instrument_transfer.dump_path") as mock_dump_path:
+        # Start testing
+        instrument_transfer.main(args)
+
+        # Check dump_path was not called
+        mock_dump_path.assert_not_called()
+
+
+def test_main_ignore_col3(setup_test_fixture):
+    """Check so that runs on column 3 (set aside for Clinical Genomics as of december 2023)
+    are not picked up.
+    """
+
+    # Run fixture
+    args, tmp, file_paths = setup_test_fixture
+
+    # Setup run
+    run_path = f"{args.source_dir}/experiment/sample/{DUMMY_RUN_NAME.replace('MN19414', '3A')}"
+    os.makedirs(run_path)
+
+    with patch("taca.nanopore.instrument_transfer.dump_path") as mock_dump_path:
+        # Start testing
+        instrument_transfer.main(args)
+
+        # Check dump_path was not called
+        mock_dump_path.assert_not_called() 
+
+
 @pytest.mark.parametrize(
     "finished, qc", [(True, True), (True, False), (False, True), (False, False)]
 )
@@ -96,51 +135,49 @@ def test_main(mock_sync, mock_final_sync, setup_test_fixture, finished, qc):
         open(run_path + "/final_summary.txt", "w").close()
 
     # Start testing
-    with patch("taca.nanopore.instrument_transfer.sync_to_storage") as mock_sync:
-        # Run code
-        instrument_transfer.main(args)
+    instrument_transfer.main(args)
 
-        if not qc:
-            dest_path = args.dest_dir
-        else:
-            dest_path = args.dest_dir_qc
+    if not qc:
+        dest_path = args.dest_dir
+    else:
+        dest_path = args.dest_dir_qc
 
-        # Check sync was inititated
-        if not finished:
-            mock_sync.assert_called_once_with(
-                run_path, dest_path, file_paths["rsync_log_path"]
-            )
-        else:
-            mock_final_sync.assert_called_once_with(
-                run_path, dest_path, args.archive_dir, file_paths["rsync_log_path"]
-            )
-
-        # Check path was dumped
-        assert os.path.exists(run_path + "/run_path.txt")
-        assert open(run_path + "/run_path.txt", "r").read() == "/".join(
-            run_path.split("/")[-3:]
+    # Check sync was inititated
+    if not finished:
+        mock_sync.assert_called_once_with(
+            run_path, dest_path, file_paths["rsync_log_path"]
+        )
+    else:
+        mock_final_sync.assert_called_once_with(
+            run_path, dest_path, args.archive_dir, file_paths["rsync_log_path"]
         )
 
-        # Check pore count history was dumped
-        assert os.path.exists(run_path + "/pore_count_history.csv")
-        # Assert that all relevant entries from all files from all dirs were dumped
-        template = (
-            "\n".join(
-                [
-                    "flow_cell_id,timestamp,position,type,num_pores,total_pores",
-                    "TEST12345,2024-01-01 01:01:01.01,MN19414,qc,1111,1111",
-                    "TEST12345,2024-01-01 01:01:01.00,MN19414,mux,1110,1110",
-                    "TEST12345,2024-01-01 01:00:01.01,MN19414,qc,1011,1011",
-                    "TEST12345,2024-01-01 01:00:01.00,MN19414,mux,1010,1010",
-                    "TEST12345,2024-01-01 00:01:01.01,1A,qc,0111,0111",
-                    "TEST12345,2024-01-01 00:01:01.00,1A,mux,0110,0110",
-                    "TEST12345,2024-01-01 00:00:01.01,1A,qc,0011,0011",
-                    "TEST12345,2024-01-01 00:00:01.00,1A,mux,0010,0010",
-                ]
-            )
-            + "\n"
+    # Check path was dumped
+    assert os.path.exists(run_path + "/run_path.txt")
+    assert open(run_path + "/run_path.txt", "r").read() == "/".join(
+        run_path.split("/")[-3:]
+    )
+
+    # Check pore count history was dumped
+    assert os.path.exists(run_path + "/pore_count_history.csv")
+    # Assert that all relevant entries from all files from all dirs were dumped
+    template = (
+        "\n".join(
+            [
+                "flow_cell_id,timestamp,position,type,num_pores,total_pores",
+                "TEST12345,2024-01-01 01:01:01.01,MN19414,qc,1111,1111",
+                "TEST12345,2024-01-01 01:01:01.00,MN19414,mux,1110,1110",
+                "TEST12345,2024-01-01 01:00:01.01,MN19414,qc,1011,1011",
+                "TEST12345,2024-01-01 01:00:01.00,MN19414,mux,1010,1010",
+                "TEST12345,2024-01-01 00:01:01.01,1A,qc,0111,0111",
+                "TEST12345,2024-01-01 00:01:01.00,1A,mux,0110,0110",
+                "TEST12345,2024-01-01 00:00:01.01,1A,qc,0011,0011",
+                "TEST12345,2024-01-01 00:00:01.00,1A,mux,0010,0010",
+            ]
         )
-        assert open(run_path + "/pore_count_history.csv", "r").read() == template
+        + "\n"
+    )
+    assert open(run_path + "/pore_count_history.csv", "r").read() == template
 
 
 def test_sequencing_finished():
