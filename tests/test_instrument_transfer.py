@@ -7,7 +7,7 @@ import os
 DUMMY_RUN_NAME = "20240112_2342_MN19414_TEST12345_randomhash"
 
 # To check coverage, use
-# pytest --cov=taca.nanopore.instrument_transfer test_instrument_transfer.py
+# pytest -s --cov=taca.nanopore.instrument_transfer --cov-report term-missing -vv test_instrument_transfer.py
 
 
 @pytest.fixture
