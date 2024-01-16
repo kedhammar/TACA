@@ -18,7 +18,7 @@ def main(args):
 
     logging.basicConfig(
         filename=args.log_path,
-        level=logging.DEBUG,
+        level=logging.INFO,
         format="%(asctime)s - %(levelname)s - %(message)s",
     )
 
@@ -50,7 +50,7 @@ def main(args):
 
         logging.info(f"Handling {run_path}...")
 
-        if args.dest_dir_qc and run_path.split(os.sep)[-2][0:3] == "QC_":
+        if run_path.split(os.sep)[-2][0:3] == "QC_":
             # For QC runs, the sample name should start with "QC_"
             logging.info(f"Run categorized as QC.")
             rsync_dest = args.dest_dir_qc
@@ -328,7 +328,7 @@ def dump_pore_count_history(run: str, pore_counts: list) -> str:
 
     return new_file_path
 
-
+# BEGIN_EXCLUDE
 if __name__ == "__main__":
     # This is clunky but should be fine since it will only ever run as a cronjob
     parser = argparse.ArgumentParser(description=__doc__)
@@ -366,3 +366,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     main(args)
+# END_EXCLUDE

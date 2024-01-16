@@ -1,5 +1,5 @@
 from taca.nanopore import instrument_transfer
-from unittest.mock import patch, mock_open, call, Mock
+from unittest.mock import patch, mock_open, call, Mock, MagicMock
 import tempfile
 import pytest
 import os
@@ -8,6 +8,140 @@ DUMMY_RUN_NAME = "20240112_2342_MN19414_TEST12345_randomhash"
 
 # To check coverage, use
 # pytest --cov=taca.nanopore.instrument_transfer test_instrument_transfer.py
+
+
+@pytest.fixture
+def setup_test_fixture() -> (Mock, tempfile.TemporaryDirectory, dict):
+    """Set up tempdir to mimic an ONT instrument file system"""
+
+    tmp = tempfile.TemporaryDirectory()
+
+    # Set up args
+    args = Mock()
+    args.source_dir = tmp.name + "/data"
+    args.dest_dir = tmp.name + "/preproc"
+    args.dest_dir_qc = tmp.name + "/preproc/qc"
+    args.archive_dir = tmp.name + "/data/nosync"
+    args.minknow_logs_dir = tmp.name + "/minknow_logs"
+    args.log_path = args.source_dir + "/instrument_transfer_log.txt"
+
+    # Create dirs
+    for dir in [
+        args.source_dir,
+        args.dest_dir,
+        args.dest_dir_qc,
+        args.archive_dir,
+        args.minknow_logs_dir,
+    ]:
+        os.makedirs(dir)
+
+    # Create files
+    file_paths = {
+        "rsync_log_path": args.source_dir + "/rsync_log.txt",
+        "script_log_path": args.source_dir + "/instrument_transfer_log.txt",
+    }
+    for file_path in file_paths:
+        open(file_paths[file_path], "w").close()
+
+    # Build log dirs
+    for position_dir_n, position_dir in enumerate(["1A", "MN19414"]):
+        os.makedirs(tmp.name + f"/minknow_logs/{position_dir}")
+
+        # Build log files
+        for log_file_n, log_file in enumerate(
+            ["control_server_log-1.txt", "control_server_log-2.txt"]
+        ):
+            # For each flowcell
+            for flowcell_n, flowcell in enumerate(["PAM12345", "TEST12345"]):
+                # Build log entries
+                for log_entry_n, log_entry in enumerate(
+                    ["mux_scan_result", "platform_qc.report", "something.else"]
+                ):
+                    # Sneak build metadata into log entries to retain traceability
+                    lines = [
+                        f"2024-01-01 0{position_dir_n}:0{log_file_n}:0{flowcell_n}.0{log_entry_n}    INFO: {log_entry} (user_messages)",
+                        f"    flow_cell_id: {flowcell}",
+                        f"    num_pores: {position_dir_n}{log_file_n}{flowcell_n}{log_entry_n}",
+                        f"    total_pores: {position_dir_n}{log_file_n}{flowcell_n}{log_entry_n}",
+                    ]
+
+                    with open(
+                        args.minknow_logs_dir + f"/{position_dir}/{log_file}", "a"
+                    ) as file:
+                        file.write("\n".join(lines) + "\n")
+
+    yield args, tmp, file_paths
+
+    tmp.cleanup()
+
+
+@pytest.mark.parametrize(
+    "finished, qc", [(True, True), (True, False), (False, True), (False, False)]
+)
+@patch("taca.nanopore.instrument_transfer.final_sync_to_storage")
+@patch("taca.nanopore.instrument_transfer.sync_to_storage")
+def test_main(mock_sync, mock_final_sync, setup_test_fixture, finished, qc):
+    # Run fixture
+    args, tmp, file_paths = setup_test_fixture
+
+    # Set up ONT run
+    if not qc:
+        run_path = f"{args.source_dir}/experiment/sample/{DUMMY_RUN_NAME}"
+    else:
+        run_path = f"{args.source_dir}/experiment/QC_sample/{DUMMY_RUN_NAME}"
+    os.makedirs(run_path)
+
+    # Add finished file indicator
+    if finished:
+        open(run_path + "/final_summary.txt", "w").close()
+
+    # Start testing
+    with patch("taca.nanopore.instrument_transfer.sync_to_storage") as mock_sync:
+        # Run code
+        instrument_transfer.main(args)
+
+        if not qc:
+            dest_path = args.dest_dir
+        else:
+            dest_path = args.dest_dir_qc
+
+        # Check sync was inititated
+        if not finished:
+            mock_sync.assert_called_once_with(
+                run_path, dest_path, file_paths["rsync_log_path"]
+            )
+        else:
+            mock_final_sync.assert_called_once_with(
+                run_path, dest_path, args.archive_dir, file_paths["rsync_log_path"]
+            )
+
+        # Check path was dumped
+        assert os.path.exists(run_path + "/run_path.txt")
+        assert open(run_path + "/run_path.txt", "r").read() == "/".join(
+            run_path.split("/")[-3:]
+        )
+
+        # Check pore count history was dumped
+        assert os.path.exists(run_path + "/pore_count_history.csv")
+        # Assert that all relevant entries from all files from all dirs were dumped
+        template = (
+            "\n".join(
+                [
+                    "flow_cell_id,timestamp,position,type,num_pores,total_pores",
+                    "TEST12345,2024-01-01 01:01:01.01,MN19414,qc,1111,1111",
+                    "TEST12345,2024-01-01 01:01:01.00,MN19414,mux,1110,1110",
+                    "TEST12345,2024-01-01 01:00:01.01,MN19414,qc,1011,1011",
+                    "TEST12345,2024-01-01 01:00:01.00,MN19414,mux,1010,1010",
+                    "TEST12345,2024-01-01 00:01:01.01,1A,qc,0111,0111",
+                    "TEST12345,2024-01-01 00:01:01.00,1A,mux,0110,0110",
+                    "TEST12345,2024-01-01 00:00:01.01,1A,qc,0011,0011",
+                    "TEST12345,2024-01-01 00:00:01.00,1A,mux,0010,0010",
+                ]
+            )
+            + "\n"
+        )
+        assert open(run_path + "/pore_count_history.csv", "r").read() == template
+
 
 def test_sequencing_finished():
     with patch("os.listdir") as mock_listdir:
