@@ -6,7 +6,6 @@ import logging
 import os
 import re
 import shutil
-import pathlib
 import argparse
 import subprocess
 from glob import glob
@@ -19,7 +18,7 @@ def main(args):
 
     logging.basicConfig(
         filename=args.log_path,
-        level=logging.DEBUG,
+        level=logging.INFO,
         format="%(asctime)s - %(levelname)s - %(message)s",
     )
 
@@ -27,8 +26,9 @@ def main(args):
 
     run_pattern = re.compile(
         # Run folder name expected as yyyymmdd_HHMM_1A-3H/MN19414_flowCellId_randomHash
+        # Flow cell names starting with "CTC" are configuration test cells and should not be included
         # As of december 2023, the third column (3A-3H) is excluded, because it will be used by Clinical Genomics
-        r"^\d{8}_\d{4}_(([1-2][A-H])|(MN19414))_[A-Za-z0-9]+_[A-Za-z0-9]+$"
+        r"^\d{8}_\d{4}_(([1-2][A-H])|(MN19414))_(?!CTC)[A-Za-z0-9]+_[A-Za-z0-9]+$"
     )
     rsync_log = os.path.join(args.source_dir, "rsync_log.txt")
 
@@ -51,7 +51,7 @@ def main(args):
 
         logging.info(f"Handling {run_path}...")
 
-        if args.dest_dir_qc and run_path.split(os.sep)[-2][0:3] == "QC_":
+        if run_path.split(os.sep)[-2][0:3] == "QC_":
             # For QC runs, the sample name should start with "QC_"
             logging.info(f"Run categorized as QC.")
             rsync_dest = args.dest_dir_qc
@@ -69,7 +69,7 @@ def main(args):
             final_sync_to_storage(run_path, rsync_dest, args.archive_dir, rsync_log)
 
 
-def sequencing_finished(run_path):
+def sequencing_finished(run_path: str) -> bool:
     sequencing_finished_indicator = "final_summary"
     run_dir_content = os.listdir(run_path)
     for item in run_dir_content:
@@ -78,7 +78,7 @@ def sequencing_finished(run_path):
     return False
 
 
-def dump_path(run_path):
+def dump_path(run_path: str):
     """Dump path <minknow_experiment_id>/<minknow_sample_id>/<minknow_run_id>
     to a file. Used for transferring info on ongoing runs to StatusDB."""
     new_file = os.path.join(run_path, "run_path.txt")
@@ -86,14 +86,14 @@ def dump_path(run_path):
     path_to_write = os.path.join(proj, sample, run)
     with open(new_file, "w") as f:
         f.write(path_to_write)
+    return path_to_write
 
 
 def write_finished_indicator(run_path):
     """Write a hidden file to indicate
     when the finial rsync is finished."""
     new_file = os.path.join(run_path, ".sync_finished")
-    pathlib.Path(new_file).touch()
-    return new_file
+    open(new_file, "w").close()
 
 
 def sync_to_storage(run_dir, destination, log):
@@ -115,7 +115,7 @@ def sync_to_storage(run_dir, destination, log):
     )
 
 
-def final_sync_to_storage(run_dir, destination, archive_dir, log):
+def final_sync_to_storage(run_dir: str, destination: str, archive_dir: str, log: list[str]):
     """Do a final sync of the run to storage, then archive it.
     Skip if rsync is already running on the run."""
 
@@ -147,7 +147,7 @@ def final_sync_to_storage(run_dir, destination, archive_dir, log):
         return
 
 
-def archive_finished_run(run_dir, archive_dir):
+def archive_finished_run(run_dir: str, archive_dir: str):
     """Move finished run to archive (nosync)."""
 
     logging.info(f"Archiving {run_dir}.")
@@ -291,7 +291,7 @@ def get_pore_counts(position_logs: list) -> list:
     return pore_counts
 
 
-def dump_pore_count_history(run, pore_counts):
+def dump_pore_count_history(run: str, pore_counts: list) -> str:
     """For a recently started run, dump all QC and MUX events that the instrument remembers
     for the flow cell as a file in the run dir."""
 
@@ -323,9 +323,13 @@ def dump_pore_count_history(run, pore_counts):
             for row in rows:
                 f.write(",".join(row) + "\n")
     else:
-        open(new_file_path, "a").close()
+        # Create an empty file if there is not one already
+        if not os.path.exists(new_file_path):
+            open(new_file_path, "w").close()
 
+    return new_file_path
 
+# BEGIN_EXCLUDE
 if __name__ == "__main__":
     # This is clunky but should be fine since it will only ever run as a cronjob
     parser = argparse.ArgumentParser(description=__doc__)
@@ -363,3 +367,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     main(args)
+# END_EXCLUDE
