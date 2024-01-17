@@ -580,7 +580,7 @@ def _def_get_size_unit(s):
     elif s > kb:
         s = f"~{int(s/kb)}kb"
     elif s > 0:
-        s = f"~{int(s/b)}b"
+        s = f"~{int(s)}b"
     return str(s)
 
 

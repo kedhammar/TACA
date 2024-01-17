@@ -193,7 +193,7 @@ def merge_dicts(d1, d2):
     for key in d2:
         if key in d1:
             if isinstance(d1[key], dict) and isinstance(d2[key], dict):
-                merge(d1[key], d2[key])
+                merge_dicts(d1[key], d2[key])
             elif d1[key] == d2[key]:
                 pass  # same leaf value
             else:

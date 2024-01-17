@@ -180,7 +180,7 @@ class Run:
                         errors += 1
                         error_and_warning_messages.append(line)
                     elif "WARNING" in line:
-                        warnnings += 1
+                        warnings += 1
                         error_and_warning_messages.append(line)
                 return errors, warnings, error_and_warning_messages
             else:
@@ -725,14 +725,14 @@ class Run:
         # Now all lanes have been inserted
 
         # NumberReads for total lane cluster/yields and total sample cluster/yields
-        NumberReads_Summary = dict()
+        self.NumberReads_Summary = dict()
         # The numbers in Flowcell Summary also need to be aggregated if multiple demultiplexing is done
         Clusters_Raw = 0
         Clusters_PF = 0
         Yield_Mbases = 0
         for entry in html_report_lane_parser.sample_data:
             # Update NumberReads for total lane clusters
-            NumberReads_Summary[entry["Lane"]] = {
+            self.NumberReads_Summary[entry["Lane"]] = {
                 "total_lane_cluster": int(entry["PF Clusters"].replace(",", "")),
                 "total_lane_yield": int(entry["Yield (Mbases)"].replace(",", "")),
             }
@@ -790,27 +790,27 @@ class Run:
 
         # Update NumberReads for total sample yields
         for entry in html_report_laneBarcode_parser.sample_data:
-            if "total_sample_cluster" not in NumberReads_Summary[entry["Lane"]].keys():
-                NumberReads_Summary[entry["Lane"]]["total_sample_cluster"] = 0
-                NumberReads_Summary[entry["Lane"]]["total_sample_yield"] = 0
+            if "total_sample_cluster" not in self.NumberReads_Summary[entry["Lane"]].keys():
+                self.NumberReads_Summary[entry["Lane"]]["total_sample_cluster"] = 0
+                self.NumberReads_Summary[entry["Lane"]]["total_sample_yield"] = 0
                 if entry["Project"] != "default":
-                    NumberReads_Summary[entry["Lane"]]["total_sample_cluster"] += int(
+                    self.NumberReads_Summary[entry["Lane"]]["total_sample_cluster"] += int(
                         entry["PF Clusters"].replace(",", "")
                     )
-                    NumberReads_Summary[entry["Lane"]]["total_sample_yield"] += int(
+                    self.NumberReads_Summary[entry["Lane"]]["total_sample_yield"] += int(
                         entry["Yield (Mbases)"].replace(",", "")
                     )
             else:
                 if entry["Project"] != "default":
-                    NumberReads_Summary[entry["Lane"]]["total_sample_cluster"] += int(
+                    self.NumberReads_Summary[entry["Lane"]]["total_sample_cluster"] += int(
                         entry["PF Clusters"].replace(",", "")
                     )
-                    NumberReads_Summary[entry["Lane"]]["total_sample_yield"] += int(
+                    self.NumberReads_Summary[entry["Lane"]]["total_sample_yield"] += int(
                         entry["Yield (Mbases)"].replace(",", "")
                     )
 
         # Calculate the numbers clusters/yields of undet reads
-        for key, value in NumberReads_Summary.items():
+        for key, value in self.NumberReads_Summary.items():
             value["undet_cluster"] = (
                 value["total_lane_cluster"] - value["total_sample_cluster"]
             )
@@ -822,10 +822,10 @@ class Run:
         for entry in html_report_laneBarcode_parser.sample_data:
             if entry["Project"] == "default" and entry["Lane"] in complex_lanes.keys():
                 entry["PF Clusters"] = "{:,}".format(
-                    NumberReads_Summary[entry["Lane"]]["undet_cluster"]
+                    self.NumberReads_Summary[entry["Lane"]]["undet_cluster"]
                 )
                 entry["Yield (Mbases)"] = "{:,}".format(
-                    NumberReads_Summary[entry["Lane"]]["undet_yield"]
+                    self.NumberReads_Summary[entry["Lane"]]["undet_yield"]
                 )
 
         # Fix special case that when we assign fake indexes for NoIndex samples
@@ -923,11 +923,11 @@ class Run:
                                 # For complex lanes, we set all stats to 0, except for read number and yield which will use values from NumberReads_Summary
                                 ConversionResults_lane["Undetermined"][
                                     "NumberReads"
-                                ] = NumberReads_Summary[
+                                ] = self.NumberReads_Summary[
                                     str(ConversionResults_lane["LaneNumber"])
                                 ]["undet_cluster"]
                                 ConversionResults_lane["Undetermined"]["Yield"] = (
-                                    NumberReads_Summary[
+                                    self.NumberReads_Summary[
                                         str(ConversionResults_lane["LaneNumber"])
                                     ]["undet_yield"]
                                     * 1000000

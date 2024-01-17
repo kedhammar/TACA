@@ -12,10 +12,10 @@ from unittest import mock
 
 from flowcell_parser.classes import LaneBarcodeParser
 
-from taca.analysis.analysis import *
 from taca.illumina.NextSeq_Runs import NextSeq_Run
 from taca.illumina.NovaSeq_Runs import NovaSeq_Run
 from taca.illumina.Runs import Run, _create_folder_structure, _generate_lane_html
+from taca.illumina.Standard_Runs import Standard_Run
 from taca.utils import config as conf
 
 if sys.version_info[0] >= 3:

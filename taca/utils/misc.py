@@ -38,7 +38,7 @@ def call_external_command(cl, with_log_files=False, prefix=None, log_dir=""):
     :param string prefix: the prefix to add to log file
     :param string log_dir: where to write the log file (to avoid problems with rights)
     """
-    if type(cl) == str:
+    if isinstance(type(cl), str):
         cl = cl.split(" ")
     logFile = os.path.basename(cl[0])
     stdout = sys.stdout
@@ -73,7 +73,7 @@ def call_external_command_detached(cl, with_log_files=False, prefix=None):
     :param string cl: Command line to be executed (command + options and parameters)
     :param bool with_log_files: Create log files for stdout and stderr
     """
-    if type(cl) == str:
+    if isinstance(type(cl), str):
         cl = cl.split(" ")
     command = os.path.basename(cl[0])
     stdout = sys.stdout

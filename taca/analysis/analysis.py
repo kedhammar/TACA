@@ -160,7 +160,7 @@ def _upload_to_statusdb(run):
     statusdb.update_doc(db, parser.obj, over_write_db_entry=True)
 
 
-def transfer_run(run_dir):
+def transfer_run(run_dir, software):
     """Interface for click to force a transfer a run to uppmax.
 
     :param: string run_dir: the run to tranfer
