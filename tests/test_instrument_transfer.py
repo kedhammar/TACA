@@ -3,6 +3,8 @@ from unittest.mock import patch, mock_open, call, Mock, MagicMock
 import tempfile
 import pytest
 import os
+import re
+import json
 
 DUMMY_RUN_NAME = "20240112_2342_MN19414_TEST12345_randomhash"
 
@@ -323,99 +325,68 @@ def test_archive_finished_run():
             tmp.cleanup()
 
 
-def create_logs() -> list:
-    tmp = tempfile.TemporaryDirectory()
+def test_parse_position_logs(setup_test_fixture):
 
-    # For each instrument position dir and corresponding flowcell name...
-    for position_dir, flowcell_name in {
-        "1A": "PAM12345",
-        "MN19414": "FLG12345",
-    }.items():
-        # --> Create position dir
-        position_path = tmp.name + f"/log/{position_dir}"
-        os.makedirs(position_path)
+    # Run fixture
+    args, tmp, file_paths = setup_test_fixture
 
-        # --> Populate each position dir with two log files
-        for file_n in range(1, 3):
-            # --> Populate each log file with two entries
-            lines = []
-            for entry_n in range(1, 3):
-                lines += [
-                    "2023-10-31 15:12:54.1354    INFO: mux_scan_result (user_messages)",
-                    f"    flow_cell_id: {flowcell_name}",
-                    f"    num_pores: {file_n}",
-                    f"    total_pores: {entry_n}",
-                ]
+    logs = instrument_transfer.parse_position_logs(args.minknow_logs_dir)
 
-            with open(position_path + f"/control_server_log-{file_n}.txt", "w") as file:
-                file.write("\n".join(lines))
+    # Check length
+    assert len(logs) == 24
 
-    # Run code
-    logs = instrument_transfer.parse_position_logs(tmp.name + "/log")
+    # Check uniqueness
+    logs_as_strings = [json.dumps(log, sort_keys=True) for log in logs]
+    assert len(logs) == len(set(logs_as_strings))
 
-    return logs
+    for entry in logs:
+
+        assert re.match(r"^(MN19414)|(1A)$", entry["position"])
+        assert re.match(r"^2024-01-01 0\d:0\d:0\d.0\d$", entry["timestamp"])
+        assert re.match(r"^INFO: [a-z\._]+ \(user_messages\)$", entry["category"])
+
+        assert re.match(r"^(TEST12345)|(PAM12345)$", entry["body"]["flow_cell_id"])
+        assert re.match(r"^\d+$", entry["body"]["num_pores"])
+        assert re.match(r"^\d+$", entry["body"]["total_pores"])
 
 
-def test_parse_position_logs():
-    logs = create_logs()
+def test_get_pore_counts(setup_test_fixture):
+    
+    # Run fixture
+    args, tmp, file_paths = setup_test_fixture
 
-    # Create template to compare output against
-    template = []
-    for position_dir, flowcell_name in {
-        "MN19414": "FLG12345",
-        "1A": "PAM12345",
-    }.items():
-        for file_n in range(1, 3):
-            template += [
-                {
-                    "position": position_dir,
-                    "timestamp": "2023-10-31 15:12:54.1354",
-                    "category": "INFO: mux_scan_result (user_messages)",
-                    "body": {
-                        "flow_cell_id": flowcell_name,
-                        "num_pores": str(file_n),
-                        "total_pores": str(entry_n),
-                    },
-                }
-                for entry_n in range(1, 3)
-            ]
-
-    assert logs == template
-
-
-def test_get_pore_counts():
-    logs = create_logs()
+    logs = instrument_transfer.parse_position_logs(args.minknow_logs_dir)
     pore_counts = instrument_transfer.get_pore_counts(logs)
 
-    # Create template to compare output against
-    template = []
-    for pos, fc in {
-        "MN19414": "FLG12345",
-        "1A": "PAM12345",
-    }.items():
-        for i in range(1, 3):
-            for j in range(1, 3):
-                template.append(
-                    {
-                        "flow_cell_id": fc,
-                        "timestamp": "2023-10-31 15:12:54.1354",
-                        "position": pos,
-                        "type": "mux",
-                        "num_pores": str(i),
-                        "total_pores": str(j),
-                    }
-                )
+    # Check length
+    assert len(pore_counts) == 16
 
-    assert pore_counts == template
+    # Check uniqueness
+    pore_counts_as_strings = [json.dumps(log, sort_keys=True) for log in logs]
+    assert len(logs) == len(set(pore_counts_as_strings))
+
+    for entry in pore_counts:
+
+        assert re.match(r"^(TEST12345)|(PAM12345)$", entry["flow_cell_id"])
+        assert re.match(r"^(MN19414)|(1A)$", entry["position"])
+        assert re.match(r"^2024-01-01 0\d:0\d:0\d.0\d$", entry["timestamp"])
+
+        assert re.match(r"^(qc)|(mux)$", entry["type"])
+        assert re.match(r"^\d+$", entry["num_pores"])
+        assert re.match(r"^\d+$", entry["total_pores"])
 
 
-def test_dump_pore_count_history():
-    logs = create_logs()
+def test_dump_pore_count_history(setup_test_fixture):
+
+    # Run fixture
+    args, tmp, file_paths = setup_test_fixture
+
+    logs = instrument_transfer.parse_position_logs(args.minknow_logs_dir)
     pore_counts = instrument_transfer.get_pore_counts(logs)
 
     # Nothing to add, no file
     tmp = tempfile.TemporaryDirectory()
-    run_path = tmp.name + f"/experiment/sample/{DUMMY_RUN_NAME}"
+    run_path = tmp.name + f"/experiment/sample/{DUMMY_RUN_NAME.replace('TEST','FLG')}"
     os.makedirs(run_path)
     new_file = instrument_transfer.dump_pore_count_history(run_path, pore_counts)
     assert open(new_file, "r").read() == ""
@@ -423,7 +394,7 @@ def test_dump_pore_count_history():
 
     # Nothing to add, file is present
     tmp = tempfile.TemporaryDirectory()
-    run_path = tmp.name + f"/experiment/sample/{DUMMY_RUN_NAME}"
+    run_path = tmp.name + f"/experiment/sample/{DUMMY_RUN_NAME.replace('TEST','FLG')}"
     os.makedirs(run_path)
     open(run_path + "/pore_count_history.csv", "w").write("test")
     new_file = instrument_transfer.dump_pore_count_history(run_path, pore_counts)
@@ -432,7 +403,7 @@ def test_dump_pore_count_history():
 
     # Something to add
     tmp = tempfile.TemporaryDirectory()
-    run_path = tmp.name + f"/experiment/sample/{DUMMY_RUN_NAME.replace('TEST','FLG')}"
+    run_path = tmp.name + f"/experiment/sample/{DUMMY_RUN_NAME}"
     os.makedirs(run_path)
     new_file = instrument_transfer.dump_pore_count_history(run_path, pore_counts)
 
@@ -440,10 +411,14 @@ def test_dump_pore_count_history():
         "\n".join(
             [
                 "flow_cell_id,timestamp,position,type,num_pores,total_pores",
-                "FLG12345,2023-10-31 15:12:54.1354,MN19414,mux,1,1",
-                "FLG12345,2023-10-31 15:12:54.1354,MN19414,mux,1,2",
-                "FLG12345,2023-10-31 15:12:54.1354,MN19414,mux,2,1",
-                "FLG12345,2023-10-31 15:12:54.1354,MN19414,mux,2,2",
+                "TEST12345,2024-01-01 01:01:01.01,MN19414,qc,1111,1111",
+                "TEST12345,2024-01-01 01:01:01.00,MN19414,mux,1110,1110",
+                "TEST12345,2024-01-01 01:00:01.01,MN19414,qc,1011,1011",
+                "TEST12345,2024-01-01 01:00:01.00,MN19414,mux,1010,1010",
+                "TEST12345,2024-01-01 00:01:01.01,1A,qc,0111,0111",
+                "TEST12345,2024-01-01 00:01:01.00,1A,mux,0110,0110",
+                "TEST12345,2024-01-01 00:00:01.01,1A,qc,0011,0011",
+                "TEST12345,2024-01-01 00:00:01.00,1A,mux,0010,0010",
             ]
         )
         + "\n"
