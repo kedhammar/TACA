@@ -95,7 +95,7 @@ def write_finished_indicator(run_path):
     open(new_file, "w").close()
 
 
-def sync_to_storage(run_dir, destination, log):
+def sync_to_storage(run_dir: str, destination: str, rsync_log: str):
     """Sync the run to storage using rsync.
     Skip if rsync is already running on the run."""
 
@@ -103,7 +103,7 @@ def sync_to_storage(run_dir, destination, log):
         "run-one",
         "rsync",
         "-rvu",
-        "--log-file=" + log,
+        "--log-file=" + rsync_log,
         run_dir,
         destination,
     ]
@@ -115,7 +115,7 @@ def sync_to_storage(run_dir, destination, log):
 
 
 def final_sync_to_storage(
-    run_dir: str, destination: str, archive_dir: str, log: list[str]
+    run_dir: str, destination: str, archive_dir: str, rsync_log: str
 ):
     """Do a final sync of the run to storage, then archive it.
     Skip if rsync is already running on the run."""
@@ -126,7 +126,7 @@ def final_sync_to_storage(
         "run-one",
         "rsync",
         "-rvu",
-        "--log-file=" + log,
+        "--log-file=" + rsync_log,
         run_dir,
         destination,
     ]
@@ -213,7 +213,8 @@ def parse_position_logs(minknow_logs_dir: str) -> list:
         for row in "ABCDEFGH":
             positions.append(col + row)
 
-    entries = []
+    headers = []
+    header: dict | None = None
     for position in positions:
         log_files = glob(
             os.path.join(minknow_logs_dir, position, "control_server_log-*.txt")
@@ -225,32 +226,35 @@ def parse_position_logs(minknow_logs_dir: str) -> list:
             for log_file in log_files:
                 with open(log_file) as stream:
                     lines = stream.readlines()
-                    for i in range(0, len(lines)):
-                        line = lines[i]
-                        if line[0:4] != "    ":
+
+                    # Iterate across log lines
+                    for line in lines:
+                        if not line[0:4] == "    ":
                             # Line is log header
                             split_header = line.split(" ")
                             timestamp = " ".join(split_header[0:2])
                             category = " ".join(split_header[2:])
 
-                            entry = {
+                            header = {
                                 "position": position,
                                 "timestamp": timestamp.strip(),
                                 "category": category.strip(),
                             }
-                            entries.append(entry)
-                        else:
+                            headers.append(header)
+
+                        elif header:
                             # Line is log body
-                            if "body" not in entry:
-                                entry["body"] = {}
+                            if "body" not in header.keys():
+                                body: dict = {}
+                                header["body"] = body
                             key = line.split(": ")[0].strip()
                             val = ": ".join(line.split(": ")[1:]).strip()
-                            entry["body"][key] = val
+                            header["body"][key] = val
 
-    entries.sort(key=lambda x: x["timestamp"])
-    logging.info(f"Parsed {len(entries)} log entries.")
+    headers.sort(key=lambda x: x["timestamp"])
+    logging.info(f"Parsed {len(headers)} log entries.")
 
-    return entries
+    return headers
 
 
 def get_pore_counts(position_logs: list) -> list:

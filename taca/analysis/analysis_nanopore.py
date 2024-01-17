@@ -240,7 +240,7 @@ def process_qc_run(ont_qc_run: ONT_qc_run):
                 ont_qc_run.archive_run()
 
 
-def ont_transfer(run_abspath: str or None, qc: bool = False):
+def ont_transfer(run_abspath: str | None, qc: bool = False):
     """CLI entry function.
 
     Find finished ONT runs in ngi-nas and transfer to HPC cluster.

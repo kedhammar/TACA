@@ -15,7 +15,7 @@ DUMMY_RUN_NAME = "20240112_2342_MN19414_TEST12345_randomhash"
 
 
 @pytest.fixture
-def setup_test_fixture() -> (Mock, tempfile.TemporaryDirectory, dict):
+def setup_test_fixture():
     """Set up tempdir to mimic an ONT instrument file system"""
 
     tmp = tempfile.TemporaryDirectory()
@@ -239,7 +239,7 @@ def test_final_sync_to_storage(
         run_dir="run_dir",
         destination="destination",
         archive_dir="archive_dir",
-        log="log_path",
+        rsync_log="log_path",
     )
 
     assert mock_run.call_args_list[0] == call(
@@ -266,7 +266,7 @@ def test_final_sync_to_storage(
         run_dir="run_dir",
         destination="destination",
         archive_dir="archive_dir",
-        log="log_path",
+        rsync_log="log_path",
     )
 
     assert mock_run.call_count == 3

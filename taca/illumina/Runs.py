@@ -790,24 +790,27 @@ class Run:
 
         # Update NumberReads for total sample yields
         for entry in html_report_laneBarcode_parser.sample_data:
-            if "total_sample_cluster" not in self.NumberReads_Summary[entry["Lane"]].keys():
+            if (
+                "total_sample_cluster"
+                not in self.NumberReads_Summary[entry["Lane"]].keys()
+            ):
                 self.NumberReads_Summary[entry["Lane"]]["total_sample_cluster"] = 0
                 self.NumberReads_Summary[entry["Lane"]]["total_sample_yield"] = 0
                 if entry["Project"] != "default":
-                    self.NumberReads_Summary[entry["Lane"]]["total_sample_cluster"] += int(
-                        entry["PF Clusters"].replace(",", "")
-                    )
-                    self.NumberReads_Summary[entry["Lane"]]["total_sample_yield"] += int(
-                        entry["Yield (Mbases)"].replace(",", "")
-                    )
+                    self.NumberReads_Summary[entry["Lane"]][
+                        "total_sample_cluster"
+                    ] += int(entry["PF Clusters"].replace(",", ""))
+                    self.NumberReads_Summary[entry["Lane"]][
+                        "total_sample_yield"
+                    ] += int(entry["Yield (Mbases)"].replace(",", ""))
             else:
                 if entry["Project"] != "default":
-                    self.NumberReads_Summary[entry["Lane"]]["total_sample_cluster"] += int(
-                        entry["PF Clusters"].replace(",", "")
-                    )
-                    self.NumberReads_Summary[entry["Lane"]]["total_sample_yield"] += int(
-                        entry["Yield (Mbases)"].replace(",", "")
-                    )
+                    self.NumberReads_Summary[entry["Lane"]][
+                        "total_sample_cluster"
+                    ] += int(entry["PF Clusters"].replace(",", ""))
+                    self.NumberReads_Summary[entry["Lane"]][
+                        "total_sample_yield"
+                    ] += int(entry["Yield (Mbases)"].replace(",", ""))
 
         # Calculate the numbers clusters/yields of undet reads
         for key, value in self.NumberReads_Summary.items():
