@@ -5,3 +5,8 @@ mock
 sphinx
 sphinx-rtd-theme
 pytest
+ipython
+ipdb
+ruff
+mypy
+pipreqs
