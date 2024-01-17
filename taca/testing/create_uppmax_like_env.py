@@ -5,7 +5,6 @@ import logging
 import os
 import random
 import subprocess
-from io import open
 
 from dateutil.relativedelta import relativedelta
 

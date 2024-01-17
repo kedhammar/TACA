@@ -7,9 +7,6 @@ import subprocess
 import sys
 from datetime import datetime
 from email.mime.text import MIMEText
-from io import open
-
-from six.moves import input
 
 from taca.utils import statusdb
 
@@ -154,7 +151,7 @@ def query_yes_no(question, default='yes', force=False):
     """
     valid = {'yes': True, 'y': True, 'ye': True,
              'no': False, 'n': False}
-    if default == None:
+    if default is None:
         prompt = ' [y/n] '
     elif default == 'yes':
         prompt = ' [Y/n] '

@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 class Tree(defaultdict):
     """Constructor for a search tree."""
     def __init__(self, value=None):
-        super(Tree, self).__init__(Tree)
+        super().__init__(Tree)
         self.value = value
 
 
@@ -105,7 +105,7 @@ def update_statusdb(run_dir):
                             # Creates record
                             db.save(obj)
                         # Sets FC error flag
-                        if not project_info[flowcell].value == None:
+                        if project_info[flowcell].value is not None:
                             if (('Failed' in project_info[flowcell].value and 'Failed' not in sample_status)
                              or ('Failed' in sample_status and 'Failed' not in project_info[flowcell].value)):
                                 project_info[flowcell].value = 'Ambiguous'
@@ -113,7 +113,7 @@ def update_statusdb(run_dir):
                                 project_info[flowcell].value = sample_status
             # Checks if a flowcell needs partial re-doing
             # Email error per flowcell
-            if not project_info[flowcell].value == None:
+            if project_info[flowcell].value is not None:
                 if 'Ambiguous' in project_info[flowcell].value:
                     error_emailer('failed_run', run_id)
 

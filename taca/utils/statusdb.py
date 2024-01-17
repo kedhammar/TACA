@@ -67,7 +67,7 @@ class StatusdbSession:
 
 class ProjectSummaryConnection(StatusdbSession):
     def __init__(self, config, dbname='projects'):
-        super(ProjectSummaryConnection, self).__init__(config)
+        super().__init__(config)
         self.db = self.connection[dbname]
         self.name_view = {k.key: k.id for k in self.db.view('project/project_name', reduce=False)}
         self.id_view = {k.key: k.id for k in self.db.view('project/project_id', reduce=False)}
@@ -75,7 +75,7 @@ class ProjectSummaryConnection(StatusdbSession):
 
 class FlowcellRunMetricsConnection(StatusdbSession):
     def __init__(self, config, dbname='flowcells'):
-        super(FlowcellRunMetricsConnection, self).__init__(config)
+        super().__init__(config)
         self.db = self.connection[dbname]
         self.name_view = {k.key:k.id for k in self.db.view('names/name', reduce=False)}
         self.proj_list = {k.key:k.value for k in self.db.view('names/project_ids_list', reduce=False) if k.key}
@@ -83,7 +83,7 @@ class FlowcellRunMetricsConnection(StatusdbSession):
 
 class X_FlowcellRunMetricsConnection(StatusdbSession):
     def __init__(self, config, dbname='x_flowcells'):
-        super(X_FlowcellRunMetricsConnection, self).__init__(config)
+        super().__init__(config)
         self.db = self.connection[dbname]
         self.name_view = {k.key:k.id for k in self.db.view('names/name', reduce=False)}
         self.proj_list = {k.key:k.value for k in self.db.view('names/project_ids_list', reduce=False) if k.key}
@@ -92,7 +92,7 @@ class X_FlowcellRunMetricsConnection(StatusdbSession):
 class NanoporeRunsConnection(StatusdbSession):
     
     def __init__(self, config, dbname='nanopore_runs'):
-        super(NanoporeRunsConnection, self).__init__(config)
+        super().__init__(config)
         self.db = self.connection[dbname]
 
     def check_run_exists(self, ont_run) -> bool:

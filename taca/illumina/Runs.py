@@ -328,7 +328,6 @@ class Run:
     def send_mail(self, sbt, msg, rcp):
         """ Sends mail about run completion
         """
-        already_seen = False
         runname = self.id
         if not sbt:
             sbt = f"{runname}"

@@ -153,7 +153,7 @@ def archive_finished_run(run_dir: str, archive_dir: str):
     sample_dir = os.path.dirname(run_dir)
     exp_dir = os.path.dirname(sample_dir)
 
-    run_name = os.path.basename(run_dir)
+    os.path.basename(run_dir)
     sample_name = os.path.basename(sample_dir)
     exp_name = os.path.basename(exp_dir)
 

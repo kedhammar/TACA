@@ -7,7 +7,6 @@ import shutil
 import subprocess as sp
 import time
 from datetime import datetime
-from io import open
 
 from taca.utils import filesystem, misc, statusdb
 from taca.utils.config import CONFIG
@@ -287,7 +286,7 @@ class backup_utils:
                 if os.path.exists(run.flag):
                     logger.warn(f'Run {run.name} is already being encrypted, so skipping now')
                     continue
-                flag = open(run.flag, 'w').close()
+                open(run.flag, 'w').close()
                 # zip the run directory
                 if os.path.exists(run.zip):
                     if os.path.isdir(run.name):
@@ -379,7 +378,7 @@ class backup_utils:
                 if bk.file_in_pdc(run.zip_encrypted, silent=False) or bk.file_in_pdc(run.dst_key_encrypted, silent=False):
                     logger.warn(f'Seems like files related to run {run.name} already exist in PDC, check and cleanup')
                     continue
-                flag = open(run.flag, 'w').close()
+                open(run.flag, 'w').close()
                 logger.info(f'Sending file {run.zip_encrypted} to PDC')
                 if bk._call_commands(cmd1=f'dsmc archive {run.zip_encrypted}', tmp_files=[run.flag]):
                     time.sleep(15) # give some time just in case 'dsmc' needs to settle

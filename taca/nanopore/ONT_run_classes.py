@@ -159,7 +159,7 @@ class ONT_run:
         self.touch_db_entry()
 
         # If the run document is marked as "ongoing" or database is being manually updated
-        if self.db.check_run_status(self) == "ongoing" or force_update == True:
+        if self.db.check_run_status(self) == "ongoing" or force_update is True:
             logger.info(
                 f"{self.run_name}: Run exists in the database with run status: {self.db.check_run_status(self)}."
             )
@@ -372,7 +372,7 @@ class ONT_user_run(ONT_run):
 
     def __init__(self, run_abspath: str):
         self.run_type = "user_run"
-        super(ONT_user_run, self).__init__(run_abspath)
+        super().__init__(run_abspath)
 
 
 class ONT_qc_run(ONT_run):
@@ -380,7 +380,7 @@ class ONT_qc_run(ONT_run):
 
     def __init__(self, run_abspath: str):
         self.run_type = "qc_run"
-        super(ONT_qc_run, self).__init__(run_abspath)
+        super().__init__(run_abspath)
 
         # Get Anglerfish attributes from run
         self.anglerfish_done_abspath = f"{self.run_abspath}/.anglerfish_done"

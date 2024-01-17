@@ -45,9 +45,6 @@ class TestNanoporeAnalysis(unittest.TestCase):
         mock_cp.return_value = True
         run_dir = 'data/nanopore_data/run4/done_demuxing/20200104_1412_MN19414_AAU644_68125dc2'
         minion_run = MinIONqc(run_dir, 'dummy/path', None)
-        email_subject = ('Run successfully processed: 20200104_1412_MN19414_AAU644_68125dc2')
-        email_message = 'Run 20200104_1412_MN19414_AAU644_68125dc2 has been analysed, transferred and archived successfully.'
-        email_recipients = 'test@test.com'
         process_minion_qc_run(minion_run)
         expected_calls = [mock.call('Anglerfish successfully processed run 20200104_1412_MN19414_AAU644_68125dc2', 
                            'Anglerfish has successfully finished for run 20200104_1412_MN19414_AAU644_68125dc2. Please finish the QC step in lims.', 

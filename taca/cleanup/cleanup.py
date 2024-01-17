@@ -5,9 +5,6 @@ import re
 from collections import defaultdict
 from datetime import datetime
 from glob import glob
-from io import open
-
-from six.moves import map
 
 from taca.utils import filesystem, misc, statusdb
 from taca.utils.config import CONFIG, load_config
@@ -74,7 +71,7 @@ def cleanup_miarka(days_fastq, days_analysis,
     exclude_list = []
     if exclude_projects:
         if os.path.isfile(exclude_projects):
-            with open(exclude_projects, 'r') as in_file:
+            with open(exclude_projects) as in_file:
                 exclude_list.extend([p.strip() for p in in_file.readlines()])
         else:
             exclude_list.extend(exclude_projects.split(','))
@@ -119,12 +116,12 @@ def cleanup_miarka(days_fastq, days_analysis,
             undet_size = _def_get_size_unit(sum(map(os.path.getsize, all_undet_files)))
             if misc.query_yes_no('In total found {} undetermined files which are {} in size, delete now ?'.format(len(all_undet_files),
                                  undet_size), default='no'):
-                    removed = _remove_files(all_undet_files)
+                    _remove_files(all_undet_files)
         return
     elif only_analysis:
         for pid in [d for d in os.listdir(analysis_dir) if re.match(r'^P\d+$', d) and \
                     not os.path.exists(os.path.join(analysis_dir, d, 'cleaned'))]:
-            proj_abs_path = os.path.join(analysis_dir, pid)
+            os.path.join(analysis_dir, pid)
             proj_info = get_closed_proj_info(pid, pcon.get_entry(pid, use_id_view=True), date)
             if proj_info and proj_info['closed_days'] >= days_analysis:
                 # move on if this project has to be excluded

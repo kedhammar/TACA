@@ -104,7 +104,7 @@ class TestBackupUtils(unittest.TestCase):
         os.makedirs(tmp_dir)
         cmd1 = 'ls data/nas/miseq.lab'
         cmd2 = 'ls data/nas/miseq.lab'
-        got_output = backup_object._call_commands(cmd1, cmd2, out_file=tmp_file, mail_failed=False)
+        backup_object._call_commands(cmd1, cmd2, out_file=tmp_file, mail_failed=False)
         self.assertTrue(os.path.isfile(tmp_file))
         shutil.rmtree(tmp_dir)
 

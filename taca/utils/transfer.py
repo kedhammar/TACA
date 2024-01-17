@@ -4,7 +4,6 @@ import logging
 import os
 import shutil
 import subprocess
-from io import open
 
 from taca.utils.filesystem import create_folder
 from taca.utils.misc import call_external_command, hashfile
@@ -135,7 +134,7 @@ class RsyncAgent(TransferAgent):
                 algorithm will be inferred from the extension of the digest file
             :param opts: options that will be passed to the rsync command
         """
-        super(RsyncAgent, self).__init__(
+        super().__init__(
             src_path=src_path,
             dest_path=dest_path,
             opts=opts or self.DEFAULT_OPTS,
@@ -246,7 +245,7 @@ class SymlinkAgent(TransferAgent):
                 be overwritten if it already exists
             :param bool relative: if true, the destination symlink will be relative
         """
-        super(SymlinkAgent,self).__init__(
+        super().__init__(
             src_path=src_path,
             dest_path=dest_path,
             **kwargs)
@@ -323,7 +322,7 @@ class SymlinkAgent(TransferAgent):
 
 class TransferError(Exception):
     def __init__(self, msg, src_path=None, dest_path=None):
-        super(TransferError, self).__init__(msg)
+        super().__init__(msg)
         self.src_path = src_path
         self.dest_path = dest_path
 

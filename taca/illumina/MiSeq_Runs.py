@@ -17,7 +17,7 @@ RECIPE_PAT = re.compile('[0-9]+-[0-9]+')
 
 class MiSeq_Run(Standard_Run):
     def __init__(self, run_dir, software, configuration):
-        super(MiSeq_Run, self).__init__(run_dir, software, configuration)
+        super().__init__(run_dir, software, configuration)
         self._set_sequencer_type()
         self._set_run_type()
         self._get_samplesheet()

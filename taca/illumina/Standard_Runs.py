@@ -2,7 +2,6 @@ import logging
 import os
 import re
 from datetime import datetime
-from io import open
 
 from flowcell_parser.classes import SampleSheetParser
 
@@ -22,7 +21,7 @@ RECIPE_PAT = re.compile('[0-9]+-[0-9]+')
 class Standard_Run(Run):
 
     def __init__(self, run_dir, software, configuration):
-        super(Standard_Run, self).__init__(run_dir, software, configuration)
+        super().__init__(run_dir, software, configuration)
         self._set_sequencer_type()
         self._set_run_type()
         self._copy_samplesheet()
@@ -82,7 +81,7 @@ class Standard_Run(Run):
         Todo: Set it up to take the file from config instead
         """
         index_dict = {}
-        with open(indexfile, 'r') as f:
+        with open(indexfile) as f:
             for line in f:
                 line_ = line.rstrip().split(',')
                 index_dict[line_[0]] = line_[1:5]
@@ -94,7 +93,7 @@ class Standard_Run(Run):
         Todo: Set it up to take the file from config instead
         """
         index_dict = {}
-        with open(indexfile, 'r') as f:
+        with open(indexfile) as f:
             for line in f:
                 line_ = line.rstrip().split(',')
                 if index_dict.get(line_[0]):
@@ -425,7 +424,6 @@ class Standard_Run(Run):
                 - if runSetup is of size 4, then dual index run
         """
         bm = []
-        dual_index_run = False
         if len(runSetup) > 4:
             raise RuntimeError("when generating base_masks looks like there are" \
                                " more than 4 reads in the RunSetup.xml")

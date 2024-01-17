@@ -1,5 +1,4 @@
 """Load and parse configuration file."""
-from io import open
 
 import yaml
 
@@ -9,7 +8,7 @@ def load_config(config_file):
     """Loads a configuration file."""
     config = {}
     try:
-        with open(config_file, 'r') as f:
+        with open(config_file) as f:
             content = yaml.load(f, Loader=yaml.FullLoader)
             config.update(content)
             return content
@@ -27,7 +26,7 @@ def load_yaml_config(config_file):
     :raises IOError: If the config file cannot be opened.
     """
     try:
-        with open(config_file, 'r') as f:
+        with open(config_file) as f:
             content = yaml.load(f, Loader=yaml.FullLoader)
             CONFIG.update(content)
             return content

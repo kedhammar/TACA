@@ -9,8 +9,6 @@ import unittest
 from collections import defaultdict
 from unittest import mock
 
-from six.moves import map
-
 from taca.utils import bioinfo_tab, config, filesystem, misc, statusdb, transfer
 
 
@@ -119,7 +117,7 @@ class TestMisc(unittest.TestCase):
                       'username': 'username',
                       'password': 'pwd',
                       'db': 'db'}
-        is_demultiplexed = misc.run_is_demuxed(run, couch_info=couch_info)
+        misc.run_is_demuxed(run, couch_info=couch_info)
         #TODO: should add a check here but not sure how to mock this properly
 
 class TestFilesystem(unittest.TestCase):
@@ -596,7 +594,7 @@ class TestConfig(unittest.TestCase):
                                 {'file': 'data/taca.log'}}
         self.assertEqual(expexted_config_data, got_config_data)
         with self.assertRaises(IOError):
-            missing_config_data = config.load_yaml_config('data/missing_file.yaml)')
+            config.load_yaml_config('data/missing_file.yaml)')
 
     def test_load_config(self):
         """Load a config file."""
@@ -609,7 +607,7 @@ class TestConfig(unittest.TestCase):
                                 {'file': 'data/taca.log'}}
         self.assertEqual(expexted_config_data, got_config_data)
         with self.assertRaises(IOError):
-            missing_config_data = config.load_config('data/missing_file.yaml)')
+            config.load_config('data/missing_file.yaml)')
 
 class TestBioinfoTab(unittest.TestCase):
     """Test class for bioinfo_tab."""

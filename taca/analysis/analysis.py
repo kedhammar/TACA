@@ -4,7 +4,6 @@ import logging
 import os
 import subprocess
 import sys
-from io import open
 from shutil import copyfile, copytree
 
 from flowcell_parser.classes import RunParametersParser
