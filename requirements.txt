@@ -1,4 +1,5 @@
 click
+CouchDB
 requests
 pyyaml
 flowcell_parser @ git+https://github.com/SciLifeLab/flowcell_parser

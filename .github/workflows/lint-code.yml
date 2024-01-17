@@ -111,7 +111,7 @@ jobs:
       - name: Run Prettier --check
         run: prettier --check .
 
-  # Use editorconfig to check all remaining file formats
+  # Use editorconfig to check other specified file formats
   editorconfig:
     runs-on: ubuntu-latest
     steps:
