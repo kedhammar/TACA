@@ -1,31 +1,31 @@
 """Backup methods and utilities."""
+import csv
 import logging
 import os
 import re
 import shutil
 import subprocess as sp
 import time
-import csv
-
 from datetime import datetime
-from taca.utils.config import CONFIG
-from taca.utils import statusdb, filesystem, misc
 from io import open
+
+from taca.utils import filesystem, misc, statusdb
+from taca.utils.config import CONFIG
 
 logger = logging.getLogger(__name__)
 
-class run_vars(object):
+class run_vars:
     """A simple variable storage class."""
     def __init__(self, run, archive_path):
         self.abs_path = os.path.abspath(run)
         self.path, self.name = os.path.split(self.abs_path)
         self.name = self.name.split('.', 1)[0]
         self.zip = os.path.join(archive_path, f'{self.name}.tar.gz')
-        self.key = '{}.key'.format(self.name)
-        self.key_encrypted = '{}.key.gpg'.format(self.name)
+        self.key = f'{self.name}.key'
+        self.key_encrypted = f'{self.name}.key.gpg'
         self.zip_encrypted = os.path.join(archive_path, f'{self.name}.tar.gz.gpg')
 
-class backup_utils(object):
+class backup_utils:
     """A class object with main utility methods related to backing up."""
 
     def __init__(self, run=None):
@@ -49,7 +49,7 @@ class backup_utils(object):
             self.copy_complete_indicator = CONFIG.get('storage', {}).get('copy_complete_indicator', 'CopyComplete.txt')
             self.archive_log_location = CONFIG['backup']['archive_log']
         except KeyError as e:
-            logger.error('Config file is missing the key {}, make sure it have all required information'.format(str(e)))
+            logger.error(f'Config file is missing the key {str(e)}, make sure it have all required information')
             raise SystemExit
 
     def collect_runs(self, ext=None, filter_by_ext=False):
@@ -60,14 +60,14 @@ class backup_utils(object):
             archive_path = self.archive_dirs[run_type]
             run = run_vars(self.run, archive_path)
             if not (re.match(filesystem.RUN_RE, run.name) or re.match(filesystem.RUN_RE_ONT, run.name)):
-                logger.error('Given run {} did not match a FC pattern'.format(self.run))
+                logger.error(f'Given run {self.run} did not match a FC pattern')
                 raise SystemExit
             if self._is_ready_to_archive(run, ext):
                 self.runs.append(run)
         else:
             for adir in self.archive_dirs.values():
                 if not os.path.isdir(adir):
-                    logger.warn('Path {} does not exist or it is not a directory'.format(adir))
+                    logger.warn(f'Path {adir} does not exist or it is not a directory')
                     continue
                 for item in os.listdir(adir):
                     if filter_by_ext and not item.endswith(ext):
@@ -103,11 +103,11 @@ class backup_utils(object):
             df_out, df_err = df_proc.communicate()
             available_size = int(df_out.strip().decode("utf-8").split('\n')[-1].strip().split()[3])/1024/1024
         except Exception as e:
-            logger.error('Evaluation of disk space failed with error {}'.format(e))
+            logger.error(f'Evaluation of disk space failed with error {e}')
             raise SystemExit
         if available_size < required_size:
-            e_msg = 'Required space for encryption is {}GB, but only {}GB available'.format(required_size, available_size)
-            subjt = 'Low space for encryption - {}'.format(self.host_name)
+            e_msg = f'Required space for encryption is {required_size}GB, but only {available_size}GB available'
+            subjt = f'Low space for encryption - {self.host_name}'
             logger.error(e_msg)
             misc.send_mail(subjt, e_msg, self.mail_recipients)
             raise SystemExit
@@ -146,7 +146,7 @@ class backup_utils(object):
             else:
                 run_type = ''
         except:
-            logger.warn('Could not fetch run type for run {}'.format(run))
+            logger.warn(f'Could not fetch run type for run {run}')
         return run_type
 
     def _call_commands(self, cmd1, cmd2=None, out_file=None, return_out=False, mail_failed=False, tmp_files=[]):
@@ -194,7 +194,7 @@ class backup_utils(object):
         if status != 0:
             self._clean_tmp_files(files_to_remove)
             if mail_failed:
-                subjt = 'Command call failed - {}'.format(self.host_name)
+                subjt = f'Command call failed - {self.host_name}'
                 e_msg = 'Called cmd: {}\n\nError msg: {}'.format(' '.join(cmd), err_msg)
                 misc.send_mail(subjt, e_msg, self.mail_recipients)
             logger.error('Command "{}" failed with the error "{}"'.format(' '.join(cmd),err_msg))
@@ -215,7 +215,7 @@ class backup_utils(object):
                 run_date = run_vals[0][2:]
             else:
                 run_date = run_vals[0]
-            run_fc = '{}_{}'.format(run_date, run_vals[-1])
+            run_fc = f'{run_date}_{run_vals[-1]}'
             couch_connection = statusdb.StatusdbSession(self.couch_info).connection
             db = couch_connection[self.couch_info['db']]
             fc_names = {e.key:e.id for e in db.view('names/name', reduce=False)}
@@ -223,9 +223,9 @@ class backup_utils(object):
             doc = db.get(d_id)
             doc['pdc_archived'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             db.save(doc)
-            logger.info('Logged "pdc_archived" timestamp for fc {} in statusdb doc "{}"'.format(run, d_id))
+            logger.info(f'Logged "pdc_archived" timestamp for fc {run} in statusdb doc "{d_id}"')
         except:
-            logger.warn('Not able to log "pdc_archived" timestamp for run {}'.format(run))
+            logger.warn(f'Not able to log "pdc_archived" timestamp for run {run}')
 
     def _is_ready_to_archive(self, run, ext):
         """Check if the run to be encrypted has finished sequencing and has been copied completely to nas"""
@@ -258,7 +258,7 @@ class backup_utils(object):
         run_type = self._get_run_type(run.name)
         archived_path = self.archived_dirs[run_type]
         if os.path.isdir(archived_path):
-            logger.info('Moving run {} to the archived folder'.format(run.name))
+            logger.info(f'Moving run {run.name} to the archived folder')
             shutil.move(run.name, archived_path)
         else:
             logger.warning("Cannot move run to archived, destination does not exist")
@@ -306,8 +306,8 @@ class backup_utils(object):
                         continue
                 # Remove encrypted file if already exists
                 if os.path.exists(run.zip_encrypted):
-                    logger.warn((f'Removing already existing encrypted file for run {run.name}, this is a precaution '
-                                 'to make sure the file was encrypted with correct key file'))
+                    logger.warn(f'Removing already existing encrypted file for run {run.name}, this is a precaution '
+                                 'to make sure the file was encrypted with correct key file')
                     bk._clean_tmp_files([run.zip_encrypted, run.key, run.key_encrypted, run.dst_key_encrypted])
                 # Generate random key to use as pasphrase
                 if not bk._call_commands(cmd1='gpg --gen-random 1 256', out_file=run.key, tmp_files=tmp_files):
@@ -356,41 +356,41 @@ class backup_utils(object):
         """Archive the collected runs to PDC."""
         bk = cls(run)
         bk.collect_runs(ext='.tar.gz.gpg', filter_by_ext=True)
-        logger.info('In total, found {} run(s) to send PDC'.format(len(bk.runs)))
+        logger.info(f'In total, found {len(bk.runs)} run(s) to send PDC')
         for run in bk.runs:
-            run.flag = '{}.archiving'.format(run.name)
+            run.flag = f'{run.name}.archiving'
             run.dst_key_encrypted = os.path.join(bk.keys_path, run.key_encrypted)
             if run.path not in bk.archive_dirs.values():
-                logger.error(('Given run is not in one of the archive directories {}. Kindly move the run {} to appropriate '
-                              'archive dir before sending it to PDC'.format(','.join(list(bk.archive_dirs.values())), run.name)))
+                logger.error('Given run is not in one of the archive directories {}. Kindly move the run {} to appropriate '
+                              'archive dir before sending it to PDC'.format(','.join(list(bk.archive_dirs.values())), run.name))
                 continue
             if not os.path.exists(run.dst_key_encrypted):
-                logger.error('Encrypted key file {} is not found for file {}, skipping it'.format(run.dst_key_encrypted, run.zip_encrypted))
+                logger.error(f'Encrypted key file {run.dst_key_encrypted} is not found for file {run.zip_encrypted}, skipping it')
                 continue
             with filesystem.chdir(run.path):
                 #skip run if being encrypted
-                if os.path.exists('{}.encrypting'.format(run.name)):
-                    logger.warn('Run {} is currently being encrypted, so skipping now'.format(run.name))
+                if os.path.exists(f'{run.name}.encrypting'):
+                    logger.warn(f'Run {run.name} is currently being encrypted, so skipping now')
                     continue
                 # skip run if already ongoing
                 if os.path.exists(run.flag):
-                    logger.warn('Run {} is already being archived, so skipping now'.format(run.name))
+                    logger.warn(f'Run {run.name} is already being archived, so skipping now')
                     continue
                 if bk.file_in_pdc(run.zip_encrypted, silent=False) or bk.file_in_pdc(run.dst_key_encrypted, silent=False):
-                    logger.warn('Seems like files related to run {} already exist in PDC, check and cleanup'.format(run.name))
+                    logger.warn(f'Seems like files related to run {run.name} already exist in PDC, check and cleanup')
                     continue
                 flag = open(run.flag, 'w').close()
-                logger.info('Sending file {} to PDC'.format(run.zip_encrypted))
-                if bk._call_commands(cmd1='dsmc archive {}'.format(run.zip_encrypted), tmp_files=[run.flag]):
+                logger.info(f'Sending file {run.zip_encrypted} to PDC')
+                if bk._call_commands(cmd1=f'dsmc archive {run.zip_encrypted}', tmp_files=[run.flag]):
                     time.sleep(15) # give some time just in case 'dsmc' needs to settle
-                    if bk._call_commands(cmd1='dsmc archive {}'.format(run.dst_key_encrypted), tmp_files=[run.flag]):
+                    if bk._call_commands(cmd1=f'dsmc archive {run.dst_key_encrypted}', tmp_files=[run.flag]):
                         time.sleep(5) # give some time just in case 'dsmc' needs to settle
                         if bk.file_in_pdc(run.zip_encrypted) and bk.file_in_pdc(run.dst_key_encrypted):
-                            logger.info('Successfully sent file {} to PDC, moving file locally from {} to archived folder'.format(run.zip_encrypted, run.path))
+                            logger.info(f'Successfully sent file {run.zip_encrypted} to PDC, moving file locally from {run.path} to archived folder')
                             bk.log_archived_run(run.zip_encrypted)
                             if bk.couch_info:
                                 bk._log_pdc_statusdb(run.name)
                             bk._clean_tmp_files([run.zip_encrypted, run.dst_key_encrypted, run.flag])
                             bk._move_run_to_archived(run)
                         continue
-                logger.warn('Sending file {} to PDC failed'.format(run.zip_encrypted))
+                logger.warn(f'Sending file {run.zip_encrypted} to PDC failed')

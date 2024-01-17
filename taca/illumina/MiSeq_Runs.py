@@ -1,8 +1,10 @@
+import logging
 import os
 import re
 import shutil
-import logging
+
 from flowcell_parser.classes import SampleSheetParser
+
 from taca.illumina.Standard_Runs import Standard_Run
 
 logger = logging.getLogger(__name__)
@@ -63,10 +65,10 @@ class MiSeq_Run(Standard_Run):
         # Copy the original samplesheet locally.
         # Copy again if already done as there might have been changes to the samplesheet
         try:
-            shutil.copy(ssname, os.path.join(self.run_dir, '{}.csv'.format(self.flowcell_id)))
+            shutil.copy(ssname, os.path.join(self.run_dir, f'{self.flowcell_id}.csv'))
             ssname = os.path.join(self.run_dir, os.path.split(ssname)[1])
         except:
-            raise RuntimeError("unable to copy file {} to destination {}".format(ssname, self.run_dir))
+            raise RuntimeError(f"unable to copy file {ssname} to destination {self.run_dir}")
 
         # This sample sheet has been created by the LIMS and copied by a sequencing operator. It is not ready
         # to be used it needs some editing.
@@ -86,7 +88,7 @@ class MiSeq_Run(Standard_Run):
         except Exception as e:
             logger.error(e)
             return False
-        logger.info(('Created SampleSheet_copy.csv for Flowcell {} in {} '.format(self.id, samplesheet_dest)))
+        logger.info(f'Created SampleSheet_copy.csv for Flowcell {self.id} in {samplesheet_dest} ')
         # SampleSheet.csv generated
         # When demultiplexing SampleSheet.csv is the one I need to use
         self.runParserObj.samplesheet  = SampleSheetParser(os.path.join(self.run_dir, 'SampleSheet_copy.csv'))
@@ -99,7 +101,7 @@ class MiSeq_Run(Standard_Run):
         Will also replace 10X or Smart-seq indicies (e.g. SI-GA-A3 into TGTGCGGG)
         Note that the index 2 of 10X or Smart-seq dual indexes will be converted to RC
         """
-        output = u''
+        output = ''
         compl = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A'}
         # Expand the ssparser if there are lanes with 10X or Smart-seq samples
         index_dict_tenX = self._parse_10X_indexes(indexfile['tenX'])
@@ -143,12 +145,12 @@ class MiSeq_Run(Standard_Run):
         if not fields_to_remove:
             fields_to_remove = []
         # Header
-        output += '[Header]{}'.format(os.linesep)
+        output += f'[Header]{os.linesep}'
         for field in sorted(ssparser.header):
-            output += '{},{}'.format(field.rstrip(), ssparser.header[field].rstrip())
+            output += f'{field.rstrip()},{ssparser.header[field].rstrip()}'
             output += os.linesep
         # Data
-        output += '[Data]{}'.format(os.linesep)
+        output += f'[Data]{os.linesep}'
         datafields = []
         for field in ssparser.datafields:
             if field not in fields_to_remove:
@@ -163,13 +165,13 @@ class MiSeq_Run(Standard_Run):
                     try:
                         if rename_qPCR_suffix and ssparser.dfield_snm in fields_qPCR:
                             # Substitute SampleID with SampleName, add Sample_ as prefix and remove __qPCR_ suffix
-                            value = re.sub('__qPCR_$', '', 'Sample_{}'.format(line[ssparser.dfield_snm]))
+                            value = re.sub('__qPCR_$', '', f'Sample_{line[ssparser.dfield_snm]}')
                         else:
                             # Substitute SampleID with SampleName, add Sample_ as prefix
-                            value ='Sample_{}'.format(line[ssparser.dfield_snm])
+                            value =f'Sample_{line[ssparser.dfield_snm]}'
                     except:
                             # Otherwise add Sample_ as prefix
-                            value = 'Sample_{}'.format(line[ssparser.dfield_sid])
+                            value = f'Sample_{line[ssparser.dfield_sid]}'
                 elif rename_qPCR_suffix and field in fields_qPCR:
                     value = re.sub('__qPCR_$', '', line[field])
                 line_ar.append(value)

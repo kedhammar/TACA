@@ -1,17 +1,17 @@
 """Nanopore analysis methods for TACA."""
-import os
 import logging
+import os
 import re
 import traceback
 
-from taca.utils.config import CONFIG
-from taca.utils.misc import send_mail
 from taca.nanopore.ONT_run_classes import (
+    ONT_RUN_PATTERN,
+    ONT_qc_run,
     ONT_run,
     ONT_user_run,
-    ONT_qc_run,
-    ONT_RUN_PATTERN,
 )
+from taca.utils.config import CONFIG
+from taca.utils.misc import send_mail
 
 logger = logging.getLogger(__name__)
 

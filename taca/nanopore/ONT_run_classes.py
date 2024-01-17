@@ -1,18 +1,18 @@
-import os
-import logging
 import csv
-import shutil
 import glob
-import re
 import json
-import pandas as pd
-import subprocess
+import logging
 import os
+import re
+import shutil
+import subprocess
+from datetime import datetime
 from typing import Union
 
-from taca.utils.statusdb import NanoporeRunsConnection
-from datetime import datetime
+import pandas as pd
+
 from taca.utils.config import CONFIG
+from taca.utils.statusdb import NanoporeRunsConnection
 from taca.utils.transfer import RsyncAgent, RsyncError
 
 logger = logging.getLogger(__name__)
@@ -22,7 +22,7 @@ ONT_RUN_PATTERN = re.compile(
 )
 
 
-class ONT_run(object):
+class ONT_run:
     """General Nanopore run.
 
     Expects instantiation from absolute path of run directory on preprocessing server.
@@ -39,7 +39,7 @@ class ONT_run(object):
         ), f"Run {self.run_name} doesn't look like a run dir"
 
         # Parse MinKNOW sample and experiment name
-        with open(self.get_file("/run_path.txt"), "r") as stream:
+        with open(self.get_file("/run_path.txt")) as stream:
             self.experiment_name, self.sample_name, _ = stream.read().split("/")
 
         # Get info from run name
@@ -122,7 +122,7 @@ class ONT_run(object):
 
     def is_transferred(self) -> bool:
         """Return True if run ID in transfer.tsv, else False."""
-        with open(self.transfer_details["transfer_log"], "r") as f:
+        with open(self.transfer_details["transfer_log"]) as f:
             return self.run_name in f.read()
 
     # DB update
@@ -230,7 +230,7 @@ class ONT_run(object):
 
         logger.info(f"{self.run_name}:Parsing report JSON...")
 
-        dict_json_report = json.load(open(self.get_file("/report*.json"), "r"))
+        dict_json_report = json.load(open(self.get_file("/report*.json")))
 
         # Initialize return dict
         parsed_data = {}
@@ -352,10 +352,10 @@ class ONT_run(object):
             with open(self.transfer_details["transfer_log"], "a") as f:
                 tsv_writer = csv.writer(f, delimiter="\t")
                 tsv_writer.writerow([self.run_name, str(datetime.now())])
-        except IOError:
+        except OSError:
             msg = f"{self.run_name}: Could not update the transfer logfile {self.transfer_details['transfer_log']}"
             logger.error(msg)
-            raise IOError(msg)
+            raise OSError(msg)
 
     # Archive run
 
@@ -404,7 +404,7 @@ class ONT_qc_run(ONT_run):
         Return exit code or None.
         """
         if os.path.exists(self.anglerfish_done_abspath):
-            return int(open(self.anglerfish_done_abspath, "r").read())
+            return int(open(self.anglerfish_done_abspath).read())
         else:
             return None
 
@@ -413,7 +413,7 @@ class ONT_qc_run(ONT_run):
 
         Return process ID or None."""
         if os.path.exists(self.anglerfish_ongoing_abspath):
-            return str(open(self.anglerfish_ongoing_abspath, "r").read())
+            return str(open(self.anglerfish_ongoing_abspath).read())
         else:
             return None
 

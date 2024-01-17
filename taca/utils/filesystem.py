@@ -26,7 +26,7 @@ def create_folder(target_folder):
     """
     try:
         os.makedirs(target_folder)
-    except OSError as e:
+    except OSError:
         pass
     return os.path.exists(target_folder)
 

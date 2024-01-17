@@ -1,7 +1,9 @@
 """CLI for the storage subcommand."""
 import click
+
 from taca.cleanup import cleanup as cln
 from taca.utils import misc
+
 
 @click.group()
 @click.pass_context

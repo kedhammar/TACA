@@ -2,14 +2,14 @@
 """
 __version__ = "1.0.13"
 
+import argparse
 import logging
 import os
 import re
 import shutil
-import argparse
 import subprocess
-from glob import glob
 from datetime import datetime as dt
+from glob import glob
 
 
 def main(args):
@@ -53,14 +53,14 @@ def main(args):
 
         if run_path.split(os.sep)[-2][0:3] == "QC_":
             # For QC runs, the sample name should start with "QC_"
-            logging.info(f"Run categorized as QC.")
+            logging.info("Run categorized as QC.")
             rsync_dest = args.dest_dir_qc
         else:
             rsync_dest = args.dest_dir
 
-        logging.info(f"Dumping run path...")
+        logging.info("Dumping run path...")
         dump_path(run_path)
-        logging.info(f"Dumping QC and MUX history...")
+        logging.info("Dumping QC and MUX history...")
         dump_pore_count_history(run_path, pore_counts)
 
         if not sequencing_finished(run_path):
@@ -119,7 +119,7 @@ def final_sync_to_storage(run_dir: str, destination: str, archive_dir: str, log:
     """Do a final sync of the run to storage, then archive it.
     Skip if rsync is already running on the run."""
 
-    logging.info("Performing a final sync of {} to storage".format(run_dir))
+    logging.info(f"Performing a final sync of {run_dir} to storage")
 
     command = [
         "run-one",
@@ -140,9 +140,7 @@ def final_sync_to_storage(run_dir: str, destination: str, archive_dir: str, log:
         archive_finished_run(run_dir, archive_dir)
     else:
         logging.info(
-            "Previous rsync might be running still. Skipping {} for now.".format(
-                run_dir
-            )
+            f"Previous rsync might be running still. Skipping {run_dir} for now."
         )
         return
 

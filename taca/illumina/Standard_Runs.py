@@ -1,13 +1,14 @@
+import logging
 import os
 import re
-import logging
 from datetime import datetime
+from io import open
 
-from taca.utils.filesystem import chdir
+from flowcell_parser.classes import SampleSheetParser
+
 from taca.illumina.Runs import Run
 from taca.utils import misc
-from flowcell_parser.classes import SampleSheetParser
-from io import open
+from taca.utils.filesystem import chdir
 
 logger = logging.getLogger(__name__)
 
@@ -64,9 +65,9 @@ class Standard_Run(Run):
                                                                rename_qPCR_suffix = True,
                                                                fields_qPCR=[ssparser.dfield_snm]))
             except Exception as e:
-                logger.error('Encountered the following exception {}'.format(e))
+                logger.error(f'Encountered the following exception {e}')
                 return False
-            logger.info(('Created SampleSheet.csv for Flowcell {} in {} '.format(self.id, samplesheet_dest)))
+            logger.info(f'Created SampleSheet.csv for Flowcell {self.id} in {samplesheet_dest} ')
         # SampleSheet.csv generated
 
         # When demultiplexing SampleSheet.csv is the one I need to use
@@ -258,8 +259,8 @@ class Standard_Run(Run):
                                         samples_to_include[lane].append(sample_name)
                                     else:
                                         samples_to_include.update({lane:[sample_name]})
-                        except (KeyError, IndexError) as err:
-                            logger.info(('No corresponding mask in lane {}. Skip it.'.format(lane)))
+                        except (KeyError, IndexError):
+                            logger.info(f'No corresponding mask in lane {lane}. Skip it.')
                             continue
                 elif self.software == 'bclconvert':
                     mask = unique_masks[i]
@@ -299,7 +300,7 @@ class Standard_Run(Run):
                     base_mask = []
                 # Make sub-samplesheet
                 with chdir(self.run_dir):
-                    samplesheet_dest='SampleSheet_{}.csv'.format(bcl_cmd_counter)
+                    samplesheet_dest=f'SampleSheet_{bcl_cmd_counter}.csv'
                     with open(samplesheet_dest, 'w') as fcd:
                         fcd.write(self._generate_samplesheet_subset(self.runParserObj.samplesheet,
                                                                     samples_to_include, runSetup, self.software, sample_type, index1_size, index2_size, base_mask, self.CONFIG))
@@ -317,10 +318,9 @@ class Standard_Run(Run):
                                                     bcl_cmd_counter)
                     misc.call_external_command_detached(cmd,
                                                         with_log_files = True,
-                                                        prefix='demux_{}'.format(bcl_cmd_counter))
-                    logger.info(('BCL to FASTQ conversion and demultiplexing ' \
-                    'started for run {} on {}'.format(os.path.basename(self.id),
-                                                      datetime.now())))
+                                                        prefix=f'demux_{bcl_cmd_counter}')
+                    logger.info('BCL to FASTQ conversion and demultiplexing ' \
+                    f'started for run {os.path.basename(self.id)} on {datetime.now()}')
 
                 # Demutiplexing done for one mask type and scripts will continue
                 # Working with the next type. Command counter should increase by 1
@@ -346,7 +346,7 @@ class Standard_Run(Run):
                 for lane in sorted(lanes):
                     # Iterate thorugh each lane and add the correct --use-bases-mask for that lane
                     base_mask = [per_lane_base_masks[lane][bm]['base_mask'] for bm in per_lane_base_masks[lane]][0] # Get the base_mask
-                    base_mask_expr = '{}:'.format(lane) + ','.join(base_mask)
+                    base_mask_expr = f'{lane}:' + ','.join(base_mask)
                     cl.extend(['--use-bases-mask', base_mask_expr])
             # Case with bclconvert
             elif self.software == 'bclconvert':
@@ -355,12 +355,12 @@ class Standard_Run(Run):
             else:
                 raise RuntimeError("Unrecognized software!")
             # Output dir
-            output_dir = os.path.join(self.run_dir, 'Demultiplexing_{}'.format(bcl_cmd_counter))
+            output_dir = os.path.join(self.run_dir, f'Demultiplexing_{bcl_cmd_counter}')
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
             cl.extend(['--output-dir', output_dir])
             # Samplesheet
-            cl.extend(['--sample-sheet', os.path.join(os.path.join(self.run_dir, 'SampleSheet_{}.csv'.format(bcl_cmd_counter)))])
+            cl.extend(['--sample-sheet', os.path.join(os.path.join(self.run_dir, f'SampleSheet_{bcl_cmd_counter}.csv'))])
             # Demux options
             cl_options = []
             if 'options' in self.CONFIG.get(self.software):
@@ -374,9 +374,9 @@ class Standard_Run(Run):
                     if isinstance(option, dict):
                         opt, val = list(option.items())[0]
                         if 'output-dir' not in opt:
-                            cl.extend(['--{}'.format(opt), str(val).lower()])
+                            cl.extend([f'--{opt}', str(val).lower()])
                     else:
-                        cl.append('--{}'.format(option))
+                        cl.append(f'--{option}')
         return cl
 
     def _generate_per_lane_base_mask(self, sample_type, mask_table):
@@ -548,7 +548,7 @@ class Standard_Run(Run):
         If rename_samples is True, samples prepended with 'Sample_'  are renamed to match the sample name
         Will also replace 10X or Smart-seq indicies (e.g. SI-GA-A3 into TGTGCGGG)
         """
-        output = u''
+        output = ''
         # Expand the ssparser if there are lanes with 10X or Smart-seq samples
         index_dict_tenX = self._parse_10X_indexes(indexfile['tenX'])
         index_dict_smartseq = self._parse_smartseq_indexes(indexfile['smartseq'])
@@ -591,12 +591,12 @@ class Standard_Run(Run):
         if not fields_to_remove:
             fields_to_remove = []
         # Header
-        output += '[Header]{}'.format(os.linesep)
+        output += f'[Header]{os.linesep}'
         for field in sorted(ssparser.header):
-            output += '{},{}'.format(field.rstrip(), ssparser.header[field].rstrip())
+            output += f'{field.rstrip()},{ssparser.header[field].rstrip()}'
             output += os.linesep
         # Data
-        output += '[Data]{}'.format(os.linesep)
+        output += f'[Data]{os.linesep}'
         datafields = []
         for field in ssparser.datafields:
             if field not in fields_to_remove:
@@ -611,13 +611,13 @@ class Standard_Run(Run):
                     try:
                         if rename_qPCR_suffix and ssparser.dfield_snm in fields_qPCR:
                             # Substitute SampleID with SampleName, add Sample_ as prefix and remove __qPCR_ suffix
-                            value = re.sub('__qPCR_$', '', 'Sample_{}'.format(line[ssparser.dfield_snm]))
+                            value = re.sub('__qPCR_$', '', f'Sample_{line[ssparser.dfield_snm]}')
                         else:
                             # Substitute SampleID with SampleName, add Sample_ as prefix
-                            value ='Sample_{}'.format(line[ssparser.dfield_snm])
+                            value =f'Sample_{line[ssparser.dfield_snm]}'
                     except:
                             # Otherwise add Sample_ as prefix
-                            value = 'Sample_{}'.format(line[ssparser.dfield_sid])
+                            value = f'Sample_{line[ssparser.dfield_sid]}'
                 elif rename_qPCR_suffix and field in fields_qPCR:
                     value = re.sub('__qPCR_$', '', line[field])
                 line_ar.append(value)
@@ -626,7 +626,7 @@ class Standard_Run(Run):
         return output
 
     def _generate_samplesheet_subset(self, ssparser, samples_to_include, runSetup, software, sample_type, index1_size, index2_size, base_mask, CONFIG):
-        output = u''
+        output = ''
         # Prepare index cycles
         index_cycles = [0, 0]
         for read in runSetup:
@@ -636,13 +636,13 @@ class Standard_Run(Run):
                 else:
                     index_cycles[1] = int(read['NumCycles'])
         # Header
-        output += '[Header]{}'.format(os.linesep)
+        output += f'[Header]{os.linesep}'
         for field in sorted(ssparser.header):
-            output += '{},{}'.format(field.rstrip(), ssparser.header[field].rstrip())
+            output += f'{field.rstrip()},{ssparser.header[field].rstrip()}'
             output += os.linesep
         # Settings for BCL Convert
         if software == 'bclconvert':
-            output += '[Settings]{}'.format(os.linesep)
+            output += f'[Settings]{os.linesep}'
             output += 'OverrideCycles,{}{}'.format(';'.join(base_mask), os.linesep)
 
             if CONFIG.get('bclconvert'):
@@ -651,15 +651,15 @@ class Standard_Run(Run):
                     if CONFIG['bclconvert']['settings'].get('common'):
                         for setting in CONFIG['bclconvert']['settings']['common']:
                             for k, v in setting.items():
-                                output += '{},{}{}'.format(k, v, os.linesep)
+                                output += f'{k},{v}{os.linesep}'
                     # Put special settings:
                     if sample_type in CONFIG['bclconvert']['settings'].keys():
                         for setting in CONFIG['bclconvert']['settings'][sample_type]:
                             for k, v in setting.items():
                                 if (k == 'BarcodeMismatchesIndex1' and index1_size != 0) or (k == 'BarcodeMismatchesIndex2' and index2_size != 0) or 'BarcodeMismatchesIndex' not in k:
-                                    output += '{},{}{}'.format(k, v, os.linesep)
+                                    output += f'{k},{v}{os.linesep}'
         # Data
-        output += '[Data]{}'.format(os.linesep)
+        output += f'[Data]{os.linesep}'
         datafields = []
         for field in ssparser.datafields:
             datafields.append(field)

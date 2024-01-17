@@ -1,17 +1,17 @@
 """Unit tests for the utils helper functions."""
 
-import hashlib
-import mock
 import os
 import shutil
 import subprocess
 import tempfile
-import unittest
 import time
-import couchdb
+import unittest
 from collections import defaultdict
-from taca.utils import misc, filesystem, transfer, config, bioinfo_tab, statusdb
+from unittest import mock
+
 from six.moves import map
+
+from taca.utils import bioinfo_tab, config, filesystem, misc, statusdb, transfer
 
 
 class TestMisc(unittest.TestCase):
@@ -262,8 +262,8 @@ class TestSymlinkAgent(unittest.TestCase):
         self.rootdir = tempfile.mkdtemp(prefix='test_taca_symlink_src')
         path = self.rootdir
         for n in range(3):
-            open(os.path.join(path, 'file{}'.format(n)), 'w').close()
-            path = os.path.join(path, 'folder{}'.format(n))
+            open(os.path.join(path, f'file{n}'), 'w').close()
+            path = os.path.join(path, f'folder{n}')
             os.mkdir(path)
 
     @classmethod
@@ -424,7 +424,7 @@ class TestRsyncAgent(unittest.TestCase):
 
         # create a digest file
         def _write_digest(rootdir, fhandle, fpath):
-            fhandle.write('{}  {}\n'.format(misc.hashfile(fpath), os.path.relpath(fpath, rootdir)))
+            fhandle.write(f'{misc.hashfile(fpath)}  {os.path.relpath(fpath, rootdir)}\n')
 
         cls.digestfile = os.path.join(cls.rootdir, 'digestfile.sha1')
         with open(cls.digestfile, 'w') as digesth:
@@ -500,12 +500,12 @@ class TestRsyncAgent(unittest.TestCase):
             'and empty destination host')
         self.agent.remote_host = 'localhost'
         self.assertEqual(
-            'localhost:{}'.format(self.destdir),
+            f'localhost:{self.destdir}',
             self.agent.remote_path(),
             'Destination path was not correct for empty remote user')
         self.agent.remote_user = 'user'
         self.assertEqual(
-            'user@localhost:{}'.format(self.destdir),
+            f'user@localhost:{self.destdir}',
             self.agent.remote_path(),
             'Destination path was not correct for non-empty remote user')
         self.agent.dest_path = None

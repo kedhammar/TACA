@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 import unittest
-import mock
+from unittest import mock
+
 import crontab
 
-from taca.server_status import server_status, cronjobs
+from taca.server_status import cronjobs, server_status
 from taca.utils import config
 
 CONFIG = config.load_yaml_config('data/taca_test_cfg.yaml')
@@ -62,9 +63,9 @@ class TestCronjobs(unittest.TestCase):
         mock_crontab.return_value = crontab.CronTab(tab=INITAL_TAB)
         mock_getpass.return_value = 'test_user'
         expected_crontab = {'test_user':
-                            [{'Comment': u'First Comment',
+                            [{'Comment': 'First Comment',
                               'Day of month': '*',
-                              'Command': u'firstcommand',
+                              'Command': 'firstcommand',
                               'Hour': '*',
                               'Day of week': '*',
                               'Enabled': True,
@@ -83,9 +84,9 @@ class TestCronjobs(unittest.TestCase):
     def test_update_cronjob_db(self, mock_parser, mock_platform, mock_logging, mock_statusdb):
         """Update couchdb with cronjobs."""
         mock_parser.return_value = {'test_user':
-                            [{'Comment': u'First Comment',
+                            [{'Comment': 'First Comment',
                               'Day of month': '*',
-                              'Command': u'firstcommand',
+                              'Command': 'firstcommand',
                               'Hour': '*',
                               'Day of week': '*',
                               'Enabled': True,

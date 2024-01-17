@@ -1,9 +1,12 @@
-import click
 import logging
 
+import click
+
+from taca.server_status import (
+    cronjobs as cj,  # to avoid similar names with command, otherwise exception
+)
 from taca.server_status import server_status as status
 from taca.utils.config import CONFIG
-from taca.server_status import cronjobs as cj # to avoid similar names with command, otherwise exception
 
 
 @click.group(name='server_status')

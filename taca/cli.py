@@ -1,10 +1,10 @@
-# -*- coding: utf-8 -*-
 import logging
 import os
-from pkg_resources import iter_entry_points
-import click
-import taca.log
 
+import click
+from pkg_resources import iter_entry_points
+
+import taca.log
 from taca import __version__
 from taca.utils import config as conf
 

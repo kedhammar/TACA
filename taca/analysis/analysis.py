@@ -2,22 +2,20 @@
 import glob
 import logging
 import os
-import sys
 import subprocess
+import sys
+from io import open
+from shutil import copyfile, copytree
 
-from shutil import copyfile
-from shutil import copytree
-from taca.illumina.Standard_Runs import Standard_Run
+from flowcell_parser.classes import RunParametersParser
+
 from taca.illumina.MiSeq_Runs import MiSeq_Run
 from taca.illumina.NextSeq_Runs import NextSeq_Run
 from taca.illumina.NovaSeq_Runs import NovaSeq_Run
 from taca.illumina.NovaSeqXPlus_Runs import NovaSeqXPlus_Run
+from taca.utils import statusdb
 from taca.utils.config import CONFIG
 from taca.utils.transfer import RsyncAgent
-from taca.utils import statusdb
-
-from flowcell_parser.classes import RunParametersParser
-from io import open
 
 logger = logging.getLogger(__name__)
 
@@ -37,15 +35,15 @@ def get_runObj(run, software):
     elif os.path.exists(os.path.join(run, 'RunParameters.xml')):
         run_parameters_file = 'RunParameters.xml'
     else:
-        logger.error('Cannot find RunParameters.xml or runParameters.xml in the run folder for run {}'.format(run))
+        logger.error(f'Cannot find RunParameters.xml or runParameters.xml in the run folder for run {run}')
         return
 
     run_parameters_path = os.path.join(run, run_parameters_file)
     try:
         run_parameters = RunParametersParser(run_parameters_path)
     except OSError:
-        logger.warn('Problems parsing the runParameters.xml file at {}. '
-                    'This is quite unexpected. please archive the run {} manually'.format(run_parameters_path, run))
+        logger.warn(f'Problems parsing the runParameters.xml file at {run_parameters_path}. '
+                    f'This is quite unexpected. please archive the run {run} manually')
     else:
         # Do a case by case test because there are so many version of RunParameters that there is no real other way
         runtype = run_parameters.data['RunParameters'].get('InstrumentType',
@@ -110,8 +108,8 @@ def _upload_to_statusdb(run):
             try:
                 PFclusters = parser.obj['Undetermined'][lane]['unknown']
             except KeyError:
-                logger.error('While taking extra care of lane {} of NoIndex type ' \
-                             'I found out that not all values were available'.format(lane))
+                logger.error(f'While taking extra care of lane {lane} of NoIndex type ' \
+                             'I found out that not all values were available')
                 continue
             # In Lanes_stats fix the lane yield
             parser.obj['illumina']['Demultiplex_Stats']['Lanes_stats'][int(lane) - 1]['PF Clusters'] = str(PFclusters)
@@ -122,9 +120,9 @@ def _upload_to_statusdb(run):
                     updated += 1
                     sample['PF Clusters'] = str(PFclusters)
             if updated != 1:
-                logger.error('While taking extra care of lane {} of NoIndex type '
+                logger.error(f'While taking extra care of lane {lane} of NoIndex type '
                              'I updated more than once the barcode_lane. '
-                             'This is too much to continue so I will fail.'.format(lane))
+                             'This is too much to continue so I will fail.')
                 os.sys.exit()
             # If I am here it means I changed the HTML representation to something
             # else to accomodate the wired things we do
@@ -144,7 +142,7 @@ def transfer_run(run_dir):
     mail_recipients = CONFIG.get('mail', {}).get('recipients')
     if runObj is None:
         mail_recipients = CONFIG.get('mail', {}).get('recipients')
-        logger.error('Trying to force a transfer of run {} but the sequencer was not recognized.'.format(run_dir))
+        logger.error(f'Trying to force a transfer of run {run_dir} but the sequencer was not recognized.')
     else:
         runObj.transfer_run(os.path.join('nosync', CONFIG['analysis']['status_dir'], 'transfer.tsv'), mail_recipients)
 
@@ -170,7 +168,7 @@ def transfer_runfolder(run_dir, pid, exclude_lane):
     try:
         with open(new_sample_sheet, 'w') as nss:
             nss.write(extract_project_samplesheet(original_sample_sheet, pid_list))
-    except IOError as e:
+    except OSError as e:
         logger.error('An error occured while parsing the samplesheet. '
         'Please check the sample sheet and try again.')
         raise e
@@ -185,14 +183,14 @@ def transfer_runfolder(run_dir, pid, exclude_lane):
         dir_for_excluding_lane = []
         lane_to_exclude = exclude_lane.split(',')
         for lane in lane_to_exclude:
-            if os.path.isdir('{}/{}/Thumbnail_Images/L00{}'.format(run_dir_path, dir_name, lane)):
-                dir_for_excluding_lane.extend(['--exclude', 'Thumbnail_Images/L00{}'.format(lane)])
-            if os.path.isdir('{}/{}/Images/Focus/L00{}'.format(run_dir_path, dir_name, lane)):
-                dir_for_excluding_lane.extend(['--exclude', 'Images/Focus/L00{}'.format(lane)])
-            if os.path.isdir('{}/{}/Data/Intensities/L00{}'.format(run_dir_path, dir_name, lane)):
-                dir_for_excluding_lane.extend(['--exclude', 'Data/Intensities/L00{}'.format(lane)])
-            if os.path.isdir('{}/{}/Data/Intensities/BaseCalls/L00{}'.format(run_dir_path, dir_name, lane)):
-                dir_for_excluding_lane.extend(['--exclude', 'Data/Intensities/BaseCalls/L00{}'.format(lane)])
+            if os.path.isdir(f'{run_dir_path}/{dir_name}/Thumbnail_Images/L00{lane}'):
+                dir_for_excluding_lane.extend(['--exclude', f'Thumbnail_Images/L00{lane}'])
+            if os.path.isdir(f'{run_dir_path}/{dir_name}/Images/Focus/L00{lane}'):
+                dir_for_excluding_lane.extend(['--exclude', f'Images/Focus/L00{lane}'])
+            if os.path.isdir(f'{run_dir_path}/{dir_name}/Data/Intensities/L00{lane}'):
+                dir_for_excluding_lane.extend(['--exclude', f'Data/Intensities/L00{lane}'])
+            if os.path.isdir(f'{run_dir_path}/{dir_name}/Data/Intensities/BaseCalls/L00{lane}'):
+                dir_for_excluding_lane.extend(['--exclude', f'Data/Intensities/BaseCalls/L00{lane}'])
 
     try:
         exclude_options_for_tar = ['--exclude', 'Demultiplexing*',
@@ -244,7 +242,7 @@ def transfer_runfolder(run_dir, pid, exclude_lane):
         os.remove(new_sample_sheet)
         os.remove(archive)
         os.remove(md5file)
-    except IOError as e:
+    except OSError as e:
         logger.error('Was not able to delete all temporary files')
         raise e
     return
@@ -271,32 +269,32 @@ def run_preprocessing(run, software):
 
         :param taca.illumina.Run run: Run to be processed and transferred
         """
-        logger.info('Checking run {}'.format(run.id))
+        logger.info(f'Checking run {run.id}')
         transfer_file = os.path.join(CONFIG['analysis']['status_dir'], 'transfer.tsv')
         if run.is_transferred(transfer_file):  # Transfer is ongoing or finished. Do nothing. Sometimes caused by runs that are copied back from NAS after a reboot
-            logger.info('Run {} already transferred to analysis server, skipping it'.format(run.id))
+            logger.info(f'Run {run.id} already transferred to analysis server, skipping it')
             return
 
         if run.get_run_status() == 'SEQUENCING':
-            logger.info('Run {} is not finished yet'.format(run.id))
+            logger.info(f'Run {run.id} is not finished yet')
             if 'statusdb' in CONFIG:
                 _upload_to_statusdb(run)
         elif run.get_run_status() == 'TO_START':
             if run.get_run_type() == 'NON-NGI-RUN':
                 # For now MiSeq specific case. Process only NGI-run, skip all the others (PhD student runs)
-                logger.warn('Run {} marked as {}, '
+                logger.warn(f'Run {run.id} marked as {run.get_run_type()}, '
                             'TACA will skip this and move the run to '
-                            'no-sync directory'.format(run.id, run.get_run_type()))
+                            'no-sync directory')
                 if 'storage' in CONFIG:
                     run.archive_run(CONFIG['storage']['archive_dirs'][run.sequencer_type])
                 return
-            logger.info(('Starting BCL to FASTQ conversion and demultiplexing for run {}'.format(run.id)))
+            logger.info(f'Starting BCL to FASTQ conversion and demultiplexing for run {run.id}')
             if 'statusdb' in CONFIG:
                 _upload_to_statusdb(run)
             run.demultiplex_run()
         elif run.get_run_status() == 'IN_PROGRESS':
-            logger.info(('BCL conversion and demultiplexing process in '
-                         'progress for run {}, skipping it'.format(run.id)))
+            logger.info('BCL conversion and demultiplexing process in '
+                         f'progress for run {run.id}, skipping it')
             # Upload to statusDB if applies
             if 'statusdb' in CONFIG:
                 _upload_to_statusdb(run)
@@ -307,7 +305,7 @@ def run_preprocessing(run, software):
         # a cycle take the last if out of the elif
         if run.get_run_status() == 'COMPLETED':
             run.check_run_status()
-            logger.info(('Preprocessing of run {} is finished, transferring it'.format(run.id)))
+            logger.info(f'Preprocessing of run {run.id} is finished, transferring it')
             # Upload to statusDB if applies
             if 'statusdb' in CONFIG:
                 _upload_to_statusdb(run)
@@ -317,10 +315,10 @@ def run_preprocessing(run, software):
                         demux_summary_message.append("Sub-Demultiplexing in Demultiplexing_{} completed with {} errors and {} warnings:".format(demux_id, demux_log['errors'], demux_log['warnings']))
                         demux_summary_message.append("\n".join(demux_log['error_and_warning_messages'][:5]))
                         if len(demux_log['error_and_warning_messages'])>5:
-                            demux_summary_message.append("...... Only the first 5 errors or warnings are displayed for Demultiplexing_{}.".format(demux_id))
+                            demux_summary_message.append(f"...... Only the first 5 errors or warnings are displayed for Demultiplexing_{demux_id}.")
                 # Notify with a mail run completion and stats uploaded
                 if demux_summary_message:
-                    sbt = ("{} Demultiplexing Completed with ERRORs or WARNINGS!".format(run.id))
+                    sbt = (f"{run.id} Demultiplexing Completed with ERRORs or WARNINGS!")
                     msg = """The run {run} has been demultiplexed with errors or warnings!
 
                     {errors_warnings}
@@ -331,7 +329,7 @@ def run_preprocessing(run, software):
 
                     """.format(errors_warnings='\n'.join(demux_summary_message), run=run.id)
                 else:
-                    sbt = ("{} Demultiplexing Completed!".format(run.id))
+                    sbt = (f"{run.id} Demultiplexing Completed!")
                     msg = """The run {run} has been demultiplexed without any error or warning.
 
                     The Run will be transferred to the analysis cluster for further analysis.
@@ -345,7 +343,7 @@ def run_preprocessing(run, software):
             if 'mfs_path' in CONFIG['analysis']:
                 try:
                     mfs_dest = os.path.join(CONFIG['analysis']['mfs_path'][run.sequencer_type.lower()],run.id)
-                    logger.info('Copying demultiplex stats, InterOp metadata and XML files for run {} to {}'.format(run.id, mfs_dest))
+                    logger.info(f'Copying demultiplex stats, InterOp metadata and XML files for run {run.id} to {mfs_dest}')
                     if not os.path.exists(mfs_dest):
                         os.mkdir(mfs_dest)
                     demulti_stat_src = os.path.join(run.run_dir, run.demux_dir, 'Reports',
@@ -364,7 +362,7 @@ def run_preprocessing(run, software):
                     if os.path.exists(interop_src):
                         copytree(interop_src, os.path.join(mfs_dest, 'InterOp'), dirs_exist_ok=True)
                 except:
-                    logger.warn('Could not copy demultiplex stats, InterOp metadata or XML files for run {}'.format(run.id))
+                    logger.warn(f'Could not copy demultiplex stats, InterOp metadata or XML files for run {run.id}')
 
             # Transfer to analysis server if flag is True
             if run.transfer_to_analysis_server:
@@ -383,7 +381,7 @@ def run_preprocessing(run, software):
         # Determine the run type
         runObj = get_runObj(run, software)
         if not runObj:
-            raise RuntimeError("Unrecognized instrument type or incorrect run folder {}".format(run))
+            raise RuntimeError(f"Unrecognized instrument type or incorrect run folder {run}")
         else:
             _process(runObj)
     else:
@@ -394,12 +392,12 @@ def run_preprocessing(run, software):
             for _run in runs:
                 runObj = get_runObj(_run, software)
                 if not runObj:
-                    logger.warning('Unrecognized instrument type or incorrect run folder {}'.format(run))
+                    logger.warning(f'Unrecognized instrument type or incorrect run folder {run}')
                 else:
                     try:
                         _process(runObj)
                     except:
                         # This function might throw and exception,
                         # it is better to continue processing other runs
-                        logger.warning('There was an error processing the run {}'.format(run))
+                        logger.warning(f'There was an error processing the run {run}')
                         pass

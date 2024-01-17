@@ -1,10 +1,10 @@
 #!/usr/bin/env python
-import os
-import tempfile
-import shutil
 import json
+import os
+import shutil
+import tempfile
 import unittest
-import mock
+from unittest import mock
 
 from taca.analysis import analysis as an
 from taca.utils import config

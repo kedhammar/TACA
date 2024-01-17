@@ -1,20 +1,22 @@
+import datetime
+import getpass
 import logging
 import platform
-import getpass
-import datetime
 
 from crontab import CronTab
+
 from taca.utils import statusdb
 from taca.utils.config import CONFIG
+
 
 def _parse_crontab():
     result = {}
     user = getpass.getuser()
-    logging.info('Getting crontab for user {}'.format(user))
+    logging.info(f'Getting crontab for user {user}')
     try:
         crontab = CronTab(user=user)
     except Exception as e:
-        logging.error('Cannot get a crontab for user: {}'.format(user))
+        logging.error(f'Cannot get a crontab for user: {user}')
         logging.error(e.message)
     else:
         result[user] = []
@@ -71,7 +73,7 @@ def update_cronjob_db():
             except Exception as e:
                 logging.error(e.message)
             else:
-                logging.info('{} has been successfully updated'.format(server))
+                logging.info(f'{server} has been successfully updated')
         else:
             logging.warning('Document has not been created/updated')
 

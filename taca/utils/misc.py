@@ -5,12 +5,14 @@ import os
 import smtplib
 import subprocess
 import sys
-
 from datetime import datetime
 from email.mime.text import MIMEText
-from taca.utils import statusdb
 from io import open
+
 from six.moves import input
+
+from taca.utils import statusdb
+
 
 def send_mail(subject, content, receiver):
     """Sends an email.
@@ -22,7 +24,7 @@ def send_mail(subject, content, receiver):
     if not receiver:
         raise SystemExit('No receiver was given to send mail')
     msg = MIMEText(content)
-    msg['Subject'] = 'TACA - {}'.format(subject)
+    msg['Subject'] = f'TACA - {subject}'
     msg['From'] = 'TACA@scilifelab.se'
     msg['to'] = receiver
 
@@ -45,7 +47,7 @@ def call_external_command(cl, with_log_files=False, prefix=None, log_dir=''):
     stderr = sys.stderr
     if with_log_files:
         if prefix:
-            logFile = '{}_{}'.format(prefix, logFile)
+            logFile = f'{prefix}_{logFile}'
         # Create log dir if it didn't exist in CWD
         if log_dir and not os.path.exists(log_dir):
             os.mkdir(log_dir)
@@ -53,8 +55,8 @@ def call_external_command(cl, with_log_files=False, prefix=None, log_dir=''):
         stdout = open(logFile + '.out', 'a')
         stderr = open(logFile + '.err', 'a')
         started = 'Started command {} on {}'.format(' '.join(cl), datetime.now())
-        stdout.write(started + u'\n')
-        stdout.write(''.join(['=']*len(cl)) + u'\n')
+        stdout.write(started + '\n')
+        stdout.write(''.join(['=']*len(cl)) + '\n')
 
     try:
         subprocess.check_call(cl, stdout=stdout, stderr=stderr)
@@ -80,12 +82,12 @@ def call_external_command_detached(cl, with_log_files=False, prefix=None):
 
     if with_log_files:
         if prefix:
-            command = '{}_{}'.format(prefix, command)
+            command = f'{prefix}_{command}'
         stdout = open(command + '.out', 'a')
         stderr = open(command + '.err', 'a')
         started = 'Started command {} on {}'.format(' '.join(cl), datetime.now())
-        stdout.write(started + u'\n')
-        stdout.write(''.join(['=']*len(cl)) + u'\n')
+        stdout.write(started + '\n')
+        stdout.write(''.join(['=']*len(cl)) + '\n')
 
     try:
         p_handle = subprocess.Popen(cl, stdout=stdout, stderr=stderr)
@@ -205,7 +207,7 @@ def run_is_demuxed(run, couch_info=None, seq_run_type=None):
         if len(run_date)>6:
             run_date = run_date[2:]
         run_fc = run_terms[-1]
-        run_name = '{}_{}'.format(run_date, run_fc)
+        run_name = f'{run_date}_{run_fc}'
         try:
             couch_connection = statusdb.StatusdbSession(couch_info).connection
             fc_db = couch_connection[couch_info['xten_db']]

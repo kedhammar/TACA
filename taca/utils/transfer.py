@@ -4,15 +4,15 @@ import logging
 import os
 import shutil
 import subprocess
+from io import open
 
 from taca.utils.filesystem import create_folder
-from taca.utils.misc import hashfile, call_external_command
-from io import open
+from taca.utils.misc import call_external_command, hashfile
 
 logger = logging.getLogger(__name__)
 
 
-class TransferAgent(object):
+class TransferAgent:
     """
         (Abstract) superclass representing an Agent that performs file transfers.
         Agents implementing specific methods for transferring files should extend
@@ -64,7 +64,7 @@ class TransferAgent(object):
                 if type(val) == str:
                     val = [val]
                 for v in val:
-                    cmdopts.append('{}={}'.format(param,v))
+                    cmdopts.append(f'{param}={v}')
         return cmdopts
 
     def transfer(self):
@@ -82,7 +82,7 @@ class TransferAgent(object):
                 dest_path=self.dest_path)
         if not os.path.exists(self.src_path):
             raise TransferError(
-                msg='src_path "{}" does not exist'.format(self.src_path),
+                msg=f'src_path "{self.src_path}" does not exist',
                 src_path=self.src_path,
                 dest_path=self.dest_path)
 
@@ -173,10 +173,10 @@ class RsyncAgent(TransferAgent):
                 [remote_user]@[remote_host]:[dest_path]
         """
         return '{}{}{}'.format(
-            '{}@'.format(self.remote_user) \
+            f'{self.remote_user}@' \
                 if self.remote_user is not None \
                 else '',
-            '{}:'.format(self.remote_host) \
+            f'{self.remote_host}:' \
                 if self.remote_host is not None \
                 else '',
             self.dest_path \
@@ -227,7 +227,7 @@ class RsyncAgent(TransferAgent):
                         tfile,
                         hasher=hasher):
                         return False
-        except TypeError as e:
+        except TypeError:
             raise RsyncValidationError(
                 'no digest file specified',
                 self.src_path,
@@ -269,12 +269,12 @@ class SymlinkAgent(TransferAgent):
             # source, we're all good
             if self.validate_transfer():
                 logger.debug('target exists and points to the correct '
-                             'source path: "{}"'.format(self.src_path))
+                             f'source path: "{self.src_path}"')
                 return True
             # If we are not overwriting, return False
             if not self.overwrite:
-                logger.debug('target "{}" exists and will not be '
-                             'overwritten'.format(self.dest_path))
+                logger.debug(f'target "{self.dest_path}" exists and will not be '
+                             'overwritten')
                 return False
             # If the target is a mount, let's not mess with it
             if os.path.ismount(self.dest_path):
@@ -282,8 +282,7 @@ class SymlinkAgent(TransferAgent):
             # If the target is a link or a file, we remove it
             if os.path.islink(self.dest_path) or \
                 os.path.isfile(self.dest_path):
-                logger.debug('removing existing target file "{}"'
-                             .format(self.dest_path))
+                logger.debug(f'removing existing target file "{self.dest_path}"')
                 try:
                     os.unlink(self.dest_path)
                 except OSError as e:
@@ -291,8 +290,7 @@ class SymlinkAgent(TransferAgent):
             # If the target is a directory, we remove it and
             # everything underneath
             elif os.path.isdir(self.dest_path):
-                logger.debug('removing existing target folder "{}"'
-                             .format(self.dest_path))
+                logger.debug(f'removing existing target folder "{self.dest_path}"')
                 try:
                     shutil.rmtree(self.dest_path)
                 except OSError as e:

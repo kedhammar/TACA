@@ -2,15 +2,15 @@
 import logging
 import os
 import re
-
 from collections import defaultdict
 from datetime import datetime
 from glob import glob
-
-from taca.utils.config import CONFIG, load_config
-from taca.utils import filesystem, misc, statusdb
 from io import open
+
 from six.moves import map
+
+from taca.utils import filesystem, misc, statusdb
+from taca.utils.config import CONFIG, load_config
 
 logger = logging.getLogger(__name__)
 
@@ -59,9 +59,9 @@ def cleanup_miarka(days_fastq, days_analysis,
         if date:
             date = datetime.strptime(date, '%Y-%m-%d')
     except KeyError as e:
-        logger.error('Config file is missing the key {}, make sure it has all required information'.format(str(e)))
+        logger.error(f'Config file is missing the key {str(e)}, make sure it has all required information')
         raise SystemExit
-    except ValueError as e:
+    except ValueError:
         logger.error('Date given with "--date" option is not in required format, see help for more info')
         raise SystemExit
 
@@ -101,7 +101,7 @@ def cleanup_miarka(days_fastq, days_analysis,
                 fc_abs_path = os.path.join(flowcell_dir, fc)
                 with filesystem.chdir(fc_abs_path):
                     if not os.path.exists(flowcell_project_source):
-                        logger.warn('Flowcell {} does not contain a "{}" directory'.format(fc, flowcell_project_source))
+                        logger.warn(f'Flowcell {fc} does not contain a "{flowcell_project_source}" directory')
                         continue
                     projects_in_fc = [d for d in os.listdir(flowcell_project_source) \
                                       if re.match(r'^[A-Z]+[_\.]+[A-Za-z]+_\d\d_\d\d$',d) and \
@@ -113,7 +113,7 @@ def cleanup_miarka(days_fastq, days_analysis,
                         continue
                     fc_undet_files = glob(os.path.join(flowcell_project_source, flowcell_undet_files))
                     if fc_undet_files:
-                        logger.info('All projects was cleaned for FC {}, found {} undeterminded files'.format(fc, len(fc_undet_files)))
+                        logger.info(f'All projects was cleaned for FC {fc}, found {len(fc_undet_files)} undeterminded files')
                         all_undet_files.extend(list(map(os.path.abspath, fc_undet_files)))
         if all_undet_files:
             undet_size = _def_get_size_unit(sum(map(os.path.getsize, all_undet_files)))
@@ -142,7 +142,7 @@ def cleanup_miarka(days_fastq, days_analysis,
                 fc_abs_path = os.path.join(flowcell_dir, fc)
                 with filesystem.chdir(fc_abs_path):
                     if not os.path.exists(flowcell_project_source):
-                        logger.warn('Flowcell {} do not contain a "{}" direcotry'.format(fc, flowcell_project_source))
+                        logger.warn(f'Flowcell {fc} do not contain a "{flowcell_project_source}" direcotry')
                         continue
                     projects_in_fc = [d for d in os.listdir(flowcell_project_source) \
                                       if re.match(r'^[A-Z]+[_\.]+[A-Za-z0-9]+_\d\d_\d\d$',d) and \
@@ -201,7 +201,7 @@ def cleanup_miarka(days_fastq, days_analysis,
                              _def_get_size_unit(p_info['fastq_size']), _def_get_size_unit(p_info['analysis_size'])]))
         raise SystemExit
 
-    logger.info('Initial list is built with {} projects {}'.format(len(project_clean_list), get_files_size_text(project_clean_list)))
+    logger.info(f'Initial list is built with {len(project_clean_list)} projects {get_files_size_text(project_clean_list)}')
     if  misc.query_yes_no('Interactively filter projects for cleanup ?', default='yes'):
         filtered_project, proj_count = ([], 0)
         #go through complied project list and remove files
@@ -209,15 +209,15 @@ def cleanup_miarka(days_fastq, days_analysis,
             proj_count += 1
             if not misc.query_yes_no('{}Delete files for this project ({}/{})'.format(get_proj_meta_info(info, days_fastq),
                                                                                       proj_count, len(project_clean_list)), default='no'):
-                logger.info('Will not remove files for project {}'.format(proj))
+                logger.info(f'Will not remove files for project {proj}')
                 filtered_project.append(proj)
         # remove projects that were decided not to delete
         map(project_clean_list.pop, filtered_project)
-        logger.info('Removed {}/{} projects from initial list'.format(len(filtered_project), proj_count))
+        logger.info(f'Removed {len(filtered_project)}/{proj_count} projects from initial list')
         if not project_clean_list:
             logger.info('There are no projects to clean after filtering')
             return
-        logger.info('Final list is created with {} projects {}'.format(len(project_clean_list), get_files_size_text(project_clean_list)))
+        logger.info(f'Final list is created with {len(project_clean_list)} projects {get_files_size_text(project_clean_list)}')
         if not misc.query_yes_no('Proceed with cleanup ?', default='no'):
             logger.info('Aborting cleanup')
             return
@@ -226,21 +226,21 @@ def cleanup_miarka(days_fastq, days_analysis,
     for proj, info in project_clean_list.items():
         fastq_info = info.get('fastq_to_remove')
         if fastq_info and isinstance(fastq_info, dict):
-            logger.info('Cleaning fastq files for project {}'.format(proj))
+            logger.info(f'Cleaning fastq files for project {proj}')
             fastq_fc = fastq_info.get('flowcells', {})
             removed_fc = []
             for fc, fc_info in fastq_fc.items():
                 proj_fc_root = fc_info['proj_root']
-                logger.info('Removing fastq files from {}'.format(proj_fc_root))
+                logger.info(f'Removing fastq files from {proj_fc_root}')
                 if not dry_run:
                     if _remove_files(fc_info['fq_files']):
-                        logger.info('Removed fastq files from FC {} for project {}, marking it as cleaned'.format(fc, proj))
+                        logger.info(f'Removed fastq files from FC {fc} for project {proj}, marking it as cleaned')
                         _touch_cleaned(proj_fc_root)
                         removed_fc.append(fc)
             if len(fastq_fc) == len(removed_fc):
                 try:
                     proj_data_root = fastq_info['proj_data']['proj_data_root']
-                    logger.info('All flowcells cleaned for this project, marking it as cleaned in {}'.format(proj_data_root))
+                    logger.info(f'All flowcells cleaned for this project, marking it as cleaned in {proj_data_root}')
                     _touch_cleaned(proj_data_root)
                 except:
                     pass
@@ -248,18 +248,18 @@ def cleanup_miarka(days_fastq, days_analysis,
         analysis_info = info.get('analysis_to_remove')
         if analysis_info and isinstance(analysis_info, dict):
             proj_analysis_root = analysis_info['proj_analysis_root']
-            logger.info('cleaning analysis data for project {}'.format(proj))
+            logger.info(f'cleaning analysis data for project {proj}')
             removed_qc = []
             for qc, files in analysis_info['analysis_files'].items():
-                logger.info('Removing files of "{}" from {}'.format(qc, proj_analysis_root))
+                logger.info(f'Removing files of "{qc}" from {proj_analysis_root}')
                 if not dry_run:
                     if _remove_files(files):
                         removed_qc.append(qc)
                     else:
-                        logger.warn('Could not remove some files in qc directory "{}"'.format(qc))
+                        logger.warn(f'Could not remove some files in qc directory "{qc}"')
             map(analysis_info['analysis_files'].pop, removed_qc)
             if len(analysis_info['analysis_files']) == 0:
-                logger.info('Removed analysis data for project {}, marking it cleaned'.format(proj))
+                logger.info(f'Removed analysis data for project {proj}, marking it cleaned')
                 _touch_cleaned(proj_analysis_root)
 
 
@@ -273,7 +273,7 @@ def get_closed_proj_info(prj, pdoc, tdate=None):
     if not tdate:
         tdate = datetime.today()
     if not pdoc:
-        logger.warn('Seems like project {} does not have a proper statusdb document, skipping it'.format(prj))
+        logger.warn(f'Seems like project {prj} does not have a proper statusdb document, skipping it')
     elif 'close_date' in pdoc:
         closed_date = pdoc['close_date']
         try:
@@ -348,9 +348,9 @@ def get_proj_meta_info(info, days_fastq):
     template = '\n'
     def _get_template_string(h, v):
         try:
-            v = '{}: {}\n'.format(h, v)
+            v = f'{h}: {v}\n'
         except:
-            v = '{}: Problem getting this'.format(h)
+            v = f'{h}: Problem getting this'
         return v
     template += _get_template_string('Project overview', info.get('name'))
     template += _get_template_string('Project ID', info.get('pid'))
@@ -367,13 +367,13 @@ def get_proj_meta_info(info, days_fastq):
     elif isinstance(analysis_info, dict):
         f_stat = []
         for qc_type, files in analysis_info['analysis_files'].items():
-            f_stat.append('{} ({} files)'.format(qc_type, len(files)))
+            f_stat.append(f'{qc_type} ({len(files)} files)')
         template += 'Project analyzed: {}\n'.format(', '.join(f_stat))
 
     # set fastq info based upon what we have
     fq_info = info.get('fastq_to_remove')
     if isinstance(fq_info, str) and fq_info == "young":
-        template += 'Project been closed less than {} days, so will not remove any fastq files\n'.format(days_fastq)
+        template += f'Project been closed less than {days_fastq} days, so will not remove any fastq files\n'
     elif isinstance(fq_info, dict):
         proj_fq_info = fq_info.get('proj_data')
         if not proj_fq_info:
@@ -385,7 +385,7 @@ def get_proj_meta_info(info, days_fastq):
         fc_fq_info = fq_info.get('flowcells', {})
         fc_num = len(fc_fq_info.keys())
         fc_files = sum(map(len, [fc_info.get('fq_files', [])for fc_info in fc_fq_info.values()]))
-        template += 'Flowcells: There are {} FC with total {} fastq files\n'.format(fc_num, fc_files)
+        template += f'Flowcells: There are {fc_num} FC with total {fc_files} fastq files\n'
     template += 'Estimated data size: {}\n'.format(_def_get_size_unit(info.get('fastq_size',0) + info.get('fastq_size', 0)))
 
     return template
@@ -394,8 +394,8 @@ def get_files_size_text(plist):
     """Get project list dict and give back string with overll sizes."""
     fsize = _def_get_size_unit(sum([i.get('fastq_size',0) for i in plist.values()]))
     asize = _def_get_size_unit(sum([i.get('analysis_size',0) for i in plist.values()]))
-    return '({f}{s}{a}) '.format(f = '~{} fastq data'.format(fsize) if fsize else '',
-                                 a = '~{} analysis data'.format(asize) if asize else '',
+    return '({f}{s}{a}) '.format(f = f'~{fsize} fastq data' if fsize else '',
+                                 a = f'~{asize} analysis data' if asize else '',
                                  s = ' and ' if fsize and asize else '')
 
 def _def_get_size_unit(s):
@@ -405,15 +405,15 @@ def _def_get_size_unit(s):
     gb = mb * 1000
     tb = gb * 1000
     if s > tb:
-        s = '~{}tb'.format(int(s/tb))
+        s = f'~{int(s/tb)}tb'
     elif s > gb:
-        s = '~{}gb'.format(int(s/gb))
+        s = f'~{int(s/gb)}gb'
     elif s > mb:
-        s = '~{}mb'.format(int(s/mb))
+        s = f'~{int(s/mb)}mb'
     elif s > kb:
-        s = '~{}kb'.format(int(s/kb))
+        s = f'~{int(s/kb)}kb'
     elif s > 0:
-        s = '~{}b'.format(int(s/b))
+        s = f'~{int(s/b)}b'
     return str(s)
 
 def _remove_files(files):
@@ -423,7 +423,7 @@ def _remove_files(files):
         try:
             os.remove(fl)
         except Exception as e:
-            logger.warn('Could not remove file {} due to "{}"'.format(fl, e.message))
+            logger.warn(f'Could not remove file {fl} due to "{e.message}"')
             status = False
     return status
 
@@ -432,4 +432,4 @@ def _touch_cleaned(path):
     try:
         open(os.path.join(path, 'cleaned'), 'w').close()
     except Exception as e:
-        logger.warn('Could not create "cleaned" file in path {} due to "{}"'.format(path, e.message))
+        logger.warn(f'Could not create "cleaned" file in path {path} due to "{e.message}"')

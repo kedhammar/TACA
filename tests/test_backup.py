@@ -1,9 +1,9 @@
 #!/usr/bin/env python
-import unittest
-import mock
-import tempfile
 import os
 import shutil
+import tempfile
+import unittest
+from unittest import mock
 
 from taca.backup import backup
 from taca.utils import config as conf

@@ -1,6 +1,6 @@
-import subprocess
-import logging
 import datetime
+import logging
+import subprocess
 
 from taca.utils import statusdb
 from taca.utils.config import CONFIG
@@ -26,7 +26,7 @@ def get_nases_disk_space():
             else:
                 user = config['user']
             # Connect via ssh to server and execute the command
-            command = ['ssh', '-t', '{}@{}'.format(user, server_url), command]
+            command = ['ssh', '-t', f'{user}@{server_url}', command]
 
         result[server_url] = _run_cmd(command)
 
@@ -81,7 +81,7 @@ def _parse_output(output): # for nases
             'mounted_on': 'NaN',
             'filesystem': 'NaN'
         }
-        logging.error('Can not parse the output: {}'.format(output))
+        logging.error(f'Can not parse the output: {output}')
 
     return result
 
@@ -116,7 +116,7 @@ def update_status_db(data, server_type=None):
             logging.error(e.message)
             raise
         else:
-            logging.info('{}: Server status has been updated'.format(key))
+            logging.info(f'{key}: Server status has been updated')
 
 def check_promethion_status():
     config = CONFIG.get('promethion_status')

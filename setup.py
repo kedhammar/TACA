@@ -1,21 +1,20 @@
-from setuptools import setup, find_packages
 import glob
-import os
-import sys
+from io import open
+
+from setuptools import find_packages, setup
 
 from taca import __version__
-from io import open
 
 try:
     with open("requirements.txt", "r") as f:
         install_requires = [x.strip() for x in f.readlines()]
-except IOError:
+except OSError:
     install_requires = []
 
 try:
     with open("dependency_links.txt", "r") as f:
         dependency_links = [x.strip() for x in f.readlines()]
-except IOError:
+except OSError:
     dependency_links = []
 
 

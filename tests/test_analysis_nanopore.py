@@ -1,13 +1,10 @@
 #!/usr/bin/env python
 import unittest
-import logging
-import mock
-import os
+from unittest import mock
 
 from taca.analysis.analysis_nanopore import *
 from taca.nanopore.minion import MinIONqc
 from taca.utils import config as conf
-
 
 CONFIG = conf.load_yaml_config('data/taca_test_nanopore_cfg.yaml')
 
@@ -68,6 +65,6 @@ class TestNanoporeAnalysis(unittest.TestCase):
         minion_run.qc_run = True
         process_minion_qc_run(minion_run)
         email_subject = ('Analysis failed for run 20200108_1412_MN19414_AAU648_68125dc2')
-        email_message = 'The nanoseq analysis failed for run {}.'.format(minion_run.run_id)
+        email_message = f'The nanoseq analysis failed for run {minion_run.run_id}.'
         email_recipients = 'test@test.com'
         mock_mail.assert_called_once_with(email_subject, email_message, email_recipients)

@@ -1,10 +1,12 @@
 
 """ CLI for the testing commands
 """
-from __future__ import print_function
 import os
+
 import click
+
 import taca.testing.create_uppmax_like_env as createupp
+
 
 @click.group(name='uppmax_env')
 def uppmax_env():

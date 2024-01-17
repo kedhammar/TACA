@@ -4,8 +4,8 @@ import os
 import shutil
 import tempfile
 import unittest
-import mock
 from datetime import datetime
+from unittest import mock
 
 from taca.cleanup import cleanup
 from taca.utils import config as conf

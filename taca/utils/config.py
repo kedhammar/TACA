@@ -1,6 +1,7 @@
 """Load and parse configuration file."""
-import yaml
 from io import open
+
+import yaml
 
 CONFIG = {}
 
@@ -12,8 +13,8 @@ def load_config(config_file):
             content = yaml.load(f, Loader=yaml.FullLoader)
             config.update(content)
             return content
-    except IOError as e:
-        e.message = 'Could not open configuration file "{}".'.format(config_file)
+    except OSError as e:
+        e.message = f'Could not open configuration file "{config_file}".'
         raise e
 
 def load_yaml_config(config_file):
@@ -30,6 +31,6 @@ def load_yaml_config(config_file):
             content = yaml.load(f, Loader=yaml.FullLoader)
             CONFIG.update(content)
             return content
-    except IOError as e:
-        e.message = 'Could not open configuration file "{}".'.format(config_file)
+    except OSError as e:
+        e.message = f'Could not open configuration file "{config_file}".'
         raise e

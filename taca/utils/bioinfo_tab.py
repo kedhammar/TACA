@@ -1,13 +1,14 @@
-import os
-import glob
-import re
-import logging
 import datetime
+import glob
+import logging
+import os
+import re
+from collections import OrderedDict, defaultdict
 
-from taca.utils.config import CONFIG
+from flowcell_parser.classes import RunParametersParser, SampleSheetParser
+
 from taca.utils import statusdb
-from flowcell_parser.classes import SampleSheetParser, RunParametersParser
-from collections import defaultdict, OrderedDict
+from taca.utils.config import CONFIG
 from taca.utils.misc import send_mail
 
 logger = logging.getLogger(__name__)
@@ -32,7 +33,7 @@ def collect_runs():
             for run_dir in potential_run_dirs:
                 if rundir_re.match(os.path.basename(os.path.abspath(run_dir))) and os.path.isdir(run_dir):
                     found_runs.append(os.path.basename(run_dir))
-                    logger.info('Working on {}'.format(run_dir))
+                    logger.info(f'Working on {run_dir}')
                     update_statusdb(run_dir)
         nosync_data_dir = os.path.join(data_dir, 'nosync')
         potential_nosync_run_dirs = glob.glob(os.path.join(nosync_data_dir, '*'))
@@ -158,7 +159,7 @@ def get_ss_projects(run_dir):
     elif os.path.exists(os.path.join(run_dir, 'RunParameters.xml')):
         run_parameters_file = 'RunParameters.xml'
     else:
-        logger.error('Cannot find RunParameters.xml or runParameters.xml in the run folder for run {}'.format(run_dir))
+        logger.error(f'Cannot find RunParameters.xml or runParameters.xml in the run folder for run {run_dir}')
         return []
     rp = RunParametersParser(os.path.join(run_dir, run_parameters_file))
     if 'Setup' in rp.data['RunParameters']:
@@ -182,7 +183,7 @@ def get_ss_projects(run_dir):
         elif os.path.exists(os.path.join(run_dir, 'SampleSheet.csv')):
             FCID_samplesheet_origin = os.path.join(run_dir, 'SampleSheet.csv')
         else:
-            logger.warn('No samplesheet found for {}'.format(run_dir))
+            logger.warn(f'No samplesheet found for {run_dir}')
         miseq = True
         lanes = str(1)
         # Pattern is a bit more rigid since we're no longer also checking for lanes
@@ -191,29 +192,29 @@ def get_ss_projects(run_dir):
     # HiSeq X case
     elif 'HiSeq X' in runtype:
         FCID_samplesheet_origin = os.path.join(CONFIG['bioinfo_tab']['xten_samplesheets'],
-                                    current_year, '{}.csv'.format(FCID))
+                                    current_year, f'{FCID}.csv')
         data = parse_samplesheet(FCID_samplesheet_origin, run_dir)
     # HiSeq 2500 case
     elif 'HiSeq' in runtype or 'TruSeq' in runtype:
         FCID_samplesheet_origin = os.path.join(CONFIG['bioinfo_tab']['hiseq_samplesheets'],
-                                    current_year, '{}.csv'.format(FCID))
+                                    current_year, f'{FCID}.csv')
         data = parse_samplesheet(FCID_samplesheet_origin, run_dir)
     elif 'NovaSeqXPlus' in runtype:
         FCID_samplesheet_origin = os.path.join(CONFIG['bioinfo_tab']['novaseqxplus_samplesheets'],
-                                    current_year, '{}.csv'.format(FCID))
+                                    current_year, f'{FCID}.csv')
         data = parse_samplesheet(FCID_samplesheet_origin, run_dir)
     # NovaSeq 6000 case
     elif 'NovaSeq' in runtype:
         FCID_samplesheet_origin = os.path.join(CONFIG['bioinfo_tab']['novaseq_samplesheets'],
-                                    current_year, '{}.csv'.format(FCID))
+                                    current_year, f'{FCID}.csv')
         data = parse_samplesheet(FCID_samplesheet_origin, run_dir)
     # NextSeq Case
     elif 'NextSeq' in runtype:
         FCID_samplesheet_origin = os.path.join(CONFIG['bioinfo_tab']['nextseq_samplesheets'],
-                                    current_year, '{}.csv'.format(FCID))
+                                    current_year, f'{FCID}.csv')
         data = parse_samplesheet(FCID_samplesheet_origin, run_dir)
     else:
-        logger.warn('Cannot locate the samplesheet for run {}'.format(run_dir))
+        logger.warn(f'Cannot locate the samplesheet for run {run_dir}')
         return []
 
     # If samplesheet is empty, don't bother going through it
@@ -244,7 +245,7 @@ def get_ss_projects(run_dir):
             lane = False
 
     if list(proj_tree.keys()) == []:
-        logger.info('INCORRECTLY FORMATTED SAMPLESHEET, CHECK {}'.format(run_name))
+        logger.info(f'INCORRECTLY FORMATTED SAMPLESHEET, CHECK {run_name}')
     return proj_tree
 
 def parse_samplesheet(FCID_samplesheet_origin, run_dir, is_miseq=False):
@@ -256,13 +257,13 @@ def parse_samplesheet(FCID_samplesheet_origin, run_dir, is_miseq=False):
         ss_reader = SampleSheetParser(FCID_samplesheet_origin)
         data = ss_reader.data
     except:
-        logger.warn('Cannot initialize SampleSheetParser for {}. Most likely due to poor comma separation'.format(run_dir))
+        logger.warn(f'Cannot initialize SampleSheetParser for {run_dir}. Most likely due to poor comma separation')
         return []
 
     if is_miseq:
-        if not 'Description' in ss_reader.header or not \
+        if 'Description' not in ss_reader.header or not \
         ('Production' in ss_reader.header['Description'] or 'Application' in ss_reader.header['Description']):
-            logger.warn('Run {} not labelled as production or application. Disregarding it.'.format(run_dir))
+            logger.warn(f'Run {run_dir} not labelled as production or application. Disregarding it.')
             # Skip this run
             return []
     return data
@@ -308,11 +309,11 @@ def fail_run(runid, project):
     if project is not None:
         view = bioinfo_db.view('full_doc/pj_run_to_doc')
         rows = view[[project, runid]].rows
-        logger.info('Updating status of {} objects with flowcell_id: {} and project_id {}'.format(len(rows), runid, project))
+        logger.info(f'Updating status of {len(rows)} objects with flowcell_id: {runid} and project_id {project}')
     else:
         view = bioinfo_db.view('full_doc/run_id_to_doc')
         rows = view[[runid]].rows
-        logger.info('Updating status of {} objects with flowcell_id: {}'.format(len(rows), runid))
+        logger.info(f'Updating status of {len(rows)} objects with flowcell_id: {runid}')
 
     new_timestamp = datetime.datetime.now().isoformat()
     updated = 0
@@ -327,4 +328,4 @@ def fail_run(runid, project):
             logger.error('Cannot update object project-sample-run-lane: {}-{}-{}-{}'.format(row.value.get('project_id'), row.value.get('sample'), row.value.get('run_id'), row.value.get('lane')))
             logger.error(e)
             raise e
-    logger.info('Successfully updated {} objects'.format(updated))
+    logger.info(f'Successfully updated {updated} objects')

@@ -1,6 +1,8 @@
 """CLI for the bioinfo subcommand."""
 import click
+
 import taca.utils.bioinfo_tab as bt
+
 
 @click.group(name='bioinfo_deliveries')
 def bioinfo_deliveries():

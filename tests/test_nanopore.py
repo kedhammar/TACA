@@ -1,12 +1,12 @@
 #!/usr/bin/env python
-import unittest
-import mock
 import filecmp
 import os
 import subprocess
+import unittest
+from unittest import mock
 
-from taca.nanopore.ONT_run_classes import ONT_run
 from taca.nanopore.minion_run_class import MinIONqc
+from taca.nanopore.ONT_run_classes import ONT_run
 from taca.utils import config
 
 CONFIG = config.load_yaml_config("data/taca_test_nanopore_cfg.yaml")

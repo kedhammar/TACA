@@ -1,19 +1,18 @@
 """ Load and parse configuration file."""
 
-from __future__ import print_function
+import datetime
 import logging
 import os
-import datetime
 import random
 import subprocess
+from io import open
 
 from dateutil.relativedelta import relativedelta
-from taca.utils.config import CONFIG
+
 from taca.utils import config as conf
 from taca.utils import filesystem as fs
 from taca.utils import statusdb
-from io import open
-
+from taca.utils.config import CONFIG
 
 logger = logging.getLogger(__name__)
 
@@ -21,34 +20,34 @@ logger = logging.getLogger(__name__)
 def create_version_report(path):
     # Creates the file version_report.txt for stuff run ngi_pipeline
     with open(os.path.join(path, 'version_report.txt'), 'w') as VERSION_REPORT:
-        VERSION_REPORT.write(u'******\n')
-        VERSION_REPORT.write(u'README\n')
-        VERSION_REPORT.write(u'******\n')
-        VERSION_REPORT.write(u'\n')
-        VERSION_REPORT.write(u'Data has been aligned to to the reference using bwa. The raw alignments have then been deduplicated, recalibrated and cleaned using GATK. Quality control information was gathered using Qualimap. SNVs and indels have been called using the HaplotypeCaller. These variants were then funcionally annotated using snpEff. The pipeline used was Piper, see below for more information.\n')
-        VERSION_REPORT.write(u'\n')
-        VERSION_REPORT.write(u'The versions of programs and references used:\n')
-        VERSION_REPORT.write(u'piper: unknown\n')
-        VERSION_REPORT.write(u'bwa: 0.7.12\n')
-        VERSION_REPORT.write(u'samtools: 0.1.19\n')
-        VERSION_REPORT.write(u'qualimap: v2.2\n')
-        VERSION_REPORT.write(u'snpEff: 4.1\n')
-        VERSION_REPORT.write(u'snpEff reference: GRCh37.75\n')
-        VERSION_REPORT.write(u'gatk: 3.3-0-geee94ec\n')
-        VERSION_REPORT.write(u'\n')
-        VERSION_REPORT.write(u'reference: human_g1k_v37.fasta\n')
-        VERSION_REPORT.write(u'db_snp: gatk-bundle/2.8\n')
-        VERSION_REPORT.write(u'hapmap: gatk-bundle/2.8\n')
-        VERSION_REPORT.write(u'omni: gatk-bundle/2.8\n')
-        VERSION_REPORT.write(u'1000G_indels: gatk-bundle/2.8\n')
-        VERSION_REPORT.write(u'Mills_and_1000G_golden_standard_indels: gatk-bundle/2.8\n')
-        VERSION_REPORT.write(u'\n')
-        VERSION_REPORT.write(u'indel resource file: {Mills_and_1000G_gold_standard.indels.b37.vcf version: gatk-bundle/2.8}\n')
-        VERSION_REPORT.write(u'indel resource file: {1000G_phase1.indels.b37.vcf version: gatk-bundle/2.8}\n')
-        VERSION_REPORT.write(u'\n')
-        VERSION_REPORT.write(u'piper\n')
-        VERSION_REPORT.write(u'-----\n')
-        VERSION_REPORT.write(u'Piper is a pipeline system developed and maintained at the National Genomics Infrastructure build on top of GATK Queue. For more information and the source code visit: www.github.com/NationalGenomicsInfrastructure/piper\n')
+        VERSION_REPORT.write('******\n')
+        VERSION_REPORT.write('README\n')
+        VERSION_REPORT.write('******\n')
+        VERSION_REPORT.write('\n')
+        VERSION_REPORT.write('Data has been aligned to to the reference using bwa. The raw alignments have then been deduplicated, recalibrated and cleaned using GATK. Quality control information was gathered using Qualimap. SNVs and indels have been called using the HaplotypeCaller. These variants were then funcionally annotated using snpEff. The pipeline used was Piper, see below for more information.\n')
+        VERSION_REPORT.write('\n')
+        VERSION_REPORT.write('The versions of programs and references used:\n')
+        VERSION_REPORT.write('piper: unknown\n')
+        VERSION_REPORT.write('bwa: 0.7.12\n')
+        VERSION_REPORT.write('samtools: 0.1.19\n')
+        VERSION_REPORT.write('qualimap: v2.2\n')
+        VERSION_REPORT.write('snpEff: 4.1\n')
+        VERSION_REPORT.write('snpEff reference: GRCh37.75\n')
+        VERSION_REPORT.write('gatk: 3.3-0-geee94ec\n')
+        VERSION_REPORT.write('\n')
+        VERSION_REPORT.write('reference: human_g1k_v37.fasta\n')
+        VERSION_REPORT.write('db_snp: gatk-bundle/2.8\n')
+        VERSION_REPORT.write('hapmap: gatk-bundle/2.8\n')
+        VERSION_REPORT.write('omni: gatk-bundle/2.8\n')
+        VERSION_REPORT.write('1000G_indels: gatk-bundle/2.8\n')
+        VERSION_REPORT.write('Mills_and_1000G_golden_standard_indels: gatk-bundle/2.8\n')
+        VERSION_REPORT.write('\n')
+        VERSION_REPORT.write('indel resource file: {Mills_and_1000G_gold_standard.indels.b37.vcf version: gatk-bundle/2.8}\n')
+        VERSION_REPORT.write('indel resource file: {1000G_phase1.indels.b37.vcf version: gatk-bundle/2.8}\n')
+        VERSION_REPORT.write('\n')
+        VERSION_REPORT.write('piper\n')
+        VERSION_REPORT.write('-----\n')
+        VERSION_REPORT.write('Piper is a pipeline system developed and maintained at the National Genomics Infrastructure build on top of GATK Queue. For more information and the source code visit: www.github.com/NationalGenomicsInfrastructure/piper\n')
 
 def create_FC(incoming_dir, run_name, samplesheet, fastq_1 = None, fastq_2=None ):
     # Create something like 160217_ST-E00201_0063_AHJHNYCCXX
@@ -83,8 +82,8 @@ def create_FC(incoming_dir, run_name, samplesheet, fastq_1 = None, fastq_2=None 
         # Create dir structure
         fs.create_folder(os.path.join(path_to_fc, 'Demultiplexing', project_name, sample_id))
         # Now create the data
-        fastq_1_dest = '{}_S{}_L00{}_R1_001.fastq.gz'.format(sample_name, counter, lane)
-        fastq_2_dest = '{}_S{}_L00{}_R2_001.fastq.gz'.format(sample_name, counter, lane)
+        fastq_1_dest = f'{sample_name}_S{counter}_L00{lane}_R1_001.fastq.gz'
+        fastq_2_dest = f'{sample_name}_S{counter}_L00{lane}_R2_001.fastq.gz'
         counter += 1
         if fastq_1 is None:
             fs.touch(os.path.join(path_to_fc, 'Demultiplexing', project_name,
@@ -98,17 +97,17 @@ def create_FC(incoming_dir, run_name, samplesheet, fastq_1 = None, fastq_2=None 
                                                 project_name, sample_id, fastq_2_dest))
 
     with open(os.path.join(path_to_fc, 'SampleSheet.csv'), 'w') as Samplesheet_file:
-        Samplesheet_file.write(u'[Header]\n')
-        Samplesheet_file.write(u'Date,2016-03-29\n')
-        Samplesheet_file.write(u'Investigator Name,Christian Natanaelsson\n')
-        Samplesheet_file.write(u'[Data]\n')
+        Samplesheet_file.write('[Header]\n')
+        Samplesheet_file.write('Date,2016-03-29\n')
+        Samplesheet_file.write('Investigator Name,Christian Natanaelsson\n')
+        Samplesheet_file.write('[Data]\n')
         for key in header:
-             Samplesheet_file.write(u'{},'.format(key))
-        Samplesheet_file.write(u'\n')
+             Samplesheet_file.write(f'{key},')
+        Samplesheet_file.write('\n')
         for line in samplesheet:
             for key in header:
-                Samplesheet_file.write(u'{},'.format(line[key]))
-            Samplesheet_file.write(u'\n')
+                Samplesheet_file.write(f'{line[key]},')
+            Samplesheet_file.write('\n')
 
 def create_uppmax_env(ngi_config):
     paths = {}
@@ -122,7 +121,7 @@ def create_uppmax_env(ngi_config):
         top_dir = ngi_config['analysis']['top_dir']
         paths['top_dir'] = top_dir
     except KeyError as e:
-        raise SystemExit('Config file is missing the key {}, make sure it have all required information'.format(str(e)))
+        raise SystemExit(f'Config file is missing the key {str(e)}, make sure it have all required information')
     if 'environment' not in ngi_config:
         sys.exit('ERROR: environment must be a field of NGI_CONFIG.')
     try:
@@ -131,10 +130,10 @@ def create_uppmax_env(ngi_config):
         flowcell_inbox = flowcell_inboxes[0] # I assume there is only one
         paths['flowcell_inbox'] = flowcell_inbox
     except ValueError as e:
-        sys.exit('key error, flowcell_inbox not found in "{}": {}'.format(ngi_config, e))
+        sys.exit(f'key error, flowcell_inbox not found in "{ngi_config}": {e}')
     # Now I need to create the folders for this
     if not os.path.exists(base_root):
-        sys.exit('base_root needs to exists: {}'.format(base_root))
+        sys.exit(f'base_root needs to exists: {base_root}')
     fs.create_folder(flowcell_inbox)
     if sthlm_root is None:
         path_to_analysis = os.path.join(base_root, top_dir)
@@ -190,11 +189,11 @@ def produce_analysis_piper(ngi_config, project_id):
         fs.create_folder(current_dir)
         if piper_dir == '05_processed_alignments':
             for sample_id in os.listdir(data_dir):
-                bam_file = '{}.clean.dedup.bam'.format(sample_id)
+                bam_file = f'{sample_id}.clean.dedup.bam'
                 fs.touch(os.path.join(current_dir, bam_file))
         if piper_dir == '07_variant_calls':
             for sample_id in os.listdir(data_dir):
-                vcf_file = '{}.clean.dedup.recal.bam.raw.indel.vcf.gz'.format(sample_id)
+                vcf_file = f'{sample_id}.clean.dedup.recal.bam.raw.indel.vcf.gz'
                 fs.touch(os.path.join(current_dir, vcf_file))
     current_dir = os.path.join(piper_ngi_dir, 'sbatch')
     fs.create_folder(current_dir)
@@ -278,7 +277,7 @@ def create(projects, ngi_config_file, fastq_1, fastq_2):
                                                 'application': application,
                                                 'no_samples': row['value']['no_samples']}
         else:
-            print('status {}'.format(project_status))
+            print(f'status {project_status}')
     ## Now I can parse the x_flowcell db to check what I can and cannot use
     whole_genome_projects = int(2*projects/3)
     projects_to_reproduce = []
@@ -326,16 +325,16 @@ def create(projects, ngi_config_file, fastq_1, fastq_2):
                            'noWGreseq_open')
 
     # Create ngi_pipeline enviroment
-    print('#NGI_CONFIG varaible is {}. This variable needs to be in the .bashrc file'.format(ngi_config_file))
-    print('NGI_CONFIG={}'.format(ngi_config_file))
+    print(f'#NGI_CONFIG varaible is {ngi_config_file}. This variable needs to be in the .bashrc file')
+    print(f'NGI_CONFIG={ngi_config_file}')
     try:
         ngi_config = conf.load_config(ngi_config_file)
-    except IOError as e:
-        print('ERROR: {}'.format(e.message))
+    except OSError as e:
+        print(f'ERROR: {e.message}')
     # Create uppmax env
     paths = create_uppmax_env(ngi_config)
 
-    print('#Going to reproduce {} projects (if this number is different from the one you specified.... trust me... do not worry'.format(len(projects_to_reproduce)))
+    print(f'#Going to reproduce {len(projects_to_reproduce)} projects (if this number is different from the one you specified.... trust me... do not worry')
     # Scan over x_flowcell and reproduce FCs
     flowcellDB = couch_connection['x_flowcells']
     reproduced_projects = {}
@@ -363,25 +362,25 @@ def create(projects, ngi_config_file, fastq_1, fastq_2):
                 if project not in reproduced_projects:
                     reproduced_projects[project] = []
                 reproduced_projects[project].append(flowcellDB[fc_doc]['RunInfo']['Id'])
-    print('#Reproduced {} project (if the numbers diffear do not worry, most likely we selected projects without runs)'.format(len(reproduced_projects)))
+    print(f'#Reproduced {len(reproduced_projects)} project (if the numbers diffear do not worry, most likely we selected projects without runs)')
     for project in projects_to_reproduce:
         if project[0] in reproduced_projects:
-            print('#  {}: {}'.format(project[0], project[1]))
+            print(f'#  {project[0]}: {project[1]}')
     # Need to output the command to organise
     to_be_deleted = []
     for project in reproduced_projects:
         for FC in reproduced_projects[project]:
-            print('Running: ngi_pipeline_start.py organize flowcell {} -p {}'.format(FC, project))
+            print(f'Running: ngi_pipeline_start.py organize flowcell {FC} -p {project}')
             with open('ngi_pipeline_local.logs', 'w') as NGILOGS:
                 return_value = subprocess.call(['ngi_pipeline_start.py',
                                                 'organize',
                                                 'flowcell',
-                                                '{}'.format(FC),
+                                                f'{FC}',
                                                 '-p',
-                                                '{}'.format(project)],
+                                                f'{project}'],
                                                stdout=NGILOGS, stderr=NGILOGS)
             if return_value > 0:
-                print('#project {} not organised: have a look to the logs, but most likely this projec is not in charon'.format(project))
+                print(f'#project {project} not organised: have a look to the logs, but most likely this projec is not in charon')
                 if project not in to_be_deleted:
                     to_be_deleted.append(project)
 
@@ -399,4 +398,4 @@ def create(projects, ngi_config_file, fastq_1, fastq_2):
     with open('projects.txt', 'w') as PROJECTS:
         for project in projects_to_reproduce:
             if project[0] in reproduced_projects:
-                PROJECTS.write(u'{}:{}\n'.format(project[0], project[1]))
+                PROJECTS.write(f'{project[0]}:{project[1]}\n')

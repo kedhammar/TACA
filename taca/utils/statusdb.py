@@ -1,24 +1,24 @@
 """Classes for handling connection to StatusDB."""
 
-import couchdb
-import logging
 import csv
-
+import logging
 from datetime import datetime
+
+import couchdb
 
 logger = logging.getLogger(__name__)
 
-class StatusdbSession(object):
+class StatusdbSession:
     """Wrapper class for couchdb."""
     def __init__(self, config, db=None):
         user = config.get('username')
         password = config.get('password')
         url = config.get('url')
-        url_string = 'https://{}:{}@{}'.format(user, password, url)
+        url_string = f'https://{user}:{password}@{url}'
         display_url_string = 'https://{}:{}@{}'.format(user, '*********', url)
         self.connection = couchdb.Server(url=url_string)
         if not self.connection:
-            raise Exception('Couchdb connection failed for url {}'.format(display_url_string))
+            raise Exception(f'Couchdb connection failed for url {display_url_string}')
         if db:
             self.db_connection = self.connection[db]
 
@@ -40,7 +40,7 @@ class StatusdbSession(object):
             db = db or self.db
             db.save(doc)
         except Exception as e:
-            raise Exception('Failed saving document due to {}'.format(e))
+            raise Exception(f'Failed saving document due to {e}')
 
     def get_project_flowcell(self, project_id, open_date='2015-01-01', date_format='%Y-%m-%d'):
         """From information available in flowcell db connection,
@@ -111,10 +111,10 @@ class NanoporeRunsConnection(StatusdbSession):
         self, ont_run, run_path_file: str, pore_count_history_file: str
     ):
 
-        run_path = open(run_path_file, "r").read().strip()
+        run_path = open(run_path_file).read().strip()
 
         pore_counts = []
-        with open(pore_count_history_file, "r") as stream:
+        with open(pore_count_history_file) as stream:
             for line in csv.DictReader(stream):
                 pore_counts.append(line)
 
@@ -170,8 +170,8 @@ def merge_dicts(d1, d2):
             elif d1[key] == d2[key]:
                 pass  # same leaf value
             else:
-                logger.debug('Values for key {key} in d1 and d2 differ, '
-                          'using the value of d1'.format(key=key))
+                logger.debug(f'Values for key {key} in d1 and d2 differ, '
+                          'using the value of d1')
         else:
             d1[key] = d2[key]
     return d1

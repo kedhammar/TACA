@@ -1,10 +1,12 @@
-from taca.nanopore import instrument_transfer
-from unittest.mock import patch, mock_open, call, Mock, MagicMock
-import tempfile
-import pytest
+import json
 import os
 import re
-import json
+import tempfile
+from unittest.mock import Mock, call, mock_open, patch
+
+import pytest
+
+from taca.nanopore import instrument_transfer
 
 DUMMY_RUN_NAME = "20240112_2342_MN19414_TEST12345_randomhash"
 
@@ -156,7 +158,7 @@ def test_main(mock_sync, mock_final_sync, setup_test_fixture, finished, qc):
 
     # Check path was dumped
     assert os.path.exists(run_path + "/run_path.txt")
-    assert open(run_path + "/run_path.txt", "r").read() == "/".join(
+    assert open(run_path + "/run_path.txt").read() == "/".join(
         run_path.split("/")[-3:]
     )
 
@@ -179,7 +181,7 @@ def test_main(mock_sync, mock_final_sync, setup_test_fixture, finished, qc):
         )
         + "\n"
     )
-    assert open(run_path + "/pore_count_history.csv", "r").read() == template
+    assert open(run_path + "/pore_count_history.csv").read() == template
 
 
 def test_sequencing_finished():
@@ -389,7 +391,7 @@ def test_dump_pore_count_history(setup_test_fixture):
     run_path = tmp.name + f"/experiment/sample/{DUMMY_RUN_NAME.replace('TEST','FLG')}"
     os.makedirs(run_path)
     new_file = instrument_transfer.dump_pore_count_history(run_path, pore_counts)
-    assert open(new_file, "r").read() == ""
+    assert open(new_file).read() == ""
     tmp.cleanup()
 
     # Nothing to add, file is present
@@ -398,7 +400,7 @@ def test_dump_pore_count_history(setup_test_fixture):
     os.makedirs(run_path)
     open(run_path + "/pore_count_history.csv", "w").write("test")
     new_file = instrument_transfer.dump_pore_count_history(run_path, pore_counts)
-    assert open(new_file, "r").read() == "test"
+    assert open(new_file).read() == "test"
     tmp.cleanup()
 
     # Something to add
@@ -424,5 +426,5 @@ def test_dump_pore_count_history(setup_test_fixture):
         + "\n"
     )
 
-    assert open(new_file, "r").read() == template
+    assert open(new_file).read() == template
     tmp.cleanup()

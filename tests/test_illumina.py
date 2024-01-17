@@ -1,25 +1,21 @@
 #!/usr/bin/env python
 
+import filecmp
+import json
 import os
-import io
 import shutil
+import subprocess
+import sys
 import tempfile
 import unittest
-import csv
-import json
-import mock
-import filecmp
-import subprocess
-from datetime import datetime
-import sys
+from unittest import mock
+
+from flowcell_parser.classes import LaneBarcodeParser
 
 from taca.analysis.analysis import *
-from taca.illumina.Runs import Run, _create_folder_structure, _generate_lane_html
-from taca.illumina.Standard_Runs import Standard_Runs, _generate_clean_samplesheet, _classify_samples, parse_10X_indexes, parse_smartseq_indexes, _generate_samplesheet_subset
-from taca.illumina.MiSeq_Runs import MiSeq_Run
-from taca.illumina.NovaSeq_Runs import NovaSeq_Run
 from taca.illumina.NextSeq_Runs import NextSeq_Run
-from flowcell_parser.classes import LaneBarcodeParser, SampleSheetParser
+from taca.illumina.NovaSeq_Runs import NovaSeq_Run
+from taca.illumina.Runs import Run, _create_folder_structure, _generate_lane_html
 from taca.utils import config as conf
 
 if sys.version_info[0] >= 3:
@@ -146,7 +142,7 @@ class TestRuns(unittest.TestCase):
         open(os.path.join(completed, 'Demultiplexing', 'Undetermined_S0_L001_R1_001.fastq.gz'), 'w').close()
         open(os.path.join(complex_run_dir, 'Demultiplexing_0', 'N__One_20_01', 'Sample_P12345_1001', 'P16510_1001_S1_L001_R1_001.fastq.gz'), 'w').close()
         open(os.path.join(complex_run_dir, 'Demultiplexing_0', 'N__One_20_01', 'Sample_P12345_1001', 'P16510_1001_S1_L001_R2_001.fastq.gz'), 'w').close()
-        with io.open(os.path.join(completed, 'Demultiplexing', 'Stats', 'Stats.json'), 'w', encoding="utf-8") as stats_json:
+        with open(os.path.join(completed, 'Demultiplexing', 'Stats', 'Stats.json'), 'w', encoding="utf-8") as stats_json:
             stats_json.write(unicode(json.dumps({'silly': 1}, ensure_ascii=False)))
 
         # Copy transfer file with the completed run

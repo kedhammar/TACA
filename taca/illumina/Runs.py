@@ -1,27 +1,27 @@
-import os
-import re
 import csv
-import logging
-import subprocess
-import shutil
 import glob
 import json
-
+import logging
+import os
+import re
+import shutil
+import subprocess
 from datetime import datetime
+
+from flowcell_parser.classes import LaneBarcodeParser, RunParser, SampleSheetParser
 
 from taca.utils import misc
 from taca.utils.misc import send_mail
-from flowcell_parser.classes import RunParser, LaneBarcodeParser, SampleSheetParser
 
 logger = logging.getLogger(__name__)
 
-class Run(object):
+class Run:
     """ Defines an Illumina run
     """
 
     def __init__(self, run_dir, software, configuration):
         if not os.path.exists(run_dir):
-            raise RuntimeError("Could not locate run directory {}".format(run_dir))
+            raise RuntimeError(f"Could not locate run directory {run_dir}")
 
         if 'analysis_server' not in configuration or \
             'bcl2fastq' not in configuration or \
@@ -35,7 +35,7 @@ class Run(object):
             logger.warning("Creating link from runParameters.xml to RunParameters.xml")
             os.symlink('RunParameters.xml', os.path.join(run_dir, 'runParameters.xml'))
         elif not os.path.exists(os.path.join(run_dir, 'runParameters.xml')):
-            raise RuntimeError("Could not locate runParameters.xml in run directory {}".format(run_dir))
+            raise RuntimeError(f"Could not locate runParameters.xml in run directory {run_dir}")
 
         self.run_dir = os.path.abspath(run_dir)
         self.software = software
@@ -67,38 +67,38 @@ class Run(object):
         if self.software == 'bcl2fastq':
             legacy_path = ''
         elif self.software == 'bclconvert':
-            legacy_path = "Reports/{}".format(self.legacy_dir)
+            legacy_path = f"Reports/{self.legacy_dir}"
         # Check the status of running demux
         # Collect all samplesheets generated before
         samplesheets =  glob.glob(os.path.join(self.run_dir, "*_[0-9].csv")) # A single digit, this hypothesis should hold for a while
         all_demux_done = True
         for samplesheet in samplesheets:
             demux_id = os.path.splitext(os.path.split(samplesheet)[1])[0].split("_")[1]
-            demux_folder = os.path.join(self.run_dir, "Demultiplexing_{}".format(demux_id))
+            demux_folder = os.path.join(self.run_dir, f"Demultiplexing_{demux_id}")
             # Check if this job is done
             if os.path.exists(os.path.join(self.run_dir, demux_folder, legacy_path, 'Stats', 'DemultiplexingStats.xml')):
                 all_demux_done = all_demux_done and True
                 if self.software == 'bcl2fastq':
-                    demux_log = os.path.join(self.run_dir, "demux_{}_bcl2fastq.err".format(demux_id))
+                    demux_log = os.path.join(self.run_dir, f"demux_{demux_id}_bcl2fastq.err")
                 elif self.software == 'bclconvert':
-                    demux_log = os.path.join(self.run_dir, "demux_{}_bcl-convert.err".format(demux_id))
+                    demux_log = os.path.join(self.run_dir, f"demux_{demux_id}_bcl-convert.err")
                 else:
                     raise RuntimeError("Unrecognized software!")
                 if os.path.isfile(demux_log):
                     errors, warnings, error_and_warning_messages = self._check_demux_log(demux_id, demux_log)
                 else:
-                    raise RuntimeError("No demux log file found for sub-demultiplexing {}!".format(demux_id))
+                    raise RuntimeError(f"No demux log file found for sub-demultiplexing {demux_id}!")
                 self.demux_summary[demux_id] = {'errors' : errors,
                                                 'warnings' : warnings,
                                                 'error_and_warning_messages' : error_and_warning_messages
                                                }
                 if errors or warnings:
-                    logger.info("Sub-Demultiplexing in {} completed with {} errors and {} warnings!".format(demux_folder, errors, warnings))
+                    logger.info(f"Sub-Demultiplexing in {demux_folder} completed with {errors} errors and {warnings} warnings!")
                 else:
-                    logger.info("Sub-Demultiplexing in {} completed without any error or warning.".format(demux_folder))
+                    logger.info(f"Sub-Demultiplexing in {demux_folder} completed without any error or warning.")
             else:
                 all_demux_done = all_demux_done and False
-                logger.info("Sub-Demultiplexing in {} not completed yet.".format(demux_folder))
+                logger.info(f"Sub-Demultiplexing in {demux_folder} not completed yet.")
 
         # All demux jobs finished and all stats aggregated under Demultiplexing
         # Aggreate all the results in the Demultiplexing folder
@@ -119,7 +119,7 @@ class Run(object):
         This function checks the log files of bcl2fastq/bclconvert
         Errors or warnings will be captured and email notifications will be sent
         """
-        with open(demux_log, 'r') as demux_log_file:
+        with open(demux_log) as demux_log_file:
             demux_log_content = demux_log_file.readlines()
             if self.software == 'bcl2fastq':
                 pattern = r'Processing completed with (\d+) errors and (\d+) warnings'
@@ -134,7 +134,7 @@ class Run(object):
                                 error_and_warning_messages.append(line)
                     return errors, warnings, error_and_warning_messages
                 else:
-                    raise RuntimeError("Bad format with log file demux_{}_bcl2fastq.err".format(demux_id))
+                    raise RuntimeError(f"Bad format with log file demux_{demux_id}_bcl2fastq.err")
             elif self.software == 'bclconvert':
                 errors = 0
                 warnings = 0
@@ -182,7 +182,7 @@ class Run(object):
 
         samplesheets_dir = os.path.join(self.CONFIG['samplesheets_dir'],
                                                 current_year)
-        ssname = os.path.join(samplesheets_dir, '{}.csv'.format(self.flowcell_id))
+        ssname = os.path.join(samplesheets_dir, f'{self.flowcell_id}.csv')
         if os.path.exists(ssname):
             return ssname
         else:
@@ -262,27 +262,27 @@ class Run(object):
         command_line.append("--exclude=Demultiplexing_*/*_*")
         command_line.append("--include=*/")
         for to_include in self.CONFIG['analysis_server']['sync']['include']:
-            command_line.append("--include={}".format(to_include))
+            command_line.append(f"--include={to_include}")
         command_line.extend(["--exclude=*", "--prune-empty-dirs"])
         r_user = self.CONFIG['analysis_server']['user']
         r_host = self.CONFIG['analysis_server']['host']
         r_dir = self.CONFIG['analysis_server']['sync']['data_archive']
-        remote = "{}@{}:{}".format(r_user, r_host, r_dir)
+        remote = f"{r_user}@{r_host}:{r_dir}"
         command_line.extend([self.run_dir, remote])
 
         # Create temp file indicating that the run is being transferred
         try:
             open(os.path.join(self.run_dir, 'transferring'), 'w').close()
-        except IOError as e:
-            logger.error("Cannot create a file in {}. "
-                         "Check the run name, and the permissions.".format(self.id))
+        except OSError as e:
+            logger.error(f"Cannot create a file in {self.id}. "
+                         "Check the run name, and the permissions.")
             raise e
-        started = ("Started transfer of run {} on {}".format(self.id, datetime.now()))
+        started = (f"Started transfer of run {self.id} on {datetime.now()}")
         logger.info(started)
         # In this particular case we want to capture the exception because we want
         # to delete the transfer file
         try:
-           msge_text="I am about to transfer with this command \n{}".format(command_line)
+           msge_text=f"I am about to transfer with this command \n{command_line}"
            logger.info(msge_text)
            misc.call_external_command(command_line, with_log_files=True,
                                        prefix="", log_dir=self.run_dir)
@@ -290,16 +290,16 @@ class Run(object):
             os.remove(os.path.join(self.run_dir, 'transferring'))
             #Send an email notifying that the transfer failed
             runname = self.id
-            sbt = ("Rsync of run {} failed".format(runname))
-            msg= """ Rsync of data for run {run} has failed!
-                Raised the following exception:     {e}
-            """.format(run=runname, e=exception)
+            sbt = (f"Rsync of run {runname} failed")
+            msg= f""" Rsync of data for run {runname} has failed!
+                Raised the following exception:     {exception}
+            """
             if mail_recipients:
                 send_mail(sbt, msg, mail_recipients)
 
             raise exception
 
-        logger.info('Adding run {} to {}'.format(self.id, t_file))
+        logger.info(f'Adding run {self.id} to {t_file}')
         with open(t_file, 'a') as tranfer_file:
             tsv_writer = csv.writer(tranfer_file, delimiter='\t')
             tsv_writer.writerow([self.id, str(datetime.now())])
@@ -307,7 +307,7 @@ class Run(object):
 
         #Send an email notifying that the transfer was successful
         runname = self.id
-        sbt = ("Rsync of data for run {} to the analysis cluster has finished".format(runname))
+        sbt = (f"Rsync of data for run {runname} to the analysis cluster has finished")
         msg= """ Rsync of data for run {run} to the analysis cluster has finished!
 
         The run is available at : https://genomics-status.scilifelab.se/flowcells/{run}
@@ -320,7 +320,7 @@ class Run(object):
             :param str destination: the destination folder
         """
         if destination and os.path.isdir(destination):
-            logger.info('archiving run {}'.format(self.id))
+            logger.info(f'archiving run {self.id}')
             shutil.move(self.run_dir, os.path.join(destination, self.id))
         else:
             logger.warning("Cannot move run to archive, destination does not exist")
@@ -331,7 +331,7 @@ class Run(object):
         already_seen = False
         runname = self.id
         if not sbt:
-            sbt = "{}".format(runname)
+            sbt = f"{runname}"
         misc.send_mail(sbt, msg, rcp)
 
     def is_transferred(self, transfer_file):
@@ -340,7 +340,7 @@ class Run(object):
             :param str transfer_file: Path to file with information about transferred runs
         """
         try:
-            with open(transfer_file, 'r') as file_handle:
+            with open(transfer_file) as file_handle:
                 transfer_file_contents = csv.reader(file_handle, delimiter='\t')
                 for row in transfer_file_contents:
                     # Rows have two columns: run and transfer date
@@ -349,7 +349,7 @@ class Run(object):
             if os.path.exists(os.path.join(self.run_dir, 'transferring')):
                 return True
             return False
-        except IOError:
+        except OSError:
             return False
 
     def is_unpooled_lane(self, lane):
@@ -388,7 +388,7 @@ class Run(object):
         :param samples_per_lane: lane:sample dict
         :type status: dict
         """
-        for file in glob.glob(os.path.join(self.run_dir, self.demux_dir, "Undetermined*L0?{}*".format(lane))):
+        for file in glob.glob(os.path.join(self.run_dir, self.demux_dir, f"Undetermined*L0?{lane}*")):
             old_name=os.path.basename(file)
             old_name_comps=old_name.split("_")
             old_name_comps[1]=old_name_comps[0]# replace S0 with Undetermined
@@ -398,7 +398,7 @@ class Run(object):
                     old_name_comps[index]=comp.replace('L00','L01')#adds a 1 as the second lane number in order to differentiate undetermined from normal in piper
 
             new_name="_".join(old_name_comps)
-            logger.info("Renaming {} to {}".format(file, os.path.join(os.path.dirname(file), new_name)))
+            logger.info(f"Renaming {file} to {os.path.join(os.path.dirname(file), new_name)}")
             os.rename(file, os.path.join(os.path.dirname(file), new_name))
 
     def _classify_lanes(self, samplesheets):
@@ -455,16 +455,16 @@ class Run(object):
             sample_dest = os.path.join(project_dest, sample)
             if not os.path.exists(sample_dest):
                 os.makedirs(sample_dest)
-            for file in glob.glob(os.path.join(self.run_dir, "Demultiplexing_{}".format(demux_id), "Undetermined*L0?{}*".format(lane))):
+            for file in glob.glob(os.path.join(self.run_dir, f"Demultiplexing_{demux_id}", f"Undetermined*L0?{lane}*")):
                 old_name = os.path.basename(file)
                 old_name_comps = old_name.split("_")
-                new_name_comps = [sample.replace('Sample_',''), 'S{}'.format(str(sample_counter))] + old_name_comps[2:]
+                new_name_comps = [sample.replace('Sample_',''), f'S{str(sample_counter)}'] + old_name_comps[2:]
                 new_name = "_".join(new_name_comps)
                 os.symlink(file, os.path.join(sample_dest, new_name))
                 logger.info("For undet sample {}, renaming {} to {}".format(sample.replace('Sample_',''), old_name, new_name))
             sample_counter += 1
         # Make a softlink of lane.html
-        html_report_lane_source = os.path.join(self.run_dir, "Demultiplexing_{}".format(demux_id), legacy_path, "Reports", "html", self.flowcell_id, "all", "all", "all", "lane.html")
+        html_report_lane_source = os.path.join(self.run_dir, f"Demultiplexing_{demux_id}", legacy_path, "Reports", "html", self.flowcell_id, "all", "all", "all", "lane.html")
         html_report_lane_dest = os.path.join(demux_folder, "Reports", "html", self.flowcell_id, "all", "all", "all", "lane.html")
         if not os.path.isdir(os.path.dirname(html_report_lane_dest)):
             os.makedirs(os.path.dirname(html_report_lane_dest))
@@ -472,7 +472,7 @@ class Run(object):
 
         # Modify the laneBarcode.html file
         html_report_laneBarcode = os.path.join(self.run_dir,
-                                               "Demultiplexing_{}".format(demux_id),
+                                               f"Demultiplexing_{demux_id}",
                                                legacy_path,
                                                "Reports",
                                                "html",
@@ -511,7 +511,7 @@ class Run(object):
         if not os.path.exists(os.path.join(demux_folder, "Stats")):
             os.makedirs(os.path.join(demux_folder, "Stats"))
         # Modify the Stats.json file
-        stat_json_source = os.path.join(self.run_dir, "Demultiplexing_{}".format(demux_id), legacy_path, "Stats", "Stats.json")
+        stat_json_source = os.path.join(self.run_dir, f"Demultiplexing_{demux_id}", legacy_path, "Stats", "Stats.json")
         stat_json_new = os.path.join(demux_folder, "Stats", "Stats.json")
         with open(stat_json_source) as json_data:
             data = json.load(json_data)
@@ -528,15 +528,15 @@ class Run(object):
             json.dump(data, stat_json_new_file)
 
     def _process_simple_lane_with_single_demux(self, demux_id, legacy_path, noindex_lanes):
-        elements = [element for element in os.listdir(os.path.join(self.run_dir, "Demultiplexing_{}".format(demux_id))) ]
+        elements = [element for element in os.listdir(os.path.join(self.run_dir, f"Demultiplexing_{demux_id}")) ]
         for element in elements:
             if "Stats" not in element and "Reports" not in element: #skip this folder and treat it differently to take into account the NoIndex case
-                source = os.path.join(self.run_dir, "Demultiplexing_{}".format(demux_id), element)
+                source = os.path.join(self.run_dir, f"Demultiplexing_{demux_id}", element)
                 dest = os.path.join(self.run_dir, self.demux_dir, element)
                 os.symlink(source, dest)
         os.makedirs(os.path.join(self.run_dir, self.demux_dir, "Stats"))
         # Fetch the lanes that have NoIndex
-        statsFiles = glob.glob(os.path.join(self.run_dir, "Demultiplexing_{}".format(demux_id), legacy_path, "Stats", "*" ))
+        statsFiles = glob.glob(os.path.join(self.run_dir, f"Demultiplexing_{demux_id}", legacy_path, "Stats", "*" ))
         for source in statsFiles:
             source_name = os.path.split(source)[1]
             if source_name not in ["DemultiplexingStats.xml", "AdapterTrimming.txt", "ConversionStats.xml", "Stats.json"]:
@@ -545,15 +545,15 @@ class Run(object):
                     dest = os.path.join(self.run_dir, self.demux_dir, "Stats", source_name)
                     os.symlink(source, dest)
         for file in ["DemultiplexingStats.xml", "AdapterTrimming.txt", "ConversionStats.xml", "Stats.json"]:
-            source = os.path.join(self.run_dir, "Demultiplexing_{}".format(demux_id), legacy_path, "Stats", file)
+            source = os.path.join(self.run_dir, f"Demultiplexing_{demux_id}", legacy_path, "Stats", file)
             dest = os.path.join(self.run_dir, self.demux_dir, "Stats", file)
             os.symlink(source, dest)
-        source = os.path.join(self.run_dir, "Demultiplexing_{}".format(demux_id), legacy_path, "Reports")
+        source = os.path.join(self.run_dir, f"Demultiplexing_{demux_id}", legacy_path, "Reports")
         dest = os.path.join(self.run_dir, self.demux_dir, "Reports")
         if os.path.exists(dest):
             try:
                 os.rmdir(dest)
-            except NotADirectoryError as e:
+            except NotADirectoryError:
                 os.unlink(dest)
         os.symlink(source, dest)
 
@@ -567,7 +567,7 @@ class Run(object):
                 lanesInReport = [Lane['Lane'] for Lane in html_report_lane_parser.sample_data]
                 next_html_report_lane_parser = LaneBarcodeParser(next_html_report_lane)
                 for entry in next_html_report_lane_parser.sample_data:
-                    if not entry['Lane'] in lanesInReport:
+                    if entry['Lane'] not in lanesInReport:
                         # If this is a new lane not included before
                         html_report_lane_parser.sample_data.append(entry)
         # Now all lanes have been inserted
@@ -589,9 +589,9 @@ class Run(object):
                 entry['% Perfectbarcode'] = None
                 entry['% One mismatchbarcode'] = None
         # Update the values in Flowcell Summary
-        html_report_lane_parser.flowcell_data['Clusters (Raw)'] = '{:,}'.format(Clusters_Raw)
-        html_report_lane_parser.flowcell_data['Clusters(PF)'] = '{:,}'.format(Clusters_PF)
-        html_report_lane_parser.flowcell_data['Yield (MBases)'] = '{:,}'.format(Yield_Mbases)
+        html_report_lane_parser.flowcell_data['Clusters (Raw)'] = f'{Clusters_Raw:,}'
+        html_report_lane_parser.flowcell_data['Clusters(PF)'] = f'{Clusters_PF:,}'
+        html_report_lane_parser.flowcell_data['Yield (MBases)'] = f'{Yield_Mbases:,}'
         # Add lanes not present in this demux
         # Create the new lane.html
         new_html_report_lane_dir = _create_folder_structure(demux_folder, ['Reports', 'html', self.flowcell_id, 'all', 'all', 'all'])
@@ -664,9 +664,9 @@ class Run(object):
                                                             key=lambda k: (k['Lane'].lower(), k['Sample']))
 
         # Update the values in Flowcell Summary
-        html_report_laneBarcode_parser.flowcell_data['Clusters (Raw)'] = '{:,}'.format(Clusters_Raw)
-        html_report_laneBarcode_parser.flowcell_data['Clusters(PF)'] = '{:,}'.format(Clusters_PF)
-        html_report_laneBarcode_parser.flowcell_data['Yield (MBases)'] = '{:,}'.format(Yield_Mbases)
+        html_report_laneBarcode_parser.flowcell_data['Clusters (Raw)'] = f'{Clusters_Raw:,}'
+        html_report_laneBarcode_parser.flowcell_data['Clusters(PF)'] = f'{Clusters_PF:,}'
+        html_report_laneBarcode_parser.flowcell_data['Yield (MBases)'] = f'{Yield_Mbases:,}'
         # Generate the new report for laneBarcode.html
         new_html_report_laneBarcode = os.path.join(new_html_report_lane_dir, 'laneBarcode.html')
         _generate_lane_html(new_html_report_laneBarcode, html_report_laneBarcode_parser)
@@ -774,11 +774,11 @@ class Run(object):
         # Create DemuxSummary.txt files for complex lanes
         if len(DemuxSummaryFiles_complex_lanes) > 0:
             for key, value in DemuxSummaryFiles_complex_lanes.items():
-                with open(os.path.join(DemultiplexingStats_xml_dir, 'DemuxSummaryF1L{}.txt'.format(key)), 'w') as DemuxSummaryFile:
+                with open(os.path.join(DemultiplexingStats_xml_dir, f'DemuxSummaryF1L{key}.txt'), 'w') as DemuxSummaryFile:
                     DemuxSummaryFile.write('### Most Popular Unknown Index Sequences\n')
                     DemuxSummaryFile.write('### Columns: Index_Sequence Hit_Count\n')
                     for idx, count in value['Barcodes'].items():
-                        DemuxSummaryFile.write('{}\t{}\n'.format(idx, count))
+                        DemuxSummaryFile.write(f'{idx}\t{count}\n')
 
         open(os.path.join(DemultiplexingStats_xml_dir, 'DemultiplexingStats.xml'), 'a').close()
 
@@ -790,7 +790,7 @@ class Run(object):
             ssparser = SampleSheetParser(samplesheet)
             demux_id = os.path.splitext(os.path.split(samplesheet)[1])[0].split("_")[1]
             html_report_lane = os.path.join(self.run_dir,
-                                            "Demultiplexing_{}".format(demux_id),
+                                            f"Demultiplexing_{demux_id}",
                                             legacy_path,
                                             "Reports",
                                             "html",
@@ -803,10 +803,10 @@ class Run(object):
             if os.path.exists(html_report_lane):
                 html_reports_lane.append(html_report_lane)
             else:
-                raise RuntimeError("Not able to find html report {}: possible cause is problem in demultiplexing".format(html_report_lane))
+                raise RuntimeError(f"Not able to find html report {html_report_lane}: possible cause is problem in demultiplexing")
 
             html_report_laneBarcode = os.path.join(self.run_dir,
-                                                   "Demultiplexing_{}".format(demux_id),
+                                                   f"Demultiplexing_{demux_id}",
                                                    legacy_path,
                                                    "Reports",
                                                    "html",
@@ -819,13 +819,13 @@ class Run(object):
             if os.path.exists(html_report_laneBarcode):
                 html_reports_laneBarcode.append(html_report_laneBarcode)
             else:
-                raise RuntimeError("Not able to find html report {}: possible cause is problem in demultiplexing".format(html_report_laneBarcode))
+                raise RuntimeError(f"Not able to find html report {html_report_laneBarcode}: possible cause is problem in demultiplexing")
 
-            stat_json = os.path.join(self.run_dir, "Demultiplexing_{}".format(demux_id), legacy_path, "Stats", "Stats.json")
+            stat_json = os.path.join(self.run_dir, f"Demultiplexing_{demux_id}", legacy_path, "Stats", "Stats.json")
             if os.path.exists(stat_json):
                 stats_json.append(stat_json)
             else:
-                raise RuntimeError("Not able to find Stats.json report {}: possible cause is problem in demultiplexing".format(stat_json))
+                raise RuntimeError(f"Not able to find Stats.json report {stat_json}: possible cause is problem in demultiplexing")
 
             # Aggregate fastq
             lanes_samples = dict()
@@ -848,21 +848,21 @@ class Run(object):
                     sample_dest = os.path.join(project_dest, sample)
                     if not os.path.exists(sample_dest):
                         os.makedirs(sample_dest)
-                    for file in glob.glob(os.path.join(self.run_dir, "Demultiplexing_{}".format(demux_id), "Undetermined*L0?{}*".format(lane))):
+                    for file in glob.glob(os.path.join(self.run_dir, f"Demultiplexing_{demux_id}", f"Undetermined*L0?{lane}*")):
                         old_name = os.path.basename(file)
                         old_name_comps = old_name.split("_")
-                        new_name_comps = [sample.replace('Sample_', ''), 'S{}'.format(str(sample_counter))] + old_name_comps[2:]
+                        new_name_comps = [sample.replace('Sample_', ''), f'S{str(sample_counter)}'] + old_name_comps[2:]
                         new_name = "_".join(new_name_comps)
                         os.symlink(file, os.path.join(sample_dest, new_name))
                         logger.info("For undet sample {}, renaming {} to {}".format(sample.replace('Sample_', ''), old_name, new_name))
                     sample_counter += 1
             # Ordinary cases
             else:
-                projects = [project for project in  os.listdir(os.path.join(self.run_dir, "Demultiplexing_{}".format(demux_id))) if os.path.isdir(os.path.join(self.run_dir, "Demultiplexing_{}".format(demux_id), project))]
+                projects = [project for project in  os.listdir(os.path.join(self.run_dir, f"Demultiplexing_{demux_id}")) if os.path.isdir(os.path.join(self.run_dir, f"Demultiplexing_{demux_id}", project))]
                 for project in projects:
                     if project in "Reports" or project in "Stats":
                         continue
-                    project_source = os.path.join(self.run_dir, "Demultiplexing_{}".format(demux_id), project)
+                    project_source = os.path.join(self.run_dir, f"Demultiplexing_{demux_id}", project)
                     project_dest = os.path.join(demux_folder, project)
                     if not os.path.exists(project_dest):
                         # There might be project seqeunced with multiple index lengths
@@ -881,7 +881,7 @@ class Run(object):
                 # Copy fastq files for undetermined and the undetermined stats for simple lanes only
                 lanes_in_sub_samplesheet = []
                 header = ['[Header]','[Data]','FCID','Lane', 'Sample_ID', 'Sample_Name', 'Sample_Ref', 'index', 'index2', 'Description', 'Control', 'Recipe', 'Operator', 'Sample_Project']
-                with open(samplesheet, mode='r') as sub_samplesheet_file:
+                with open(samplesheet) as sub_samplesheet_file:
                     sub_samplesheet_reader = csv.reader(sub_samplesheet_file)
                     for row in sub_samplesheet_reader:
                         if row[0] not in header:
@@ -890,15 +890,15 @@ class Run(object):
                 for lane in lanes_in_sub_samplesheet:
                     if lane in simple_lanes.keys():
                         undetermined_fastq_files = glob.glob(os.path.join(self.run_dir,
-                                                                          "Demultiplexing_{}".format(demux_id),
-                                                                          "Undetermined_S0_L00{}*.fastq*".format(lane))) # Contains only simple lanes undetermined
+                                                                          f"Demultiplexing_{demux_id}",
+                                                                          f"Undetermined_S0_L00{lane}*.fastq*")) # Contains only simple lanes undetermined
                         for fastqfile in undetermined_fastq_files:
                             os.symlink(fastqfile, os.path.join(demux_folder, os.path.split(fastqfile)[1]))
                         DemuxSummaryFiles = glob.glob(os.path.join(self.run_dir,
-                                                                   "Demultiplexing_{}".format(demux_id),
+                                                                   f"Demultiplexing_{demux_id}",
                                                                    legacy_path,
                                                                    "Stats",
-                                                                   "*L{}*txt".format(lane)))
+                                                                   f"*L{lane}*txt"))
                         if not os.path.exists(os.path.join(demux_folder, "Stats")):
                             os.makedirs(os.path.join(demux_folder, "Stats"))
                         for DemuxSummaryFile in DemuxSummaryFiles:
@@ -913,7 +913,7 @@ class Run(object):
         if self.software == 'bcl2fastq':
             legacy_path = ''
         elif self.software == 'bclconvert':
-            legacy_path = "Reports/{}".format(self.legacy_dir)
+            legacy_path = f"Reports/{self.legacy_dir}"
         else:
             raise RuntimeError("Unrecognized software!")
 
@@ -982,11 +982,11 @@ def _generate_lane_html(html_file, html_report_lane_parser):
         html.write('<tr>\n')
         fc_keys = sorted(list(html_report_lane_parser.flowcell_data.keys()))
         for key in fc_keys:
-            html.write('<th>{}</th>\n'.format(key))
+            html.write(f'<th>{key}</th>\n')
         html.write('</tr>\n')
         html.write('<tr>\n')
         for key in fc_keys:
-            html.write('<td>{}</td>\n'.format(html_report_lane_parser.flowcell_data[key]))
+            html.write(f'<td>{html_report_lane_parser.flowcell_data[key]}</td>\n')
         html.write('</tr>\n')
         html.write('</table>\n')
         # LANE SUMMARY TABLE
@@ -995,13 +995,13 @@ def _generate_lane_html(html_file, html_report_lane_parser):
         html.write('<tr>\n')
         lane_keys = sorted(list(html_report_lane_parser.sample_data[0].keys()))
         for key in lane_keys:
-            html.write('<th>{}</th>\n'.format(key))
+            html.write(f'<th>{key}</th>\n')
         html.write('</tr>\n')
 
         for sample in html_report_lane_parser.sample_data:
             html.write('<tr>\n')
             for key in lane_keys:
-                html.write('<td>{}</td>\n'.format(sample[key]))
+                html.write(f'<td>{sample[key]}</td>\n')
             html.write('</tr>\n')
         html.write('</table>\n')
         # FOOTER
