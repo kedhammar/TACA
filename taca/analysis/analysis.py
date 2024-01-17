@@ -84,9 +84,9 @@ def get_runObj(run, software):
             return NovaSeq_Run(run, software, CONFIG["analysis"]["NovaSeq"])
         else:
             logger.warn(
-                "Unrecognized run type {}, cannot archive the run {}. "
+                f"Unrecognized run type {runtype}, cannot archive the run {run}. "
                 "Someone as likely bought a new sequencer without telling "
-                "it to the bioinfo team".format(runtype, run)
+                "it to the bioinfo team"
             )
     return None
 
