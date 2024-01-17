@@ -101,7 +101,6 @@ When a non-invasive tool is used to tidy up a lot of code, it is useful to supre
 
 To do this, add the hash of the commit containing the changes to `.git-blame-ignore-revs`, headed by an explanatory comment.
 
-
 ### Deliver command
 
 There is also a [plugin for the deliver command](https://github.com/SciLifeLab/taca-ngi-pipeline). To install this in the same development environment:
