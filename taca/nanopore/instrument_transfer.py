@@ -48,7 +48,6 @@ def main(args):
 
     # Iterate over runs
     for run_path in run_paths:
-
         logging.info(f"Handling {run_path}...")
 
         if run_path.split(os.sep)[-2][0:3] == "QC_":
@@ -115,7 +114,9 @@ def sync_to_storage(run_dir, destination, log):
     )
 
 
-def final_sync_to_storage(run_dir: str, destination: str, archive_dir: str, log: list[str]):
+def final_sync_to_storage(
+    run_dir: str, destination: str, archive_dir: str, log: list[str]
+):
     """Do a final sync of the run to storage, then archive it.
     Skip if rsync is already running on the run."""
 
@@ -214,7 +215,6 @@ def parse_position_logs(minknow_logs_dir: str) -> list:
 
     entries = []
     for position in positions:
-
         log_files = glob(
             os.path.join(minknow_logs_dir, position, "control_server_log-*.txt")
         )
@@ -258,7 +258,6 @@ def get_pore_counts(position_logs: list) -> list:
 
     pore_counts = []
     for entry in position_logs:
-
         if "INFO: platform_qc.report (user_messages)" in entry["category"]:
             type = "qc"
         elif "INFO: mux_scan_result (user_messages)" in entry["category"]:
@@ -267,7 +266,6 @@ def get_pore_counts(position_logs: list) -> list:
             type = "other"
 
         if type in ["qc", "mux"]:
-
             new_entry = {
                 "flow_cell_id": entry["body"]["flow_cell_id"],
                 "timestamp": entry["timestamp"],
@@ -326,6 +324,7 @@ def dump_pore_count_history(run: str, pore_counts: list) -> str:
             open(new_file_path, "w").close()
 
     return new_file_path
+
 
 # BEGIN_EXCLUDE
 if __name__ == "__main__":

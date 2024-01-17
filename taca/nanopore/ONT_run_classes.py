@@ -29,7 +29,6 @@ class ONT_run:
     """
 
     def __init__(self, run_abspath: str):
-
         # Get paths and names of MinKNOW experiment, sample and run
         self.run_name = os.path.basename(run_abspath)
         self.run_abspath = run_abspath
@@ -185,7 +184,6 @@ class ONT_run:
             )
 
     def parse_pore_activity(self, db_update):
-
         logger.info(f"{self.run_name}: Parsing pore activity...")
 
         pore_activity = {}
@@ -299,7 +297,6 @@ class ONT_run:
         )
 
     def copy_html_report(self):
-
         logger.info(f"{self.run_name}: Transferring .html report to ngi-internal...")
 
         # Transfer the MinKNOW .html report file to ngi-internal, renaming it to the full run ID. Requires password-free SSH access.

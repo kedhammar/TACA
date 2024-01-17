@@ -4,6 +4,7 @@ import yaml
 
 CONFIG = {}
 
+
 def load_config(config_file):
     """Loads a configuration file."""
     config = {}
@@ -15,6 +16,7 @@ def load_config(config_file):
     except OSError as e:
         e.message = f'Could not open configuration file "{config_file}".'
         raise e
+
 
 def load_yaml_config(config_file):
     """Load YAML config file

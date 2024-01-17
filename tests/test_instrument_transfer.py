@@ -80,14 +80,15 @@ def setup_test_fixture() -> (Mock, tempfile.TemporaryDirectory, dict):
 
 
 def test_main_ignore_CTC(setup_test_fixture):
-    """Check so that runs on configuration test cells are not picked up.
-    """
+    """Check so that runs on configuration test cells are not picked up."""
 
     # Run fixture
     args, tmp, file_paths = setup_test_fixture
 
     # Setup run
-    run_path = f"{args.source_dir}/experiment/sample/{DUMMY_RUN_NAME.replace('TEST', 'CTC')}"
+    run_path = (
+        f"{args.source_dir}/experiment/sample/{DUMMY_RUN_NAME.replace('TEST', 'CTC')}"
+    )
     os.makedirs(run_path)
 
     with patch("taca.nanopore.instrument_transfer.dump_path") as mock_dump_path:
@@ -107,7 +108,9 @@ def test_main_ignore_col3(setup_test_fixture):
     args, tmp, file_paths = setup_test_fixture
 
     # Setup run
-    run_path = f"{args.source_dir}/experiment/sample/{DUMMY_RUN_NAME.replace('MN19414', '3A')}"
+    run_path = (
+        f"{args.source_dir}/experiment/sample/{DUMMY_RUN_NAME.replace('MN19414', '3A')}"
+    )
     os.makedirs(run_path)
 
     with patch("taca.nanopore.instrument_transfer.dump_path") as mock_dump_path:
@@ -115,7 +118,7 @@ def test_main_ignore_col3(setup_test_fixture):
         instrument_transfer.main(args)
 
         # Check dump_path was not called
-        mock_dump_path.assert_not_called() 
+        mock_dump_path.assert_not_called()
 
 
 @pytest.mark.parametrize(
@@ -158,9 +161,7 @@ def test_main(mock_sync, mock_final_sync, setup_test_fixture, finished, qc):
 
     # Check path was dumped
     assert os.path.exists(run_path + "/run_path.txt")
-    assert open(run_path + "/run_path.txt").read() == "/".join(
-        run_path.split("/")[-3:]
-    )
+    assert open(run_path + "/run_path.txt").read() == "/".join(run_path.split("/")[-3:])
 
     # Check pore count history was dumped
     assert os.path.exists(run_path + "/pore_count_history.csv")
@@ -328,7 +329,6 @@ def test_archive_finished_run():
 
 
 def test_parse_position_logs(setup_test_fixture):
-
     # Run fixture
     args, tmp, file_paths = setup_test_fixture
 
@@ -342,7 +342,6 @@ def test_parse_position_logs(setup_test_fixture):
     assert len(logs) == len(set(logs_as_strings))
 
     for entry in logs:
-
         assert re.match(r"^(MN19414)|(1A)$", entry["position"])
         assert re.match(r"^2024-01-01 0\d:0\d:0\d.0\d$", entry["timestamp"])
         assert re.match(r"^INFO: [a-z\._]+ \(user_messages\)$", entry["category"])
@@ -353,7 +352,6 @@ def test_parse_position_logs(setup_test_fixture):
 
 
 def test_get_pore_counts(setup_test_fixture):
-    
     # Run fixture
     args, tmp, file_paths = setup_test_fixture
 
@@ -368,7 +366,6 @@ def test_get_pore_counts(setup_test_fixture):
     assert len(logs) == len(set(pore_counts_as_strings))
 
     for entry in pore_counts:
-
         assert re.match(r"^(TEST12345)|(PAM12345)$", entry["flow_cell_id"])
         assert re.match(r"^(MN19414)|(1A)$", entry["position"])
         assert re.match(r"^2024-01-01 0\d:0\d:0\d.0\d$", entry["timestamp"])
@@ -379,7 +376,6 @@ def test_get_pore_counts(setup_test_fixture):
 
 
 def test_dump_pore_count_history(setup_test_fixture):
-
     # Run fixture
     args, tmp, file_paths = setup_test_fixture
 
