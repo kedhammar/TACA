@@ -1,7 +1,7 @@
 click
 requests
 pyyaml
-flowcell_parser
+flowcell_parser @ git+https://github.com/SciLifeLab/flowcell_parser
 soupsieve<2.0
 beautifulsoup4
 python-crontab

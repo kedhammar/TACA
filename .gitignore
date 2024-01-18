@@ -6,3 +6,6 @@ _build
 *.log
 .DS*
 .vagrant/
+.benchmarks
+.coverage
+__pycache__

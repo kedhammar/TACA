@@ -1,0 +1,6 @@
+[report]
+exclude_lines =
+    # Exclude lines between BEGIN_EXCLUDE and END_EXCLUDE
+    BEGIN_EXCLUDE
+    .* 
+    END_EXCLUDE
