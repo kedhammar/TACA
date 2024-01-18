@@ -18,7 +18,6 @@ class MiSeq_Run(Standard_Run):
         super(MiSeq_Run, self).__init__(run_dir, software, configuration)
         self._set_sequencer_type()
         self._set_run_type()
-        self._get_samplesheet()
         self._copy_samplesheet()
 
     def _set_sequencer_type(self):
