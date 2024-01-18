@@ -22,9 +22,6 @@ class Standard_Run(Run):
 
     def __init__(self, run_dir, software, configuration):
         super(Standard_Run, self).__init__(run_dir, software, configuration)
-        self._set_sequencer_type()
-        self._set_run_type()
-        self._copy_samplesheet()
 
     def _set_sequencer_type(self):
         self.sequencer_type = ''
