@@ -1,5 +1,9 @@
 # TACA Version Log
 
+## 20240122.1
+
+Adapt ONT analysis to new ONT JSON format (also backwards compatible).
+
 ## 20231204.1
 
 Update ONT instrument transfer script to ignore runs started in the 3rd PromethION column, which will be used by Clinical Genomics.
