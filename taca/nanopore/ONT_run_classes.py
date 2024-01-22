@@ -257,7 +257,7 @@ class ONT_run(object):
         # -- Run output subsection
         seq_metadata_trimmed["acquisition_output"] = []
         for section in seq_metadata["acquisition_output"]:
-            if section["type"] in ["AllData", "SplitByBarcode"]:
+            if "type" not in section.keys() or section["type"] in ["AllData", "SplitByBarcode"]:
                 seq_metadata_trimmed["acquisition_output"].append(section)
 
         # -- Read length subseqtion
