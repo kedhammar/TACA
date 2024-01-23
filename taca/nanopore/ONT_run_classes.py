@@ -282,11 +282,13 @@ class ONT_run(object):
             "**/bam*/***",
             "**/fast5*/***",
             "**/fastq*/***",
+            "**/pod5*/***",
             # Any files found elsewhere
             "*.bam*",
             "*.bai*",
             "*.fast5*",
             "*.fastq*",
+            "*.pod5*",
         ]
 
         exclude_patterns_quoted = ["'" + pattern + "'" for pattern in exclude_patterns]
