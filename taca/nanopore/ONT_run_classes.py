@@ -517,8 +517,11 @@ class ONT_qc_run(ONT_run):
             # Dump Anglerfish exit code into file
             f"echo $? > {self.anglerfish_done_abspath}",
             # Move run to subdir
-            f'find {self.run_abspath} -name "anglerfish_run*" -type d -newer {self.run_abspath}/.anglerfish_ongoing ' + '-exec mv \{\} ' + f'{self.run_abspath}/{taca_anglerfish_run_dir}/ \;',
-            # Regardless of exit status: Remove 'run-ongoing' file.
+            f'find {self.run_abspath} -name "anglerfish_run*" -type d -newer {self.run_abspath}/.anglerfish_ongoing '
+            + '-exec mv \{\} '
+            + f'{self.run_abspath}/{taca_anglerfish_run_dir}/ \; '
+            + '-quit',
+            # Remove 'run-ongoing' file.
             f"rm {self.anglerfish_ongoing_abspath}",
         ]
 
