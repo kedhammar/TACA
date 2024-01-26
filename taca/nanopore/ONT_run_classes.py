@@ -460,12 +460,21 @@ class ONT_qc_run(ONT_run):
                     f"{self.run_name}: Error occured when copying anglerfish samplesheet to run dir."
                 )
             
-    def run_has_barcode_output(self) -> bool:
+    def has_fastq_output(self) -> bool:
+        """Check whether run has fastq output."""
 
-        barcode_dir_pattern = r"barcode\d{2}"
         reads_dir = os.path.join(self.run_abspath, "fastq_pass")
 
-        for dir in os.listdir(reads_dir):
+        if os.path.exists(reads_dir):
+            return True
+        else:
+            return False
+            
+    def has_barcode_dirs(self) -> bool:
+
+        barcode_dir_pattern = r"barcode\d{2}"
+
+        for dir in os.listdir(os.path.join(self.run_abspath, "fastq_pass")):
             if re.search(barcode_dir_pattern, dir):
                 return True
 
@@ -487,7 +496,9 @@ class ONT_qc_run(ONT_run):
             "--skip_demux",
         ]
 
-        if self.run_has_barcode_output():
+
+
+        if self.has_barcode_dirs():
             anglerfish_command.append("--barcoding")
 
         full_command = [
