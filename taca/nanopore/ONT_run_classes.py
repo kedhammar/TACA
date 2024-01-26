@@ -492,7 +492,7 @@ class ONT_qc_run(ONT_run):
         anglerfish_command = [
             self.anglerfish_path,
             f"--samplesheet {self.anglerfish_samplesheet}",
-            f"--out_fastq {os.join(self.run_abspath, taca_anglerfish_run_dir)}",
+            f"--out_fastq {self.run_abspath}",
             f"--run_name {anglerfish_run_name}",
             f"--threads {n_threads}",
             "--lenient",
@@ -516,6 +516,8 @@ class ONT_qc_run(ONT_run):
             "conda run -n anglerfish " + " ".join(anglerfish_command),
             # Dump Anglerfish exit code into file
             f"echo $? > {self.anglerfish_done_abspath}",
+            # Move run to subdir
+            f'find {self.run_abspath} -name "anglerfish_run*" -type d -newer {self.run_abspath}/.anglerfish_ongoing ' + '-exec mv \{\} ' + f'{self.run_abspath}/{taca_anglerfish_run_dir}/',
             # Regardless of exit status: Remove 'run-ongoing' file.
             f"rm {self.anglerfish_ongoing_abspath}",
         ]
