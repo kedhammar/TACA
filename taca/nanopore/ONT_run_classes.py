@@ -459,6 +459,15 @@ class ONT_qc_run(ONT_run):
                 raise RsyncError(
                     f"{self.run_name}: Error occured when copying anglerfish samplesheet to run dir."
                 )
+            
+    def run_has_barcode_output(self) -> bool:
+
+        barcode_dir_pattern = r"barcode\d{2}"
+        reads_dir = os.path.join(self.run_abspath, "fastq_pass")
+
+        for dir in os.listdir(reads_dir):
+            if re.search(barcode_dir_pattern, dir):
+                return True
 
     def run_anglerfish(self):
         """Run Anglerfish as subprocess within it's own Conda environment.
@@ -475,9 +484,11 @@ class ONT_qc_run(ONT_run):
             f"--run_name {anglerfish_run_name}",
             f"--threads {n_threads}",
             "--lenient",
-            "--ont_barcodes",
             "--skip_demux",
         ]
+
+        if self.run_has_barcode_output():
+            anglerfish_command.append("--barcoding")
 
         full_command = [
             # Dump subprocess PID into 'run-ongoing'-indicator file.
