@@ -519,7 +519,7 @@ class ONT_qc_run(ONT_run):
             # Dump Anglerfish exit code into file
             f"echo $? > {self.anglerfish_done_abspath}",
             # Move the Anglerfish run dir into the taca anglerfish run folder
-            f"mv {anglerfish_run_name} {taca_anglerfish_run_dir}/",
+            'find . -name "anglerfish_run*" -type d -newer .anglerfish_ongoing -exec mv {} ' + f"{taca_anglerfish_run_dir}/"
             # Regardless of exit status: Remove 'run-ongoing' file.
             f"rm {self.anglerfish_ongoing_abspath}",
         ]
