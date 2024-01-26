@@ -504,7 +504,6 @@ class ONT_qc_run(ONT_run):
         # Copy samplesheet used
         shutil.copy(self.anglerfish_samplesheet, f"{taca_anglerfish_run_dir}/")
         # Create files to dump subprocess std
-        stdin_relpath = f"{taca_anglerfish_run_dir}/stdin.txt"
         stdout_relpath = f"{taca_anglerfish_run_dir}/stdout.txt"
         stderr_relpath = f"{taca_anglerfish_run_dir}/stderr.txt"
 
@@ -519,23 +518,22 @@ class ONT_qc_run(ONT_run):
             # Dump Anglerfish exit code into file
             f"echo $? > {self.anglerfish_done_abspath}",
             # Move the Anglerfish run dir into the taca anglerfish run folder
-            'find . -name "anglerfish_run*" -type d -newer .anglerfish_ongoing -exec mv {} ' + f"{taca_anglerfish_run_dir}/"
+            'find . -name "anglerfish_run*" -type d -newer .anglerfish_ongoing -exec mv \{\} ' + f"{taca_anglerfish_run_dir}/"
             # Regardless of exit status: Remove 'run-ongoing' file.
             f"rm {self.anglerfish_ongoing_abspath}",
         ]
 
         with open(f"{taca_anglerfish_run_dir}/command.sh", "w") as stream:
             stream.write(
-            "; ".join(full_command)
+            "\n".join(full_command)
         )
 
         # Start Anglerfish subprocess
-        with open(stdin_relpath, 'w') as stdin, open(stdout_relpath, 'w') as stdout, open(stderr_relpath, 'w') as stderr:
+        with open(stdout_relpath, 'w') as stdout, open(stderr_relpath, 'w') as stderr:
             process = subprocess.Popen(
                 "; ".join(full_command),
                 shell=True,
                 cwd=self.run_abspath,
-                stdin=stdin,
                 stdout=stdout,
                 stderr=stderr,
             )
