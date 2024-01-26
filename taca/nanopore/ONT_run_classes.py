@@ -530,7 +530,7 @@ class ONT_qc_run(ONT_run):
         )
 
         # Start Anglerfish subprocess
-        with open(stdin_relpath, 'w') as stdin, open(stdout_relpath, 'w') as stdout, open(stderr_relpath, 'r') as stderr:
+        with open(stdin_relpath, 'w') as stdin, open(stdout_relpath, 'w') as stdout, open(stderr_relpath, 'w') as stderr:
             process = subprocess.Popen(
                 "; ".join(full_command),
                 shell=True,
