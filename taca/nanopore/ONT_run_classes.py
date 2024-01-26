@@ -504,9 +504,9 @@ class ONT_qc_run(ONT_run):
         # Copy samplesheet used
         shutil.copy(self.anglerfish_samplesheet, f"{taca_anglerfish_run_dir}/")
         # Create files to dump subprocess std
-        stdin = f"{taca_anglerfish_run_dir}/stdin.txt"
-        stdout = f"{taca_anglerfish_run_dir}/stdout.txt"
-        stderr = f"{taca_anglerfish_run_dir}/stderr.txt"
+        stdin_relpath = f"{taca_anglerfish_run_dir}/stdin.txt"
+        stdout_relpath = f"{taca_anglerfish_run_dir}/stdout.txt"
+        stderr_relpath = f"{taca_anglerfish_run_dir}/stderr.txt"
 
         if self.has_barcode_dirs():
             anglerfish_command.append("--barcoding")
@@ -530,14 +530,15 @@ class ONT_qc_run(ONT_run):
         )
 
         # Start Anglerfish subprocess
-        process = subprocess.Popen(
-            "; ".join(full_command),
-            shell=True,
-            cwd=self.run_abspath,
-            stdin=stdin,
-            stdout=stdout,
-            stderr=stderr,
-        )
+        with open(stdin_relpath, 'w') as stdin, open(stdout_relpath, 'w') as stdout, open(stderr_relpath, 'r') as stderr:
+            process = subprocess.Popen(
+                "; ".join(full_command),
+                shell=True,
+                cwd=self.run_abspath,
+                stdin=stdin,
+                stdout=stdout,
+                stderr=stderr,
+            )
         logger.info(
             f"{self.run_name}: Anglerfish subprocess started with process ID {process.pid}."
         )
