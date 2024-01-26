@@ -483,7 +483,7 @@ class ONT_qc_run(ONT_run):
         Dump files to indicate ongoing and finished processes.
         """
 
-        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        timestamp = datetime.now().strftime("%Y_%m_%d_%H%M%S")
 
         taca_anglerfish_run_dir = f"taca_anglerfish_run_{timestamp}"
         anglerfish_run_name = "anglerfish_run"
@@ -492,7 +492,7 @@ class ONT_qc_run(ONT_run):
         anglerfish_command = [
             self.anglerfish_path,
             f"--samplesheet {self.anglerfish_samplesheet}",
-            f"--out_fastq {self.run_abspath}",
+            f"--out_fastq {os.join(self.run_abspath, taca_anglerfish_run_dir)}",
             f"--run_name {anglerfish_run_name}",
             f"--threads {n_threads}",
             "--lenient",
@@ -504,7 +504,6 @@ class ONT_qc_run(ONT_run):
         # Copy samplesheet used
         shutil.copy(self.anglerfish_samplesheet, f"{taca_anglerfish_run_dir}/")
         # Create files to dump subprocess std
-        stdout_relpath = f"{taca_anglerfish_run_dir}/stdout.txt"
         stderr_relpath = f"{taca_anglerfish_run_dir}/stderr.txt"
 
         if self.has_barcode_dirs():
@@ -522,17 +521,14 @@ class ONT_qc_run(ONT_run):
         ]
 
         with open(f"{taca_anglerfish_run_dir}/command.sh", "w") as stream:
-            stream.write(
-            "\n".join(full_command)
-        )
+            stream.write("\n".join(full_command))
 
         # Start Anglerfish subprocess
-        with open(stdout_relpath, 'w') as stdout, open(stderr_relpath, 'w') as stderr:
+        with open(stderr_relpath, 'w') as stderr:
             process = subprocess.Popen(
                 "; ".join(full_command),
                 shell=True,
                 cwd=self.run_abspath,
-                stdout=stdout,
                 stderr=stderr,
             )
         logger.info(
