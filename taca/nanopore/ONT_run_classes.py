@@ -483,6 +483,9 @@ class ONT_qc_run(ONT_run):
         Dump files to indicate ongoing and finished processes.
         """
 
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
+        taca_anglerfish_run_dir = f"taca_anglerfish_run_{timestamp}"
         anglerfish_run_name = "anglerfish_run"
         n_threads = 2  # This could possibly be changed
 
@@ -496,7 +499,14 @@ class ONT_qc_run(ONT_run):
             "--skip_demux",
         ]
 
-
+        # Make dir to trace Anglerfish run
+        os.mkdir(taca_anglerfish_run_dir)
+        # Copy samplesheet used
+        shutil.copy(self.anglerfish_samplesheet, f"{taca_anglerfish_run_dir}/")
+        # Create files to dump subprocess std
+        stdin = f"{taca_anglerfish_run_dir}/stdin.txt"
+        stdout = f"{taca_anglerfish_run_dir}/stdout.txt"
+        stderr = f"{taca_anglerfish_run_dir}/stderr.txt"
 
         if self.has_barcode_dirs():
             anglerfish_command.append("--barcoding")
@@ -508,19 +518,25 @@ class ONT_qc_run(ONT_run):
             "conda run -n anglerfish " + " ".join(anglerfish_command),
             # Dump Anglerfish exit code into file
             f"echo $? > {self.anglerfish_done_abspath}",
-            # Copy the Anglerfish samplesheet used to start the run into the run dir, for traceability
-            # (The correct anglerfish run dir is identified by it being younger than the "run-ongoing" file)
-            f"new_runs=$(find . -type d -name 'anglerfish_run*' -newer {self.anglerfish_ongoing_abspath})",
-            f"if [[ $(echo '${{new_runs}}' | wc -l) -eq 1 ]] ; then cp {self.anglerfish_samplesheet} ${{new_runs}}/ ; fi",
+            # Move the Anglerfish run dir into the taca anglerfish run folder
+            f"mv {anglerfish_run_name} {taca_anglerfish_run_dir}/",
             # Regardless of exit status: Remove 'run-ongoing' file.
             f"rm {self.anglerfish_ongoing_abspath}",
         ]
+
+        with open(f"{taca_anglerfish_run_dir}/command.sh", "w") as stream:
+            stream.write(
+            "; ".join(full_command)
+        )
 
         # Start Anglerfish subprocess
         process = subprocess.Popen(
             "; ".join(full_command),
             shell=True,
             cwd=self.run_abspath,
+            stdin=stdin,
+            stdout=stdout,
+            stderr=stderr,
         )
         logger.info(
             f"{self.run_name}: Anglerfish subprocess started with process ID {process.pid}."
