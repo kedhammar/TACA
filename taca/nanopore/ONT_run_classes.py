@@ -465,10 +465,7 @@ class ONT_qc_run(ONT_run):
 
         reads_dir = os.path.join(self.run_abspath, "fastq_pass")
 
-        if os.path.exists(reads_dir):
-            return True
-        else:
-            return False
+        return os.path.exists(reads_dir)
             
     def has_barcode_dirs(self) -> bool:
 
