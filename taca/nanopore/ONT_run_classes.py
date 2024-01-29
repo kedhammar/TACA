@@ -482,8 +482,9 @@ class ONT_qc_run(ONT_run):
 
         timestamp = datetime.now().strftime("%Y_%m_%d_%H%M%S")
 
-        taca_anglerfish_run_dir = f"taca_anglerfish_run_{timestamp}"
+        # "anglerfish_run*" is the dir pattern recognized by the LIMS script parsing the results 
         anglerfish_run_name = "anglerfish_run"
+
         n_threads = 2  # This could possibly be changed
 
         anglerfish_command = [
@@ -495,16 +496,16 @@ class ONT_qc_run(ONT_run):
             "--lenient",
             "--skip_demux",
         ]
+        if self.has_barcode_dirs():
+            anglerfish_command.append("--barcoding")
 
-        # Make dir to trace Anglerfish run
+        # Create dir to trace TACA executing Anglerfish as a subprocess
+        taca_anglerfish_run_dir = f"taca_anglerfish_run_{timestamp}"
         os.mkdir(taca_anglerfish_run_dir)
-        # Copy samplesheet used
+        # Copy samplesheet used for traceability
         shutil.copy(self.anglerfish_samplesheet, f"{taca_anglerfish_run_dir}/")
         # Create files to dump subprocess std
         stderr_relpath = f"{taca_anglerfish_run_dir}/stderr.txt"
-
-        if self.has_barcode_dirs():
-            anglerfish_command.append("--barcoding")
 
         full_command = [
             # Dump subprocess PID into 'run-ongoing'-indicator file.
@@ -514,9 +515,11 @@ class ONT_qc_run(ONT_run):
             # Dump Anglerfish exit code into file
             f"echo $? > {self.anglerfish_done_abspath}",
             # Move run to subdir
+            #  1) Find the latest Anglerfish run dir (younger than the 'run-ongoing' file)
             f'find {self.run_abspath} -name "anglerfish_run*" -type d -newer {self.run_abspath}/.anglerfish_ongoing '
-            + '-exec mv \{\} '
-            + f'{self.run_abspath}/{taca_anglerfish_run_dir}/ \; '
+            #  2) Move the Anglerfish run dir into the TACA Anglerfish run dir
+            + '-exec mv \{\} ' + f'{self.run_abspath}/{taca_anglerfish_run_dir}/ \; '
+            #  3) Only do this once
             + '-quit',
             # Remove 'run-ongoing' file.
             f"rm {self.anglerfish_ongoing_abspath}",
@@ -528,7 +531,7 @@ class ONT_qc_run(ONT_run):
         # Start Anglerfish subprocess
         with open(stderr_relpath, 'w') as stderr:
             process = subprocess.Popen(
-                "; ".join(full_command),
+                f"bash {taca_anglerfish_run_dir}/command.sh",
                 shell=True,
                 cwd=self.run_abspath,
                 stderr=stderr,
