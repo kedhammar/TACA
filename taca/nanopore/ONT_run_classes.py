@@ -239,7 +239,7 @@ class ONT_run(object):
     def parse_minknow_json(self, db_update):
         """Parse useful stuff from the MinKNOW .json report to add to CouchDB"""
 
-        logger.info(f"{self.run_name}:Parsing report JSON...")
+        logger.info(f"{self.run_name}: Parsing report JSON...")
 
         dict_json_report = json.load(open(self.get_file("/report*.json"), "r"))
 
