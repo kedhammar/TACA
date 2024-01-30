@@ -65,9 +65,10 @@ class ONT_run(object):
                 self.rsync_options[k] = None
 
         # Get transfer details, depending on run type and instrument
-        self.transfer_details = CONFIG["nanopore_analysis"]["run_types"][self.run_type][
-            "instruments"
-        ][self.instrument]
+        if hasattr(self, "run_type"):
+            self.transfer_details = CONFIG["nanopore_analysis"]["run_types"][self.run_type][
+                "instruments"
+            ][self.instrument]
 
         # Get DB
         self.db = NanoporeRunsConnection(CONFIG["statusdb"], dbname="nanopore_runs")
@@ -159,7 +160,7 @@ class ONT_run(object):
         self.touch_db_entry()
 
         # If the run document is marked as "ongoing" or database is being manually updated
-        if self.db.check_run_status(self) == "ongoing" or force_update == True:
+        if self.db.check_run_status(self) == "ongoing" or force_update is True:
             logger.info(
                 f"{self.run_name}: Run exists in the database with run status: {self.db.check_run_status(self)}."
             )
@@ -168,6 +169,16 @@ class ONT_run(object):
 
             # Instantiate json (dict) to update the db with
             db_update = {}
+
+            # Parse run path
+            db_update["run_path"] = open(f"{self.run_abspath}/run_path.txt", "r").read().strip()
+
+            # Parse pore counts
+            pore_counts = []
+            with open(f"{self.run_abspath}/pore_count_history.csv", "r") as stream:
+                for line in csv.DictReader(stream):
+                    pore_counts.append(line)
+            db_update["pore_count_history"] = pore_counts
 
             # Parse report_*.json
             self.parse_minknow_json(db_update)
@@ -505,7 +516,7 @@ class ONT_qc_run(ONT_run):
         # Copy samplesheet used for traceability
         shutil.copy(self.anglerfish_samplesheet, f"{taca_anglerfish_run_dir}/")
         # Create files to dump subprocess std
-        stderr_relpath = f"{taca_anglerfish_run_dir}/stderr.txt"
+        stderr_abspath = f"{self.run_abspath}/{taca_anglerfish_run_dir}/stderr.txt"
 
         full_command = [
             # Dump subprocess PID into 'run-ongoing'-indicator file.
@@ -529,7 +540,7 @@ class ONT_qc_run(ONT_run):
             stream.write("\n".join(full_command))
 
         # Start Anglerfish subprocess
-        with open(stderr_relpath, 'w') as stderr:
+        with open(stderr_abspath, 'w') as stderr:
             process = subprocess.Popen(
                 f"bash {taca_anglerfish_run_dir}/command.sh",
                 shell=True,
