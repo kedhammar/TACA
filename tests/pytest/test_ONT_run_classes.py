@@ -9,8 +9,6 @@ import pytest
 
 from taca.nanopore import instrument_transfer
 
-DUMMY_RUN_NAME = "20240112_2342_MN19414_TEST12345_randomhash"
-
 # To check coverage, use
 # pytest -s --cov=taca.nanopore.instrument_transfer --cov-report term-missing -vv test_instrument_transfer.py
 
