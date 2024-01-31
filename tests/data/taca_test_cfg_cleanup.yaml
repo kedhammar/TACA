@@ -14,20 +14,19 @@ storage:
     HiSeq: data/test_data/nosync
 
 cleanup:
-    miarka:
-        flowcell:
-            root:
-                - "data/miarka/incoming"
-                - "data/miarka/archive"
-            relative_project_source: Demultiplexing
-            undet_file_pattern: "*Undetermined_*.fastq.gz"
-        data_dir: "data/miarka/nobackup/NGI/DATA"
-        analysis:
-            root: "../../nobackup/NGI/ANALYSIS"
-            files_to_remove:
-                piper_ngi:
-                    - "*.bam"
+  miarka:
+    flowcell:
+      root:
+        - "data/miarka/incoming"
+        - "data/miarka/archive"
+      relative_project_source: Demultiplexing
+      undet_file_pattern: "*Undetermined_*.fastq.gz"
+    data_dir: "data/miarka/nobackup/NGI/DATA"
+    analysis:
+      root: "../../nobackup/NGI/ANALYSIS"
+      files_to_remove:
+        piper_ngi:
+          - "*.bam"
 
 mail:
-  recipients:
-    some_user@some_email.com
+  recipients: some_user@some_email.com

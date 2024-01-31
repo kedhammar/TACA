@@ -2,14 +2,14 @@
 """
 __version__ = "1.0.13"
 
+import argparse
 import logging
 import os
 import re
 import shutil
-import argparse
 import subprocess
-from glob import glob
 from datetime import datetime as dt
+from glob import glob
 
 
 def main(args):
@@ -48,19 +48,18 @@ def main(args):
 
     # Iterate over runs
     for run_path in run_paths:
-
         logging.info(f"Handling {run_path}...")
 
         if run_path.split(os.sep)[-2][0:3] == "QC_":
             # For QC runs, the sample name should start with "QC_"
-            logging.info(f"Run categorized as QC.")
+            logging.info("Run categorized as QC.")
             rsync_dest = args.dest_dir_qc
         else:
             rsync_dest = args.dest_dir
 
-        logging.info(f"Dumping run path...")
+        logging.info("Dumping run path...")
         dump_path(run_path)
-        logging.info(f"Dumping QC and MUX history...")
+        logging.info("Dumping QC and MUX history...")
         dump_pore_count_history(run_path, pore_counts)
 
         if not sequencing_finished(run_path):
@@ -96,7 +95,7 @@ def write_finished_indicator(run_path):
     open(new_file, "w").close()
 
 
-def sync_to_storage(run_dir, destination, log):
+def sync_to_storage(run_dir: str, destination: str, rsync_log: str):
     """Sync the run to storage using rsync.
     Skip if rsync is already running on the run."""
 
@@ -104,7 +103,7 @@ def sync_to_storage(run_dir, destination, log):
         "run-one",
         "rsync",
         "-rvu",
-        "--log-file=" + log,
+        "--log-file=" + rsync_log,
         run_dir,
         destination,
     ]
@@ -115,17 +114,19 @@ def sync_to_storage(run_dir, destination, log):
     )
 
 
-def final_sync_to_storage(run_dir: str, destination: str, archive_dir: str, log: list[str]):
+def final_sync_to_storage(
+    run_dir: str, destination: str, archive_dir: str, rsync_log: str
+):
     """Do a final sync of the run to storage, then archive it.
     Skip if rsync is already running on the run."""
 
-    logging.info("Performing a final sync of {} to storage".format(run_dir))
+    logging.info(f"Performing a final sync of {run_dir} to storage")
 
     command = [
         "run-one",
         "rsync",
         "-rvu",
-        "--log-file=" + log,
+        "--log-file=" + rsync_log,
         run_dir,
         destination,
     ]
@@ -140,9 +141,7 @@ def final_sync_to_storage(run_dir: str, destination: str, archive_dir: str, log:
         archive_finished_run(run_dir, archive_dir)
     else:
         logging.info(
-            "Previous rsync might be running still. Skipping {} for now.".format(
-                run_dir
-            )
+            f"Previous rsync might be running still. Skipping {run_dir} for now."
         )
         return
 
@@ -155,7 +154,7 @@ def archive_finished_run(run_dir: str, archive_dir: str):
     sample_dir = os.path.dirname(run_dir)
     exp_dir = os.path.dirname(sample_dir)
 
-    run_name = os.path.basename(run_dir)
+    os.path.basename(run_dir)
     sample_name = os.path.basename(sample_dir)
     exp_name = os.path.basename(exp_dir)
 
@@ -214,9 +213,9 @@ def parse_position_logs(minknow_logs_dir: str) -> list:
         for row in "ABCDEFGH":
             positions.append(col + row)
 
-    entries = []
+    headers = []
+    header: dict | None = None
     for position in positions:
-
         log_files = glob(
             os.path.join(minknow_logs_dir, position, "control_server_log-*.txt")
         )
@@ -227,32 +226,35 @@ def parse_position_logs(minknow_logs_dir: str) -> list:
             for log_file in log_files:
                 with open(log_file) as stream:
                     lines = stream.readlines()
-                    for i in range(0, len(lines)):
-                        line = lines[i]
-                        if line[0:4] != "    ":
+
+                    # Iterate across log lines
+                    for line in lines:
+                        if not line[0:4] == "    ":
                             # Line is log header
                             split_header = line.split(" ")
                             timestamp = " ".join(split_header[0:2])
                             category = " ".join(split_header[2:])
 
-                            entry = {
+                            header = {
                                 "position": position,
                                 "timestamp": timestamp.strip(),
                                 "category": category.strip(),
                             }
-                            entries.append(entry)
-                        else:
+                            headers.append(header)
+
+                        elif header:
                             # Line is log body
-                            if "body" not in entry:
-                                entry["body"] = {}
+                            if "body" not in header.keys():
+                                body: dict = {}
+                                header["body"] = body
                             key = line.split(": ")[0].strip()
                             val = ": ".join(line.split(": ")[1:]).strip()
-                            entry["body"][key] = val
+                            header["body"][key] = val
 
-    entries.sort(key=lambda x: x["timestamp"])
-    logging.info(f"Parsed {len(entries)} log entries.")
+    headers.sort(key=lambda x: x["timestamp"])
+    logging.info(f"Parsed {len(headers)} log entries.")
 
-    return entries
+    return headers
 
 
 def get_pore_counts(position_logs: list) -> list:
@@ -260,7 +262,6 @@ def get_pore_counts(position_logs: list) -> list:
 
     pore_counts = []
     for entry in position_logs:
-
         if "INFO: platform_qc.report (user_messages)" in entry["category"]:
             type = "qc"
         elif "INFO: mux_scan_result (user_messages)" in entry["category"]:
@@ -269,7 +270,6 @@ def get_pore_counts(position_logs: list) -> list:
             type = "other"
 
         if type in ["qc", "mux"]:
-
             new_entry = {
                 "flow_cell_id": entry["body"]["flow_cell_id"],
                 "timestamp": entry["timestamp"],
@@ -328,6 +328,7 @@ def dump_pore_count_history(run: str, pore_counts: list) -> str:
             open(new_file_path, "w").close()
 
     return new_file_path
+
 
 # BEGIN_EXCLUDE
 if __name__ == "__main__":

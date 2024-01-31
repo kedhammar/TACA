@@ -9,3 +9,7 @@ _build
 .benchmarks
 .coverage
 __pycache__
+.pytest_cache
+.vscode
+.ruff_cache
+.mypy_cache

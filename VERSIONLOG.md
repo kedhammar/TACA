@@ -29,9 +29,11 @@ Version 1.0.0
 Fix bug with rsync permission issue cont.
 
 ## 20231031.1
+
 Improve run_folder transfer
 
 ## 20231026.1
+
 Fix bug with rsync permission issue
 
 ## 20231024.1
@@ -53,7 +55,6 @@ Fix bug that NovaSeqXPlus date format cause error in writing pdc_archived timest
 ## 20230921.1
 
 Remove the temp change of creating links
-
 
 ## 20230920.1
 
