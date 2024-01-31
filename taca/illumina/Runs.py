@@ -873,7 +873,17 @@ class Run:
 
         return NumberReads_Summary
 
-    def _fix_demultiplexingstats_xml_dir(self, demux_folder, stats_json, samplesheets, index_cycles, simple_lanes, complex_lanes, noindex_lanes, NumberReads_Summary):
+    def _fix_demultiplexingstats_xml_dir(
+        self,
+        demux_folder,
+        stats_json,
+        samplesheets,
+        index_cycles,
+        simple_lanes,
+        complex_lanes,
+        noindex_lanes,
+        NumberReads_Summary,
+    ):
         # Create the DemultiplexingStats.xml (empty it is here only to say thay demux is done)
         DemultiplexingStats_xml_dir = _create_folder_structure(demux_folder, ["Stats"])
         # For creating DemuxSummary.txt files for complex lanes
@@ -1391,13 +1401,41 @@ class Run:
             return True
 
         # Case with multiple sub-demultiplexings
-        (html_reports_lane, html_reports_laneBarcode, stats_json) = self._process_demux_with_complex_lanes(demux_folder, samplesheets, legacy_path, index_cycles, simple_lanes, complex_lanes, noindex_lanes)
+        (
+            html_reports_lane,
+            html_reports_laneBarcode,
+            stats_json,
+        ) = self._process_demux_with_complex_lanes(
+            demux_folder,
+            samplesheets,
+            legacy_path,
+            index_cycles,
+            simple_lanes,
+            complex_lanes,
+            noindex_lanes,
+        )
 
         # Create the html reports
-        NumberReads_Summary = self._fix_html_reports_for_complex_lanes(demux_folder, index_cycles, complex_lanes, noindex_lanes, html_reports_lane, html_reports_laneBarcode)
+        NumberReads_Summary = self._fix_html_reports_for_complex_lanes(
+            demux_folder,
+            index_cycles,
+            complex_lanes,
+            noindex_lanes,
+            html_reports_lane,
+            html_reports_laneBarcode,
+        )
 
         # Fix contents under the DemultiplexingStats folder
-        self._fix_demultiplexingstats_xml_dir(demux_folder, stats_json, samplesheets, index_cycles, simple_lanes, complex_lanes, noindex_lanes, NumberReads_Summary)
+        self._fix_demultiplexingstats_xml_dir(
+            demux_folder,
+            stats_json,
+            samplesheets,
+            index_cycles,
+            simple_lanes,
+            complex_lanes,
+            noindex_lanes,
+            NumberReads_Summary,
+        )
 
         return True
 

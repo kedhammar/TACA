@@ -1,75 +1,75 @@
 {
-    "RunNumber": 131,
-    "Flowcell": "FCIDXX",
-    "RunId": "141124_ST-COMPLEX1_01_AFCIDXX",
-    "ConversionResults": [
+  "RunNumber": 131,
+  "Flowcell": "FCIDXX",
+  "RunId": "141124_ST-COMPLEX1_01_AFCIDXX",
+  "ConversionResults": [
+    {
+      "LaneNumber": 1,
+      "DemuxResults": [
         {
-            "LaneNumber": 1,
-            "DemuxResults": [
-                {
-                    "SampleId": "Sample_P12345_1001",
-                    "SampleName": "P12345_1001",
-                    "NumberReads": 494288265,
-                    "Yield": 58820303535,
-                    "ReadMetrics": [
-                        {
-                            "ReadNumber": 1,
-                            "Yield": 13840071420,
-                            "YieldQ30": 13329609381,
-                            "QualityScoreSum": 503672520160,
-                            "TrimmedBases": 0
-                        }
-                    ]
-                }
-            ],
-            "Undetermined": {
-                "NumberReads": 17709745,
-                "Yield": 2036620675,
-                "ReadMetrics": [
-                    {
-                        "ReadNumber": 1,
-                        "Yield": 885487250,
-                        "YieldQ30": 680049984,
-                        "QualityScoreSum": 28815661398,
-                        "TrimmedBases": 0
-                    },
-                    {
-                        "ReadNumber": 2,
-                        "Yield": 283355920,
-                        "YieldQ30": 179655904,
-                        "QualityScoreSum": 8324058259,
-                        "TrimmedBases": 0
-                    }
-                ]
+          "SampleId": "Sample_P12345_1001",
+          "SampleName": "P12345_1001",
+          "NumberReads": 494288265,
+          "Yield": 58820303535,
+          "ReadMetrics": [
+            {
+              "ReadNumber": 1,
+              "Yield": 13840071420,
+              "YieldQ30": 13329609381,
+              "QualityScoreSum": 503672520160,
+              "TrimmedBases": 0
             }
+          ]
         }
-    ],
-    "ReadInfosForLanes": [
+      ],
+      "Undetermined": {
+        "NumberReads": 17709745,
+        "Yield": 2036620675,
+        "ReadMetrics": [
+          {
+            "ReadNumber": 1,
+            "Yield": 885487250,
+            "YieldQ30": 680049984,
+            "QualityScoreSum": 28815661398,
+            "TrimmedBases": 0
+          },
+          {
+            "ReadNumber": 2,
+            "Yield": 283355920,
+            "YieldQ30": 179655904,
+            "QualityScoreSum": 8324058259,
+            "TrimmedBases": 0
+          }
+        ]
+      }
+    }
+  ],
+  "ReadInfosForLanes": [
+    {
+      "LaneNumber": 1,
+      "ReadInfos": [
         {
-            "LaneNumber": 1,
-            "ReadInfos": [
-                {
-                    "Number": 1,
-                    "NumCycles": 28,
-                    "IsIndexedRead": "false"
-                }
-            ]
+          "Number": 1,
+          "NumCycles": 28,
+          "IsIndexedRead": "false"
         }
-    ],
-    "UnknownBarcodes": [
-        {
-            "Lane": 1,
-            "Barcodes": {
-                "GGGGGGGG": 3203920,
-                "CCCTAACA": 290420
-            }
-        },
-        {
-            "Lane": 2,
-            "Barcodes": {
-                "GGGGGGGG": 3075440,
-                "CCCTAACA": 296260
-            }
-        }
-    ]
+      ]
+    }
+  ],
+  "UnknownBarcodes": [
+    {
+      "Lane": 1,
+      "Barcodes": {
+        "GGGGGGGG": 3203920,
+        "CCCTAACA": 290420
+      }
+    },
+    {
+      "Lane": 2,
+      "Barcodes": {
+        "GGGGGGGG": 3075440,
+        "CCCTAACA": 296260
+      }
+    }
+  ]
 }

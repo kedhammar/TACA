@@ -122,4 +122,3 @@ jobs:
 
       - name: Run Prettier --check
         run: prettier --check .
-
