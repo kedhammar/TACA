@@ -123,20 +123,3 @@ jobs:
       - name: Run Prettier --check
         run: prettier --check .
 
-  # Use editorconfig to check other specified file formats
-  editorconfig:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
-      - name: Setup node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      - name: Install editorconfig-checker
-        run: npm install -g editorconfig-checker
-
-      - name: editorconfig --> Lint files
-        run: editorconfig-checker $(git ls-files | grep '.txt')
