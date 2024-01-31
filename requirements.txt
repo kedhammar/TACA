@@ -1,9 +1,7 @@
 click
 CouchDB
-requests
-pyyaml
 flowcell_parser @ git+https://github.com/SciLifeLab/flowcell_parser
-soupsieve<2.0
-beautifulsoup4
-python-crontab
 pandas
+sphinx_rtd_theme
+python_crontab
+pytest
