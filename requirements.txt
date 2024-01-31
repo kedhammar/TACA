@@ -1,7 +1,10 @@
-click
 CouchDB
+PyYAML
+click
 flowcell_parser @ git+https://github.com/SciLifeLab/flowcell_parser
 pandas
-sphinx_rtd_theme
-python_crontab
 pytest
+python_crontab
+python_dateutil
+setuptools
+sphinx_rtd_theme
