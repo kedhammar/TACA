@@ -5,6 +5,7 @@ mock
 sphinx
 sphinx-rtd-theme
 pytest
+pytest-cov
 ipython
 ipdb
 ruff
