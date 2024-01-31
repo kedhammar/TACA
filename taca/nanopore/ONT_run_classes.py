@@ -259,7 +259,7 @@ class ONT_run:
         # -- Run output subsection
         seq_metadata_trimmed["acquisition_output"] = []
         for section in seq_metadata["acquisition_output"]:
-            if section["type"] in ["AllData", "SplitByBarcode"]:
+            if "type" not in section.keys() or section["type"] in ["AllData", "SplitByBarcode"]:
                 seq_metadata_trimmed["acquisition_output"].append(section)
 
         # -- Read length subseqtion
@@ -284,11 +284,13 @@ class ONT_run:
             "**/bam*/***",
             "**/fast5*/***",
             "**/fastq*/***",
+            "**/pod5*/***",
             # Any files found elsewhere
             "*.bam*",
             "*.bai*",
             "*.fast5*",
             "*.fastq*",
+            "*.pod5*",
         ]
 
         exclude_patterns_quoted = ["'" + pattern + "'" for pattern in exclude_patterns]
@@ -458,13 +460,32 @@ class ONT_qc_run(ONT_run):
                 raise RsyncError(
                     f"{self.run_name}: Error occured when copying anglerfish samplesheet to run dir."
                 )
+            
+    def has_fastq_output(self) -> bool:
+        """Check whether run has fastq output."""
+
+        reads_dir = os.path.join(self.run_abspath, "fastq_pass")
+
+        return os.path.exists(reads_dir)
+            
+    def has_barcode_dirs(self) -> bool:
+
+        barcode_dir_pattern = r"barcode\d{2}"
+
+        for dir in os.listdir(os.path.join(self.run_abspath, "fastq_pass")):
+            if re.search(barcode_dir_pattern, dir):
+                return True
 
     def run_anglerfish(self):
         """Run Anglerfish as subprocess within it's own Conda environment.
         Dump files to indicate ongoing and finished processes.
         """
 
+        timestamp = datetime.now().strftime("%Y_%m_%d_%H%M%S")
+
+        # "anglerfish_run*" is the dir pattern recognized by the LIMS script parsing the results 
         anglerfish_run_name = "anglerfish_run"
+
         n_threads = 2  # This could possibly be changed
 
         anglerfish_command = [
@@ -474,9 +495,18 @@ class ONT_qc_run(ONT_run):
             f"--run_name {anglerfish_run_name}",
             f"--threads {n_threads}",
             "--lenient",
-            "--ont_barcodes",
             "--skip_demux",
         ]
+        if self.has_barcode_dirs():
+            anglerfish_command.append("--barcoding")
+
+        # Create dir to trace TACA executing Anglerfish as a subprocess
+        taca_anglerfish_run_dir = f"taca_anglerfish_run_{timestamp}"
+        os.mkdir(taca_anglerfish_run_dir)
+        # Copy samplesheet used for traceability
+        shutil.copy(self.anglerfish_samplesheet, f"{taca_anglerfish_run_dir}/")
+        # Create files to dump subprocess std
+        stderr_relpath = f"{taca_anglerfish_run_dir}/stderr.txt"
 
         full_command = [
             # Dump subprocess PID into 'run-ongoing'-indicator file.
@@ -485,20 +515,28 @@ class ONT_qc_run(ONT_run):
             "conda run -n anglerfish " + " ".join(anglerfish_command),
             # Dump Anglerfish exit code into file
             f"echo $? > {self.anglerfish_done_abspath}",
-            # Copy the Anglerfish samplesheet used to start the run into the run dir, for traceability
-            # (The correct anglerfish run dir is identified by it being younger than the "run-ongoing" file)
-            f"new_runs=$(find . -type d -name 'anglerfish_run*' -newer {self.anglerfish_ongoing_abspath})",
-            f"if [[ $(echo '${{new_runs}}' | wc -l) -eq 1 ]] ; then cp {self.anglerfish_samplesheet} ${{new_runs}}/ ; fi",
-            # Regardless of exit status: Remove 'run-ongoing' file.
+            # Move run to subdir
+            #  1) Find the latest Anglerfish run dir (younger than the 'run-ongoing' file)
+            f'find {self.run_abspath} -name "anglerfish_run*" -type d -newer {self.run_abspath}/.anglerfish_ongoing '
+            #  2) Move the Anglerfish run dir into the TACA Anglerfish run dir
+            + '-exec mv \{\} ' + f'{self.run_abspath}/{taca_anglerfish_run_dir}/ \; '
+            #  3) Only do this once
+            + '-quit',
+            # Remove 'run-ongoing' file.
             f"rm {self.anglerfish_ongoing_abspath}",
         ]
 
+        with open(f"{taca_anglerfish_run_dir}/command.sh", "w") as stream:
+            stream.write("\n".join(full_command))
+
         # Start Anglerfish subprocess
-        process = subprocess.Popen(
-            "; ".join(full_command),
-            shell=True,
-            cwd=self.run_abspath,
-        )
+        with open(stderr_relpath, 'w') as stderr:
+            process = subprocess.Popen(
+                f"bash {taca_anglerfish_run_dir}/command.sh",
+                shell=True,
+                cwd=self.run_abspath,
+                stderr=stderr,
+            )
         logger.info(
             f"{self.run_name}: Anglerfish subprocess started with process ID {process.pid}."
         )

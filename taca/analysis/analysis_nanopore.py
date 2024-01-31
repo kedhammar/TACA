@@ -206,6 +206,10 @@ def process_qc_run(ont_qc_run: ONT_qc_run):
                     logger.info(
                         f"{ont_qc_run.run_name}: Could not find Anglerfish sample sheet, skipping."
                     )
+                elif not ont_qc_run.has_fastq_output():
+                    logger.info(
+                        f"{ont_qc_run.run_name}: Run has no fastq output, skipping."
+                    )
                 else:
                     logger.info(f"{ont_qc_run.run_name}: Starting Anglerfish...")
                     ont_qc_run.run_anglerfish()
