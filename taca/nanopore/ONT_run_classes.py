@@ -477,7 +477,7 @@ class ONT_qc_run(ONT_run):
         for dir in os.listdir(os.path.join(self.run_abspath, "fastq_pass")):
             if re.search(barcode_dir_pattern, dir):
                 return True
-        
+
         return False
 
     def run_anglerfish(self):
