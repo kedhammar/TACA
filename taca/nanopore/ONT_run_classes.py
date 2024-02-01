@@ -175,12 +175,12 @@ class ONT_run:
 
             # Parse run path
             db_update["run_path"] = (
-                open(f"{self.run_abspath}/run_path.txt", "r").read().strip()
+                open(f"{self.run_abspath}/run_path.txt").read().strip()
             )
 
             # Parse pore counts
             pore_counts = []
-            with open(f"{self.run_abspath}/pore_count_history.csv", "r") as stream:
+            with open(f"{self.run_abspath}/pore_count_history.csv") as stream:
                 for line in csv.DictReader(stream):
                     pore_counts.append(line)
             db_update["pore_count_history"] = pore_counts
