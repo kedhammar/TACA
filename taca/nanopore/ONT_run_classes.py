@@ -69,9 +69,9 @@ class ONT_run:
 
         # Get transfer details, depending on run type and instrument
         if hasattr(self, "run_type"):
-            self.transfer_details = CONFIG["nanopore_analysis"]["run_types"][self.run_type][
-                "instruments"
-            ][self.instrument]
+            self.transfer_details = CONFIG["nanopore_analysis"]["run_types"][
+                self.run_type
+            ]["instruments"][self.instrument]
 
         # Get DB
         self.db = NanoporeRunsConnection(CONFIG["statusdb"], dbname="nanopore_runs")
@@ -174,7 +174,9 @@ class ONT_run:
             db_update = {}
 
             # Parse run path
-            db_update["run_path"] = open(f"{self.run_abspath}/run_path.txt", "r").read().strip()
+            db_update["run_path"] = (
+                open(f"{self.run_abspath}/run_path.txt", "r").read().strip()
+            )
 
             # Parse pore counts
             pore_counts = []
@@ -546,7 +548,7 @@ class ONT_qc_run(ONT_run):
             stream.write("\n".join(full_command))
 
         # Start Anglerfish subprocess
-        with open(stderr_abspath, 'w') as stderr:
+        with open(stderr_abspath, "w") as stderr:
             process = subprocess.Popen(
                 f"bash {taca_anglerfish_run_dir}/command.sh",
                 shell=True,
