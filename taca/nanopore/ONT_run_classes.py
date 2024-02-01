@@ -1,18 +1,18 @@
-import os
-import logging
 import csv
-import shutil
 import glob
-import re
 import json
-import pandas as pd
-import subprocess
+import logging
 import os
+import re
+import shutil
+import subprocess
+from datetime import datetime
 from typing import Union
 
-from taca.utils.statusdb import NanoporeRunsConnection
-from datetime import datetime
+import pandas as pd
+
 from taca.utils.config import CONFIG
+from taca.utils.statusdb import NanoporeRunsConnection
 from taca.utils.transfer import RsyncAgent, RsyncError
 
 logger = logging.getLogger(__name__)
@@ -22,24 +22,27 @@ ONT_RUN_PATTERN = re.compile(
 )
 
 
-class ONT_run(object):
+class ONT_run:
     """General Nanopore run.
 
     Expects instantiation from absolute path of run directory on preprocessing server.
     """
 
     def __init__(self, run_abspath: str):
-
         # Get paths and names of MinKNOW experiment, sample and run
         self.run_name = os.path.basename(run_abspath)
         self.run_abspath = run_abspath
+
+        self.run_type: str | None = (
+            None  # This will be defined upon instantiation of a child class
+        )
 
         assert re.match(
             ONT_RUN_PATTERN, self.run_name
         ), f"Run {self.run_name} doesn't look like a run dir"
 
         # Parse MinKNOW sample and experiment name
-        with open(self.get_file("/run_path.txt"), "r") as stream:
+        with open(self.get_file("/run_path.txt")) as stream:
             self.experiment_name, self.sample_name, _ = stream.read().split("/")
 
         # Get info from run name
@@ -122,7 +125,7 @@ class ONT_run(object):
 
     def is_transferred(self) -> bool:
         """Return True if run ID in transfer.tsv, else False."""
-        with open(self.transfer_details["transfer_log"], "r") as f:
+        with open(self.transfer_details["transfer_log"]) as f:
             return self.run_name in f.read()
 
     # DB update
@@ -159,7 +162,7 @@ class ONT_run(object):
         self.touch_db_entry()
 
         # If the run document is marked as "ongoing" or database is being manually updated
-        if self.db.check_run_status(self) == "ongoing" or force_update == True:
+        if self.db.check_run_status(self) == "ongoing" or force_update is True:
             logger.info(
                 f"{self.run_name}: Run exists in the database with run status: {self.db.check_run_status(self)}."
             )
@@ -185,7 +188,6 @@ class ONT_run(object):
             )
 
     def parse_pore_activity(self, db_update):
-
         logger.info(f"{self.run_name}: Parsing pore activity...")
 
         pore_activity = {}
@@ -230,7 +232,7 @@ class ONT_run(object):
 
         logger.info(f"{self.run_name}:Parsing report JSON...")
 
-        dict_json_report = json.load(open(self.get_file("/report*.json"), "r"))
+        dict_json_report = json.load(open(self.get_file("/report*.json")))
 
         # Initialize return dict
         parsed_data = {}
@@ -257,7 +259,10 @@ class ONT_run(object):
         # -- Run output subsection
         seq_metadata_trimmed["acquisition_output"] = []
         for section in seq_metadata["acquisition_output"]:
-            if section["type"] in ["AllData", "SplitByBarcode"]:
+            if "type" not in section.keys() or section["type"] in [
+                "AllData",
+                "SplitByBarcode",
+            ]:
                 seq_metadata_trimmed["acquisition_output"].append(section)
 
         # -- Read length subseqtion
@@ -282,11 +287,13 @@ class ONT_run(object):
             "**/bam*/***",
             "**/fast5*/***",
             "**/fastq*/***",
+            "**/pod5*/***",
             # Any files found elsewhere
             "*.bam*",
             "*.bai*",
             "*.fast5*",
             "*.fastq*",
+            "*.pod5*",
         ]
 
         exclude_patterns_quoted = ["'" + pattern + "'" for pattern in exclude_patterns]
@@ -299,7 +306,6 @@ class ONT_run(object):
         )
 
     def copy_html_report(self):
-
         logger.info(f"{self.run_name}: Transferring .html report to ngi-internal...")
 
         # Transfer the MinKNOW .html report file to ngi-internal, renaming it to the full run ID. Requires password-free SSH access.
@@ -352,10 +358,10 @@ class ONT_run(object):
             with open(self.transfer_details["transfer_log"], "a") as f:
                 tsv_writer = csv.writer(f, delimiter="\t")
                 tsv_writer.writerow([self.run_name, str(datetime.now())])
-        except IOError:
+        except OSError:
             msg = f"{self.run_name}: Could not update the transfer logfile {self.transfer_details['transfer_log']}"
             logger.error(msg)
-            raise IOError(msg)
+            raise OSError(msg)
 
     # Archive run
 
@@ -372,7 +378,7 @@ class ONT_user_run(ONT_run):
 
     def __init__(self, run_abspath: str):
         self.run_type = "user_run"
-        super(ONT_user_run, self).__init__(run_abspath)
+        super().__init__(run_abspath)
 
 
 class ONT_qc_run(ONT_run):
@@ -380,7 +386,7 @@ class ONT_qc_run(ONT_run):
 
     def __init__(self, run_abspath: str):
         self.run_type = "qc_run"
-        super(ONT_qc_run, self).__init__(run_abspath)
+        super().__init__(run_abspath)
 
         # Get Anglerfish attributes from run
         self.anglerfish_done_abspath = f"{self.run_abspath}/.anglerfish_done"
@@ -404,7 +410,7 @@ class ONT_qc_run(ONT_run):
         Return exit code or None.
         """
         if os.path.exists(self.anglerfish_done_abspath):
-            return int(open(self.anglerfish_done_abspath, "r").read())
+            return int(open(self.anglerfish_done_abspath).read())
         else:
             return None
 
@@ -413,7 +419,7 @@ class ONT_qc_run(ONT_run):
 
         Return process ID or None."""
         if os.path.exists(self.anglerfish_ongoing_abspath):
-            return str(open(self.anglerfish_ongoing_abspath, "r").read())
+            return str(open(self.anglerfish_ongoing_abspath).read())
         else:
             return None
 
@@ -458,12 +464,32 @@ class ONT_qc_run(ONT_run):
                     f"{self.run_name}: Error occured when copying anglerfish samplesheet to run dir."
                 )
 
+    def has_fastq_output(self) -> bool:
+        """Check whether run has fastq output."""
+
+        reads_dir = os.path.join(self.run_abspath, "fastq_pass")
+
+        return os.path.exists(reads_dir)
+
+    def has_barcode_dirs(self) -> bool:
+        barcode_dir_pattern = r"barcode\d{2}"
+
+        for dir in os.listdir(os.path.join(self.run_abspath, "fastq_pass")):
+            if re.search(barcode_dir_pattern, dir):
+                return True
+
+        return False
+
     def run_anglerfish(self):
         """Run Anglerfish as subprocess within it's own Conda environment.
         Dump files to indicate ongoing and finished processes.
         """
 
+        timestamp = datetime.now().strftime("%Y_%m_%d_%H%M%S")
+
+        # "anglerfish_run*" is the dir pattern recognized by the LIMS script parsing the results
         anglerfish_run_name = "anglerfish_run"
+
         n_threads = 2  # This could possibly be changed
 
         anglerfish_command = [
@@ -473,9 +499,18 @@ class ONT_qc_run(ONT_run):
             f"--run_name {anglerfish_run_name}",
             f"--threads {n_threads}",
             "--lenient",
-            "--ont_barcodes",
             "--skip_demux",
         ]
+        if self.has_barcode_dirs():
+            anglerfish_command.append("--barcoding")
+
+        # Create dir to trace TACA executing Anglerfish as a subprocess
+        taca_anglerfish_run_dir = f"taca_anglerfish_run_{timestamp}"
+        os.mkdir(taca_anglerfish_run_dir)
+        # Copy samplesheet used for traceability
+        shutil.copy(self.anglerfish_samplesheet, f"{taca_anglerfish_run_dir}/")
+        # Create files to dump subprocess std
+        stderr_relpath = f"{taca_anglerfish_run_dir}/stderr.txt"
 
         full_command = [
             # Dump subprocess PID into 'run-ongoing'-indicator file.
@@ -484,20 +519,29 @@ class ONT_qc_run(ONT_run):
             "conda run -n anglerfish " + " ".join(anglerfish_command),
             # Dump Anglerfish exit code into file
             f"echo $? > {self.anglerfish_done_abspath}",
-            # Copy the Anglerfish samplesheet used to start the run into the run dir, for traceability
-            # (The correct anglerfish run dir is identified by it being younger than the "run-ongoing" file)
-            f"new_runs=$(find . -type d -name 'anglerfish_run*' -newer {self.anglerfish_ongoing_abspath})",
-            f"if [[ $(echo '${{new_runs}}' | wc -l) -eq 1 ]] ; then cp {self.anglerfish_samplesheet} ${{new_runs}}/ ; fi",
-            # Regardless of exit status: Remove 'run-ongoing' file.
+            # Move run to subdir
+            #  1) Find the latest Anglerfish run dir (younger than the 'run-ongoing' file)
+            f'find {self.run_abspath} -name "anglerfish_run*" -type d -newer {self.run_abspath}/.anglerfish_ongoing '
+            #  2) Move the Anglerfish run dir into the TACA Anglerfish run dir
+            + "-exec mv \{\} "
+            + f"{self.run_abspath}/{taca_anglerfish_run_dir}/ \; "
+            #  3) Only do this once
+            + "-quit",
+            # Remove 'run-ongoing' file.
             f"rm {self.anglerfish_ongoing_abspath}",
         ]
 
+        with open(f"{taca_anglerfish_run_dir}/command.sh", "w") as stream:
+            stream.write("\n".join(full_command))
+
         # Start Anglerfish subprocess
-        process = subprocess.Popen(
-            "; ".join(full_command),
-            shell=True,
-            cwd=self.run_abspath,
-        )
+        with open(stderr_relpath, "w") as stderr:
+            process = subprocess.Popen(
+                f"bash {taca_anglerfish_run_dir}/command.sh",
+                shell=True,
+                cwd=self.run_abspath,
+                stderr=stderr,
+            )
         logger.info(
             f"{self.run_name}: Anglerfish subprocess started with process ID {process.pid}."
         )
