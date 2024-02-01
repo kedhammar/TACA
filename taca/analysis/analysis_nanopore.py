@@ -1,17 +1,17 @@
 """Nanopore analysis methods for TACA."""
-import os
 import logging
+import os
 import re
 import traceback
 
-from taca.utils.config import CONFIG
-from taca.utils.misc import send_mail
 from taca.nanopore.ONT_run_classes import (
+    ONT_RUN_PATTERN,
+    ONT_qc_run,
     ONT_run,
     ONT_user_run,
-    ONT_qc_run,
-    ONT_RUN_PATTERN,
 )
+from taca.utils.config import CONFIG
+from taca.utils.misc import send_mail
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +36,6 @@ def find_run_dirs(dir_to_search: str, skip_dirs: list):
 
 
 def send_error_mail(run_name, error: BaseException):
-
     email_subject = f"Run processed with errors: {run_name}"
     email_message = f"{str(error)}\n\n{traceback.format_exc()}"
     email_recipients = CONFIG["mail"]["recipients"]
@@ -75,7 +74,6 @@ def process_user_run(ont_user_run: ONT_user_run):
     if not ont_user_run.is_synced():
         logger.info(f"{ont_user_run.run_name}: Run is not fully synced, skipping.")
     else:
-
         if ont_user_run.is_transferred():
             logger.warning(
                 f"{ont_user_run.run_name}: Run is already logged as transferred, sending mail."
@@ -157,7 +155,6 @@ def process_qc_run(ont_qc_run: ONT_qc_run):
     if not ont_qc_run.is_synced():
         logger.info(f"{ont_qc_run.run_name}: Run is not fully synced, skipping.")
     else:
-
         # Assert all files are in place
         logger.info(f"{ont_qc_run.run_name}: Asserting run contents...")
         ont_qc_run.assert_contents()
@@ -247,7 +244,7 @@ def process_qc_run(ont_qc_run: ONT_qc_run):
                 ont_qc_run.archive_run()
 
 
-def ont_transfer(run_abspath: str or None, qc: bool = False):
+def ont_transfer(run_abspath: str | None, qc: bool = False):
     """CLI entry function.
 
     Find finished ONT runs in ngi-nas and transfer to HPC cluster.
@@ -261,7 +258,6 @@ def ont_transfer(run_abspath: str or None, qc: bool = False):
 
     # If no run is specified, locate all runs
     else:
-
         for run_type in ["user_run", "qc_run"]:
             logger.info(f"Looking for runs of type '{run_type}'...")
 

@@ -1,12 +1,12 @@
 backup:
-    archive_dirs:
-        miseq: data/nas/miseq.lab/nosync
-        hiseq: blah
-    data_dirs:
-        miseq: data/nas/miseq.lab
-    keys_path: data/nas/run_keys
-    gpg_receiver: some.user
-    check_demux: True
+  archive_dirs:
+    miseq: data/nas/miseq.lab/nosync
+    hiseq: blah
+  data_dirs:
+    miseq: data/nas/miseq.lab
+  keys_path: data/nas/run_keys
+  gpg_receiver: some.user
+  check_demux: True
 
 statusdb:
   url: url
@@ -15,5 +15,4 @@ statusdb:
   xten_db: x_flowcells
 
 mail:
-  recipients:
-    some_user@some_email.com
+  recipients: some_user@some_email.com
