@@ -70,14 +70,24 @@ def create_dirs():
     """Create the bottom-level file-tree to be used for all tests:
 
     tmp
+    ├── log
+    │   ├── transfer_minion.tsv
+    │   └── transfer_promethion.tsv
+    ├── miarka
+    │   ├── minion
+    │   │   └── qc
+    │   └── promethion
     ├── minknow_reports
+    ├── ngi-nas-ns
+    │   ├── minion_data
+    │   └── promethion_data
     └── sequencing
-        ├── promethion_data
-        │   └── nosync
-        └── minion_data
-            ├── nosync
-            └── qc
-                └── nosync
+        ├── minion_data
+        │   ├── nosync
+        │   └── qc
+        │       └── nosync
+        └── promethion_data
+            └── nosync
 
     --> Return the the temporary directory object
     """
