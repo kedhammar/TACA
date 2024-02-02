@@ -67,12 +67,6 @@ class ONT_run:
             if v == "None":
                 self.rsync_options[k] = None
 
-        # Get transfer details, depending on run type and instrument
-        if hasattr(self, "run_type"):
-            self.transfer_details = CONFIG["nanopore_analysis"]["run_types"][
-                self.run_type
-            ]["instruments"][self.instrument]
-
         # Get DB
         self.db = NanoporeRunsConnection(CONFIG["statusdb"], dbname="nanopore_runs")
 
@@ -123,13 +117,6 @@ class ONT_run:
         # MinKNOW auxillary files
         assert self.has_file("/final_summary*.txt")
         assert self.has_file("/pore_activity*.csv")
-
-    def is_transferred(self) -> bool:
-        """Return True if run ID in transfer.tsv, else False."""
-        with open(self.transfer_details["transfer_log"]) as f:
-            return self.run_name in f.read()
-
-    # DB update
 
     def touch_db_entry(self):
         """Check run vs statusdb. Create entry if there is none."""
@@ -390,16 +377,27 @@ class ONT_user_run(ONT_run):
     """ONT user run, has class methods and attributes specific to user runs."""
 
     def __init__(self, run_abspath: str):
-        self.run_type = "user_run"
         super().__init__(run_abspath)
+        self.run_type = "user_run"
+        self.transfer_details = CONFIG["nanopore_analysis"]["run_types"][self.run_type][
+            "instruments"
+        ][self.instrument]
+
+    def is_transferred(self) -> bool:
+        """Return True if run ID in transfer.tsv, else False."""
+        with open(self.transfer_details["transfer_log"]) as f:
+            return self.run_name in f.read()
 
 
 class ONT_qc_run(ONT_run):
     """ONT QC run, has class methods and attributes specific to QC runs"""
 
     def __init__(self, run_abspath: str):
-        self.run_type = "qc_run"
         super().__init__(run_abspath)
+        self.run_type = "qc_run"
+        self.transfer_details = CONFIG["nanopore_analysis"]["run_types"][self.run_type][
+            "instruments"
+        ][self.instrument]
 
         # Get Anglerfish attributes from run
         self.anglerfish_done_abspath = f"{self.run_abspath}/.anglerfish_done"
@@ -414,6 +412,11 @@ class ONT_qc_run(ONT_run):
             "anglerfish_samplesheets_dir"
         ]
         self.anglerfish_path = self.anglerfish_config["anglerfish_path"]
+
+    def is_transferred(self) -> bool:
+        """Return True if run ID in transfer.tsv, else False."""
+        with open(self.transfer_details["transfer_log"]) as f:
+            return self.run_name in f.read()
 
     # QC methods
 
