@@ -172,7 +172,7 @@ def create_run_dir(
     return run_path
 
 
-def test_ONT_user_run(mock_db, create_dirs):
+def test_ONT_user_run(create_dirs):
     # Create dir tree
     tmp = create_dirs
 
