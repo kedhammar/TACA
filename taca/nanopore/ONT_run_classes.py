@@ -67,11 +67,6 @@ class ONT_run:
             if v == "None":
                 self.rsync_options[k] = None
 
-        # Get transfer details, depending on run type and instrument
-        self.transfer_details = CONFIG["nanopore_analysis"]["run_types"][self.run_type][
-            "instruments"
-        ][self.instrument]
-
         # Get DB
         self.db = NanoporeRunsConnection(CONFIG["statusdb"], dbname="nanopore_runs")
 
@@ -123,13 +118,6 @@ class ONT_run:
         assert self.has_file("/final_summary*.txt")
         assert self.has_file("/pore_activity*.csv")
 
-    def is_transferred(self) -> bool:
-        """Return True if run ID in transfer.tsv, else False."""
-        with open(self.transfer_details["transfer_log"]) as f:
-            return self.run_name in f.read()
-
-    # DB update
-
     def touch_db_entry(self):
         """Check run vs statusdb. Create entry if there is none."""
 
@@ -171,6 +159,18 @@ class ONT_run:
 
             # Instantiate json (dict) to update the db with
             db_update = {}
+
+            # Parse run path
+            db_update["run_path"] = (
+                open(f"{self.run_abspath}/run_path.txt").read().strip()
+            )
+
+            # Parse pore counts
+            pore_counts = []
+            with open(f"{self.run_abspath}/pore_count_history.csv") as stream:
+                for line in csv.DictReader(stream):
+                    pore_counts.append(line)
+            db_update["pore_count_history"] = pore_counts
 
             # Parse report_*.json
             self.parse_minknow_json(db_update)
@@ -230,7 +230,7 @@ class ONT_run:
     def parse_minknow_json(self, db_update):
         """Parse useful stuff from the MinKNOW .json report to add to CouchDB"""
 
-        logger.info(f"{self.run_name}:Parsing report JSON...")
+        logger.info(f"{self.run_name}: Parsing report JSON...")
 
         dict_json_report = json.load(open(self.get_file("/report*.json")))
 
@@ -377,16 +377,27 @@ class ONT_user_run(ONT_run):
     """ONT user run, has class methods and attributes specific to user runs."""
 
     def __init__(self, run_abspath: str):
-        self.run_type = "user_run"
         super().__init__(run_abspath)
+        self.run_type = "user_run"
+        self.transfer_details = CONFIG["nanopore_analysis"]["run_types"][self.run_type][
+            "instruments"
+        ][self.instrument]
+
+    def is_transferred(self) -> bool:
+        """Return True if run ID in transfer.tsv, else False."""
+        with open(self.transfer_details["transfer_log"]) as f:
+            return self.run_name in f.read()
 
 
 class ONT_qc_run(ONT_run):
     """ONT QC run, has class methods and attributes specific to QC runs"""
 
     def __init__(self, run_abspath: str):
-        self.run_type = "qc_run"
         super().__init__(run_abspath)
+        self.run_type = "qc_run"
+        self.transfer_details = CONFIG["nanopore_analysis"]["run_types"][self.run_type][
+            "instruments"
+        ][self.instrument]
 
         # Get Anglerfish attributes from run
         self.anglerfish_done_abspath = f"{self.run_abspath}/.anglerfish_done"
@@ -401,6 +412,11 @@ class ONT_qc_run(ONT_run):
             "anglerfish_samplesheets_dir"
         ]
         self.anglerfish_path = self.anglerfish_config["anglerfish_path"]
+
+    def is_transferred(self) -> bool:
+        """Return True if run ID in transfer.tsv, else False."""
+        with open(self.transfer_details["transfer_log"]) as f:
+            return self.run_name in f.read()
 
     # QC methods
 
@@ -510,7 +526,7 @@ class ONT_qc_run(ONT_run):
         # Copy samplesheet used for traceability
         shutil.copy(self.anglerfish_samplesheet, f"{taca_anglerfish_run_dir}/")
         # Create files to dump subprocess std
-        stderr_relpath = f"{taca_anglerfish_run_dir}/stderr.txt"
+        stderr_abspath = f"{self.run_abspath}/{taca_anglerfish_run_dir}/stderr.txt"
 
         full_command = [
             # Dump subprocess PID into 'run-ongoing'-indicator file.
@@ -535,7 +551,7 @@ class ONT_qc_run(ONT_run):
             stream.write("\n".join(full_command))
 
         # Start Anglerfish subprocess
-        with open(stderr_relpath, "w") as stderr:
+        with open(stderr_abspath, "w") as stderr:
             process = subprocess.Popen(
                 f"bash {taca_anglerfish_run_dir}/command.sh",
                 shell=True,
