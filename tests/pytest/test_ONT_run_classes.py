@@ -173,6 +173,8 @@ def create_run_dir(
 
 
 def test_ONT_user_run(create_dirs):
+    """This test instantiates an ONT_user_run object and checks that the run_abspath attribute is set correctly."""
+
     # Create dir tree
     tmp = create_dirs
 
