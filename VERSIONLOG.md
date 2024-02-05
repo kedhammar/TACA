@@ -1,5 +1,13 @@
 # TACA Version Log
 
+## 20240202.1
+
+Use abspath for Anglerfish stderr path, make it possible to instantiate ONT run w/o specifying the type, add more info to the ONT db update subcommand.
+
+## 20240201.1
+
+Fix bugs that changs in PR #404 were reverted in PR #411
+
 ## 20240123.1
 
 Exclude pod5 dir and files from being copied to metadata dir.
