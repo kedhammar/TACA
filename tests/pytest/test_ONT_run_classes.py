@@ -88,6 +88,9 @@ def create_run_dir(
     data_dir=None,
     experiment_name="experiment_name",
     sample_name="sample_name",
+    script_files=False,
+    run_finished=False,
+    sync_finished=False,
 ):
     """Create a run directory according to specifications.
 
@@ -106,10 +109,20 @@ def create_run_dir(
     run_path = f"{data_dir}/{run_name}"
     os.mkdir(run_path)
 
-    # Add transfer script files
-    with open(run_path + "/run_path.txt", "w") as f:
-        f.write(f"{experiment_name}/{sample_name}/{run_name}")
-    write_pore_count_history(run_path, flowcell_id, instrument_position)
+    # Add files conditionally
+    if script_files:
+        with open(run_path + "/run_path.txt", "w") as f:
+            f.write(f"{experiment_name}/{sample_name}/{run_name}")
+        write_pore_count_history(run_path, flowcell_id, instrument_position)
+
+    if run_finished:
+        open(f"{run_path}/final_summary_{run_name}.txt", "w").close()
+        open(f"{run_path}/report_{run_name}.html", "w").close()
+        open(f"{run_path}/report_{run_name}.json", "w").close()
+        open(f"{run_path}/pore_activity_{run_name}.csv", "w").close()
+
+    if sync_finished:
+        open(f"{run_path}/.sync_finished", "w").close()
 
     return run_path
 
