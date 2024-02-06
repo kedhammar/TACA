@@ -1,9 +1,7 @@
 import importlib
 import os
-import tempfile
 from unittest.mock import patch
 
-import pytest
 import yaml
 
 from taca.nanopore import ONT_run_classes
@@ -36,7 +34,7 @@ nanopore_analysis:
                     destination: {tmp.name}/miarka/minion/
         qc_run:
             data_dirs:
-                - {tmp.name}/ngi_data/sequencing/minion/qc
+                - {tmp.name}/sequencing/minion/qc
             ignore_dirs:
                 - 'nosync'
             instruments:
@@ -63,62 +61,6 @@ nanopore_analysis:
     test_config_yaml = yaml.safe_load(test_config_yaml_string)
 
     return test_config_yaml
-
-
-@pytest.fixture
-def create_dirs():
-    """Create the bottom-level file-tree to be used for all tests:
-
-    tmp
-    ├── log
-    │   ├── transfer_minion.tsv
-    │   └── transfer_promethion.tsv
-    ├── miarka
-    │   ├── minion
-    │   │   └── qc
-    │   └── promethion
-    ├── minknow_reports
-    ├── ngi-nas-ns
-    │   ├── minion_data
-    │   └── promethion_data
-    └── sequencing
-        ├── minion_data
-        │   ├── nosync
-        │   └── qc
-        │       └── nosync
-        └── promethion_data
-            └── nosync
-
-    --> Return the the temporary directory object
-    """
-    tmp = tempfile.TemporaryDirectory()
-
-    # CREATE DIR STRUCTURE
-
-    # Sequencing data
-    os.makedirs(f"{tmp.name}/sequencing/promethion_data/nosync")
-    os.makedirs(f"{tmp.name}/sequencing/minion_data/nosync")
-    os.makedirs(f"{tmp.name}/sequencing/minion_data/qc/nosync")
-
-    # Non-sensitive metadata
-    os.makedirs(f"{tmp.name}/ngi-nas-ns/promethion_data")
-    os.makedirs(f"{tmp.name}/ngi-nas-ns/minion_data")
-
-    # Reports for GenStat
-    os.makedirs(f"{tmp.name}/minknow_reports")
-
-    # Logs
-    os.makedirs(f"{tmp.name}/log")
-    open(f"{tmp.name}/log/transfer_promethion.tsv", "w").close()
-    open(f"{tmp.name}/log/transfer_minion.tsv", "w").close
-
-    # Analysis server destination dirs
-    os.makedirs(f"{tmp.name}/miarka/promethion")
-    os.makedirs(f"{tmp.name}/miarka/minion/qc")
-
-    yield tmp
-
-    tmp.cleanup()
 
 
 def write_pore_count_history(
@@ -158,7 +100,7 @@ def create_run_dir(
     Return it's path.
     """
     if not data_dir:
-        data_dir = f"{tmp.name}/sequencing/{instrument}_data"
+        data_dir = f"{tmp.name}/sequencing/{instrument}"
 
     run_name = f"20240131_1702_{instrument_position}_{flowcell_id}_randomhash"
     run_path = f"{data_dir}/{run_name}"
