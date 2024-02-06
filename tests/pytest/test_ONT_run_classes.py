@@ -71,7 +71,6 @@ def write_pore_count_history(
     lines = [
         "flow_cell_id,timestamp,position,type,num_pores,total_pores",
         f"{flowcell_id},2024-01-24 12:00:39.757935,{instrument_position},qc,6753,6753",
-        "PAS56254,2023-11-13 13:07:32.331262,1G,qc,7281,7281",
         f"{flowcell_id},2024-01-23 11:00:39.757935,{instrument_position},mux,8000,8000",
     ]
 
