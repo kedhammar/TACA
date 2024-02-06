@@ -115,7 +115,6 @@ class ONT_run:
         assert self.has_file("/report_*.html")
 
         # MinKNOW auxillary files
-        assert self.has_file("/final_summary*.txt")
         assert self.has_file("/pore_activity*.csv")
 
     def touch_db_entry(self):
