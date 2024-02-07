@@ -44,7 +44,7 @@ def test_ont_transfer(create_dirs, caplog):
     # Reload module to implement mocks
     importlib.reload(analysis_nanopore)
 
-    # === Create run dirs ===================================================
+    # === CREATE RUN DIRS ===================================================
 
     # User run
     create_run_dir(
