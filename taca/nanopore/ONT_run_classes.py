@@ -18,7 +18,7 @@ from taca.utils.transfer import RsyncAgent, RsyncError
 logger = logging.getLogger(__name__)
 
 ONT_RUN_PATTERN = re.compile(
-    "^(\d{8})_(\d{4})_([0-9a-zA-Z]+)_([0-9a-zA-Z]+)_([0-9a-zA-Z]+)$"
+    r"^(\d{8})_(\d{4})_([0-9a-zA-Z]+)_([0-9a-zA-Z]+)_([0-9a-zA-Z]+)$"
 )
 
 
@@ -540,8 +540,8 @@ class ONT_qc_run(ONT_run):
             #  1) Find the latest Anglerfish run dir (younger than the 'run-ongoing' file)
             f'find {self.run_abspath} -name "anglerfish_run*" -type d -newer {self.run_abspath}/.anglerfish_ongoing '
             #  2) Move the Anglerfish run dir into the TACA Anglerfish run dir
-            + "-exec mv \{\} "
-            + f"{self.run_abspath}/{taca_anglerfish_run_dir}/ \; "
+            + r"-exec mv \{\} "
+            + rf"{self.run_abspath}/{taca_anglerfish_run_dir}/ \; "
             #  3) Only do this once
             + "-quit",
             # Remove 'run-ongoing' file.
