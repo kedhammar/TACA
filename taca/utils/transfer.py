@@ -55,11 +55,11 @@ class TransferAgent:
         for param, val in self.cmdopts.items():
             if val is None:
                 cmdopts.append(param)
-            else:
-                if isinstance(type(val), str):
-                    val = [val]
+            elif isinstance(val, list):
                 for v in val:
                     cmdopts.append(f"{param}={v}")
+            else:
+                cmdopts.append(f"{param}={val}")
         return cmdopts
 
     def transfer(self):
