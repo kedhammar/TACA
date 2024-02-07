@@ -19,7 +19,9 @@ def create_dirs():
     ├── minknow_reports
     ├── ngi-nas-ns
     │   ├── minion_data
-    │   └── promethion_data
+    │   ├── promethion_data
+    │   └── samplesheets
+    │       └── anglerfish
     └── sequencing
         ├── minion
         │   ├── nosync
@@ -42,6 +44,7 @@ def create_dirs():
     # Non-sensitive metadata
     os.makedirs(f"{tmp.name}/ngi-nas-ns/promethion_data")
     os.makedirs(f"{tmp.name}/ngi-nas-ns/minion_data")
+    os.makedirs(f"{tmp.name}/ngi-nas-ns/samplesheets/anglerfish")
 
     # Reports for GenStat
     os.makedirs(f"{tmp.name}/minknow_reports")
