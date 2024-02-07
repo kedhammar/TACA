@@ -1,5 +1,7 @@
 import importlib
 import os
+import re
+from datetime import datetime as dt
 from unittest.mock import patch
 
 import yaml
@@ -81,10 +83,13 @@ def create_run_dir(
     tmp,
     instrument="promethion",
     instrument_position="1A",
-    flowcell_id="TEST12345",
+    run_start_time=None,
+    flowcell_id="TEST00001",
     data_dir=None,
     experiment_name="experiment_name",
     sample_name="sample_name",
+    qc=False,
+    run_id="randomhash",
     script_files=False,
     run_finished=False,
     sync_finished=False,
@@ -93,17 +98,28 @@ def create_run_dir(
 
     ..
     └── {data_dir}
-        └── 20240131_1702_{instrument_position}_{flowcell_id}_randomhash
+        └── yyyymmdd_hhmm_{instrument_position}_{flowcell_id}_randomhash
             ├── run_path.txt
             └── pore_count_history.csv
 
     Return it's path.
     """
+    # Infer arguments
+    if not run_start_time:
+        run_start_time = dt.now().strftime("%Y%m%d_%H%M")
+    assert re.match(r"\d{8}_\d{4}", run_start_time)
+    if qc:
+        sample_name = f"QC_{sample_name})"
+        instrument = "minion"
+        instrument_position = "MN19414"
     if not data_dir:
         data_dir = f"{tmp.name}/sequencing/{instrument}"
 
-    run_name = f"20240131_1702_{instrument_position}_{flowcell_id}_randomhash"
-    run_path = f"{data_dir}/{run_name}"
+    run_name = f"{run_start_time}_{instrument_position}_{flowcell_id}_{run_id}"
+    if qc:
+        run_path = f"{data_dir}/qc/{run_name}"
+    else:
+        run_path = f"{data_dir}/{run_name}"
     os.mkdir(run_path)
 
     # Add files conditionally

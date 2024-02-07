@@ -23,28 +23,44 @@ def test_ont_transfer(create_dirs, caplog):
     # Create test config
     test_config_yaml = make_test_config(tmp)
 
-    # Set up config mocks
+    # Mock config
     patch("taca.utils.config.CONFIG", new=test_config_yaml).start()
     patch("taca.nanopore.ONT_run_classes.CONFIG", new=test_config_yaml).start()
 
-    # Set up mocks
+    # Mock database connection
     mock_db = patch(
         "taca.nanopore.ONT_run_classes.NanoporeRunsConnection",
     ).start()
     mock_db.return_value.check_run_exists.return_value = False
     mock_db.return_value.check_run_status.return_value = "ongoing"
+    mock_db.return_value.finish_ongoing_run
 
-    mock_error = patch("taca.analysis.analysis_nanopore.send_error_mail").start()
+    # Mock parsing MinKNOW auxillary files
+    patch("taca.nanopore.ONT_run_classes.ONT_user_run.parse_minknow_json").start()
+    patch("taca.nanopore.ONT_run_classes.ONT_user_run.parse_pore_activity").start()
 
-    # Reload module to add mocks
+    # Reload module to implement mocks
     importlib.reload(analysis_nanopore)
 
-    # Create run dir
-    create_run_dir(tmp, script_files=True, run_finished=True, sync_finished=True)
+    # Create run dirs
+
+    # User run
+    create_run_dir(
+        tmp,
+        run_id="TestUserRun",
+        script_files=True,
+        run_finished=True,
+        sync_finished=True,
+    )
+    # QC run
+    create_run_dir(
+        tmp,
+        qc=True,
+        run_id="TestQCRun",
+        script_files=True,
+        run_finished=True,
+        sync_finished=True,
+    )
 
     # Start testing
     analysis_nanopore.ont_transfer(run_abspath=None, qc=False)
-    print(mock_error.call_args_list)
-
-    for record in caplog.records:
-        print(record.levelname, record.message)
