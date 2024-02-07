@@ -8,9 +8,6 @@ import yaml
 
 from taca.nanopore import ONT_run_classes
 
-# To check coverage, use
-# pytest -s --cov=taca.nanopore.ONT_run_classes --cov-report term-missing -vv tests/pytest/test_ONT_run_classes.py
-
 
 def make_test_config(tmp):
     test_config_yaml_string = f"""mail: 

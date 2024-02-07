@@ -9,9 +9,6 @@ from test_ONT_run_classes import (
 
 from taca.analysis import analysis_nanopore
 
-# To check coverage, use
-# pytest -s --log-cli-level=INFO --cov=taca.analysis.analysis_nanopore --cov-report term-missing -vv tests/pytest/test_analysis_nanopore.py
-
 
 def test_ont_transfer(create_dirs, caplog):
     """Test the "taca analaysis ont-transfer" subcommand automation from
@@ -24,7 +21,7 @@ def test_ont_transfer(create_dirs, caplog):
     # Create test config
     test_config_yaml = make_test_config(tmp)
 
-    # === MOCKS =============================================================
+    ## MOCKS
 
     # Mock config
     patch("taca.utils.config.CONFIG", new=test_config_yaml).start()
@@ -59,7 +56,7 @@ def test_ont_transfer(create_dirs, caplog):
     # Reload module to implement mocks
     importlib.reload(analysis_nanopore)
 
-    # === CREATE RUN DIRS ===================================================
+    ## CREATE RUN DIRS
 
     # User run
     create_run_dir(
