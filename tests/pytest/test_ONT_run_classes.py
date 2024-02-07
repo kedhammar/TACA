@@ -176,7 +176,10 @@ def test_ONT_user_run(create_dirs):
     mock_config.start()
 
     # Create run dir
-    run_path = create_run_dir(tmp)
+    run_path = create_run_dir(
+        tmp,
+        script_files=True,
+    )
 
     # Reload module to add mocks
     importlib.reload(ONT_run_classes)
