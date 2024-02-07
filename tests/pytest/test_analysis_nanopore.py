@@ -1,4 +1,5 @@
 import importlib
+import subprocess
 from unittest.mock import patch
 
 from test_ONT_run_classes import (
@@ -38,8 +39,25 @@ def test_ont_transfer(create_dirs, caplog):
     mock_db.return_value.finish_ongoing_run
 
     # Mock parsing MinKNOW auxillary files
-    patch("taca.nanopore.ONT_run_classes.ONT_user_run.parse_minknow_json").start()
-    patch("taca.nanopore.ONT_run_classes.ONT_user_run.parse_pore_activity").start()
+    patch("taca.nanopore.ONT_run_classes.ONT_run.parse_minknow_json").start()
+    patch("taca.nanopore.ONT_run_classes.ONT_run.parse_pore_activity").start()
+
+    # Mock subprocess.Popen ONLY for Anglerfish
+    original_popen = subprocess.Popen
+
+    def side_effect(*args, **kwargs):
+        if "anglerfish" in args[0]:
+            import ipdb
+
+            ipdb.set_trace()
+            return mock_Popen
+        else:
+            return original_popen(*args, **kwargs)
+
+    mock_Popen = patch(
+        "taca.nanopore.ONT_run_classes.subprocess.Popen", side_effect=side_effect
+    ).start()
+    mock_Popen.pid = 1337  # Nice
 
     # Reload module to implement mocks
     importlib.reload(analysis_nanopore)
@@ -62,6 +80,9 @@ def test_ont_transfer(create_dirs, caplog):
         script_files=True,
         run_finished=True,
         sync_finished=True,
+        anglerfish_samplesheets=True,
+        fastq_dirs=True,
+        barcode_dirs=True,
     )
 
     # Start testing
