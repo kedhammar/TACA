@@ -61,7 +61,7 @@ class ONT_run:
 
         # Get attributes from config
         self.minknow_reports_dir = CONFIG["nanopore_analysis"]["minknow_reports_dir"]
-        self.analysis_server = CONFIG["nanopore_analysis"]["analysis_server"]
+        self.analysis_server = CONFIG["nanopore_analysis"].get("analysis_server", None)
         self.rsync_options = CONFIG["nanopore_analysis"]["rsync_options"]
         for k, v in self.rsync_options.items():
             if v == "None":
