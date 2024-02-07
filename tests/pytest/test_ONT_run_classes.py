@@ -47,9 +47,9 @@ nanopore_analysis:
                     archive_dir: {tmp.name}/sequencing/minion/qc/nosync
                     metadata_dir: {tmp.name}/ngi-nas-ns/minion_data/qc
                     destination: {tmp.name}/miarka/minion/qc
-                anglerfish:
-                    anglerfish_samplesheets_dir: /srv/ngi-nas-ns/samplesheets/anglerfish
-                    anglerfish_path: ~/miniconda3/envs/anglerfish/bin/anglerfish
+            anglerfish:
+                anglerfish_samplesheets_dir: {tmp.name}/ngi-nas-ns/samplesheets/anglerfish
+                anglerfish_path: mock
     minknow_reports_dir: {tmp.name}/minknow_reports/
     rsync_options:
         '-Lav': None
@@ -93,6 +93,9 @@ def create_run_dir(
     script_files=False,
     run_finished=False,
     sync_finished=False,
+    anglerfish_samplesheets=False,
+    fastq_dirs=False,
+    barcode_dirs=False,
 ):
     """Create a run directory according to specifications.
 
@@ -136,6 +139,23 @@ def create_run_dir(
 
     if sync_finished:
         open(f"{run_path}/.sync_finished", "w").close()
+
+    if anglerfish_samplesheets:
+        current_year_dir = (
+            f"{tmp.name}/ngi-nas-ns/samplesheets/anglerfish/{run_start_time[0:4]}"
+        )
+        os.mkdir(current_year_dir)
+        for i in ["first", "latest"]:
+            open(
+                f"{current_year_dir}/Anglerfish_samplesheet_{experiment_name}_{i}.csv",
+                "w",
+            ).close()
+
+    if fastq_dirs:
+        os.mkdir(f"{run_path}/fastq_pass")
+
+    if barcode_dirs:
+        os.mkdir(f"{run_path}/fastq_pass/barcode01")
 
     return run_path
 
