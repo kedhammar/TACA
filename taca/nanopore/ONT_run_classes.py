@@ -449,12 +449,11 @@ class ONT_qc_run(ONT_run):
         """
 
         # Following line assumes run was started same year as samplesheet was generated
-        current_year = self.date[0:4]
         expected_file_pattern = f"Anglerfish_samplesheet_{self.experiment_name}_*.csv"
 
         # Finalize query pattern
         pattern_abspath = os.path.join(
-            self.anglerfish_samplesheets_dir, current_year, expected_file_pattern
+            self.anglerfish_samplesheets_dir, "*", expected_file_pattern
         )
 
         glob_results = glob.glob(pattern_abspath)
@@ -521,11 +520,14 @@ class ONT_qc_run(ONT_run):
 
         # Create dir to trace TACA executing Anglerfish as a subprocess
         taca_anglerfish_run_dir = f"taca_anglerfish_run_{timestamp}"
-        os.mkdir(taca_anglerfish_run_dir)
+        taca_anglerfish_run_dir_abspath = (
+            f"{self.run_abspath}/{taca_anglerfish_run_dir}"
+        )
+        os.mkdir(taca_anglerfish_run_dir_abspath)
         # Copy samplesheet used for traceability
-        shutil.copy(self.anglerfish_samplesheet, f"{taca_anglerfish_run_dir}/")
+        shutil.copy(self.anglerfish_samplesheet, taca_anglerfish_run_dir_abspath)
         # Create files to dump subprocess std
-        stderr_abspath = f"{self.run_abspath}/{taca_anglerfish_run_dir}/stderr.txt"
+        stderr_abspath = f"{taca_anglerfish_run_dir_abspath}/stderr.txt"
 
         full_command = [
             # Dump subprocess PID into 'run-ongoing'-indicator file.
@@ -546,7 +548,7 @@ class ONT_qc_run(ONT_run):
             f"rm {self.anglerfish_ongoing_abspath}",
         ]
 
-        with open(f"{taca_anglerfish_run_dir}/command.sh", "w") as stream:
+        with open(f"{taca_anglerfish_run_dir_abspath}/command.sh", "w") as stream:
             stream.write("\n".join(full_command))
 
         # Start Anglerfish subprocess
