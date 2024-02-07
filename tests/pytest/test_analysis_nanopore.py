@@ -47,9 +47,6 @@ def test_ont_transfer(create_dirs, caplog):
 
     def side_effect(*args, **kwargs):
         if "anglerfish" in args[0]:
-            import ipdb
-
-            ipdb.set_trace()
             return mock_Popen
         else:
             return original_popen(*args, **kwargs)
