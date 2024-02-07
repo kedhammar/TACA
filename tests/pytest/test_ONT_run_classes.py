@@ -11,7 +11,9 @@ from taca.nanopore import ONT_run_classes
 
 
 def make_test_config(tmp):
-    test_config_yaml_string = f"""statusdb: mock
+    test_config_yaml_string = f"""mail: 
+    recipients: mock
+statusdb: mock
 nanopore_analysis:
     run_types:
         user_run:
@@ -47,10 +49,6 @@ nanopore_analysis:
                     anglerfish_samplesheets_dir: /srv/ngi-nas-ns/samplesheets/anglerfish
                     anglerfish_path: ~/miniconda3/envs/anglerfish/bin/anglerfish
     minknow_reports_dir: {tmp.name}/minknow_reports/
-    analysis_server:
-        host: miarka1.uppmax.uu.se
-        port:
-        user: funk_903
     rsync_options:
         '-Lav': None
         '--chown': ':ngi2016003'
