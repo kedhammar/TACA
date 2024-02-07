@@ -23,6 +23,8 @@ def test_ont_transfer(create_dirs, caplog):
     # Create test config
     test_config_yaml = make_test_config(tmp)
 
+    # === MOCKS =============================================================
+
     # Mock config
     patch("taca.utils.config.CONFIG", new=test_config_yaml).start()
     patch("taca.nanopore.ONT_run_classes.CONFIG", new=test_config_yaml).start()
@@ -42,7 +44,7 @@ def test_ont_transfer(create_dirs, caplog):
     # Reload module to implement mocks
     importlib.reload(analysis_nanopore)
 
-    # Create run dirs
+    # === Create run dirs ===================================================
 
     # User run
     create_run_dir(
