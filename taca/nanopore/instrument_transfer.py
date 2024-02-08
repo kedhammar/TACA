@@ -330,7 +330,7 @@ def dump_pore_count_history(run: str, pore_counts: list) -> str:
     return new_file_path
 
 
-if __name__ == "__main__": # pragma: no cover
+if __name__ == "__main__":  # pragma: no cover
     # This is clunky but should be fine since it will only ever run as a cronjob
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(

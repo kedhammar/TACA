@@ -3,7 +3,6 @@ PyYAML
 click
 flowcell_parser @ git+https://github.com/SciLifeLab/flowcell_parser
 pandas
-pytest
 python_crontab
 python_dateutil
 setuptools
