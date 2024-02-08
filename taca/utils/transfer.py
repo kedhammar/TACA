@@ -56,7 +56,7 @@ class TransferAgent:
             if val is None:
                 cmdopts.append(param)
             else:
-                if isinstance(type(val), str):
+                if isinstance(val, str):
                     val = [val]
                 for v in val:
                     cmdopts.append(f"{param}={v}")

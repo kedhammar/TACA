@@ -1,5 +1,9 @@
 # TACA Version Log
 
+## 20240208.1
+
+Fix bug with isinstance clause
+
 ## 20240202.1
 
 Use abspath for Anglerfish stderr path, make it possible to instantiate ONT run w/o specifying the type, add more info to the ONT db update subcommand.
