@@ -16,6 +16,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
+      - name: Install TACA
+        run: pip install -e .
       - name: pytest
         # Options are configured in pyproject.toml
         run: pytest
