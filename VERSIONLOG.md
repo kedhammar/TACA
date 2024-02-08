@@ -1,8 +1,12 @@
 # TACA Version Log
 
-## 20240207.1
+## 20240208.2
 
 Implement CI testing and increase testing coverage.
+
+## 20240208.1
+
+Fix bug with isinstance clause
 
 ## 20240202.1
 
