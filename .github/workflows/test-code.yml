@@ -21,24 +21,9 @@ jobs:
       - name: pytest
         # Options are configured in pyproject.toml
         run: pytest
-  codecov:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.10"
-      - name: Install dependencies
+      - name: Check CodeCov token
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install -r requirements-dev.txt
-      - name: Install TACA
-        run: pip install -e .
+          echo "Token is set: ${{ secrets.CODECOV_TOKEN != '' }}"
       - name: CodeCov
         run: |
           # Replace `linux` below with the appropriate OS
