@@ -23,9 +23,6 @@ jobs:
       - name: pytest
         # Options are configured in pyproject.toml
         run: pytest
-      - name: Check CodeCov token
-        run: |
-          echo "Token is set: ${{ secrets.CODECOV_TOKEN }}"
       - name: CodeCov
         run: |
           # Replace `linux` below with the appropriate OS
