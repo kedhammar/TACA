@@ -1,19 +1,20 @@
 title = "taca"
 
+# === LINTING ================================================================
 
 [tool.ruff.lint]
-select =[
+select = [
     #         Ruff default rules
     # ------------------------------
-    "E4",   # pycodestyle Imports
-    "E7",   # pycodestyle Statements
-    "E9",   # pycodestyle Runtime
-    "F",    # Pyflakes
+    "E4", # pycodestyle Imports
+    "E7", # pycodestyle Statements
+    "E9", # pycodestyle Runtime
+    "F",  # Pyflakes
 
     #         Additional    Comment
     # ------------------------------------------------------
-    "I",    # isort         Best-practice sorting of imports
-    "UP",   # pyupgrade     Make sure syntax is up-to-date
+    "I",  # isort         Best-practice sorting of imports
+    "UP", # pyupgrade     Make sure syntax is up-to-date
 ]
 ignore = [
     "E402", # Module level import not at top of file
@@ -21,7 +22,21 @@ ignore = [
     "E741", # Ambiguous variable name
 ]
 
-
 [tool.mypy]
 ignore_missing_imports = true
 follow_imports = 'skip'
+
+# === Testing ================================================================
+
+[tool.pytest.ini_options]
+# Omit deprecation warnings from 3rd party packages
+filterwarnings = [
+    'ignore::DeprecationWarning:couchdb.*',
+    'ignore::DeprecationWarning:pkg_resources.*',
+]
+addopts = "--cov=./taca --cov-report term-missing -vv --cache-clear tests/pytest/"
+
+[tool.coverage.run]
+# The comment "# pragma: no cover" can be used to exclude a line from coverage
+source = ["taca"]
+omit = ["**/__init__.py"]

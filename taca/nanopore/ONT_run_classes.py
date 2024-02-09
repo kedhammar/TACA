@@ -18,7 +18,7 @@ from taca.utils.transfer import RsyncAgent, RsyncError
 logger = logging.getLogger(__name__)
 
 ONT_RUN_PATTERN = re.compile(
-    "^(\d{8})_(\d{4})_([0-9a-zA-Z]+)_([0-9a-zA-Z]+)_([0-9a-zA-Z]+)$"
+    r"^(\d{8})_(\d{4})_([0-9a-zA-Z]+)_([0-9a-zA-Z]+)_([0-9a-zA-Z]+)$"
 )
 
 
@@ -61,7 +61,7 @@ class ONT_run:
 
         # Get attributes from config
         self.minknow_reports_dir = CONFIG["nanopore_analysis"]["minknow_reports_dir"]
-        self.analysis_server = CONFIG["nanopore_analysis"]["analysis_server"]
+        self.analysis_server = CONFIG["nanopore_analysis"].get("analysis_server", None)
         self.rsync_options = CONFIG["nanopore_analysis"]["rsync_options"]
         for k, v in self.rsync_options.items():
             if v == "None":
@@ -115,7 +115,6 @@ class ONT_run:
         assert self.has_file("/report_*.html")
 
         # MinKNOW auxillary files
-        assert self.has_file("/final_summary*.txt")
         assert self.has_file("/pore_activity*.csv")
 
     def touch_db_entry(self):
@@ -450,12 +449,11 @@ class ONT_qc_run(ONT_run):
         """
 
         # Following line assumes run was started same year as samplesheet was generated
-        current_year = self.date[0:4]
         expected_file_pattern = f"Anglerfish_samplesheet_{self.experiment_name}_*.csv"
 
         # Finalize query pattern
         pattern_abspath = os.path.join(
-            self.anglerfish_samplesheets_dir, current_year, expected_file_pattern
+            self.anglerfish_samplesheets_dir, "*", expected_file_pattern
         )
 
         glob_results = glob.glob(pattern_abspath)
@@ -522,11 +520,14 @@ class ONT_qc_run(ONT_run):
 
         # Create dir to trace TACA executing Anglerfish as a subprocess
         taca_anglerfish_run_dir = f"taca_anglerfish_run_{timestamp}"
-        os.mkdir(taca_anglerfish_run_dir)
+        taca_anglerfish_run_dir_abspath = (
+            f"{self.run_abspath}/{taca_anglerfish_run_dir}"
+        )
+        os.mkdir(taca_anglerfish_run_dir_abspath)
         # Copy samplesheet used for traceability
-        shutil.copy(self.anglerfish_samplesheet, f"{taca_anglerfish_run_dir}/")
+        shutil.copy(self.anglerfish_samplesheet, taca_anglerfish_run_dir_abspath)
         # Create files to dump subprocess std
-        stderr_abspath = f"{self.run_abspath}/{taca_anglerfish_run_dir}/stderr.txt"
+        stderr_abspath = f"{taca_anglerfish_run_dir_abspath}/stderr.txt"
 
         full_command = [
             # Dump subprocess PID into 'run-ongoing'-indicator file.
@@ -539,15 +540,15 @@ class ONT_qc_run(ONT_run):
             #  1) Find the latest Anglerfish run dir (younger than the 'run-ongoing' file)
             f'find {self.run_abspath} -name "anglerfish_run*" -type d -newer {self.run_abspath}/.anglerfish_ongoing '
             #  2) Move the Anglerfish run dir into the TACA Anglerfish run dir
-            + "-exec mv \{\} "
-            + f"{self.run_abspath}/{taca_anglerfish_run_dir}/ \; "
+            + r"-exec mv \{\} "
+            + rf"{self.run_abspath}/{taca_anglerfish_run_dir}/ \; "
             #  3) Only do this once
             + "-quit",
             # Remove 'run-ongoing' file.
             f"rm {self.anglerfish_ongoing_abspath}",
         ]
 
-        with open(f"{taca_anglerfish_run_dir}/command.sh", "w") as stream:
+        with open(f"{taca_anglerfish_run_dir_abspath}/command.sh", "w") as stream:
             stream.write("\n".join(full_command))
 
         # Start Anglerfish subprocess
