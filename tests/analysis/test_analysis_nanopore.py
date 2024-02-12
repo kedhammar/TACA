@@ -2,12 +2,11 @@ import importlib
 import subprocess
 from unittest.mock import patch
 
-from test_ONT_run_classes import (
+from taca.analysis import analysis_nanopore
+from tests.nanopore.test_ONT_run_classes import (
     create_run_dir,
     make_test_config,
 )
-
-from taca.analysis import analysis_nanopore
 
 
 def test_ont_transfer(create_dirs, caplog):

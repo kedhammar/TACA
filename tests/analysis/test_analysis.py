@@ -11,7 +11,7 @@ import ipdb
 from taca.analysis import analysis as an
 from taca.utils import config
 
-CONFIG = config.load_yaml_config("data/taca_test_cfg.yaml")
+CONFIG = config.load_yaml_config("tests/data/taca_test_cfg.yaml")
 
 
 class TestAnalysis(unittest.TestCase):
@@ -114,7 +114,6 @@ class TestAnalysis(unittest.TestCase):
 
     @mock.patch("taca.analysis.analysis.statusdb")
     def test__upload_to_statusdb(self, mock_statusdb):
-        ipdb.set_trace()
         """Upload to statusdb."""
         run = os.path.join(self.tmp_dir, "141124_ST-NOINDEX1_01_AFCIDYX")
         os.mkdir(run)
@@ -131,7 +130,8 @@ class TestAnalysis(unittest.TestCase):
         os.makedirs(reports_dir)
         shutil.copy("data/laneBarcode.html", (reports_dir))
         shutil.copy("data/lane.html", (reports_dir))
-        noindex_run = an.get_runObj(run)
+        ipdb.set_trace()
+        noindex_run = an.get_runObj(run, "bcl2fastq")
         an._upload_to_statusdb(noindex_run)
         mock_statusdb.update_doc.assert_called_once()
 
