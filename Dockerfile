@@ -1,14 +1,13 @@
-FROM python:3.10
+FROM python:3.10 AS base
 
 # Update pip to latest version
 RUN python -m pip install --upgrade pip
 
-
-# Install Nextflow dependencies
+# Install dependencies
 RUN apt-get update \
     && apt-get upgrade -y \
-    && apt-get install -y git \
-    && apt-get install -y curl
+    && apt-get install -y curl \
+    && apt-get install -y rsync
 
 # Needed to install requirements,
 # in devcontainer a local mounted version of flowcell_parser is used
@@ -25,3 +24,9 @@ RUN python -m pip install -r requirements-dev.txt
 
 RUN mkdir /root/.taca/
 COPY tests/data/taca_test_cfg.yaml /root/.taca/taca.yaml
+
+FROM base AS testing
+COPY . /taca
+RUN python -m pip install -e /taca
+WORKDIR /taca/tests
+CMD ["python", "-m", "unittest"]

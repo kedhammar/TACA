@@ -82,6 +82,7 @@ class TestAnalysis(unittest.TestCase):
             "data/runParameters_nextseq.xml",
             os.path.join(nextseq_run, "runParameters.xml"),
         )
+        shutil.copy("data/RunInfo.xml", os.path.join(nextseq_run, "RunInfo.xml"))
         got_nextseq_run = an.get_runObj(nextseq_run)
         self.assertEqual(got_nextseq_run.sequencer_type, "NextSeq")
 
@@ -93,6 +94,7 @@ class TestAnalysis(unittest.TestCase):
             "data/runParameters_novaseq.xml",
             os.path.join(novaseq_run, "RunParameters.xml"),
         )
+        shutil.copy("data/RunInfo.xml", os.path.join(novaseq_run, "RunInfo.xml"))
         got_novaseq_run = an.get_runObj(novaseq_run)
         self.assertEqual(got_novaseq_run.sequencer_type, "NovaSeq")
 
@@ -112,6 +114,7 @@ class TestAnalysis(unittest.TestCase):
         shutil.copy(
             "data/runParameters_minimal.xml", os.path.join(run, "runParameters.xml")
         )
+        shutil.copy("data/RunInfo.xml", os.path.join(run, "RunInfo.xml"))
         demux_dir = os.path.join(run, "Demultiplexing", "Stats")
         os.makedirs(demux_dir)
         shutil.copy("data/DemuxSummaryF1L1.txt", demux_dir)
@@ -155,6 +158,8 @@ class TestAnalysis(unittest.TestCase):
         pid = "P1775"
         samplesheet_content = an.extract_project_samplesheet(sample_sheet, pid)
         expected_samplesheet_content = """Lane,SampleID,SampleName,SamplePlate,SampleWell,index,Project
+Experiment Name,H2WY7CCXX
+Date,2015-04-23
 1,Sample_P1775_147,P1775_147,FCB_150423,1:1,GAATTCGT,J_Lundeberg_14_24
 """
         self.assertEqual(samplesheet_content, expected_samplesheet_content)
@@ -167,7 +172,7 @@ class TestAnalysis(unittest.TestCase):
         """Run preprocess run still sequencing."""
         run = self.completed
         mock_get_run_status.return_value = "SEQUENCING"
-        an.run_preprocessing(run, force_trasfer=True, statusdb=True)
+        an.run_preprocessing(run)
         mock_upload_to_statusdb.assert_called_once()
 
     @mock.patch("taca.analysis.analysis.NovaSeq_Run.get_run_status")
@@ -179,7 +184,7 @@ class TestAnalysis(unittest.TestCase):
         """Run preprocessing start demux."""
         run = self.completed
         mock_get_run_status.return_value = "TO_START"
-        an.run_preprocessing(run, force_trasfer=True, statusdb=True)
+        an.run_preprocessing(run)
         mock_upload_to_statusdb.assert_called_once()
         mock_demultiplex_run.assert_called_once()
 
@@ -192,7 +197,7 @@ class TestAnalysis(unittest.TestCase):
         """Run preprocessing demux in progress."""
         run = self.completed
         mock_get_run_status.return_value = "IN_PROGRESS"
-        an.run_preprocessing(run, force_trasfer=True, statusdb=True)
+        an.run_preprocessing(run)
         mock_upload_to_statusdb.assert_called_once()
         mock_check_run_status.assert_called_once()
 
@@ -214,11 +219,15 @@ class TestAnalysis(unittest.TestCase):
         """Run preprocessing demux completed."""
         run = self.completed
         mock_get_run_status.return_value = "COMPLETED"
-        an.run_preprocessing(run, force_trasfer=True, statusdb=True)
+        an.run_preprocessing(run)
         mock_upload_to_statusdb.assert_called_once()
-        message = "The run 141124_ST-COMPLETED1_01_AFCIDXX has been demultiplexed.\n                The Run will be transferred to the analysis cluster for further analysis.\n\n             \
-   The run is available at : https://genomics-status.scilifelab.se/flowcells/141124_ST-COMPLETED1_01_AFCIDXX\n\n                "
-        mock_send_mail.assert_called_once_with(message, rcp="some_user@some_email.com")
+        subject = "141124_ST-COMPLETED1_01_AFCIDXX Demultiplexing Completed!"
+        message = "The run 141124_ST-COMPLETED1_01_AFCIDXX has been demultiplexed without any error or warning.\n\n                    The Run will be transferred to the analysis cluster for further analysis.\n\n             \
+       The run is available at : https://genomics-status.scilifelab.se/flowcells/141124_ST-COMPLETED1_01_AFCIDXX\n\n                    "
+
+        mock_send_mail.assert_called_once_with(
+            subject, message, rcp="some_user@some_email.com"
+        )
         mock_transfer_run.assert_called_once_with(
             "data/transfer.tsv", "some_user@some_email.com"
         )

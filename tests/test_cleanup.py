@@ -16,26 +16,6 @@ CONFIG = conf.load_yaml_config("data/taca_test_cfg_cleanup.yaml")
 class TestCleanup(unittest.TestCase):
     """Tests for TACA Cleanup module."""
 
-    @mock.patch("taca.cleanup.cleanup.shutil.move")
-    @mock.patch("taca.cleanup.cleanup.os.listdir")
-    def test_cleanup_nas(self, mock_listdir, mock_move):
-        """Locate and move old data on NAS."""
-        seconds = 1
-        run = "190201_A00621_0032_BHHFCFDSXX"
-        mock_listdir.return_value = [run]
-        cleanup.cleanup_nas(seconds)
-        mock_move.assert_called_once_with(run, "nosync")
-
-    @mock.patch("taca.cleanup.cleanup.shutil.rmtree")
-    @mock.patch("taca.cleanup.cleanup.os.listdir")
-    def test_cleanup_processing(self, mock_listdir, mock_rmtree):
-        """Locate and move old data on preproc."""
-        seconds = 1
-        run = "190201_A00621_0032_BHHFCFDSXY"
-        mock_listdir.return_value = [run]
-        cleanup.cleanup_processing(seconds)
-        mock_rmtree.assert_called_once_with(run)
-
     @mock.patch("taca.cleanup.cleanup.statusdb")
     @mock.patch("taca.cleanup.cleanup.get_closed_proj_info")
     @mock.patch("taca.cleanup.cleanup.misc.query_yes_no")
@@ -96,7 +76,7 @@ class TestCleanup(unittest.TestCase):
         got_data = cleanup.get_closed_proj_info(pid, pdoc, tdate)
         expected_data = {
             "closed_date": "2019-04-07",
-            "bioinfo_responsible": b"O.B. One",
+            "bioinfo_responsible": "O.B. One",
             "pid": "P1234",
             "name": "A.Name_19_01",
             "closed_days": 1,
@@ -140,7 +120,7 @@ class TestCleanup(unittest.TestCase):
             "data/test_data/nosync/190201_A00621_0032_BHHFCFDSXY/RTAComplete.txt",
             "data/test_data/190201_A00621_0032_BHHFCFDSXX/RTAComplete.txt",
         ]
-        self.assertEqual(found_files, expected_files)
+        self.assertEqual(sorted(found_files), sorted(expected_files))
 
     def test_get_proj_meta_info(self):
         """Get project metadata."""

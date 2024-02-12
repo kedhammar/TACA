@@ -6,12 +6,13 @@
     // Sets the run context to one level up instead of the .devcontainer folder.
     "context": "..",
     // Update the 'dockerFile' property if you aren't using the standard 'Dockerfile' filename.
-    "dockerfile": "../Dockerfile"
+    "dockerfile": "../Dockerfile",
+    "target": "base"
   },
   "features": {},
   "customizations": {
     "vscode": {
-      "extensions": ["ms-python.python"]
+      "extensions": ["ms-python.python", "eamodio.gitlens"]
     }
   },
   // Features to add to the dev container. More info: https://containers.dev/features.
