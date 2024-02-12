@@ -384,7 +384,86 @@ def create_illumina_run_dir(
     if completed:
         open(os.path.join(run_path, "CopyComplete.txt"), "w").close()
         open(os.path.join(run_path, "RTAComplete.txt"), "w").close()
-        open(os.path.join(run_path, "RunParameters.xml"), "w").close()
+        with open(os.path.join(run_path, "RunParameters.xml"), "w") as f:
+            xml_str = """<?xml version="1.0" encoding="utf-8"?>
+<RunParameters xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <Side>A</Side>
+  <Application>NovaSeqXSeries Control Software</Application>
+  <SystemSuiteVersion>1.2.0.28691</SystemSuiteVersion>
+  <OutputFolder>//ngi-nas.scilifelab.se/ngi_data/sequencing/NovaSeqXPlus/20240202_LH00217_0044_A2255J2LT3</OutputFolder>
+  <CloudUploadMode>InstrumentPerformance</CloudUploadMode>
+  <RunSetupMode>Manual</RunSetupMode>
+  <SecondaryAnalysisMode>None</SecondaryAnalysisMode>
+  <InstrumentType>NovaSeqXPlus</InstrumentType>
+  <InstrumentSerialNumber>LH00217</InstrumentSerialNumber>
+  <RunId>20240202_LH00217_0044_A2255J2LT3</RunId>
+  <RunCounter>44</RunCounter>
+  <RecipeName>10B Sequencing</RecipeName>
+  <RecipeVersion>10B-01.02.02</RecipeVersion>
+  <ExperimentName>2255J2LT3</ExperimentName>
+  <FlowCellName>NovaSeqXSeries B3</FlowCellName>
+  <FlowCellType>NovaSeqXSeriesB3</FlowCellType>
+  <ConsumableInfo>
+    <ConsumableInfo>
+      <SerialNumber>LC2019066-LC1</SerialNumber>
+      <LotNumber>18026054</LotNumber>
+      <PartNumber>20081650</PartNumber>
+      <ExpirationDate>2025-02-04T00:00:00+01:00</ExpirationDate>
+      <Type>Lyo</Type>
+      <Mode>3</Mode>
+      <Version>1.0</Version>
+      <Name>Mid</Name>
+    </ConsumableInfo>
+    <ConsumableInfo>
+      <SerialNumber>LC2309060519-1</SerialNumber>
+      <LotNumber>23090501</LotNumber>
+      <PartNumber>20089853</PartNumber>
+      <ExpirationDate>2025-03-05T00:00:00+01:00</ExpirationDate>
+      <Type>Buffer</Type>
+      <Mode>3</Mode>
+      <Version>1.0</Version>
+      <Name>Universal</Name>
+    </ConsumableInfo>
+    <ConsumableInfo>
+      <SerialNumber>LC4064650-LC3</SerialNumber>
+      <LotNumber>20799103</LotNumber>
+      <PartNumber>20066614</PartNumber>
+      <ExpirationDate>2025-04-12T00:00:00+02:00</ExpirationDate>
+      <Type>Reagent</Type>
+      <Mode>3</Mode>
+      <Version>1.0</Version>
+      <Name>10B 300c</Name>
+    </ConsumableInfo>
+    <ConsumableInfo>
+      <SerialNumber>2255J2LT3</SerialNumber>
+      <LotNumber>20742703</LotNumber>
+      <PartNumber>20080370</PartNumber>
+      <ExpirationDate>2024-03-12T00:00:00+01:00</ExpirationDate>
+      <Type>FlowCell</Type>
+      <Mode>3</Mode>
+      <Version>1.0</Version>
+      <Name>10B</Name>
+    </ConsumableInfo>
+    <ConsumableInfo>
+      <SerialNumber>LC1030409-LC1</SerialNumber>
+      <LotNumber>1000019104</LotNumber>
+      <PartNumber>20072271</PartNumber>
+      <ExpirationDate>2025-09-18T00:00:00+02:00</ExpirationDate>
+      <Type>SampleTube</Type>
+      <Mode>3</Mode>
+      <Version>1.0</Version>
+      <Name>8 Lane</Name>
+    </ConsumableInfo>
+  </ConsumableInfo>
+  <PlannedReads>
+    <Read ReadName="Read1" Cycles="151" />
+    <Read ReadName="Index1" Cycles="19" />
+    <Read ReadName="Index2" Cycles="10" />
+    <Read ReadName="Read2" Cycles="151" />
+  </PlannedReads>
+  <SecondaryAnalysisInfo />
+  <DisableBclCopy>false</DisableBclCopy>"""
+            f.write(xml_str)
         open(os.path.join(run_path, "RunInfo.xml"), "w").close()
         open(os.path.join(run_path, "SampleSheet.csv"), "w").close()
 
