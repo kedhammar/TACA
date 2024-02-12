@@ -6,6 +6,8 @@ import tempfile
 import unittest
 from unittest import mock
 
+import ipdb
+
 from taca.analysis import analysis as an
 from taca.utils import config
 
@@ -20,14 +22,18 @@ class TestAnalysis(unittest.TestCase):
         """Creates the following directory tree for testing purposes:
 
         tmp/
-        |__ 141124_ST-COMPLETED_01_AFCIDXX
-        |   |__ RunInfo.xml
-        |   |__ Demultiplexing
-        |   |   |__ Undetermined_S0_L001_R1_001.fastq.gz
-        |   |   |__ Stats
-        |   |       |__ DemultiplexingStats.xml
-        |   |__ RTAComplete.txt
-        |   |__ SampleSheet.csv
+        ├── 141124_ST-COMPLETED1_01_AFCIDXX
+        │   ├── Demultiplexing
+        │   │   ├── Stats
+        │   │   │   ├── DemultiplexingStats.xml
+        │   │   │   └── Stats.json
+        │   │   └── Undetermined_S0_L001_R1_001.fastq.gz
+        │   ├── RTAComplete.txt
+        │   ├── RunInfo.xml
+        │   ├── SampleSheet.csv
+        │   └── runParameters.xml
+        └── 141124_ST-NOINDEX1_01_AFCIDYX
+
         """
         self.tmp_dir = os.path.join(tempfile.mkdtemp(), "tmp")
         self.completed = os.path.join(self.tmp_dir, "141124_ST-COMPLETED1_01_AFCIDXX")
@@ -108,6 +114,7 @@ class TestAnalysis(unittest.TestCase):
 
     @mock.patch("taca.analysis.analysis.statusdb")
     def test__upload_to_statusdb(self, mock_statusdb):
+        ipdb.set_trace()
         """Upload to statusdb."""
         run = os.path.join(self.tmp_dir, "141124_ST-NOINDEX1_01_AFCIDYX")
         os.mkdir(run)
