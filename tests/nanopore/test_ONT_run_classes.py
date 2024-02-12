@@ -9,7 +9,7 @@ import yaml
 from taca.nanopore import ONT_run_classes
 
 
-def make_test_config(tmp):
+def make_ONT_test_config(tmp):
     test_config_yaml_string = f"""mail: 
     recipients: mock
 statusdb: mock
@@ -76,7 +76,7 @@ def write_pore_count_history(
             f.write(line + "\n")
 
 
-def create_run_dir(
+def create_ONT_run_dir(
     tmp,
     instrument="promethion",
     instrument_position="1A",
@@ -168,12 +168,12 @@ def test_ONT_user_run(create_dirs):
     mock_db.start()
 
     # Mock CONFIG
-    test_config_yaml = make_test_config(tmp)
+    test_config_yaml = make_ONT_test_config(tmp)
     mock_config = patch("taca.utils.config.CONFIG", new=test_config_yaml)
     mock_config.start()
 
     # Create run dir
-    run_path = create_run_dir(
+    run_path = create_ONT_run_dir(
         tmp,
         script_files=True,
     )
