@@ -1,4 +1,7 @@
 import importlib
+import json
+import os
+import shutil
 import subprocess
 from unittest.mock import patch
 
@@ -362,16 +365,49 @@ analysis:
 
 def create_illumina_run_dir(
     tmp,
+    completed=True,
 ):
     """Create a run directory according to specifications.
 
     Return it's path.
     """
 
+    # Get run path
+    run_name = "20240202_LH00217_0044_A2255J2LT3"
+    run_path = os.path.join(tmp, run_name)
+
+    # Create runs directory structure
+    os.makedirs(run_path)
+    os.makedirs(os.path.join(run_path, "Demultiplexing"))
+
+    # Set up files
+    if completed:
+        open(os.path.join(run_path, "CopyComplete.txt"), "w").close()
+        open(os.path.join(run_path, "RTAComplete.txt"), "w").close()
+        open(os.path.join(run_path, "RunParameters.xml"), "w").close()
+        open(os.path.join(run_path, "RunInfo.xml"), "w").close()
+        open(os.path.join(run_path, "SampleSheet.csv"), "w").close()
+
+    return run_path
+
 
 def test_analysis(create_dirs):
     tmp = create_dirs
 
+    # Mock CONFIG
     test_config_yaml = make_illumina_test_config(tmp)
+    mock_config = patch("taca.utils.config.CONFIG", new=test_config_yaml)
+    mock_config.start()
+
+    # Create run dir
+    run_path = create_illumina_run_dir(
+        tmp,
+        completed=True,
+    )
+
+    # Reload module to add mocks
+    importlib.reload(analysis)
+
+    # Instantiate run object
 
     assert test_config_yaml
