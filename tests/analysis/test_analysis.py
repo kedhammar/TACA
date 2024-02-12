@@ -365,16 +365,30 @@ analysis:
 
 def create_illumina_run_dir(
     tmp,
+    instrument="NovaSeqXPlus",
+    run_name="20240202_LH00217_0044_A2255J2LT3",
     completed=True,
 ):
     """Create a run directory according to specifications.
+
+    e.g.
+
+        tmp
+        └── sequencing
+            └── NovaSeqXPlus
+                └── 20240202_LH00217_0044_A2255J2LT3
+                    ├── CopyComplete.txt
+                    ├── Demultiplexing
+                    ├── RTAComplete.txt
+                    ├── RunInfo.xml
+                    ├── RunParameters.xml
+                    └── SampleSheet.csv
 
     Return it's path.
     """
 
     # Get run path
-    run_name = "20240202_LH00217_0044_A2255J2LT3"
-    run_path = os.path.join(tmp, run_name)
+    run_path = f"{tmp.name}/sequencing/{instrument}/{run_name}"
 
     # Create runs directory structure
     os.makedirs(run_path)
@@ -385,7 +399,7 @@ def create_illumina_run_dir(
         open(os.path.join(run_path, "CopyComplete.txt"), "w").close()
         open(os.path.join(run_path, "RTAComplete.txt"), "w").close()
         with open(os.path.join(run_path, "RunParameters.xml"), "w") as f:
-            xml_str = """<?xml version="1.0" encoding="utf-8"?>
+            xml_str = r"""<?xml version="1.0" encoding="utf-8"?>
 <RunParameters xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
   <Side>A</Side>
   <Application>NovaSeqXSeries Control Software</Application>
@@ -462,7 +476,8 @@ def create_illumina_run_dir(
     <Read ReadName="Read2" Cycles="151" />
   </PlannedReads>
   <SecondaryAnalysisInfo />
-  <DisableBclCopy>false</DisableBclCopy>"""
+  <DisableBclCopy>false</DisableBclCopy>
+  </RunParameters>"""
             f.write(xml_str)
         open(os.path.join(run_path, "RunInfo.xml"), "w").close()
         open(os.path.join(run_path, "SampleSheet.csv"), "w").close()
@@ -470,7 +485,7 @@ def create_illumina_run_dir(
     return run_path
 
 
-def test_analysis(create_dirs):
+def test_get_runObj(create_dirs):
     tmp = create_dirs
 
     # Mock CONFIG
@@ -481,12 +496,11 @@ def test_analysis(create_dirs):
     # Create run dir
     run_path = create_illumina_run_dir(
         tmp,
-        completed=True,
     )
 
     # Reload module to add mocks
     importlib.reload(analysis)
 
-    # Instantiate run object
+    software = "bcl2fastq"
 
-    assert test_config_yaml
+    run_obj = analysis.get_runObj(run_path, software)
