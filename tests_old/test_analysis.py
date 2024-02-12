@@ -6,8 +6,6 @@ import tempfile
 import unittest
 from unittest import mock
 
-import ipdb
-
 from taca.analysis import analysis as an
 from taca.utils import config
 
@@ -18,54 +16,6 @@ class TestAnalysis(unittest.TestCase):
     """Tests for the Analysis functions."""
 
     @classmethod
-    def setUpClass(self):
-        """Creates the following directory tree for testing purposes:
-
-        tmp/
-        ├── 141124_ST-COMPLETED1_01_AFCIDXX
-        │   ├── Demultiplexing
-        │   │   ├── Stats
-        │   │   │   ├── DemultiplexingStats.xml
-        │   │   │   └── Stats.json
-        │   │   └── Undetermined_S0_L001_R1_001.fastq.gz
-        │   ├── RTAComplete.txt
-        │   ├── RunInfo.xml
-        │   ├── SampleSheet.csv
-        │   └── runParameters.xml
-        └── 141124_ST-NOINDEX1_01_AFCIDYX
-
-        """
-        self.tmp_dir = os.path.join(tempfile.mkdtemp(), "tmp")
-        self.completed = os.path.join(self.tmp_dir, "141124_ST-COMPLETED1_01_AFCIDXX")
-
-        # Create runs directory structure
-        os.makedirs(self.tmp_dir)
-        os.makedirs(os.path.join(self.completed, "Demultiplexing", "Stats"))
-
-        # Set up files
-        open(os.path.join(self.completed, "RTAComplete.txt"), "w").close()
-        shutil.copy(
-            "data/samplesheet.csv", os.path.join(self.completed, "SampleSheet.csv")
-        )
-        open(
-            os.path.join(
-                self.completed, "Demultiplexing", "Stats", "DemultiplexingStats.xml"
-            ),
-            "w",
-        ).close()
-        open(
-            os.path.join(
-                self.completed, "Demultiplexing", "Undetermined_S0_L001_R1_001.fastq.gz"
-            ),
-            "w",
-        ).close()
-        with open(
-            os.path.join(self.completed, "Demultiplexing", "Stats", "Stats.json"), "w"
-        ) as stats_json:
-            json.dump({"silly": 1}, stats_json)
-        shutil.copy("data/RunInfo.xml", self.completed)
-        shutil.copy("data/runParameters.xml", self.completed)
-
     @classmethod
     def tearDownClass(self):
         shutil.rmtree(self.tmp_dir)
@@ -130,7 +80,6 @@ class TestAnalysis(unittest.TestCase):
         os.makedirs(reports_dir)
         shutil.copy("data/laneBarcode.html", (reports_dir))
         shutil.copy("data/lane.html", (reports_dir))
-        ipdb.set_trace()
         noindex_run = an.get_runObj(run, "bcl2fastq")
         an._upload_to_statusdb(noindex_run)
         mock_statusdb.update_doc.assert_called_once()
