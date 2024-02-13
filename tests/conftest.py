@@ -1,4 +1,5 @@
 import os
+import shutil
 import tempfile
 
 import pytest
@@ -9,6 +10,8 @@ def create_dirs():
     """Create the bottom-level file-tree to be used for all tests:
 
         /var/folders/st/7720p4gn38vd042pfr7m2gh978ww82/T/tmp2viq7090
+        ├── config
+        │   └── Chromium_10X_indexes.txt
         ├── log
         │   ├── transfer_minion.tsv
         │   └── transfer_promethion.tsv
@@ -83,6 +86,13 @@ def create_dirs():
     # Analysis server destination dirs
     os.makedirs(f"{tmp.name}/miarka/promethion")
     os.makedirs(f"{tmp.name}/miarka/minion/qc")
+
+    # Indexes
+    os.makedirs(f"{tmp.name}/config")
+    shutil.copy(
+        "tests/data/Chromium_10X_indexes.txt",
+        f"{tmp.name}/config/Chromium_10X_indexes.txt",
+    )
 
     yield tmp
 
