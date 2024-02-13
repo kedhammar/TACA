@@ -400,6 +400,7 @@ def create_illumina_run_dir(
     if completed:
         open(os.path.join(run_path, "CopyComplete.txt"), "w").close()
         open(os.path.join(run_path, "RTAComplete.txt"), "w").close()
+        # Run parameters
         with open(os.path.join(run_path, "RunParameters.xml"), "w") as f:
             xml_str = r"""<?xml version="1.0" encoding="utf-8"?>
 <RunParameters xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
@@ -481,6 +482,7 @@ def create_illumina_run_dir(
   <DisableBclCopy>false</DisableBclCopy>
   </RunParameters>"""
             f.write(xml_str)
+        # Run info
         with open(os.path.join(run_path, "RunInfo.xml"), "w") as f:
             xml_str = r"""<?xml version="1.0"?>
 <RunInfo Version="6">
@@ -508,7 +510,17 @@ def create_illumina_run_dir(
 	</Run>
 </RunInfo>"""
             f.write(xml_str)
-        with open(os.path.join(run_path, "SampleSheet.csv"), "w") as f:
+        # Samplesheet
+        samplesheet_name = f"{run_name.split('_')[-1][1:]}.csv"
+        year = run_name[0:4]
+        if not os.path.exists(
+            f"{tmp.name}/ngi-nas-ns/samplesheets/{instrument}/{year}"
+        ):
+            os.makedirs(f"{tmp.name}/ngi-nas-ns/samplesheets/{instrument}/{year}")
+        samplesheet_path = (
+            f"{tmp.name}/ngi-nas-ns/samplesheets/{instrument}/{year}/{samplesheet_name}"
+        )
+        with open(samplesheet_path, "w") as f:
             csv_str = r"""[Header]
 [Data]
 FCID,Lane,Sample_ID,Sample_Name,Sample_Ref,index,index2,Description,Control,Recipe,Operator,Sample_Project
