@@ -391,6 +391,8 @@ def create_illumina_run_dir(
     run_path = f"{tmp.name}/sequencing/{instrument}/{run_name}"
 
     # Create runs directory structure
+    if os.path.exists(run_path):
+        shutil.rmtree(run_path)
     os.makedirs(run_path)
     os.makedirs(os.path.join(run_path, "Demultiplexing"))
 
@@ -479,8 +481,56 @@ def create_illumina_run_dir(
   <DisableBclCopy>false</DisableBclCopy>
   </RunParameters>"""
             f.write(xml_str)
-        open(os.path.join(run_path, "RunInfo.xml"), "w").close()
-        open(os.path.join(run_path, "SampleSheet.csv"), "w").close()
+        with open(os.path.join(run_path, "RunInfo.xml"), "w") as f:
+            xml_str = r"""<?xml version="1.0"?>
+<RunInfo Version="6">
+	<Run Id="20240202_LH00217_0044_A2255J2LT3" Number="44">
+		<Flowcell>2255J2LT3</Flowcell>
+		<Instrument>LH00217</Instrument>
+		<Date>2024-02-02T15:36:21Z</Date>
+		<Reads>
+			<Read Number="1" NumCycles="151" IsIndexedRead="N" IsReverseComplement="N" />
+			<Read Number="2" NumCycles="19" IsIndexedRead="Y" IsReverseComplement="N" />
+			<Read Number="3" NumCycles="10" IsIndexedRead="Y" IsReverseComplement="Y" />
+			<Read Number="4" NumCycles="151" IsIndexedRead="N" IsReverseComplement="N" />
+		</Reads>
+		<FlowcellLayout LaneCount="8" SurfaceCount="2" SwathCount="2" TileCount="98">
+			<TileSet TileNamingConvention="FourDigit">
+				<Tiles>
+				</Tiles>
+			</TileSet>
+		</FlowcellLayout>
+		<ImageDimensions Width="5120" Height="2879" />
+		<ImageChannels>
+			<Name>blue</Name>
+			<Name>green</Name>
+		</ImageChannels>
+	</Run>
+</RunInfo>"""
+            f.write(xml_str)
+        with open(os.path.join(run_path, "SampleSheet.csv"), "w") as f:
+            csv_str = r"""[Header]
+[Data]
+FCID,Lane,Sample_ID,Sample_Name,Sample_Ref,index,index2,Description,Control,Recipe,Operator,Sample_Project
+2255J2LT3,1,Sample_P00001_101,P00001_101,Multiple (- -),TAACTTGGTC,GTCGTGAATC,M__Snakytown_23_01,N,151-151,Operator_Lastname,M__Snakytown_23_01
+2255J2LT3,1,Sample_P00001_102,P00001_102,Multiple (- -),TCGAACACGA,GCGAGGTTCT,M__Snakytown_23_01,N,151-151,Operator_Lastname,M__Snakytown_23_01
+2255J2LT3,1,Sample_P00001_103,P00001_103,Multiple (- -),TTACTTCGTG,AAGATCGGAT,M__Snakytown_23_01,N,151-151,Operator_Lastname,M__Snakytown_23_01
+2255J2LT3,1,Sample_P00001_105,P00001_105,Multiple (- -),ACGAGACGTC,CGGTCTCTCT,M__Snakytown_23_01,N,151-151,Operator_Lastname,M__Snakytown_23_01
+2255J2LT3,1,Sample_P00001_106,P00001_106,Multiple (- -),CATAAGCGAC,CCTCTTCAAG,M__Snakytown_23_01,N,151-151,Operator_Lastname,M__Snakytown_23_01
+2255J2LT3,1,Sample_P00001_107,P00001_107,Multiple (- -),AACTCTCTAC,ACGGCTTCTC,M__Snakytown_23_01,N,151-151,Operator_Lastname,M__Snakytown_23_01
+2255J2LT3,1,Sample_P00001_109,P00001_109,Multiple (- -),GTATGCCACA,CCGAGTCTTC,M__Snakytown_23_01,N,151-151,Operator_Lastname,M__Snakytown_23_01
+2255J2LT3,1,Sample_P00001_110,P00001_110,Multiple (- -),GCCAACAGAC,CGTTCACGTT,M__Snakytown_23_01,N,151-151,Operator_Lastname,M__Snakytown_23_01
+2255J2LT3,1,Sample_P00001_111,P00001_111,Multiple (- -),ATAAGCGGAG,CTGTTCTACG,M__Snakytown_23_01,N,151-151,Operator_Lastname,M__Snakytown_23_01
+2255J2LT3,1,Sample_P00001_112,P00001_112,Multiple (- -),TCCAACTGAA,TGTCCGTAGG,M__Snakytown_23_01,N,151-151,Operator_Lastname,M__Snakytown_23_01
+2255J2LT3,1,Sample_P00001_113,P00001_113,Multiple (- -),ATTCGGCTTA,TTAACGTCCG,M__Snakytown_23_01,N,151-151,Operator_Lastname,M__Snakytown_23_01
+2255J2LT3,1,Sample_P00001_114,P00001_114,Multiple (- -),TATGGCAAGC,AACAGCAATG,M__Snakytown_23_01,N,151-151,Operator_Lastname,M__Snakytown_23_01
+2255J2LT3,1,Sample_P00001_115,P00001_115,Multiple (- -),CCTAAGCTGA,CGTCGCATCT,M__Snakytown_23_01,N,151-151,Operator_Lastname,M__Snakytown_23_01
+2255J2LT3,1,Sample_P00001_116,P00001_116,Multiple (- -),GCCACCTAGT,TGCGATGTAT,M__Snakytown_23_01,N,151-151,Operator_Lastname,M__Snakytown_23_01
+2255J2LT3,1,Sample_P00001_117,P00001_117,Multiple (- -),AGTATCCGAT,TATTGCGCTA,M__Snakytown_23_01,N,151-151,Operator_Lastname,M__Snakytown_23_01
+2255J2LT3,1,Sample_P00001_118,P00001_118,Multiple (- -),CCTCGTTGGA,GACTGCGTTA,M__Snakytown_23_01,N,151-151,Operator_Lastname,M__Snakytown_23_01
+2255J2LT3,1,Sample_P00001_119,P00001_119,Multiple (- -),CGACCTTAAT,GCTCTTAGGT,M__Snakytown_23_01,N,151-151,Operator_Lastname,M__Snakytown_23_01
+2255J2LT3,1,Sample_P00001_120,P00001_120,Multiple (- -),GAACCGCATT,CATTATGCCT,M__Snakytown_23_01,N,151-151,Operator_Lastname,M__Snakytown_23_01"""
+            f.write(csv_str)
 
     return run_path
 
