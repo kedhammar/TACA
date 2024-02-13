@@ -9,7 +9,7 @@ import pytest
 def create_dirs():
     """Create the bottom-level file-tree to be used for all tests:
 
-        /var/folders/st/7720p4gn38vd042pfr7m2gh978ww82/T/tmp2viq7090
+        tmp
         ├── config
         │   └── Chromium_10X_indexes.txt
         ├── log
