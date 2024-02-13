@@ -25,6 +25,7 @@ def create_dirs():
         │   ├── miseq_data
         │   ├── promethion_data
         │   └── samplesheets
+        │       ├── NovaSeqXPlus
         │       └── anglerfish
         └── sequencing
             ├── MiSeq
@@ -69,8 +70,11 @@ def create_dirs():
     os.makedirs(f"{tmp.name}/ngi-nas-ns/promethion_data")
     os.makedirs(f"{tmp.name}/ngi-nas-ns/minion_data")
 
-    # Misc. ONT dirs/files
+    # Samplesheets
     os.makedirs(f"{tmp.name}/ngi-nas-ns/samplesheets/anglerfish")
+    os.makedirs(f"{tmp.name}/ngi-nas-ns/samplesheets/NovaSeqXPlus")
+
+    # Misc. ONT dirs/files
     os.makedirs(f"{tmp.name}/minknow_reports")
     os.makedirs(f"{tmp.name}/log")
     open(f"{tmp.name}/log/transfer_promethion.tsv", "w").close()
