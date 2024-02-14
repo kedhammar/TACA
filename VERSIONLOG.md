@@ -1,5 +1,9 @@
 # TACA Version Log
 
+## 20240209.1
+
+Implement CodeCoverage in CI.
+
 ## 20240208.2
 
 Implement CI testing and increase testing coverage.
