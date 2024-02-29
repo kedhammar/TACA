@@ -11,7 +11,8 @@ def create_dirs():
 
         tmp
         ├── config
-        │   └── Chromium_10X_indexes.txt
+        │   ├── Chromium_10X_indexes.txt
+        │   └── Smart-seq3_v1.5.csv
         ├── log
         │   ├── transfer_minion.tsv
         │   └── transfer_promethion.tsv
@@ -89,10 +90,11 @@ def create_dirs():
 
     # Indexes
     os.makedirs(f"{tmp.name}/config")
-    shutil.copy(
-        "tests/data/Chromium_10X_indexes.txt",
-        f"{tmp.name}/config/Chromium_10X_indexes.txt",
-    )
+    for file in [
+        "Smart-seq3_v1.5.csv",
+        "Chromium_10X_indexes.txt",
+    ]:
+        shutil.copy(f"tests/data/{file}", f"{tmp.name}/config/{file}")
 
     yield tmp
 
