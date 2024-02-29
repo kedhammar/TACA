@@ -561,4 +561,4 @@ def test_get_runObj(create_dirs):
 
     software = "bcl2fastq"
 
-    _run_ojb = analysis.get_runObj(run_path, software)
+    _run_obj = analysis.get_runObj(run_path, software)
