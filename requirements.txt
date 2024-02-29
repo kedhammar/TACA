@@ -6,4 +6,3 @@ pandas
 python_crontab
 python_dateutil
 setuptools
-sphinx_rtd_theme
