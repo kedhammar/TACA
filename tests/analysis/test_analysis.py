@@ -556,9 +556,7 @@ def test_get_runObj(create_dirs):
     mock_config.start()
 
     # Create run dir
-    run_path = create_illumina_run_dir(
-        tmp,
-    )
+    run_path = create_illumina_run_dir(tmp)
 
     # Reload module to add mocks
     importlib.reload(analysis)
