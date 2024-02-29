@@ -1,8 +1,6 @@
 import importlib
-import json
 import os
 import shutil
-import subprocess
 from unittest.mock import patch
 
 import yaml
@@ -563,4 +561,4 @@ def test_get_runObj(create_dirs):
 
     software = "bcl2fastq"
 
-    run_obj = analysis.get_runObj(run_path, software)
+    _run_ojb = analysis.get_runObj(run_path, software)

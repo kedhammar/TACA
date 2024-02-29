@@ -2,6 +2,9 @@ title = "taca"
 
 # === LINTING ================================================================
 
+[tool.ruff]
+exclude = ["tests_old/**"]
+
 [tool.ruff.lint]
 select = [
     #         Ruff default rules
