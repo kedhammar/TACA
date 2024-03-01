@@ -209,19 +209,32 @@ class ONT_run:
         # Look at peaks within 1st hour of the run and define some metrics
         df_h1 = df[0:60]
         pore_activity["peak_pore_health_pc"] = round(
-            100 * float(df_h1.loc[df_h1.health == df_h1.health.max(), "health"]), 2
-        )
-        pore_activity["peak_pore_efficacy_pc"] = round(
-            100 * float(df_h1.loc[df_h1.efficacy == df_h1.efficacy.max(), "efficacy"]),
+            100
+            * float(df_h1.loc[df_h1.health == df_h1.health.max(), "health"].values[0]),
             2,
         )
+        if not all(df["efficacy"].isna()):
+            pore_activity["peak_pore_efficacy_pc"] = round(
+                100
+                * float(
+                    df_h1.loc[
+                        df_h1.efficacy == df_h1.efficacy.max(), "efficacy"
+                    ].values[0]
+                ),
+                2,
+            )
+        else:
+            pore_activity["peak_pore_efficacy_pc"] = None
 
         # Calculate the T90
         # -- Get the cumulative sum of all productive pores
         df["cum_productive"] = df["productive"].cumsum()
         # -- Find the timepoint (h) at which the cumulative sum >= 90% of the absolute sum
-        t90_min = df[df["cum_productive"] >= 0.9 * df["productive"].sum()].index[0]
-        pore_activity["t90_h"] = round(t90_min / 60, 1)
+        if not df["productive"].sum() == 0:
+            t90_min = df[df["cum_productive"] >= 0.9 * df["productive"].sum()].index[0]
+            pore_activity["t90_h"] = round(t90_min / 60, 1)
+        else:
+            pore_activity["t90_h"] = None
 
         # Add to the db update
         db_update["pore_activity"] = pore_activity
@@ -484,6 +497,17 @@ class ONT_qc_run(ONT_run):
         reads_dir = os.path.join(self.run_abspath, "fastq_pass")
 
         return os.path.exists(reads_dir)
+
+    def has_raw_seq_output(self) -> bool:
+        """Check whether run has sequencing data output."""
+
+        raw_seq_dirs = ["pod5_pass", "fast5_pass"]
+
+        for dir in raw_seq_dirs:
+            if os.path.exists(os.path.join(self.run_abspath, dir)):
+                return True
+
+        return False
 
     def has_barcode_dirs(self) -> bool:
         barcode_dir_pattern = r"barcode\d{2}"
