@@ -165,7 +165,7 @@ def process_qc_run(ont_qc_run: ONT_qc_run):
     ont_qc_run.copy_html_report()
 
     # Look at seq data
-    if ont_qc_run.has_raw_seq_output():
+    if not ont_qc_run.has_raw_seq_output():
         logger.info(f"{ont_qc_run.run_name}: Run has no sequencing output, continuing")
 
     else:
