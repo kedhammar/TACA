@@ -132,7 +132,8 @@ def process_qc_run(ont_qc_run: ONT_qc_run):
         │   │   │   └── Skip run
         │   │   ├── If Anglerfish samplesheet could not be found  
         │   │   │   └── Skip run
-        │   │   └── Run Anglerfish
+        │   │   ├── Run Anglerfish as subprocess
+        │   │   └── Skip run
         │   └── If Anglerfish has failed
         │       └── Throw error
         ├── If run has already been transferred
@@ -211,6 +212,7 @@ def process_qc_run(ont_qc_run: ONT_qc_run):
 
             logger.info(f"{ont_qc_run.run_name}: Starting Anglerfish...")
             ont_qc_run.run_anglerfish()
+            raise WaitForRun("Anglerfish has been started, skipping.")
 
         # Anglerfish run
         elif isinstance(anglerfish_exit_code, int):
