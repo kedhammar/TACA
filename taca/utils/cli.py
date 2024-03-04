@@ -1,4 +1,5 @@
 """CLI for the bioinfo subcommand."""
+
 import click
 
 import taca.utils.bioinfo_tab as bt

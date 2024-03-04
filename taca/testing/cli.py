@@ -1,5 +1,5 @@
-""" CLI for the testing commands
-"""
+"""CLI for the testing commands"""
+
 import os
 
 import click
