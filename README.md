@@ -12,6 +12,15 @@
 
 This package contains several tools for projects and data management in the [National Genomics Infrastructure](https://ngisweden.scilifelab.se/) in Stockholm, Sweden.
 
+### Run tests in docker
+
+```shell
+git clone https://github.com/SciLifeLab/TACA.git
+cd TACA
+docker build -t taca_testing --target testing .
+docker run -it taca_testing
+```
+
 ## Installation
 
 Inside the repo, run `pip install .`

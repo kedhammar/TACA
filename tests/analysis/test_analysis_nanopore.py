@@ -2,12 +2,11 @@ import importlib
 import subprocess
 from unittest.mock import patch
 
-from test_ONT_run_classes import (
-    create_run_dir,
-    make_test_config,
-)
-
 from taca.analysis import analysis_nanopore
+from tests.nanopore.test_ONT_run_classes import (
+    create_ONT_run_dir,
+    make_ONT_test_config,
+)
 
 
 def test_ont_transfer(create_dirs, caplog):
@@ -19,7 +18,7 @@ def test_ont_transfer(create_dirs, caplog):
     tmp = create_dirs
 
     # Create test config
-    test_config_yaml = make_test_config(tmp)
+    test_config_yaml = make_ONT_test_config(tmp)
 
     ## MOCKS
 
@@ -59,7 +58,7 @@ def test_ont_transfer(create_dirs, caplog):
     ## CREATE RUN DIRS
 
     # User run
-    create_run_dir(
+    create_ONT_run_dir(
         tmp,
         run_id="TestUserRun",
         script_files=True,
@@ -67,7 +66,7 @@ def test_ont_transfer(create_dirs, caplog):
         sync_finished=True,
     )
     # QC run
-    create_run_dir(
+    create_ONT_run_dir(
         tmp,
         qc=True,
         run_id="TestQCRun",
