@@ -1,0 +1,101 @@
+import os
+import shutil
+import tempfile
+
+import pytest
+
+
+@pytest.fixture
+def create_dirs():
+    """Create the bottom-level file-tree to be used for all tests:
+
+        tmp
+        ├── config
+        │   ├── Chromium_10X_indexes.txt
+        │   └── Smart-seq3_v1.5.csv
+        ├── log
+        │   ├── transfer_minion.tsv
+        │   └── transfer_promethion.tsv
+        ├── miarka
+        │   ├── minion
+        │   │   └── qc
+        │   └── promethion
+        ├── minknow_reports
+        ├── ngi-nas-ns
+        │   ├── NextSeq_data
+        │   ├── NovaSeqXPlus_data
+        │   ├── NovaSeq_data
+        │   ├── minion_data
+        │   ├── miseq_data
+        │   ├── promethion_data
+        │   └── samplesheets
+        │       ├── NovaSeqXPlus
+        │       └── anglerfish
+        └── sequencing
+            ├── MiSeq
+            │   └── nosync
+            ├── NextSeq
+            │   └── nosync
+            ├── NovaSeq
+            │   └── nosync
+            ├── NovaSeqXPlus
+            │   └── nosync
+            ├── minion
+            │   ├── nosync
+            │   └── qc
+            │       └── nosync
+            └── promethion
+                └── nosync
+
+    --> Return the the temporary directory object
+    """
+    tmp = tempfile.TemporaryDirectory()
+
+    # CREATE DIR STRUCTURE
+
+    # Sequencing data
+    # Illumina
+    os.makedirs(f"{tmp.name}/sequencing/MiSeq/nosync")
+    os.makedirs(f"{tmp.name}/sequencing/NextSeq/nosync")
+    os.makedirs(f"{tmp.name}/sequencing/NovaSeq/nosync")
+    os.makedirs(f"{tmp.name}/sequencing/NovaSeqXPlus/nosync")
+    # ONT
+    os.makedirs(f"{tmp.name}/sequencing/promethion/nosync")
+    os.makedirs(f"{tmp.name}/sequencing/minion/nosync")
+    os.makedirs(f"{tmp.name}/sequencing/minion/qc/nosync")
+
+    # Sequencing metadata
+    # Illumina
+    os.makedirs(f"{tmp.name}/ngi-nas-ns/miseq_data")
+    os.makedirs(f"{tmp.name}/ngi-nas-ns/NextSeq_data")
+    os.makedirs(f"{tmp.name}/ngi-nas-ns/NovaSeq_data")
+    os.makedirs(f"{tmp.name}/ngi-nas-ns/NovaSeqXPlus_data")
+    # ONT
+    os.makedirs(f"{tmp.name}/ngi-nas-ns/promethion_data")
+    os.makedirs(f"{tmp.name}/ngi-nas-ns/minion_data")
+
+    # Samplesheets
+    os.makedirs(f"{tmp.name}/ngi-nas-ns/samplesheets/anglerfish")
+    os.makedirs(f"{tmp.name}/ngi-nas-ns/samplesheets/NovaSeqXPlus")
+
+    # Misc. ONT dirs/files
+    os.makedirs(f"{tmp.name}/minknow_reports")
+    os.makedirs(f"{tmp.name}/log")
+    open(f"{tmp.name}/log/transfer_promethion.tsv", "w").close()
+    open(f"{tmp.name}/log/transfer_minion.tsv", "w").close
+
+    # Analysis server destination dirs
+    os.makedirs(f"{tmp.name}/miarka/promethion")
+    os.makedirs(f"{tmp.name}/miarka/minion/qc")
+
+    # Indexes
+    os.makedirs(f"{tmp.name}/config")
+    for file in [
+        "Smart-seq3_v1.5.csv",
+        "Chromium_10X_indexes.txt",
+    ]:
+        shutil.copy(f"tests/data/{file}", f"{tmp.name}/config/{file}")
+
+    yield tmp
+
+    tmp.cleanup()
