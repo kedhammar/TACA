@@ -4,6 +4,7 @@ import subprocess
 from io import StringIO
 from unittest.mock import patch
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -21,34 +22,49 @@ def build_run_properties() -> dict:
 
     parameter_string_table = """
     instrument qc    run_finished sync_finished raw_dirs fastq_dirs barcode_dirs anglerfish_samplesheets anglerfish_ongoing anglerfish_exit
-    promethion False False        False         False    False      False        False                   False              None
-    promethion False True         False         False    False      False        False                   False              None
-    promethion False True         True          False    False      False        False                   False              None
-    promethion False True         True          True     False      False        False                   False              None
-    promethion False True         True          True     True       False        False                   False              None
-    promethion False True         True          True     True       True         False                   False              None
-    minion     False False        False         False    False      False        False                   False              None
-    minion     False True         False         False    False      False        False                   False              None
-    minion     False True         True          False    False      False        False                   False              None
-    minion     False True         True          True     False      False        False                   False              None
-    minion     False True         True          True     True       False        False                   False              None
-    minion     False True         True          True     True       True         False                   False              None
-    minion     True  False        False         False    False      False        False                   False              None
-    minion     True  True         False         False    False      False        False                   False              None
-    minion     True  True         True          False    False      False        False                   False              None
-    minion     True  True         True          True     False      False        False                   False              None
-    minion     True  True         True          True     True       False        False                   False              None
-    minion     True  True         True          True     True       True         False                   False              None
-    minion     True  True         True          True     True       True         True                    False              None
-    minion     True  True         True          True     True       True         True                    True               None
-    minion     True  True         True          True     True       True         True                    False              1
+    promethion False False        False         False    False      False        False                   False              NA
+    promethion False True         False         False    False      False        False                   False              NA
+    promethion False True         True          False    False      False        False                   False              NA
+    promethion False True         True          True     False      False        False                   False              NA
+    promethion False True         True          True     True       False        False                   False              NA
+    promethion False True         True          True     True       True         False                   False              NA
+    minion     False False        False         False    False      False        False                   False              NA
+    minion     False True         False         False    False      False        False                   False              NA
+    minion     False True         True          False    False      False        False                   False              NA
+    minion     False True         True          True     False      False        False                   False              NA
+    minion     False True         True          True     True       False        False                   False              NA
+    minion     False True         True          True     True       True         False                   False              NA
+    minion     True  False        False         False    False      False        False                   False              NA
+    minion     True  True         False         False    False      False        False                   False              NA
+    minion     True  True         True          False    False      False        False                   False              NA
+    minion     True  True         True          True     False      False        False                   False              NA
+    minion     True  True         True          True     True       False        False                   False              NA
+    minion     True  True         True          True     True       True         False                   False              NA
+    minion     True  True         True          True     True       True         True                    False              NA
+    minion     True  True         True          True     True       True         True                    True               NA
+    minion     True  True         True          True     True       True         True                    False              0
     """
 
     data = StringIO(parameter_string_table)
+
+    # Read data, trimming whitespace
     df = pd.read_csv(data, sep=r"\s+")
+
+    # Replace nan(s) with None(s)
+    df = df.replace(np.nan, None)
+
+    # Convert to dict
     run_properties = df.to_dict("records")
 
+    # Convert float exit codes to ints
+    for d in run_properties:
+        if d["anglerfish_exit"] == 0.0:
+            d["anglerfish_exit"] = int(d["anglerfish_exit"])
+
     return run_properties
+
+
+# TODO 219-230,
 
 
 @pytest.mark.parametrize("run_properties", build_run_properties())
@@ -104,16 +120,21 @@ def test_ont_transfer(create_dirs, run_properties, caplog):
     # Parametrized run
     create_ONT_run_dir(
         tmp,
-        qc=run_properties["qc"],
-        instrument=run_properties["instrument"],
+        qc=run_properties.pop("qc"),
+        instrument=run_properties.pop("instrument"),
         script_files=True,
-        run_finished=run_properties["run_finished"],
-        sync_finished=run_properties["sync_finished"],
-        raw_dirs=run_properties["raw_dirs"],
-        fastq_dirs=run_properties["fastq_dirs"],
-        barcode_dirs=run_properties["barcode_dirs"],
-        anglerfish_samplesheets=run_properties["anglerfish_samplesheets"],
+        run_finished=run_properties.pop("run_finished"),
+        sync_finished=run_properties.pop("sync_finished"),
+        raw_dirs=run_properties.pop("raw_dirs"),
+        fastq_dirs=run_properties.pop("fastq_dirs"),
+        barcode_dirs=run_properties.pop("barcode_dirs"),
+        anglerfish_samplesheets=run_properties.pop("anglerfish_samplesheets"),
+        anglerfish_ongoing=run_properties.pop("anglerfish_ongoing"),
+        anglerfish_exit=run_properties.pop("anglerfish_exit"),
     )
+
+    # Make sure we used everything
+    assert not run_properties
 
     # Start testing
     analysis_nanopore.ont_transfer(run_abspath=None, qc=False)

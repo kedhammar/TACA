@@ -183,7 +183,8 @@ def create_ONT_run_dir(
             ).close()
 
     if anglerfish_ongoing:
-        open(f"{run_path}/.anglerfish_ongoing", "w").close()
+        with open(f"{run_path}/.anglerfish_ongoing", "w") as f:
+            f.write("1337")
 
     if anglerfish_exit:
         with open(f"{run_path}/.anglerfish_done", "w") as f:
