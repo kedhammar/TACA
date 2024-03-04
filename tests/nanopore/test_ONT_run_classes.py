@@ -129,10 +129,39 @@ def create_ONT_run_dir(
         write_pore_count_history(run_path, flowcell_id, instrument_position)
 
     if run_finished:
+        # Run summary .txt
         open(f"{run_path}/final_summary_{run_name}.txt", "w").close()
+
+        # Run report .html
         open(f"{run_path}/report_{run_name}.html", "w").close()
+
+        # Run report .json
         open(f"{run_path}/report_{run_name}.json", "w").close()
-        open(f"{run_path}/pore_activity_{run_name}.csv", "w").close()
+
+        # Pore activity .csv
+        with open(f"{run_path}/pore_activity_{run_name}.csv", "w") as f:
+            f.write("Channel State,Experiment Time (minutes),State Time (samples)\n")
+            for i in range(0, 100):
+                for state in [
+                    "adapter",
+                    "disabled",
+                    "locked",
+                    "multiple",
+                    "no_pore",
+                    "pending_manual_reset",
+                    "pending_mux_change",
+                    "pore",
+                    "saturated",
+                    "strand",
+                    "unavailable",
+                    "unblocking",
+                    "unclassified",
+                    "unclassified_following_reset",
+                    "unknown_negative",
+                    "unknown_positive",
+                    "zero",
+                ]:
+                    f.write(f"{state},{i},{i*100}\n")
 
     if sync_finished:
         open(f"{run_path}/.sync_finished", "w").close()
@@ -152,6 +181,7 @@ def create_ONT_run_dir(
         os.mkdir(f"{run_path}/fastq_pass")
 
     if barcode_dirs:
+        assert fastq_dirs, "Can't put barcode dirs w/o fastq dirs."
         os.mkdir(f"{run_path}/fastq_pass/barcode01")
 
     return run_path
@@ -176,11 +206,20 @@ def test_ONT_user_run(create_dirs):
     run_path = create_ONT_run_dir(
         tmp,
         script_files=True,
+        run_finished=True,
+        sync_finished=True,
+        fastq_dirs=True,
     )
 
     # Reload module to add mocks
     importlib.reload(ONT_run_classes)
+
     # Instantiate run object
     run = ONT_run_classes.ONT_user_run(run_path)
 
+    # Assert attributes
     assert run.run_abspath == run_path
+
+    # Assert methods can run
+    db_update = {}
+    run.parse_pore_activity(db_update)
