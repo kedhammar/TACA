@@ -60,7 +60,9 @@ def build_run_properties() -> dict:
     data = StringIO(parameter_string_table)
 
     # Read data, trimming whitespace
-    df = pd.read_csv(data, names=col_names, sep=r"\s+")
+    df = pd.read_csv(data, header=None, sep=r"\s+")
+    assert len(df.columns) == len(col_names)
+    df.columns = col_names
 
     # Replace nan(s) with None(s)
     df = df.replace(np.nan, None)
