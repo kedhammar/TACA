@@ -31,7 +31,7 @@ nanopore_analysis:
                     metadata_dir: {tmp.name}/ngi-nas-ns/promethion_data
                     destination: {tmp.name}/miarka/promethion/
                 minion:
-                    transfer_log: /{tmp.name}/log/transfer_minion.tsv
+                    transfer_log: {tmp.name}/log/transfer_minion.tsv
                     archive_dir: {tmp.name}/sequencing/minion/nosync
                     metadata_dir: {tmp.name}/ngi-nas-ns/minion_data
                     destination: {tmp.name}/miarka/minion/
@@ -186,7 +186,7 @@ def create_ONT_run_dir(
         with open(f"{run_path}/.anglerfish_ongoing", "w") as f:
             f.write("1337")
 
-    if anglerfish_exit:
+    if anglerfish_exit is not None:
         with open(f"{run_path}/.anglerfish_done", "w") as f:
             f.write(str(anglerfish_exit))
 
