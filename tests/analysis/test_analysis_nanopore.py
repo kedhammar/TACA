@@ -20,35 +20,47 @@ def build_run_properties() -> dict:
     tabulated as a string here.
     """
 
+    col_names = [
+        "instrument",
+        "qc",
+        "run_finished",
+        "sync_finished",
+        "raw_dirs",
+        "fastq_dirs",
+        "barcode_dirs",
+        "anglerfish_samplesheets",
+        "anglerfish_ongoing",
+        "anglerfish_exit",
+    ]
+
     parameter_string_table = """
-    instrument qc    run_finished sync_finished raw_dirs fastq_dirs barcode_dirs anglerfish_samplesheets anglerfish_ongoing anglerfish_exit
-    promethion False False        False         False    False      False        False                   False              NA
-    promethion False True         False         False    False      False        False                   False              NA
-    promethion False True         True          False    False      False        False                   False              NA
-    promethion False True         True          True     False      False        False                   False              NA
-    promethion False True         True          True     True       False        False                   False              NA
-    promethion False True         True          True     True       True         False                   False              NA
-    minion     False False        False         False    False      False        False                   False              NA
-    minion     False True         False         False    False      False        False                   False              NA
-    minion     False True         True          False    False      False        False                   False              NA
-    minion     False True         True          True     False      False        False                   False              NA
-    minion     False True         True          True     True       False        False                   False              NA
-    minion     False True         True          True     True       True         False                   False              NA
-    minion     True  False        False         False    False      False        False                   False              NA
-    minion     True  True         False         False    False      False        False                   False              NA
-    minion     True  True         True          False    False      False        False                   False              NA
-    minion     True  True         True          True     False      False        False                   False              NA
-    minion     True  True         True          True     True       False        False                   False              NA
-    minion     True  True         True          True     True       True         False                   False              NA
-    minion     True  True         True          True     True       True         True                    False              NA
-    minion     True  True         True          True     True       True         True                    True               NA
-    minion     True  True         True          True     True       True         True                    False              0
+    promethion False False False False False False False False NA
+    promethion False True  False False False False False False NA
+    promethion False True  True  False False False False False NA
+    promethion False True  True  True  False False False False NA
+    promethion False True  True  True  True  False False False NA
+    promethion False True  True  True  True  True  False False NA
+    minion     False False False False False False False False NA
+    minion     False True  False False False False False False NA
+    minion     False True  True  False False False False False NA
+    minion     False True  True  True  False False False False NA
+    minion     False True  True  True  True  False False False NA
+    minion     False True  True  True  True  True  False False NA
+    minion     True  False False False False False False False NA
+    minion     True  True  False False False False False False NA
+    minion     True  True  True  False False False False False NA
+    minion     True  True  True  True  False False False False NA
+    minion     True  True  True  True  True  False False False NA
+    minion     True  True  True  True  True  True  False False NA
+    minion     True  True  True  True  True  True  True  False NA
+    minion     True  True  True  True  True  True  True  True  NA
+    minion     True  True  True  True  True  True  True  False 0
     """
 
     data = StringIO(parameter_string_table)
 
     # Read data, trimming whitespace
-    df = pd.read_csv(data, sep=r"\s+")
+    df = pd.read_csv(data, names=col_names, sep=r"\s+")
 
     # Replace nan(s) with None(s)
     df = df.replace(np.nan, None)
@@ -62,9 +74,6 @@ def build_run_properties() -> dict:
             d["anglerfish_exit"] = int(d["anglerfish_exit"])
 
     return run_properties
-
-
-# TODO 219-230,
 
 
 @pytest.mark.parametrize("run_properties", build_run_properties())
@@ -115,9 +124,7 @@ def test_ont_transfer(create_dirs, run_properties, caplog):
     # Reload module to implement mocks
     importlib.reload(analysis_nanopore)
 
-    ## CREATE RUN DIRS
-
-    # Parametrized run
+    # Create run dir from testing parameters
     create_ONT_run_dir(
         tmp,
         qc=run_properties.pop("qc"),
