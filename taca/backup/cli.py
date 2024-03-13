@@ -1,4 +1,5 @@
 """CLI for the backup subcommand."""
+
 import click
 
 from taca.backup.backup import backup_utils as bkut

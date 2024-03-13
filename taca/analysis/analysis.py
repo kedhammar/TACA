@@ -1,4 +1,5 @@
 """Analysis methods for TACA."""
+
 import glob
 import logging
 import os
@@ -34,7 +35,7 @@ def get_runObj(
         logger.error(
             f"Cannot find RunParameters.xml or runParameters.xml in the run folder for run {run}"
         )
-        return
+        return None
 
     run_parameters_path = os.path.join(run, run_parameters_file)
     try:

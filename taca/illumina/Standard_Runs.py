@@ -77,9 +77,9 @@ class Standard_Run(Run):
             os.path.join(self.run_dir, "SampleSheet.csv")
         )
         if not self.runParserObj.obj.get("samplesheet_csv"):
-            self.runParserObj.obj[
-                "samplesheet_csv"
-            ] = self.runParserObj.samplesheet.data
+            self.runParserObj.obj["samplesheet_csv"] = (
+                self.runParserObj.samplesheet.data
+            )
 
     def _parse_10X_indexes(self, indexfile):
         """

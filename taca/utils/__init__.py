@@ -1,2 +1,1 @@
-""" Diverse utilities for TACA
-"""
+"""Diverse utilities for TACA"""

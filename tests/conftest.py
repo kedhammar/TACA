@@ -14,6 +14,7 @@ def create_dirs():
         │   ├── Chromium_10X_indexes.txt
         │   └── Smart-seq3_v1.5.csv
         ├── log
+        │   ├── transfer_minion_qc.tsv
         │   ├── transfer_minion.tsv
         │   └── transfer_promethion.tsv
         ├── miarka
@@ -82,7 +83,8 @@ def create_dirs():
     os.makedirs(f"{tmp.name}/minknow_reports")
     os.makedirs(f"{tmp.name}/log")
     open(f"{tmp.name}/log/transfer_promethion.tsv", "w").close()
-    open(f"{tmp.name}/log/transfer_minion.tsv", "w").close
+    open(f"{tmp.name}/log/transfer_minion.tsv", "w").close()
+    open(f"{tmp.name}/log/transfer_minion_qc.tsv", "w").close()
 
     # Analysis server destination dirs
     os.makedirs(f"{tmp.name}/miarka/promethion")

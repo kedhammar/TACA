@@ -1,6 +1,12 @@
 import importlib
+import logging
 import subprocess
+from io import StringIO
 from unittest.mock import patch
+
+import numpy as np
+import pandas as pd
+import pytest
 
 from taca.analysis import analysis_nanopore
 from tests.nanopore.test_ONT_run_classes import (
@@ -9,10 +15,75 @@ from tests.nanopore.test_ONT_run_classes import (
 )
 
 
-def test_ont_transfer(create_dirs, caplog):
+def build_run_properties() -> dict:
+    """In order to parametrize the test in a comprehensive way, the parametrization is
+    tabulated as a string here.
+    """
+
+    col_names = [
+        "instrument",
+        "qc",
+        "run_finished",
+        "sync_finished",
+        "raw_dirs",
+        "fastq_dirs",
+        "barcode_dirs",
+        "anglerfish_samplesheets",
+        "anglerfish_ongoing",
+        "anglerfish_exit",
+    ]
+
+    parameter_string_table = """
+    promethion False False False False False False False False NA
+    promethion False True  False False False False False False NA
+    promethion False True  True  False False False False False NA
+    promethion False True  True  True  False False False False NA
+    promethion False True  True  True  True  False False False NA
+    promethion False True  True  True  True  True  False False NA
+    minion     False False False False False False False False NA
+    minion     False True  False False False False False False NA
+    minion     False True  True  False False False False False NA
+    minion     False True  True  True  False False False False NA
+    minion     False True  True  True  True  False False False NA
+    minion     False True  True  True  True  True  False False NA
+    minion     True  False False False False False False False NA
+    minion     True  True  False False False False False False NA
+    minion     True  True  True  False False False False False NA
+    minion     True  True  True  True  False False False False NA
+    minion     True  True  True  True  True  False False False NA
+    minion     True  True  True  True  True  True  False False NA
+    minion     True  True  True  True  True  True  True  False NA
+    minion     True  True  True  True  True  True  True  True  NA
+    minion     True  True  True  True  True  True  True  False 0
+    """
+
+    data = StringIO(parameter_string_table)
+
+    # Read data, trimming whitespace
+    df = pd.read_csv(data, header=None, sep=r"\s+")
+    assert len(df.columns) == len(col_names)
+    df.columns = col_names
+
+    # Replace nan(s) with None(s)
+    df = df.replace(np.nan, None)
+
+    # Convert to dict
+    run_properties = df.to_dict("records")
+
+    # Convert float exit codes to ints
+    for d in run_properties:
+        if d["anglerfish_exit"] == 0.0:
+            d["anglerfish_exit"] = int(d["anglerfish_exit"])
+
+    return run_properties
+
+
+@pytest.mark.parametrize("run_properties", build_run_properties())
+def test_ont_transfer(create_dirs, run_properties, caplog):
     """Test the "taca analaysis ont-transfer" subcommand automation from
     start to finish for a variety of runs.
     """
+    caplog.at_level(logging.INFO)
 
     # Create dir tree from fixture
     tmp = create_dirs
@@ -55,28 +126,24 @@ def test_ont_transfer(create_dirs, caplog):
     # Reload module to implement mocks
     importlib.reload(analysis_nanopore)
 
-    ## CREATE RUN DIRS
+    # Create run dir from testing parameters
+    create_ONT_run_dir(
+        tmp,
+        qc=run_properties.pop("qc"),
+        instrument=run_properties.pop("instrument"),
+        script_files=True,
+        run_finished=run_properties.pop("run_finished"),
+        sync_finished=run_properties.pop("sync_finished"),
+        raw_dirs=run_properties.pop("raw_dirs"),
+        fastq_dirs=run_properties.pop("fastq_dirs"),
+        barcode_dirs=run_properties.pop("barcode_dirs"),
+        anglerfish_samplesheets=run_properties.pop("anglerfish_samplesheets"),
+        anglerfish_ongoing=run_properties.pop("anglerfish_ongoing"),
+        anglerfish_exit=run_properties.pop("anglerfish_exit"),
+    )
 
-    # User run
-    create_ONT_run_dir(
-        tmp,
-        run_id="TestUserRun",
-        script_files=True,
-        run_finished=True,
-        sync_finished=True,
-    )
-    # QC run
-    create_ONT_run_dir(
-        tmp,
-        qc=True,
-        run_id="TestQCRun",
-        script_files=True,
-        run_finished=True,
-        sync_finished=True,
-        anglerfish_samplesheets=True,
-        fastq_dirs=True,
-        barcode_dirs=True,
-    )
+    # Make sure we used everything
+    assert not run_properties
 
     # Start testing
     analysis_nanopore.ont_transfer(run_abspath=None, qc=False)
