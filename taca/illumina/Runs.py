@@ -453,6 +453,10 @@ class Run:
         # Prepare a list for lanes with NoIndex samples
         noindex_lanes = []
         for entry in self.runParserObj.samplesheet.data:
+            if not entry.get("index"):
+                entry["index"] = ""
+            if not entry.get("index2"):
+                entry["index2"] = ""
             if entry["index"].upper() == "NOINDEX" or (
                 entry["index"] == "" and entry["index2"] == ""
             ):

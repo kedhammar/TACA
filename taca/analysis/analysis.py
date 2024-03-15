@@ -115,7 +115,7 @@ def _upload_to_statusdb(run):
     # Check if I have NoIndex lanes
     for element in parser.obj["samplesheet_csv"]:
         if (
-            "NoIndex" in element["index"] or not element["index"]
+            "NoIndex" in element.get("index", "") or not element.get("index")
         ):  # NoIndex in the case of HiSeq, empty in the case of HiSeqX
             lane = element["Lane"]  # This is a lane with NoIndex
             # In this case PF Cluster is the number of undetermined reads

@@ -1,5 +1,9 @@
 # TACA Version Log
 
+## 20240315.1
+
+Fix cases that MiSeq samplesheet misses index or index2
+
 ## 20240304.1
 
 - Make sure TACA can handle runs that generate NO sequencing data at all
