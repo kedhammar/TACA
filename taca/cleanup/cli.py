@@ -1,4 +1,5 @@
 """CLI for the storage subcommand."""
+
 import click
 
 from taca.cleanup import cleanup as cln

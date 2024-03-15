@@ -1,5 +1,25 @@
 # TACA Version Log
 
+## 20240304.1
+
+- Make sure TACA can handle runs that generate NO sequencing data at all
+- Refactor logic of control function to reduce complexity
+- Introduce custom Exception for quiet skipping (waiting on) runs
+- Improve documentation
+- Minor polishing of test to pass
+
+## 20240229.1
+
+Increase test coverage to 20%.
+
+## 20240209.1
+
+Implement CodeCoverage in CI.
+
+## 20240208.2
+
+Implement CI testing and increase testing coverage.
+
 ## 20240208.1
 
 Fix bug with isinstance clause

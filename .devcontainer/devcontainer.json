@@ -7,12 +7,13 @@
     "context": "..",
     // Update the 'dockerFile' property if you aren't using the standard 'Dockerfile' filename.
     "dockerfile": "../Dockerfile",
+    "target": "base"
   },
   "features": {},
   "customizations": {
     "vscode": {
-      "extensions": ["ms-python.python"],
-    },
+      "extensions": ["ms-python.python", "eamodio.gitlens"]
+    }
   },
   // Features to add to the dev container. More info: https://containers.dev/features.
   // "features": {},
@@ -24,6 +25,6 @@
   // Uncomment to connect as an existing user other than the container default. More info: https://aka.ms/dev-containers-non-root.
   // "remoteUser": "devcontainer"
   "mounts": [
-    "source=${localEnv:HOME}/repos/flowcell_parser,target=/workspaces/flowcell_parser,type=bind,consistency=cached",
-  ],
+    "source=${localEnv:HOME}/repos/flowcell_parser,target=/workspaces/flowcell_parser,type=bind,consistency=cached"
+  ]
 }

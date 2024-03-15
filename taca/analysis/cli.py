@@ -1,4 +1,5 @@
 """CLI for the analysis subcommand."""
+
 import click
 
 from taca.analysis import analysis as an

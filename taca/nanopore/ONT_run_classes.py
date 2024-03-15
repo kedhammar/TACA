@@ -18,7 +18,7 @@ from taca.utils.transfer import RsyncAgent, RsyncError
 logger = logging.getLogger(__name__)
 
 ONT_RUN_PATTERN = re.compile(
-    "^(\d{8})_(\d{4})_([0-9a-zA-Z]+)_([0-9a-zA-Z]+)_([0-9a-zA-Z]+)$"
+    r"^(\d{8})_(\d{4})_([0-9a-zA-Z]+)_([0-9a-zA-Z]+)_([0-9a-zA-Z]+)$"
 )
 
 
@@ -61,7 +61,7 @@ class ONT_run:
 
         # Get attributes from config
         self.minknow_reports_dir = CONFIG["nanopore_analysis"]["minknow_reports_dir"]
-        self.analysis_server = CONFIG["nanopore_analysis"]["analysis_server"]
+        self.analysis_server = CONFIG["nanopore_analysis"].get("analysis_server", None)
         self.rsync_options = CONFIG["nanopore_analysis"]["rsync_options"]
         for k, v in self.rsync_options.items():
             if v == "None":
@@ -115,7 +115,6 @@ class ONT_run:
         assert self.has_file("/report_*.html")
 
         # MinKNOW auxillary files
-        assert self.has_file("/final_summary*.txt")
         assert self.has_file("/pore_activity*.csv")
 
     def touch_db_entry(self):
@@ -210,19 +209,32 @@ class ONT_run:
         # Look at peaks within 1st hour of the run and define some metrics
         df_h1 = df[0:60]
         pore_activity["peak_pore_health_pc"] = round(
-            100 * float(df_h1.loc[df_h1.health == df_h1.health.max(), "health"]), 2
-        )
-        pore_activity["peak_pore_efficacy_pc"] = round(
-            100 * float(df_h1.loc[df_h1.efficacy == df_h1.efficacy.max(), "efficacy"]),
+            100
+            * float(df_h1.loc[df_h1.health == df_h1.health.max(), "health"].values[0]),
             2,
         )
+        if not all(df["efficacy"].isna()):
+            pore_activity["peak_pore_efficacy_pc"] = round(
+                100
+                * float(
+                    df_h1.loc[
+                        df_h1.efficacy == df_h1.efficacy.max(), "efficacy"
+                    ].values[0]
+                ),
+                2,
+            )
+        else:
+            pore_activity["peak_pore_efficacy_pc"] = None
 
         # Calculate the T90
         # -- Get the cumulative sum of all productive pores
         df["cum_productive"] = df["productive"].cumsum()
         # -- Find the timepoint (h) at which the cumulative sum >= 90% of the absolute sum
-        t90_min = df[df["cum_productive"] >= 0.9 * df["productive"].sum()].index[0]
-        pore_activity["t90_h"] = round(t90_min / 60, 1)
+        if not df["productive"].sum() == 0:
+            t90_min = df[df["cum_productive"] >= 0.9 * df["productive"].sum()].index[0]
+            pore_activity["t90_h"] = round(t90_min / 60, 1)
+        else:
+            pore_activity["t90_h"] = None
 
         # Add to the db update
         db_update["pore_activity"] = pore_activity
@@ -450,12 +462,11 @@ class ONT_qc_run(ONT_run):
         """
 
         # Following line assumes run was started same year as samplesheet was generated
-        current_year = self.date[0:4]
         expected_file_pattern = f"Anglerfish_samplesheet_{self.experiment_name}_*.csv"
 
         # Finalize query pattern
         pattern_abspath = os.path.join(
-            self.anglerfish_samplesheets_dir, current_year, expected_file_pattern
+            self.anglerfish_samplesheets_dir, "*", expected_file_pattern
         )
 
         glob_results = glob.glob(pattern_abspath)
@@ -486,6 +497,17 @@ class ONT_qc_run(ONT_run):
         reads_dir = os.path.join(self.run_abspath, "fastq_pass")
 
         return os.path.exists(reads_dir)
+
+    def has_raw_seq_output(self) -> bool:
+        """Check whether run has sequencing data output."""
+
+        raw_seq_dirs = ["pod5_pass", "fast5_pass"]
+
+        for dir in raw_seq_dirs:
+            if os.path.exists(os.path.join(self.run_abspath, dir)):
+                return True
+
+        return False
 
     def has_barcode_dirs(self) -> bool:
         barcode_dir_pattern = r"barcode\d{2}"
@@ -522,11 +544,14 @@ class ONT_qc_run(ONT_run):
 
         # Create dir to trace TACA executing Anglerfish as a subprocess
         taca_anglerfish_run_dir = f"taca_anglerfish_run_{timestamp}"
-        os.mkdir(taca_anglerfish_run_dir)
+        taca_anglerfish_run_dir_abspath = (
+            f"{self.run_abspath}/{taca_anglerfish_run_dir}"
+        )
+        os.mkdir(taca_anglerfish_run_dir_abspath)
         # Copy samplesheet used for traceability
-        shutil.copy(self.anglerfish_samplesheet, f"{taca_anglerfish_run_dir}/")
+        shutil.copy(self.anglerfish_samplesheet, taca_anglerfish_run_dir_abspath)
         # Create files to dump subprocess std
-        stderr_abspath = f"{self.run_abspath}/{taca_anglerfish_run_dir}/stderr.txt"
+        stderr_abspath = f"{taca_anglerfish_run_dir_abspath}/stderr.txt"
 
         full_command = [
             # Dump subprocess PID into 'run-ongoing'-indicator file.
@@ -539,15 +564,15 @@ class ONT_qc_run(ONT_run):
             #  1) Find the latest Anglerfish run dir (younger than the 'run-ongoing' file)
             f'find {self.run_abspath} -name "anglerfish_run*" -type d -newer {self.run_abspath}/.anglerfish_ongoing '
             #  2) Move the Anglerfish run dir into the TACA Anglerfish run dir
-            + "-exec mv \{\} "
-            + f"{self.run_abspath}/{taca_anglerfish_run_dir}/ \; "
+            + r"-exec mv \{\} "
+            + rf"{self.run_abspath}/{taca_anglerfish_run_dir}/ \; "
             #  3) Only do this once
             + "-quit",
             # Remove 'run-ongoing' file.
             f"rm {self.anglerfish_ongoing_abspath}",
         ]
 
-        with open(f"{taca_anglerfish_run_dir}/command.sh", "w") as stream:
+        with open(f"{taca_anglerfish_run_dir_abspath}/command.sh", "w") as stream:
             stream.write("\n".join(full_command))
 
         # Start Anglerfish subprocess

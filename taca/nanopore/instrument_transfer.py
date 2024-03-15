@@ -1,6 +1,6 @@
-""" This is a stand-alone script run on ONT instrument computers. It transfers new ONT runs to NAS using rsync.
-"""
-__version__ = "1.0.13"
+"""This is a stand-alone script run on ONT instrument computers. It transfers new ONT runs to NAS using rsync."""
+
+__version__ = "1.0.14"
 
 import argparse
 import logging
@@ -91,8 +91,10 @@ def dump_path(run_path: str):
 def write_finished_indicator(run_path):
     """Write a hidden file to indicate
     when the finial rsync is finished."""
-    new_file = os.path.join(run_path, ".sync_finished")
-    open(new_file, "w").close()
+    finished_indicator = ".sync_finished"
+    new_file_path = os.path.join(run_path, finished_indicator)
+    open(new_file_path, "w").close()
+    return new_file_path
 
 
 def sync_to_storage(run_dir: str, destination: str, rsync_log: str):
@@ -134,10 +136,10 @@ def final_sync_to_storage(
     p = subprocess.run(command)
 
     if p.returncode == 0:
-        finished_indicator = write_finished_indicator(run_dir)
+        finished_indicator_path = write_finished_indicator(run_dir)
         dest = os.path.join(destination, os.path.basename(run_dir))
-        sync_finished_indicator = ["rsync", finished_indicator, dest]
-        p = subprocess.run(sync_finished_indicator)
+        sync_finished_indicator_command = ["rsync", finished_indicator_path, dest]
+        p = subprocess.run(sync_finished_indicator_command)
         archive_finished_run(run_dir, archive_dir)
     else:
         logging.info(
@@ -330,9 +332,7 @@ def dump_pore_count_history(run: str, pore_counts: list) -> str:
     return new_file_path
 
 
-# BEGIN_EXCLUDE
-if __name__ == "__main__":
-    # This is clunky but should be fine since it will only ever run as a cronjob
+if __name__ == "__main__":  # pragma: no cover
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--source",
@@ -368,4 +368,3 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     main(args)
-# END_EXCLUDE

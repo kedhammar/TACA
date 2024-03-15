@@ -13,3 +13,4 @@ __pycache__
 .vscode
 .ruff_cache
 .mypy_cache
+node_modules

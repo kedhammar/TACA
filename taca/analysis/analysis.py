@@ -1,4 +1,5 @@
 """Analysis methods for TACA."""
+
 import glob
 import logging
 import os
@@ -19,14 +20,11 @@ from taca.utils.transfer import RsyncAgent
 logger = logging.getLogger(__name__)
 
 
-def get_runObj(run, software):
+def get_runObj(
+    run: os.PathLike, software: str
+) -> MiSeq_Run | NextSeq_Run | NovaSeq_Run | NovaSeqXPlus_Run | None:
     """Tries to read runParameters.xml to parse the type of sequencer
-        and then return the respective Run object (MiSeq, HiSeq..)
-
-    :param run: run name identifier
-    :type run: string
-    :returns: returns the sequencer type object,
-    None if the sequencer type is unknown of there was an error
+    and then return the respective Run object (MiSeq, HiSeq..)
     """
 
     if os.path.exists(os.path.join(run, "runParameters.xml")):
@@ -37,7 +35,7 @@ def get_runObj(run, software):
         logger.error(
             f"Cannot find RunParameters.xml or runParameters.xml in the run folder for run {run}"
         )
-        return
+        return None
 
     run_parameters_path = os.path.join(run, run_parameters_file)
     try:

@@ -797,20 +797,20 @@ class Run:
                 self.NumberReads_Summary[entry["Lane"]]["total_sample_cluster"] = 0
                 self.NumberReads_Summary[entry["Lane"]]["total_sample_yield"] = 0
                 if entry["Project"] != "default":
-                    self.NumberReads_Summary[entry["Lane"]][
-                        "total_sample_cluster"
-                    ] += int(entry["PF Clusters"].replace(",", ""))
-                    self.NumberReads_Summary[entry["Lane"]][
-                        "total_sample_yield"
-                    ] += int(entry["Yield (Mbases)"].replace(",", ""))
+                    self.NumberReads_Summary[entry["Lane"]]["total_sample_cluster"] += (
+                        int(entry["PF Clusters"].replace(",", ""))
+                    )
+                    self.NumberReads_Summary[entry["Lane"]]["total_sample_yield"] += (
+                        int(entry["Yield (Mbases)"].replace(",", ""))
+                    )
             else:
                 if entry["Project"] != "default":
-                    self.NumberReads_Summary[entry["Lane"]][
-                        "total_sample_cluster"
-                    ] += int(entry["PF Clusters"].replace(",", ""))
-                    self.NumberReads_Summary[entry["Lane"]][
-                        "total_sample_yield"
-                    ] += int(entry["Yield (Mbases)"].replace(",", ""))
+                    self.NumberReads_Summary[entry["Lane"]]["total_sample_cluster"] += (
+                        int(entry["PF Clusters"].replace(",", ""))
+                    )
+                    self.NumberReads_Summary[entry["Lane"]]["total_sample_yield"] += (
+                        int(entry["Yield (Mbases)"].replace(",", ""))
+                    )
 
         # Calculate the numbers clusters/yields of undet reads
         for key, value in self.NumberReads_Summary.items():
@@ -856,15 +856,15 @@ class Run:
         )
 
         # Update the values in Flowcell Summary
-        html_report_laneBarcode_parser.flowcell_data[
-            "Clusters (Raw)"
-        ] = f"{Clusters_Raw:,}"
-        html_report_laneBarcode_parser.flowcell_data[
-            "Clusters(PF)"
-        ] = f"{Clusters_PF:,}"
-        html_report_laneBarcode_parser.flowcell_data[
-            "Yield (MBases)"
-        ] = f"{Yield_Mbases:,}"
+        html_report_laneBarcode_parser.flowcell_data["Clusters (Raw)"] = (
+            f"{Clusters_Raw:,}"
+        )
+        html_report_laneBarcode_parser.flowcell_data["Clusters(PF)"] = (
+            f"{Clusters_PF:,}"
+        )
+        html_report_laneBarcode_parser.flowcell_data["Yield (MBases)"] = (
+            f"{Yield_Mbases:,}"
+        )
         # Generate the new report for laneBarcode.html
         new_html_report_laneBarcode = os.path.join(
             new_html_report_lane_dir, "laneBarcode.html"

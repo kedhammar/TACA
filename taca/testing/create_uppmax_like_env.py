@@ -1,4 +1,4 @@
-""" Load and parse configuration file."""
+"""Load and parse configuration file."""
 
 import datetime
 import logging

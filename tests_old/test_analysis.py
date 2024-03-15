@@ -1,10 +1,10 @@
 #!/usr/bin/env python
-import json
 import os
-import shutil
 import tempfile
+import shutil
+import json
 import unittest
-from unittest import mock
+import mock
 
 from taca.analysis import analysis as an
 from taca.utils import config
@@ -64,6 +64,21 @@ class TestAnalysis(unittest.TestCase):
     def tearDownClass(self):
         shutil.rmtree(self.tmp_dir)
 
+    def test_get_runObj_hiseq(self):
+        """Return HiSeq run object."""
+        hiseq_run = os.path.join(self.tmp_dir, "141124_ST-HISEQ1_01_AFCIDXX")
+        os.mkdir(hiseq_run)
+        shutil.copy(
+            "data/runParameters_hiseq.xml", os.path.join(hiseq_run, "runParameters.xml")
+        )
+        got_hiseq_run = an.get_runObj(hiseq_run)
+        self.assertEqual(got_hiseq_run.sequencer_type, "HiSeq")
+
+    def test_get_runObj_hiseqx(self):
+        """Return HiSeqX run object."""
+        got_run = an.get_runObj(self.completed)
+        self.assertEqual(got_run.sequencer_type, "HiSeqX")
+
     def test_get_runObj_miseq(self):
         """Return MiSeq run object."""
         miseq_run = os.path.join(self.tmp_dir, "141124_ST-MISEQ1_01_AFCIDXX")
@@ -82,6 +97,7 @@ class TestAnalysis(unittest.TestCase):
             "data/runParameters_nextseq.xml",
             os.path.join(nextseq_run, "runParameters.xml"),
         )
+        shutil.copy("data/RunInfo.xml", os.path.join(nextseq_run, "RunInfo.xml"))
         got_nextseq_run = an.get_runObj(nextseq_run)
         self.assertEqual(got_nextseq_run.sequencer_type, "NextSeq")
 
@@ -93,6 +109,7 @@ class TestAnalysis(unittest.TestCase):
             "data/runParameters_novaseq.xml",
             os.path.join(novaseq_run, "RunParameters.xml"),
         )
+        shutil.copy("data/RunInfo.xml", os.path.join(novaseq_run, "RunInfo.xml"))
         got_novaseq_run = an.get_runObj(novaseq_run)
         self.assertEqual(got_novaseq_run.sequencer_type, "NovaSeq")
 
@@ -100,9 +117,9 @@ class TestAnalysis(unittest.TestCase):
     @mock.patch("taca.analysis.analysis._upload_to_statusdb")
     def test_upload_to_statusdb(self, mock_upload_to_statusdb, mock_get_runobj):
         """Get run object and initiate upload to statusdb."""
-        mock_get_runobj.return_value = "Standard_run_object"
+        mock_get_runobj.return_value = "HiSeqX_run_object"
         an.upload_to_statusdb(self.completed)
-        mock_upload_to_statusdb.assert_called_once_with("Stan_run_object")
+        mock_upload_to_statusdb.assert_called_once_with("HiSeqX_run_object")
 
     @mock.patch("taca.analysis.analysis.statusdb")
     def test__upload_to_statusdb(self, mock_statusdb):
@@ -112,6 +129,7 @@ class TestAnalysis(unittest.TestCase):
         shutil.copy(
             "data/runParameters_minimal.xml", os.path.join(run, "runParameters.xml")
         )
+        shutil.copy("data/RunInfo.xml", os.path.join(run, "RunInfo.xml"))
         demux_dir = os.path.join(run, "Demultiplexing", "Stats")
         os.makedirs(demux_dir)
         shutil.copy("data/DemuxSummaryF1L1.txt", demux_dir)
@@ -125,7 +143,7 @@ class TestAnalysis(unittest.TestCase):
         an._upload_to_statusdb(noindex_run)
         mock_statusdb.update_doc.assert_called_once()
 
-    @mock.patch("taca.analysis.analysis.Standard_Run.transfer_run")
+    @mock.patch("taca.analysis.analysis.HiSeqX_Run.transfer_run")
     def test_transfer_run(self, mock_transfer_run):
         """Transfer run to Uppmax."""
         run_dir = self.completed
@@ -155,11 +173,13 @@ class TestAnalysis(unittest.TestCase):
         pid = "P1775"
         samplesheet_content = an.extract_project_samplesheet(sample_sheet, pid)
         expected_samplesheet_content = """Lane,SampleID,SampleName,SamplePlate,SampleWell,index,Project
+Experiment Name,H2WY7CCXX
+Date,2015-04-23
 1,Sample_P1775_147,P1775_147,FCB_150423,1:1,GAATTCGT,J_Lundeberg_14_24
 """
         self.assertEqual(samplesheet_content, expected_samplesheet_content)
 
-    @mock.patch("taca.analysis.analysis.NovaSeq_Run.get_run_status")
+    @mock.patch("taca.analysis.analysis.HiSeqX_Run.get_run_status")
     @mock.patch("taca.analysis.analysis._upload_to_statusdb")
     def test_run_preprocessing_sequencing(
         self, mock_upload_to_statusdb, mock_get_run_status
@@ -167,39 +187,39 @@ class TestAnalysis(unittest.TestCase):
         """Run preprocess run still sequencing."""
         run = self.completed
         mock_get_run_status.return_value = "SEQUENCING"
-        an.run_preprocessing(run, force_trasfer=True, statusdb=True)
+        an.run_preprocessing(run)
         mock_upload_to_statusdb.assert_called_once()
 
-    @mock.patch("taca.analysis.analysis.NovaSeq_Run.get_run_status")
+    @mock.patch("taca.analysis.analysis.HiSeqX_Run.get_run_status")
     @mock.patch("taca.analysis.analysis._upload_to_statusdb")
-    @mock.patch("taca.analysis.analysis.NovaSeq_Run.demultiplex_run")
+    @mock.patch("taca.analysis.analysis.HiSeqX_Run.demultiplex_run")
     def test_run_preprocessing_to_start(
         self, mock_demultiplex_run, mock_upload_to_statusdb, mock_get_run_status
     ):
         """Run preprocessing start demux."""
         run = self.completed
         mock_get_run_status.return_value = "TO_START"
-        an.run_preprocessing(run, force_trasfer=True, statusdb=True)
+        an.run_preprocessing(run)
         mock_upload_to_statusdb.assert_called_once()
         mock_demultiplex_run.assert_called_once()
 
-    @mock.patch("taca.analysis.analysis.NovaSeq_Run.get_run_status")
+    @mock.patch("taca.analysis.analysis.HiSeqX_Run.get_run_status")
     @mock.patch("taca.analysis.analysis._upload_to_statusdb")
-    @mock.patch("taca.analysis.analysis.NovaSeq_Run.check_run_status")
+    @mock.patch("taca.analysis.analysis.HiSeqX_Run.check_run_status")
     def test_run_preprocessing_in_progress(
         self, mock_check_run_status, mock_upload_to_statusdb, mock_get_run_status
     ):
         """Run preprocessing demux in progress."""
         run = self.completed
         mock_get_run_status.return_value = "IN_PROGRESS"
-        an.run_preprocessing(run, force_trasfer=True, statusdb=True)
+        an.run_preprocessing(run)
         mock_upload_to_statusdb.assert_called_once()
         mock_check_run_status.assert_called_once()
 
-    @mock.patch("taca.analysis.analysis.NovaSeq_Run.get_run_status")
+    @mock.patch("taca.analysis.analysis.HiSeqX_Run.get_run_status")
     @mock.patch("taca.analysis.analysis._upload_to_statusdb")
-    @mock.patch("taca.analysis.analysis.NovaSeq_Run.send_mail")
-    @mock.patch("taca.analysis.analysis.NovaSeq_Run.transfer_run")
+    @mock.patch("taca.analysis.analysis.HiSeqX_Run.send_mail")
+    @mock.patch("taca.analysis.analysis.HiSeqX_Run.transfer_run")
     @mock.patch("taca.analysis.analysis.os.mkdir")
     @mock.patch("taca.analysis.analysis.copyfile")
     def test_run_preprocessing_completed(
@@ -214,11 +234,15 @@ class TestAnalysis(unittest.TestCase):
         """Run preprocessing demux completed."""
         run = self.completed
         mock_get_run_status.return_value = "COMPLETED"
-        an.run_preprocessing(run, force_trasfer=True, statusdb=True)
+        an.run_preprocessing(run)
         mock_upload_to_statusdb.assert_called_once()
-        message = "The run 141124_ST-COMPLETED1_01_AFCIDXX has been demultiplexed.\n                The Run will be transferred to the analysis cluster for further analysis.\n\n             \
-   The run is available at : https://genomics-status.scilifelab.se/flowcells/141124_ST-COMPLETED1_01_AFCIDXX\n\n                "
-        mock_send_mail.assert_called_once_with(message, rcp="some_user@some_email.com")
+        subject = "141124_ST-COMPLETED1_01_AFCIDXX Demultiplexing Completed!"
+        message = "The run 141124_ST-COMPLETED1_01_AFCIDXX has been demultiplexed without any error or warning.\n\n                    The Run will be transferred to the analysis cluster for further analysis.\n\n             \
+       The run is available at : https://genomics-status.scilifelab.se/flowcells/141124_ST-COMPLETED1_01_AFCIDXX\n\n                    "
+
+        mock_send_mail.assert_called_once_with(
+            subject, message, rcp="some_user@some_email.com"
+        )
         mock_transfer_run.assert_called_once_with(
             "data/transfer.tsv", "some_user@some_email.com"
         )

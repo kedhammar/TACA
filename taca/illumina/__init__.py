@@ -1,3 +1,3 @@
 """
-    Runs class to parse and work with illumina flowcells
+Runs class to parse and work with illumina flowcells
 """

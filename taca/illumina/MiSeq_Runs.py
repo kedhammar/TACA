@@ -102,9 +102,9 @@ class MiSeq_Run(Standard_Run):
             os.path.join(self.run_dir, "SampleSheet_copy.csv")
         )
         if not self.runParserObj.obj.get("samplesheet_csv"):
-            self.runParserObj.obj[
-                "samplesheet_csv"
-            ] = self.runParserObj.samplesheet.data
+            self.runParserObj.obj["samplesheet_csv"] = (
+                self.runParserObj.samplesheet.data
+            )
 
     def _generate_clean_samplesheet(
         self,
