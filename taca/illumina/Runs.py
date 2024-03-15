@@ -350,10 +350,10 @@ class Run:
         # Send an email notifying that the transfer was successful
         runname = self.id
         sbt = f"Rsync of data for run {runname} to the analysis cluster has finished"
-        msg = """ Rsync of data for run {run} to the analysis cluster has finished!
+        msg = f""" Rsync of data for run {runname} to the analysis cluster has finished!
 
-        The run is available at : https://genomics-status.scilifelab.se/flowcells/{run}
-        """.format(run=runname)
+        The run is available at : https://genomics-status.scilifelab.se/flowcells/{runname}
+        """
         if mail_recipients:
             send_mail(sbt, msg, mail_recipients)
 
