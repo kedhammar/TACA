@@ -1,5 +1,9 @@
 # TACA Version Log
 
+## 20240321.1
+
+Include project IDs in the run folder tarball
+
 ## 20240315.1
 
 Fix cases that MiSeq samplesheet misses index or index2
