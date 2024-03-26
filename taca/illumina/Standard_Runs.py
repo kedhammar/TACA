@@ -131,6 +131,10 @@ class Standard_Run(Run):
             sample_name = sample.get("Sample_Name") or sample.get("SampleName")
             umi_length = [0, 0]
             read_length = read_cycles
+            if not sample.get("index"):
+                sample["index"] = ""
+            if not sample.get("index2"):
+                sample["index2"] = ""
             # Read the length of read 1 and read 2 from the field Recipe
             if sample.get("Recipe") and RECIPE_PAT.findall(sample.get("Recipe")):
                 ss_read_length = [

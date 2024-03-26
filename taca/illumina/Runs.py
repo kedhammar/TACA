@@ -350,10 +350,10 @@ class Run:
         # Send an email notifying that the transfer was successful
         runname = self.id
         sbt = f"Rsync of data for run {runname} to the analysis cluster has finished"
-        msg = """ Rsync of data for run {run} to the analysis cluster has finished!
+        msg = f""" Rsync of data for run {runname} to the analysis cluster has finished!
 
-        The run is available at : https://genomics-status.scilifelab.se/flowcells/{run}
-        """.format(run=runname)
+        The run is available at : https://genomics-status.scilifelab.se/flowcells/{runname}
+        """
         if mail_recipients:
             send_mail(sbt, msg, mail_recipients)
 
@@ -453,6 +453,10 @@ class Run:
         # Prepare a list for lanes with NoIndex samples
         noindex_lanes = []
         for entry in self.runParserObj.samplesheet.data:
+            if not entry.get("index"):
+                entry["index"] = ""
+            if not entry.get("index2"):
+                entry["index2"] = ""
             if entry["index"].upper() == "NOINDEX" or (
                 entry["index"] == "" and entry["index2"] == ""
             ):
