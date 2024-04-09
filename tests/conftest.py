@@ -17,6 +17,7 @@ def create_dirs():
         │   ├── transfer_minion_qc.tsv
         │   ├── transfer_minion.tsv
         │   └── transfer_promethion.tsv
+        │   └── transfer.tsv
         ├── miarka
         │   ├── minion
         │   │   └── qc
@@ -85,6 +86,7 @@ def create_dirs():
     open(f"{tmp.name}/log/transfer_promethion.tsv", "w").close()
     open(f"{tmp.name}/log/transfer_minion.tsv", "w").close()
     open(f"{tmp.name}/log/transfer_minion_qc.tsv", "w").close()
+    open(f"{tmp.name}/log/transfer.tsv", "w").close()
 
     # Analysis server destination dirs
     os.makedirs(f"{tmp.name}/miarka/promethion")

@@ -392,7 +392,7 @@ def create_illumina_run_dir(
     if os.path.exists(run_path):
         shutil.rmtree(run_path)
     os.makedirs(run_path)
-    os.makedirs(os.path.join(run_path, "Demultiplexing"))
+    # os.makedirs(os.path.join(run_path, "Demultiplexing")) TODO
 
     # Set up files
     if completed:
@@ -562,3 +562,8 @@ def test_get_runObj(create_dirs):
     software = "bcl2fastq"
 
     _run_obj = analysis.get_runObj(run_path, software)
+
+    _mock_upload_to_db = patch("taca.analysis.analysis._upload_to_statusdb").start()
+    with patch("subprocess.Popen") as mock_Popen:
+        mock_Popen.start()
+        analysis.run_preprocessing(run_path, software)
