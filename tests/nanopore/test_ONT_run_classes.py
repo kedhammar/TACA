@@ -19,31 +19,31 @@ nanopore_analysis:
     run_types:
         user_run:
             data_dirs:
-                - {tmp.name}/sequencing/promethion
-                - {tmp.name}/sequencing/minion
+                - {tmp.name}/ngi_data/sequencing/promethion
+                - {tmp.name}/ngi_data/sequencing/minion
             ignore_dirs:
                 - 'nosync'
                 - 'qc'
             instruments:
                 promethion:
                     transfer_log: {tmp.name}/log/transfer_promethion.tsv
-                    archive_dir: {tmp.name}/sequencing/promethion/nosync
+                    archive_dir: {tmp.name}/ngi_data/sequencing/promethion/nosync
                     metadata_dir: {tmp.name}/ngi-nas-ns/promethion_data
                     destination: {tmp.name}/miarka/promethion/
                 minion:
                     transfer_log: {tmp.name}/log/transfer_minion.tsv
-                    archive_dir: {tmp.name}/sequencing/minion/nosync
+                    archive_dir: {tmp.name}/ngi_data/sequencing/minion/nosync
                     metadata_dir: {tmp.name}/ngi-nas-ns/minion_data
                     destination: {tmp.name}/miarka/minion/
         qc_run:
             data_dirs:
-                - {tmp.name}/sequencing/minion/qc
+                - {tmp.name}/ngi_data/sequencing/minion/qc
             ignore_dirs:
                 - 'nosync'
             instruments:
                 minion:
                     transfer_log: {tmp.name}/log/transfer_minion_qc.tsv
-                    archive_dir: {tmp.name}/sequencing/minion/qc/nosync
+                    archive_dir: {tmp.name}/ngi_data/sequencing/minion/qc/nosync
                     metadata_dir: {tmp.name}/ngi-nas-ns/minion_data/qc
                     destination: {tmp.name}/miarka/minion/qc
             anglerfish:
@@ -118,7 +118,7 @@ def create_ONT_run_dir(
         instrument = "minion"
         instrument_position = "MN19414"
     if not data_dir:
-        data_dir = f"{tmp.name}/sequencing/{instrument}"
+        data_dir = f"{tmp.name}/ngi_data/sequencing/{instrument}"
 
     run_name = f"{run_start_time}_{instrument_position}_{flowcell_id}_{run_id}"
     if qc:

@@ -429,7 +429,7 @@ class Standard_Run(Run):
                         f"started for run {os.path.basename(self.id)} on {datetime.now()}"
                     )
 
-                # Demutiplexing done for one mask type and scripts will continue
+                # Demultiplexing done for one mask type and scripts will continue
                 # Working with the next type. Command counter should increase by 1
                 bcl_cmd_counter += 1
         return True

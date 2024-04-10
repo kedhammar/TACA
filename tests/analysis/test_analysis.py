@@ -1,17 +1,22 @@
 import importlib
 import os
 import shutil
+from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 import yaml
 
 from taca.analysis import analysis
+from taca.log import init_logger_file
 
 
 def make_illumina_test_config(tmp):
     test_config_yaml_string = f"""mail: 
     recipients: mock
 statusdb: mock
+log:
+    file: {tmp.name}/log/taca.log
+    log_level: DEBUG
 analysis:
     MiSeq:
         QC:
@@ -362,37 +367,37 @@ analysis:
 
 
 def create_illumina_run_dir(
-    tmp,
-    instrument="NovaSeqXPlus",
-    run_name="20240202_LH00217_0044_A2255J2LT3",
-    completed=True,
+    tmp: TemporaryDirectory,
+    instrument: str = "NovaSeqXPlus",
+    run_name: str = "20240202_LH00217_0044_A2255J2LT3",
+    completed: bool = True,
 ):
     """Create a run directory according to specifications.
 
     e.g.
 
         tmp
-        └── sequencing
-            └── NovaSeqXPlus
-                └── 20240202_LH00217_0044_A2255J2LT3
-                    ├── CopyComplete.txt
-                    ├── Demultiplexing
-                    ├── RTAComplete.txt
-                    ├── RunInfo.xml
-                    ├── RunParameters.xml
-                    └── SampleSheet.csv
+        └── ngi_data
+            └── sequencing
+                └── NovaSeqXPlus
+                    └── 20240202_LH00217_0044_A2255J2LT3
+                        ├── CopyComplete.txt
+                        ├── Demultiplexing
+                        ├── RTAComplete.txt
+                        ├── RunInfo.xml
+                        ├── RunParameters.xml
+                        └── SampleSheet.csv
 
     Return it's path.
     """
 
     # Get run path
-    run_path = f"{tmp.name}/sequencing/{instrument}/{run_name}"
+    run_path = f"{tmp.name}/ngi_data/sequencing/{instrument}/{run_name}"
 
     # Create runs directory structure
     if os.path.exists(run_path):
         shutil.rmtree(run_path)
     os.makedirs(run_path)
-    os.makedirs(os.path.join(run_path, "Demultiplexing"))
 
     # Set up files
     if completed:
@@ -545,7 +550,7 @@ FCID,Lane,Sample_ID,Sample_Name,Sample_Ref,index,index2,Description,Control,Reci
     return run_path
 
 
-def test_get_runObj(create_dirs):
+def test_run_preprocessing(create_dirs):
     tmp = create_dirs
 
     # Mock CONFIG
@@ -562,3 +567,18 @@ def test_get_runObj(create_dirs):
     software = "bcl2fastq"
 
     _run_obj = analysis.get_runObj(run_path, software)
+
+    _mock_upload_to_db = patch("taca.analysis.analysis._upload_to_statusdb").start()
+
+    with patch("subprocess.Popen") as mock_Popen:
+        mock_Popen.start()
+
+        log_file = test_config_yaml.get("log", {}).get("file", None)
+        if log_file:
+            level = test_config_yaml.get("log").get("log_level", "INFO")
+            init_logger_file(log_file, level)
+
+        # Start demux, all runs
+        analysis.run_preprocessing(None, software)
+        # Demux in progress, specified run
+        analysis.run_preprocessing(run_path, software)
