@@ -1,6 +1,7 @@
 import importlib
 import os
 import shutil
+from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 import yaml
@@ -366,10 +367,10 @@ analysis:
 
 
 def create_illumina_run_dir(
-    tmp,
-    instrument="NovaSeqXPlus",
-    run_name="20240202_LH00217_0044_A2255J2LT3",
-    completed=True,
+    tmp: TemporaryDirectory,
+    instrument: str = "NovaSeqXPlus",
+    run_name: str = "20240202_LH00217_0044_A2255J2LT3",
+    completed: bool = True,
 ):
     """Create a run directory according to specifications.
 
@@ -397,7 +398,6 @@ def create_illumina_run_dir(
     if os.path.exists(run_path):
         shutil.rmtree(run_path)
     os.makedirs(run_path)
-    # os.makedirs(os.path.join(run_path, "Demultiplexing")) TODO
 
     # Set up files
     if completed:
