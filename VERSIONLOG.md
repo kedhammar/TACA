@@ -1,5 +1,9 @@
 # TACA Version Log
 
+## 20240410.1
+
+Expand test coverage by starting and checking demultiplexing for a NovaSeqXPlus run.
+
 ## 20240321.1
 
 Include project IDs in the run folder tarball
