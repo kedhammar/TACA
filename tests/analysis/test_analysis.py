@@ -12,6 +12,8 @@ def make_illumina_test_config(tmp):
     test_config_yaml_string = f"""mail: 
     recipients: mock
 statusdb: mock
+log:
+    file: {tmp.name}/log/taca.log
 analysis:
     MiSeq:
         QC:
@@ -564,6 +566,16 @@ def test_get_runObj(create_dirs):
     _run_obj = analysis.get_runObj(run_path, software)
 
     _mock_upload_to_db = patch("taca.analysis.analysis._upload_to_statusdb").start()
+
     with patch("subprocess.Popen") as mock_Popen:
         mock_Popen.start()
+
+        import ipdb
+
+        ipdb.set_trace()
         analysis.run_preprocessing(run_path, software)
+        ipdb.set_trace()
+        analysis.run_preprocessing(run_path, software)
+        ipdb.set_trace()
+        analysis.run_preprocessing(run_path, software)
+        ipdb.set_trace()
