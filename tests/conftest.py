@@ -34,46 +34,45 @@ def create_dirs():
         │   └── samplesheets
         │       ├── NovaSeqXPlus
         │       └── anglerfish
-        └── sequencing
-            ├── MiSeq
-            │   └── nosync
-            ├── NextSeq
-            │   └── nosync
-            ├── NovaSeq
-            │   └── nosync
-            ├── NovaSeqXPlus
-            │   └── nosync
-            ├── minion
-            │   ├── nosync
-            │   └── qc
-            │       └── nosync
-            └── promethion
-                └── nosync
+        └── ngi_data
+            └── sequencing
+                ├── MiSeq
+                │   └── nosync
+                ├── NextSeq
+                │   └── nosync
+                ├── NovaSeq
+                │   └── nosync
+                ├── NovaSeqXPlus
+                │   └── nosync
+                ├── minion
+                │   ├── nosync
+                │   └── qc
+                │       └── nosync
+                └── promethion
+                    └── nosync
 
     --> Return the the temporary directory object
     """
     tmp = tempfile.TemporaryDirectory()
 
-    # CREATE DIR STRUCTURE
-
     # Sequencing data
-    # Illumina
-    os.makedirs(f"{tmp.name}/sequencing/MiSeq/nosync")
-    os.makedirs(f"{tmp.name}/sequencing/NextSeq/nosync")
-    os.makedirs(f"{tmp.name}/sequencing/NovaSeq/nosync")
-    os.makedirs(f"{tmp.name}/sequencing/NovaSeqXPlus/nosync")
-    # ONT
-    os.makedirs(f"{tmp.name}/sequencing/promethion/nosync")
-    os.makedirs(f"{tmp.name}/sequencing/minion/nosync")
-    os.makedirs(f"{tmp.name}/sequencing/minion/qc/nosync")
+    ## Illumina
+    os.makedirs(f"{tmp.name}/ngi_data/sequencing/MiSeq/nosync")
+    os.makedirs(f"{tmp.name}/ngi_data/sequencing/NextSeq/nosync")
+    os.makedirs(f"{tmp.name}/ngi_data/sequencing/NovaSeq/nosync")
+    os.makedirs(f"{tmp.name}/ngi_data/sequencing/NovaSeqXPlus/nosync")
+    ## ONT
+    os.makedirs(f"{tmp.name}/ngi_data/sequencing/promethion/nosync")
+    os.makedirs(f"{tmp.name}/ngi_data/sequencing/minion/nosync")
+    os.makedirs(f"{tmp.name}/ngi_data/sequencing/minion/qc/nosync")
 
     # Sequencing metadata
-    # Illumina
+    ## Illumina
     os.makedirs(f"{tmp.name}/ngi-nas-ns/miseq_data")
     os.makedirs(f"{tmp.name}/ngi-nas-ns/NextSeq_data")
     os.makedirs(f"{tmp.name}/ngi-nas-ns/NovaSeq_data")
     os.makedirs(f"{tmp.name}/ngi-nas-ns/NovaSeqXPlus_data")
-    # ONT
+    ## ONT
     os.makedirs(f"{tmp.name}/ngi-nas-ns/promethion_data")
     os.makedirs(f"{tmp.name}/ngi-nas-ns/minion_data")
 
