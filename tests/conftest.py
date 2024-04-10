@@ -18,6 +18,7 @@ def create_dirs():
         │   ├── transfer_minion.tsv
         │   └── transfer_promethion.tsv
         │   └── transfer.tsv
+        │   └── taca.log
         ├── miarka
         │   ├── minion
         │   │   └── qc

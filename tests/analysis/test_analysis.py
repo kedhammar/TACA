@@ -6,6 +6,7 @@ from unittest.mock import patch
 import yaml
 
 from taca.analysis import analysis
+from taca.log import init_logger_file
 
 
 def make_illumina_test_config(tmp):
@@ -14,6 +15,7 @@ def make_illumina_test_config(tmp):
 statusdb: mock
 log:
     file: {tmp.name}/log/taca.log
+    log_level: DEBUG
 analysis:
     MiSeq:
         QC:
@@ -570,12 +572,12 @@ def test_get_runObj(create_dirs):
     with patch("subprocess.Popen") as mock_Popen:
         mock_Popen.start()
 
-        import ipdb
+        log_file = test_config_yaml.get("log", {}).get("file", None)
+        if log_file:
+            level = test_config_yaml.get("log").get("log_level", "INFO")
+            init_logger_file(log_file, level)
 
-        ipdb.set_trace()
+        # Start demux
         analysis.run_preprocessing(run_path, software)
-        ipdb.set_trace()
+        # Demux in progress
         analysis.run_preprocessing(run_path, software)
-        ipdb.set_trace()
-        analysis.run_preprocessing(run_path, software)
-        ipdb.set_trace()
