@@ -1,5 +1,9 @@
 # TACA Version Log
 
+## 20240422.1
+
+Refine GHA VERSIONLOG.md check to compare to merge-base, not branch-base.
+
 ## 20240410.1
 
 Expand test coverage by starting and checking demultiplexing for a NovaSeqXPlus run.

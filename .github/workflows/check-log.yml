@@ -12,12 +12,8 @@ jobs:
 
       - name: Check for VERSIONLOG.MD changes
         id: versionlog_check
-        # 1) Find the common ancestor between the current HEAD and the base branch
-        # 2) Then see if the versionlog has been updated in the PR since it diverged
-        #    from the common ancestor
         run: |
-          PR_BASE_SHA=$(git merge-base HEAD ${{ github.event.pull_request.base.sha }})
-          FILE_CHANGED=$(git diff --name-only $PR_BASE_SHA HEAD | grep 'VERSIONLOG.md' || true)
+          FILE_CHANGED=$(git diff --name-only ${{ github.event.pull_request.base.sha }} HEAD | grep 'VERSIONLOG.md' || true)
           if [ -n "$FILE_CHANGED" ]; then
             echo "VERSIONLOG.MD has been changed."
           else
