@@ -1,5 +1,9 @@
 # TACA Version Log
 
+## 20240507.1
+
+Broaden ONT transfer script's categorization of QC runs to either experiment dir or sample dir starting with "QC\_".
+
 ## 20240422.1
 
 Refine GHA VERSIONLOG.md check to compare to merge-base, not branch-base.
