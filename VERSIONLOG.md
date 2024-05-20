@@ -1,5 +1,9 @@
 # TACA Version Log
 
+## 20240520.1
+
+Fix erroneous name of pod5 output dir for ONT runs.
+
 ## 20240507.1
 
 Broaden ONT transfer script's categorization of QC runs to either experiment dir or sample dir starting with "QC\_".

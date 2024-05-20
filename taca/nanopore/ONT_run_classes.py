@@ -501,7 +501,7 @@ class ONT_qc_run(ONT_run):
     def has_raw_seq_output(self) -> bool:
         """Check whether run has sequencing data output."""
 
-        raw_seq_dirs = ["pod5_pass", "fast5_pass"]
+        raw_seq_dirs = ["pod5", "fast5_pass"]
 
         for dir in raw_seq_dirs:
             if os.path.exists(os.path.join(self.run_abspath, dir)):
