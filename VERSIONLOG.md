@@ -1,5 +1,9 @@
 # TACA Version Log
 
+## 20240521.1
+
+Reduce redundant specificity for anglerfish samplesheet pattern
+
 ## 20240520.1
 
 Fix erroneous name of pod5 output dir for ONT runs.
