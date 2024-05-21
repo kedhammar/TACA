@@ -461,10 +461,8 @@ class ONT_qc_run(ONT_run):
         b) If the file is not yet available, return False.
         """
 
-        # Following line assumes run was started same year as samplesheet was generated
-        expected_file_pattern = f"Anglerfish_samplesheet_{self.experiment_name}_*.csv"
-
-        # Finalize query pattern
+        # Define query pattern
+        expected_file_pattern = f"*{self.experiment_name}*.csv"
         pattern_abspath = os.path.join(
             self.anglerfish_samplesheets_dir, "*", expected_file_pattern
         )
