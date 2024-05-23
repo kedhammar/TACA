@@ -1,5 +1,9 @@
 # TACA Version Log
 
+## 20240523.1
+
+Update server status to run on ngi-preproc
+
 ## 20240520.1
 
 Fix erroneous name of pod5 output dir for ONT runs.
