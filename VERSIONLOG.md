@@ -1,5 +1,45 @@
 # TACA Version Log
 
+## 20240520.1
+
+Fix erroneous name of pod5 output dir for ONT runs.
+
+## 20240507.1
+
+Broaden ONT transfer script's categorization of QC runs to either experiment dir or sample dir starting with "QC\_".
+
+## 20240422.1
+
+Refine GHA VERSIONLOG.md check to compare to merge-base, not branch-base.
+
+## 20240410.1
+
+Expand test coverage by starting and checking demultiplexing for a NovaSeqXPlus run.
+
+## 20240321.1
+
+Include project IDs in the run folder tarball
+
+## 20240315.1
+
+Fix cases that MiSeq samplesheet misses index or index2
+
+## 20240304.1
+
+- Make sure TACA can handle runs that generate NO sequencing data at all
+- Refactor logic of control function to reduce complexity
+- Introduce custom Exception for quiet skipping (waiting on) runs
+- Improve documentation
+- Minor polishing of test to pass
+
+## 20240229.1
+
+Increase test coverage to 20%.
+
+## 20240209.1
+
+Implement CodeCoverage in CI.
+
 ## 20240208.2
 
 Implement CI testing and increase testing coverage.

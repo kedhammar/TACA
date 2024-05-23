@@ -1,4 +1,5 @@
 """Nanopore analysis methods for TACA."""
+
 import logging
 import os
 import re
@@ -114,36 +115,34 @@ def process_user_run(ont_user_run: ONT_user_run):
 
 
 def process_qc_run(ont_qc_run: ONT_qc_run):
-    """This control function orchestrates the sequential execution of the ONT_qc_run class methods.
+    f"""This control function orchestrates the sequential execution of the {ONT_qc_run} methods.
 
-    For a single ONT QC run...
-
-        - Ensure there is a database entry corresponding to an ongoing run
-
-        If not fully synced:
-            - Skip
-
-        If fully synced:
-            - Ensure all necessary files to proceed with processing are present
-            - Update the StatusDB entry
-            - Copy HTML report to GenStat
-
-            If Anglerfish has not been run:
-                If Anglerfish is ongoing:
-                    - Skip
-
-                If Anglerfish is not ongoing:
-                    - Run Anglerfish
-
-            If Anglerfish has been run:
-                If Anglerfish failed:
-                    - Throw error
-
-                If Anglerfish finished successfully:
-                    - Copy metadata
-                    - Transfer run to cluster
-                    - Update transfer log
-                    - Archive run
+        For a single ONT QC run...
+        │
+        ├── Ensure there is a database entry corresponding to an ongoing run
+        ├── If not fully synced
+        │   └── Skip run
+        ├── Ensure all necessary files to proceed with processing are present
+        ├── Update the StatusDB entry
+        ├── Copy HTML report to GenStat
+        ├── If there is sequencing raw data
+        │   ├── If no fastq output
+        │   │   └── Skip run
+        │   ├── If Anglerfish has not been run
+        │   │   ├── If Anglerfish is ongoing
+        │   │   │   └── Skip run
+        │   │   ├── If Anglerfish samplesheet could not be found  
+        │   │   │   └── Skip run
+        │   │   ├── Run Anglerfish as subprocess
+        │   │   └── Skip run
+        │   └── If Anglerfish has failed
+        │       └── Throw error
+        ├── If run has already been transferred
+        │   └── Skip run
+        ├── Copy metadata
+        ├── Transfer run to cluster
+        ├── Update transfer log
+        └── Archive run
 
     Any errors raised here-in should be sent with traceback as an email.
     """
@@ -153,19 +152,29 @@ def process_qc_run(ont_qc_run: ONT_qc_run):
 
     # Is the run fully synced?
     if not ont_qc_run.is_synced():
-        logger.info(f"{ont_qc_run.run_name}: Run is not fully synced, skipping.")
+        raise WaitForRun(f"{ont_qc_run.run_name}: Run is not fully synced, skipping.")
+
+    # Assert all files are in place
+    logger.info(f"{ont_qc_run.run_name}: Asserting run contents...")
+    ont_qc_run.assert_contents()
+
+    # Update StatusDB
+    logger.info(f"{ont_qc_run.run_name}: Updating StatusDB...")
+    ont_qc_run.update_db_entry()
+
+    # Copy HTML report
+    logger.info(f"{ont_qc_run.run_name}: Putting HTML report on GenStat...")
+    ont_qc_run.copy_html_report()
+
+    # Look at seq data
+    if not ont_qc_run.has_raw_seq_output():
+        logger.info(f"{ont_qc_run.run_name}: Run has no sequencing output, continuing")
+
     else:
-        # Assert all files are in place
-        logger.info(f"{ont_qc_run.run_name}: Asserting run contents...")
-        ont_qc_run.assert_contents()
-
-        # Update StatusDB
-        logger.info(f"{ont_qc_run.run_name}: Updating StatusDB...")
-        ont_qc_run.update_db_entry()
-
-        # Copy HTML report
-        logger.info(f"{ont_qc_run.run_name}: Putting HTML report on GenStat...")
-        ont_qc_run.copy_html_report()
+        if not ont_qc_run.has_fastq_output():
+            raise WaitForRun(
+                f"{ont_qc_run.run_name}: Run has no fastq output, skipping."
+            )
 
         # Anglerfish
         logger.info(
@@ -174,13 +183,8 @@ def process_qc_run(ont_qc_run: ONT_qc_run):
 
         anglerfish_exit_code = ont_qc_run.get_anglerfish_exit_code()
 
-        if isinstance(anglerfish_exit_code, int) and anglerfish_exit_code > 0:
-            logger.warning(
-                f"{ont_qc_run.run_name}: Anglerfish has failed, throwing error."
-            )
-            raise AssertionError(f"{ont_qc_run.run_name}: Anglerfish failed.")
-
-        elif anglerfish_exit_code is None:
+        # Anglerfish not run
+        if anglerfish_exit_code is None:
             logger.info(
                 f"{ont_qc_run.run_name}: Anglerfish has not been run, continuing."
             )
@@ -190,58 +194,65 @@ def process_qc_run(ont_qc_run: ONT_qc_run):
             )
 
             anglerfish_pid = ont_qc_run.get_anglerfish_pid()
+
+            # Anglerfish ongoing
             if anglerfish_pid:
                 logger.info(
                     f"{ont_qc_run.run_name}: Anglerfish is ongoing with process ID {anglerfish_pid}, skipping."
                 )
-            else:
-                logger.info(
-                    f"{ont_qc_run.run_name}: Anglerfish is not ongoing, continuing."
-                )
+                raise WaitForRun("Anglerfish is ongoing, skipping.")
 
-                logger.info(
-                    f"{ont_qc_run.run_name}: Fetching Anglerfish samplesheet..."
-                )
-                if not ont_qc_run.fetch_anglerfish_samplesheet():
-                    logger.info(
-                        f"{ont_qc_run.run_name}: Could not find Anglerfish sample sheet, skipping."
-                    )
-                elif not ont_qc_run.has_fastq_output():
-                    logger.info(
-                        f"{ont_qc_run.run_name}: Run has no fastq output, skipping."
-                    )
-                else:
-                    logger.info(f"{ont_qc_run.run_name}: Starting Anglerfish...")
-                    ont_qc_run.run_anglerfish()
-
-        elif isinstance(anglerfish_exit_code, int) and anglerfish_exit_code == 0:
             logger.info(
-                f"{ont_qc_run.run_name}: Anglerfish has finished successfully, continuing."
+                f"{ont_qc_run.run_name}: Anglerfish is not ongoing, continuing."
             )
 
-            if ont_qc_run.is_transferred():
-                logger.warning(
-                    f"{ont_qc_run.run_name}: Run is already logged as transferred, skipping."
+            logger.info(f"{ont_qc_run.run_name}: Fetching Anglerfish samplesheet...")
+
+            if not ont_qc_run.fetch_anglerfish_samplesheet():
+                raise WaitForRun("Could not find Anglerfish sample sheet, skipping.")
+
+            logger.info(f"{ont_qc_run.run_name}: Starting Anglerfish...")
+            ont_qc_run.run_anglerfish()
+            raise WaitForRun("Anglerfish has been started, skipping.")
+
+        # Anglerfish run
+        elif isinstance(anglerfish_exit_code, int):
+            if anglerfish_exit_code == 0:
+                logger.info(
+                    f"{ont_qc_run.run_name}: Anglerfish has finished successfully, continuing."
                 )
+            elif anglerfish_exit_code > 0:
+                logger.error(
+                    f"{ont_qc_run.run_name}: Anglerfish has failed, throwing error."
+                )
+                raise AssertionError(f"{ont_qc_run.run_name}: Anglerfish failed.")
+        else:
+            raise AssertionError("Unexpected Anglerfish exit code.")
 
-            else:
-                logger.info(f"{ont_qc_run.run_name}: Processing transfer...")
+    # Check transfer status
+    if ont_qc_run.is_transferred():
+        logger.warning(
+            f"{ont_qc_run.run_name}: Run is already logged as transferred, skipping."
+        )
+        raise WaitForRun("Run is already logged as transferred.")
 
-                # Copy metadata
-                logger.info(f"{ont_qc_run.run_name}: Copying metadata...")
-                ont_qc_run.copy_metadata()
+    logger.info(f"{ont_qc_run.run_name}: Processing transfer...")
 
-                # Transfer run
-                logger.info(f"{ont_qc_run.run_name}: Transferring to cluster...")
-                ont_qc_run.transfer_run()
+    # Copy metadata
+    logger.info(f"{ont_qc_run.run_name}: Copying metadata...")
+    ont_qc_run.copy_metadata()
 
-                # Update transfer log
-                logger.info(f"{ont_qc_run.run_name}: Updating transfer log...")
-                ont_qc_run.update_transfer_log()
+    # Transfer run
+    logger.info(f"{ont_qc_run.run_name}: Transferring to cluster...")
+    ont_qc_run.transfer_run()
 
-                # Archive run
-                logger.info(f"{ont_qc_run.run_name}: Archiving run...")
-                ont_qc_run.archive_run()
+    # Update transfer log
+    logger.info(f"{ont_qc_run.run_name}: Updating transfer log...")
+    ont_qc_run.update_transfer_log()
+
+    # Archive run
+    logger.info(f"{ont_qc_run.run_name}: Archiving run...")
+    ont_qc_run.archive_run()
 
 
 def ont_transfer(run_abspath: str | None, qc: bool = False):
@@ -276,8 +287,19 @@ def ont_transfer(run_abspath: str | None, qc: bool = False):
                             process_user_run(ONT_user_run(run_dir))
                         else:
                             process_qc_run(ONT_qc_run(run_dir))
+                    except WaitForRun as e:
+                        logger.info(f"Skipping run {os.path.basename(run_dir)}: {e}")
                     except BaseException as e:
                         send_error_mail(os.path.basename(run_dir), e)
+
+
+class WaitForRun(Exception):
+    """Exception defined to exit processing the current run and continue
+    with the next one without sending an error email.
+    """
+
+    def __init__(self, message: str):
+        logging.info(message)
 
 
 def ont_updatedb(run_abspath: str):

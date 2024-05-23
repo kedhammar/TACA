@@ -1,4 +1,5 @@
 """Storage methods and utilities"""
+
 import logging
 import os
 import re
@@ -152,9 +153,7 @@ def cleanup_miarka(
         if all_undet_files:
             undet_size = _def_get_size_unit(sum(map(os.path.getsize, all_undet_files)))
             if misc.query_yes_no(
-                "In total found {} undetermined files which are {} in size, delete now ?".format(
-                    len(all_undet_files), undet_size
-                ),
+                f"In total found {len(all_undet_files)} undetermined files which are {undet_size} in size, delete now ?",
                 default="no",
             ):
                 _remove_files(all_undet_files)
@@ -312,11 +311,7 @@ def cleanup_miarka(
         for proj, info in project_clean_list.items():
             proj_count += 1
             if not misc.query_yes_no(
-                "{}Delete files for this project ({}/{})".format(
-                    get_proj_meta_info(info, days_fastq),
-                    proj_count,
-                    len(project_clean_list),
-                ),
+                f"{get_proj_meta_info(info, days_fastq)}Delete files for this project ({proj_count}/{len(project_clean_list)})",
                 default="no",
             ):
                 logger.info(f"Will not remove files for project {proj}")

@@ -1,5 +1,5 @@
-""" TACA logging module for external scripts
-"""
+"""TACA logging module for external scripts"""
+
 import logging
 
 # get root logger

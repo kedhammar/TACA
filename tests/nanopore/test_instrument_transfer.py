@@ -146,7 +146,7 @@ def test_main(mock_sync, mock_final_sync, setup_test_fixture, finished, qc):
     else:
         dest_path = args.dest_dir_qc
 
-    # Check sync was inititated
+    # Check sync was initiated
     if not finished:
         mock_sync.assert_called_once_with(
             run_path, dest_path, file_paths["rsync_log_path"]
@@ -294,7 +294,7 @@ def test_archive_finished_run():
             run_path = sample_path + f"/{DUMMY_RUN_NAME}"
             os.makedirs(run_path)
 
-            # Create neightbor dir, if any
+            # Create neighbor dir, if any
             if neighbor_dir:
                 neighbor_path = tmp_path + neighbor_dir
                 os.mkdir(neighbor_path)

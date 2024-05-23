@@ -1,5 +1,5 @@
-""" This is a stand-alone script run on ONT instrument computers. It transfers new ONT runs to NAS using rsync.
-"""
+"""This is a stand-alone script run on ONT instrument computers. It transfers new ONT runs to NAS using rsync."""
+
 __version__ = "1.0.14"
 
 import argparse
@@ -50,8 +50,9 @@ def main(args):
     for run_path in run_paths:
         logging.info(f"Handling {run_path}...")
 
-        if run_path.split(os.sep)[-2][0:3] == "QC_":
-            # For QC runs, the sample name should start with "QC_"
+        experiment_name = run_path.split(os.sep)[-3]
+        sample_name = run_path.split(os.sep)[-2]
+        if sample_name[0:3] == "QC_" or experiment_name[0:3] == "QC_":
             logging.info("Run categorized as QC.")
             rsync_dest = args.dest_dir_qc
         else:

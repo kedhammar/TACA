@@ -99,14 +99,7 @@ def update_statusdb(run_dir):
                                 for k, v in remote_doc.items():
                                     obj["values"][k] = v
                                 logger.info(
-                                    "Updating {} {} {} {} {} as {}".format(
-                                        run_id,
-                                        project,
-                                        flowcell,
-                                        lane,
-                                        sample,
-                                        sample_status,
-                                    )
+                                    f"Updating {run_id} {project} {flowcell} {lane} {sample} as {sample_status}"
                                 )
                                 # Sorts timestamps
                                 obj["values"] = OrderedDict(
@@ -123,14 +116,7 @@ def update_statusdb(run_dir):
                         # Creates new entry
                         else:
                             logger.info(
-                                "Creating {} {} {} {} {} as {}".format(
-                                    run_id,
-                                    project,
-                                    flowcell,
-                                    lane,
-                                    sample,
-                                    sample_status,
-                                )
+                                f"Creating {run_id} {project} {flowcell} {lane} {sample} as {sample_status}"
                             )
                             # Creates record
                             db.save(obj)

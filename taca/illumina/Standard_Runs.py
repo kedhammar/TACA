@@ -77,9 +77,9 @@ class Standard_Run(Run):
             os.path.join(self.run_dir, "SampleSheet.csv")
         )
         if not self.runParserObj.obj.get("samplesheet_csv"):
-            self.runParserObj.obj[
-                "samplesheet_csv"
-            ] = self.runParserObj.samplesheet.data
+            self.runParserObj.obj["samplesheet_csv"] = (
+                self.runParserObj.samplesheet.data
+            )
 
     def _parse_10X_indexes(self, indexfile):
         """
@@ -131,6 +131,10 @@ class Standard_Run(Run):
             sample_name = sample.get("Sample_Name") or sample.get("SampleName")
             umi_length = [0, 0]
             read_length = read_cycles
+            if not sample.get("index"):
+                sample["index"] = ""
+            if not sample.get("index2"):
+                sample["index2"] = ""
             # Read the length of read 1 and read 2 from the field Recipe
             if sample.get("Recipe") and RECIPE_PAT.findall(sample.get("Recipe")):
                 ss_read_length = [
@@ -425,7 +429,7 @@ class Standard_Run(Run):
                         f"started for run {os.path.basename(self.id)} on {datetime.now()}"
                     )
 
-                # Demutiplexing done for one mask type and scripts will continue
+                # Demultiplexing done for one mask type and scripts will continue
                 # Working with the next type. Command counter should increase by 1
                 bcl_cmd_counter += 1
         return True

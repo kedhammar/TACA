@@ -1,3 +1,3 @@
 """
-    Classes to parse and work with ONT data
+Classes to parse and work with ONT data
 """
