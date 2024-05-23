@@ -12,14 +12,15 @@ def get_nases_disk_space():
     config = CONFIG["server_status"]
     servers = config.get("servers", dict())
 
-    for server_url, path in servers.items():
+    for server_url, path_vars in servers.items():
         # Get command
-        command = "{command} {path}".format(command=config["command"], path=path)
-
-        # If localhost, don't connect to ssh
+        command = config["command"]
         if server_url == "localhost":
-            command = command.split()
+            path = path_vars["path"]
+            server_url = path_vars["name"]
+            command = f"{command} {path}".split()
         else:
+            command = f"{command} {path_vars}"
             if "promethion" in server_url:
                 user = "prom"
             else:
