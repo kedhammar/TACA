@@ -1,5 +1,9 @@
 # TACA Version Log
 
+## 20240527.1
+
+Use run-specific name to find Anglerfish samplesheet.
+
 ## 20240521.1
 
 Reduce redundant specificity for anglerfish samplesheet pattern
