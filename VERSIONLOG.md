@@ -1,5 +1,9 @@
 # TACA Version Log
 
+## 20240527.1
+
+Use run-specific name to find Anglerfish samplesheet.
+
 ## 20240523.1
 
 Update server status to run on ngi-preproc

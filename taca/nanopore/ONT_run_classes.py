@@ -461,10 +461,8 @@ class ONT_qc_run(ONT_run):
         b) If the file is not yet available, return False.
         """
 
-        # Following line assumes run was started same year as samplesheet was generated
-        expected_file_pattern = f"Anglerfish_samplesheet_{self.experiment_name}_*.csv"
-
-        # Finalize query pattern
+        # Define query pattern
+        expected_file_pattern = f"*{self.run_name}*.csv"
         pattern_abspath = os.path.join(
             self.anglerfish_samplesheets_dir, "*", expected_file_pattern
         )
@@ -488,7 +486,7 @@ class ONT_qc_run(ONT_run):
                 return True
             else:
                 raise RsyncError(
-                    f"{self.run_name}: Error occured when copying anglerfish samplesheet to run dir."
+                    f"{self.run_name}: Error occurred when copying anglerfish samplesheet to run dir."
                 )
 
     def has_fastq_output(self) -> bool:
