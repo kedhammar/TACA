@@ -1,5 +1,9 @@
 # TACA Version Log
 
+## 20240617.1
+
+Run mypy for entire repo regardless of depth.
+
 ## 20240527.1
 
 Use run-specific name to find Anglerfish samplesheet.

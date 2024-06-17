@@ -56,7 +56,7 @@ jobs:
         run: echo -e "y" | mypy --install-types **/*.py || exit 0
       - name: mypy --> Static type checking
         # Configured in pyprojet.toml
-        run: mypy **/*.py
+        run: mypy .
 
   # Use pipreqs to check for missing dependencies
   pipreqs-check:
