@@ -8,9 +8,9 @@ Run mypy for entire repo regardless of depth.
 
 Use run-specific name to find Anglerfish samplesheet.
 
-## 20240521.1
+## 20240523.1
 
-Reduce redundant specificity for anglerfish samplesheet pattern
+Update server status to run on ngi-preproc
 
 ## 20240520.1
 

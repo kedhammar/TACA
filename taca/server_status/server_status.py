@@ -12,22 +12,22 @@ def get_nases_disk_space():
     config = CONFIG["server_status"]
     servers = config.get("servers", dict())
 
-    for server_url, path in servers.items():
+    for server_name, path_vars in servers.items():
         # Get command
-        command = "{command} {path}".format(command=config["command"], path=path)
-
-        # If localhost, don't connect to ssh
-        if server_url == "localhost":
-            command = command.split()
+        command = config["command"]
+        path = path_vars["path"]
+        if path_vars["url"] == "localhost":
+            command = f"{command} {path}".split()
         else:
-            if "promethion" in server_url:
+            command = f"{command} {path}"
+            if "promethion" in server_name:
                 user = "prom"
             else:
                 user = config["user"]
             # Connect via ssh to server and execute the command
-            command = ["ssh", "-t", f"{user}@{server_url}", command]
+            command = ["ssh", "-t", f"{user}@{path_vars['url']}", command]
 
-        result[server_url] = _run_cmd(command)
+        result[server_name] = _run_cmd(command)
 
     # Storage systems are mouted locally, e.g. ngi-nas
     for storage_system, path in config.get("storage_systems", {}).items():
