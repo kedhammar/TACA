@@ -76,7 +76,13 @@ jobs:
           pip install -r requirements-dev.txt
 
       - name: Run pipreqs
-        run: pipreqs --savepath pipreqs.txt taca
+        run: |
+          pipreqs --savepath pipreqs.txt taca 2>&1 | tee pipreqs_output.log
+          if grep -q 'WARNING: Package .* does not exist or network problems' pipreqs_output.log; then
+            echo "Unresolved packages or network issues detected in pipreqs output."
+            grep 'WARNING: Package .* does not exist or network problems' pipreqs_output.log
+            exit 1
+          fi
 
       - name: Compare requirements
         run: |
