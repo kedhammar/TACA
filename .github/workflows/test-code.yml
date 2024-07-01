@@ -22,11 +22,8 @@ jobs:
         run: pip install -e .
       - name: pytest
         # Options are configured in pyproject.toml
-        run: pytest
+        run: pytest --cov=genologics --cov-report=xml
       - name: CodeCov
-        run: |
-          # Replace `linux` below with the appropriate OS
-          # Options are `alpine`, `linux`, `macos`, `windows`
-          curl -Os https://uploader.codecov.io/latest/linux/codecov
-          chmod +x codecov
-          ./codecov -t ${{ secrets.CODECOV_TOKEN }}
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}

@@ -1,5 +1,9 @@
 # TACA Version Log
 
+## 20240701.1
+
+Improve CI for pipreqs check and pytest/codecov
+
 ## 20240617.1
 
 Run mypy for entire repo regardless of depth.
