@@ -1,5 +1,9 @@
 # TACA Version Log
 
+## 20240705.1
+
+Add section header in samplesheet for run folder transfer
+
 ## 20240701.1
 
 Improve CI for pipreqs check and pytest/codecov

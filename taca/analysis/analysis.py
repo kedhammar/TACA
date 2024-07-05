@@ -303,7 +303,7 @@ def transfer_runfolder(run_dir, pid, exclude_lane):
 
 
 def extract_project_samplesheet(sample_sheet, pid_list):
-    header_line = ""
+    header_line = "[Data]\n"
     project_entries = ""
     with open(sample_sheet) as f:
         for line in f:
