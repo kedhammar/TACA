@@ -1,5 +1,9 @@
 # TACA Version Log
 
+## 20240816.1
+
+Update command used to run Anglerfish.
+
 ## 20240705.1
 
 Add section header in samplesheet for run folder transfer
