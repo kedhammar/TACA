@@ -21,27 +21,37 @@ def run_preprocessing(given_run):
 
         :param taca.element.Run run: Run to be processed and transferred
         """
+        # Fetch statusdb document for run
+        
+        # Get previous status of run from statusdb document
         # Check if sequencing is finished. (is the final file there and was it completed OK)
         # if sequencing is not done
-            # Update statusdb?
+            # compare previous status with current status and update statusdb document if different
             # return
-        # else If sequencing finished and demux not started
-            # Update statusdb
+        # else if sequencing finished and demux not started
             # Get/generate sample sheet
             # Start demux
+            # compare previous status with current status and update statusdb document if different
         # else if sequencing finished and demux ongoing
-            # do nothing
+            # compare previous status with current status and update statusdb document if different
+            # return
         # Else if sequencing started and demux finished
             # check if run is transferred or transfer is ongoing
             # if run has not been transferred and transfer is not ongoing
                 # make a hidden file to indicate that transfer has started
+                # compare previous status with current status and update statusdb document if different
+                    # Also update statusdb with a timestamp of when the transfer started
                 # transfer run to miarka 
                 # remove hidden file if transfer was successful
                 # Update transfer log
+                # update statusdb document
                 # archive run to nosync
+                # update statusdb document
             # elif run is being transferred (hidden file exists)
+                # compare previous status with current status and update statusdb document if different
                 # return
             # elif run is already transferred (in transfer log)
+                # compare previous status with current status and update statusdb document if different
                 # warn that transferred run has not been archived
 
         

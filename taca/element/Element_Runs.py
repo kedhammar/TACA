@@ -16,3 +16,6 @@ class Run:
     
     def is_transferred(self, transfer_file):
         pass
+    
+    def parse_rundir(self):
+        pass
