@@ -6,9 +6,17 @@ import os
 
 from taca.element.Element_Runs import Aviti_Run
 from taca.utils.config import CONFIG
+from taca.utils import statusdb
+
 
 logger = logging.getLogger(__name__)
 
+def _upload_to_statusdb(run):
+    """Triggers the upload to statusdb.
+
+    :param Run run: the object run
+    """
+    pass
 
 def run_preprocessing(given_run):
     """Run demultiplexing in all data directories.
@@ -21,21 +29,26 @@ def run_preprocessing(given_run):
 
         :param taca.element.Run run: Run to be processed and transferred
         """
-        # Fetch statusdb document for run
-        
-        # Get previous status of run from statusdb document
-        # Check if sequencing is finished. (is the final file there and was it completed OK)
-        # if sequencing is not done
-            # compare previous status with current status and update statusdb document if different
-            # return
-        # else if sequencing finished and demux not started
-            # Get/generate sample sheet
+        #TODO: Fetch statusdb document for run
+        #TODO: Get previous status of run from statusdb document
+        sequencing_done = run.check_sequencing_status()
+        demultiplexing_status = run.get_demultiplexing_status()
+        if not sequencing_done:
+            #TODO: compare previous status with current status and update statusdb document if different
+            return
+        elif sequencing_done and demultiplexing_status == "not started":
+            if not run.manifest_exists(): # Assumes that we use the same manifest as for sequencing. TODO: demux settings need to be added to the original manifest by lims
+                #TODO: email operator that manifest is missing
+                return
             # Start demux
-            # compare previous status with current status and update statusdb document if different
-        # else if sequencing finished and demux ongoing
-            # compare previous status with current status and update statusdb document if different
-            # return
-        # Else if sequencing started and demux finished
+            run.start_demux()
+            #TODO: compare previous status with current status and update statusdb document if different
+            return
+        elif sequencing_done and demultiplexing_status == "ongoing":
+            #TODO: compare previous status with current status and update statusdb document if different
+            return
+        elif sequencing_done and demultiplexing_status == "finished":
+            # Sync metadata to ngi-data-ns
             # check if run is transferred or transfer is ongoing
             # if run has not been transferred and transfer is not ongoing
                 # make a hidden file to indicate that transfer has started
@@ -53,7 +66,7 @@ def run_preprocessing(given_run):
             # elif run is already transferred (in transfer log)
                 # compare previous status with current status and update statusdb document if different
                 # warn that transferred run has not been archived
-
+            pass
         
 
     if given_run:
