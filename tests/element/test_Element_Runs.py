@@ -135,8 +135,8 @@ class TestRun:
         )
         assert run.manifest_exists() == p["expected"]
 
-    @pytest.mark.skip
-    def test_generate_demux_command(self, create_dirs):
+    @pytest.mark.skip(reason="Not implemented yet")
+    def test_generate_demux_command(self):
         pass
 
     def test_start_demux(self, create_dirs):
@@ -153,10 +153,10 @@ class TestRun:
                 "test command", with_log_files=True, prefix="demux_"
             )
 
-    @pytest.mark.skip
+    @pytest.mark.skip(reason="Not implemented yet")
     def test_is_transferred(self, create_dirs):
         pass
 
-    @pytest.mark.skip
+    @pytest.mark.skip(reason="Not implemented yet")
     def test_parse_rundir(self, create_dirs):
         pass
