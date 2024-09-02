@@ -1,3 +1,4 @@
+import json
 import os
 import tempfile
 
@@ -12,6 +13,9 @@ def create_aviti_run_dir(
     nosync: bool = False,
     run_finished: bool = True,
     sync_finished: bool = True,
+    demux_dir: bool = True,
+    demux_done: bool = True,
+    outcome_completed: bool = True,
 ) -> str:
     # Create run dir
     if nosync:
@@ -20,47 +24,115 @@ def create_aviti_run_dir(
         run_path = f"{tmp.name}/ngi_data/sequencing/AV242106/{run_name}"
     os.mkdir(run_path)
 
-    # Create files
+    # Populate run dir with files and folders
     if run_finished:
         open(f"{run_path}/AvitiRunStats.json", "w").close()
         open(f"{run_path}/RunManifest.csv", "w").close()
         open(f"{run_path}/RunManifest.json", "w").close()
         open(f"{run_path}/RunParameters.json", "w").close()
-        open(f"{run_path}/RunUploaded.json", "w").close()
+        with open(f"{run_path}/RunUploaded.json", "w") as f:
+            outcome = "OutcomeCompleted" if outcome_completed else "OutcomeFailed"
+            f.write(json.dumps({"outcome": outcome}))
 
     if sync_finished:
         open(f"{run_path}/.sync_finished", "w").close()
+
+    if demux_dir:
+        os.mkdir(os.path.join(run_path, "Demultiplexing"))
+
+    if demux_done:
+        open(os.path.join(run_path, "Demultiplexing", "RunStats.json"), "w").close()
 
     return run_path
 
 
 class TestRun:
-    @pytest.fixture(autouse=True)
-    def setup(self, create_dirs: pytest.fixture):
-        self.tmp: tempfile.TemporaryDirectory = create_dirs
-        self.run_path = create_aviti_run_dir(self.tmp)
-        self.run = to_test.Run(self.run_path, {})
+    def test_init(self, create_dirs: pytest.fixture):
+        tmp: tempfile.TemporaryDirectory = create_dirs
+        run_dir = create_aviti_run_dir(tmp)
+        run = to_test.Run(run_dir, {})
+        assert run.run_dir == run_dir
 
-    def test_init(self):
-        assert self.run.run_dir == self.run_path
+    @pytest.mark.parametrize(
+        "p",
+        [
+            {"run_finished": True, "outcome_completed": True, "expected": True},
+            {"run_finished": True, "outcome_completed": False, "expected": False},
+            {"run_finished": False, "outcome_completed": False, "expected": False},
+        ],
+        ids=["success", "failure", "ongoing"],
+    )
+    def test_check_sequencing_status(
+        self, p: pytest.fixture, create_dirs: pytest.fixture
+    ):
+        tmp: tempfile.TemporaryDirectory = create_dirs
 
-    def test_check_sequencing_status(self):
-        assert False
+        run = to_test.Run(
+            create_aviti_run_dir(
+                tmp,
+                run_finished=p["run_finished"],
+                outcome_completed=p["outcome_completed"],
+            ),
+            {},
+        )
+        assert run.check_sequencing_status() is p["expected"]
 
-    def test_get_demultiplexing_status(self):
-        assert False
+    @pytest.mark.parametrize(
+        "p",
+        [
+            {"demux_dir": False, "demux_done": False, "expected": "not started"},
+            {"demux_dir": True, "demux_done": False, "expected": "ongoing"},
+            {"demux_dir": True, "demux_done": True, "expected": "finished"},
+        ],
+        ids=["not started", "ongoing", "finished"],
+    )
+    def test_get_demultiplexing_status(
+        self, p: pytest.fixture, create_dirs: pytest.fixture
+    ):
+        tmp: tempfile.TemporaryDirectory = create_dirs
 
-    def test_manifest_exists(self):
-        assert False
+        run = to_test.Run(
+            create_aviti_run_dir(
+                tmp,
+                demux_dir=p["demux_dir"],
+                demux_done=p["demux_done"],
+            ),
+            {},
+        )
+        assert run.get_demultiplexing_status() == p["expected"]
 
+    @pytest.mark.parametrize(
+        "p",
+        [
+            {"run_finished": True, "expected": True},
+            {"run_finished": False, "expected": False},
+        ],
+        ids=["exists", "does not exist"],
+    )
+    def test_manifest_exists(self, create_dirs: pytest.fixture, p: pytest.fixture):
+        tmp: tempfile.TemporaryDirectory = create_dirs
+
+        run = to_test.Run(
+            create_aviti_run_dir(
+                tmp,
+                run_finished=p["run_finished"],
+            ),
+            {},
+        )
+        assert run.manifest_exists() == p["expected"]
+
+    @pytest.mark.skip
     def test_generate_demux_command(self):
         assert False
 
+    @pytest.mark.skip
     def test_start_demux(self):
         assert False
 
+    @pytest.mark.skip
     def test_is_transferred(self):
-        assert False
+        pass
 
+    @pytest.mark.skip
     def test_parse_rundir(self):
-        assert False
+        pass
