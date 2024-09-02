@@ -4,7 +4,7 @@ import glob
 import logging
 import os
 
-from taca.element.Element_Runs import Aviti_Run
+from taca.element.Aviti_Runs import Aviti_Run
 from taca.utils.config import CONFIG
 
 logger = logging.getLogger(__name__)
