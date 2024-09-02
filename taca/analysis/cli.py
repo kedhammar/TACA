@@ -3,8 +3,7 @@
 import click
 
 from taca.analysis import analysis as an
-from taca.analysis import analysis_nanopore
-from taca.analysis import analysis_element
+from taca.analysis import analysis_element, analysis_nanopore
 
 
 @click.group()

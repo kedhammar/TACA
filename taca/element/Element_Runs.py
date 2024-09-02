@@ -1,6 +1,6 @@
+import json
 import logging
 import os
-import json
 from datetime import datetime
 
 from taca.utils import misc
@@ -63,7 +63,7 @@ class Run:
         with chdir(self.run_dir):
             cmd = self.generate_demux_command()
             misc.call_external_command_detached(
-                cmd, with_log_files=True, prefix=f"demux_"
+                cmd, with_log_files=True, prefix="demux_"
             )
             logger.info(
                 "Bases2Fastq conversion and demultiplexing "

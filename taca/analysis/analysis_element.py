@@ -6,8 +6,6 @@ import os
 
 from taca.element.Element_Runs import Aviti_Run
 from taca.utils.config import CONFIG
-from taca.utils import statusdb
-
 
 logger = logging.getLogger(__name__)
 
