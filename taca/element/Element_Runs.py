@@ -60,7 +60,7 @@ class Run:
             )
             logger.info(
                 "Bases2Fastq conversion and demultiplexing "
-                f"started for run {os.path.basename(self.id)} on {datetime.now()}"
+                f"started for run {os.path.basename(self.run_dir)} on {datetime.now()}"
             )
     
     def is_transferred(self, transfer_file):
