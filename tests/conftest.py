@@ -69,7 +69,7 @@ def create_dirs():
     os.makedirs(f"{tmp.name}/ngi_data/sequencing/promethion/nosync")
     os.makedirs(f"{tmp.name}/ngi_data/sequencing/minion/nosync")
     os.makedirs(f"{tmp.name}/ngi_data/sequencing/minion/qc/nosync")
-    ## AVITI
+    ## Element
     os.makedirs(f"{tmp.name}/ngi_data/sequencing/AV242106/nosync")
 
     # Sequencing metadata
@@ -81,7 +81,7 @@ def create_dirs():
     ## ONT
     os.makedirs(f"{tmp.name}/ngi-nas-ns/promethion_data")
     os.makedirs(f"{tmp.name}/ngi-nas-ns/minion_data")
-    ## AVITI
+    ## Element
     os.makedirs(f"{tmp.name}/ngi-nas-ns/Aviti_data")
 
     # Samplesheets

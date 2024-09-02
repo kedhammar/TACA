@@ -8,7 +8,7 @@ import pytest
 from taca.element import Element_Runs as to_test
 
 
-def create_aviti_run_dir(
+def create_element_run_dir(
     tmp: tempfile.TemporaryDirectory,
     run_name: str = "20240716_AV242106_testrun",
     nosync: bool = False,
@@ -19,10 +19,9 @@ def create_aviti_run_dir(
     outcome_completed: bool = True,
 ) -> str:
     """
-    Conditionally build a file tree for an Aviti run.
+    Conditionally build a file tree for an Element run.
 
         .
-        ├── AvitiRunStats.json
         ├── RunManifest.csv
         ├── RunManifest.json
         ├── RunParameters.json
@@ -42,7 +41,6 @@ def create_aviti_run_dir(
 
     # Populate run dir with files and folders
     if run_finished:
-        open(f"{run_path}/AvitiRunStats.json", "w").close()
         open(f"{run_path}/RunManifest.csv", "w").close()
         open(f"{run_path}/RunManifest.json", "w").close()
         open(f"{run_path}/RunParameters.json", "w").close()
@@ -65,7 +63,7 @@ def create_aviti_run_dir(
 class TestRun:
     def test_init(self, create_dirs: pytest.fixture):
         tmp: tempfile.TemporaryDirectory = create_dirs
-        run_dir = create_aviti_run_dir(tmp)
+        run_dir = create_element_run_dir(tmp)
         run = to_test.Run(run_dir, {})
         assert run.run_dir == run_dir
 
@@ -84,7 +82,7 @@ class TestRun:
         tmp: tempfile.TemporaryDirectory = create_dirs
 
         run = to_test.Run(
-            create_aviti_run_dir(
+            create_element_run_dir(
                 tmp,
                 run_finished=p["run_finished"],
                 outcome_completed=p["outcome_completed"],
@@ -108,7 +106,7 @@ class TestRun:
         tmp: tempfile.TemporaryDirectory = create_dirs
 
         run = to_test.Run(
-            create_aviti_run_dir(
+            create_element_run_dir(
                 tmp,
                 demux_dir=p["demux_dir"],
                 demux_done=p["demux_done"],
@@ -129,7 +127,7 @@ class TestRun:
         tmp: tempfile.TemporaryDirectory = create_dirs
 
         run = to_test.Run(
-            create_aviti_run_dir(
+            create_element_run_dir(
                 tmp,
                 run_finished=p["run_finished"],
             ),
@@ -148,7 +146,7 @@ class TestRun:
             "taca.element.Element_Runs.Run.generate_demux_command"
         ) as mock_command:
             mock_command.return_value = "test command"
-            run = to_test.Run(create_aviti_run_dir(create_dirs), {})
+            run = to_test.Run(create_element_run_dir(create_dirs), {})
             run.start_demux()
             mock_command.assert_called_once()
             mock_call.assert_called_once_with(
