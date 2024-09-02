@@ -72,6 +72,7 @@ def updatedb(rundir, software):
     """Save the run to statusdb."""
     an.upload_to_statusdb(rundir, software)
 
+
 # Element analysis subcommands
 
 
