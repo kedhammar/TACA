@@ -17,6 +17,21 @@ def create_aviti_run_dir(
     demux_done: bool = True,
     outcome_completed: bool = True,
 ) -> str:
+    """
+    Conditionally build a file tree for an Aviti run.
+
+        .
+        ├── AvitiRunStats.json
+        ├── RunManifest.csv
+        ├── RunManifest.json
+        ├── RunParameters.json
+        ├── RunUploaded.json
+        ├── .sync_finished
+        └── Demultiplexing
+            └── RunStats.json
+
+    """
+
     # Create run dir
     if nosync:
         run_path = f"{tmp.name}/ngi_data/sequencing/AV242106/nosync/{run_name}"
