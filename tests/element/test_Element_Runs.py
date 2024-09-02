@@ -1,6 +1,7 @@
 import json
 import os
 import tempfile
+from unittest.mock import patch
 
 import pytest
 
@@ -137,17 +138,27 @@ class TestRun:
         assert run.manifest_exists() == p["expected"]
 
     @pytest.mark.skip
-    def test_generate_demux_command(self):
-        assert False
+    def test_generate_demux_command(self, create_dirs):
+        pass
+
+    def test_start_demux(self, create_dirs):
+        with patch(
+            "taca.utils.misc.call_external_command_detached"
+        ) as mock_call, patch(
+            "taca.element.Element_Runs.Run.generate_demux_command"
+        ) as mock_command:
+            mock_command.return_value = "test command"
+            run = to_test.Run(create_aviti_run_dir(create_dirs), {})
+            run.start_demux()
+            mock_command.assert_called_once()
+            mock_call.assert_called_once_with(
+                "test command", with_log_files=True, prefix="demux_"
+            )
 
     @pytest.mark.skip
-    def test_start_demux(self):
-        assert False
-
-    @pytest.mark.skip
-    def test_is_transferred(self):
+    def test_is_transferred(self, create_dirs):
         pass
 
     @pytest.mark.skip
-    def test_parse_rundir(self):
+    def test_parse_rundir(self, create_dirs):
         pass
