@@ -31,9 +31,11 @@ def create_dirs():
         │   ├── minion_data
         │   ├── miseq_data
         │   ├── promethion_data
+        │   ├── Aviti_data
         │   └── samplesheets
         │       ├── NovaSeqXPlus
         │       └── anglerfish
+        │       └── Aviti
         └── ngi_data
             └── sequencing
                 ├── MiSeq
@@ -49,6 +51,8 @@ def create_dirs():
                 │   └── qc
                 │       └── nosync
                 └── promethion
+                │   └── nosync
+                └── AV242106
                     └── nosync
 
     --> Return the the temporary directory object
@@ -65,6 +69,8 @@ def create_dirs():
     os.makedirs(f"{tmp.name}/ngi_data/sequencing/promethion/nosync")
     os.makedirs(f"{tmp.name}/ngi_data/sequencing/minion/nosync")
     os.makedirs(f"{tmp.name}/ngi_data/sequencing/minion/qc/nosync")
+    ## Element
+    os.makedirs(f"{tmp.name}/ngi_data/sequencing/AV242106/nosync")
 
     # Sequencing metadata
     ## Illumina
@@ -75,10 +81,13 @@ def create_dirs():
     ## ONT
     os.makedirs(f"{tmp.name}/ngi-nas-ns/promethion_data")
     os.makedirs(f"{tmp.name}/ngi-nas-ns/minion_data")
+    ## Element
+    os.makedirs(f"{tmp.name}/ngi-nas-ns/Aviti_data")
 
     # Samplesheets
     os.makedirs(f"{tmp.name}/ngi-nas-ns/samplesheets/anglerfish")
     os.makedirs(f"{tmp.name}/ngi-nas-ns/samplesheets/NovaSeqXPlus")
+    os.makedirs(f"{tmp.name}/ngi-nas-ns/samplesheets/Aviti")
 
     # Misc. ONT dirs/files
     os.makedirs(f"{tmp.name}/minknow_reports")

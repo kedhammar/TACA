@@ -3,8 +3,7 @@
 import click
 
 from taca.analysis import analysis as an
-from taca.analysis import analysis_nanopore
-from taca.analysis import analysis_element
+from taca.analysis import analysis_element, analysis_nanopore
 
 
 @click.group()
@@ -71,6 +70,7 @@ def transfer(rundir, runfolder_project, exclude_lane, software):
 def updatedb(rundir, software):
     """Save the run to statusdb."""
     an.upload_to_statusdb(rundir, software)
+
 
 # Element analysis subcommands
 

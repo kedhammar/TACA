@@ -1,6 +1,6 @@
+import json
 import logging
 import os
-import json
 from datetime import datetime
 
 from taca.utils import misc
@@ -19,9 +19,11 @@ class Run:
         self.CONFIG = configuration
         self.demux_dir = os.path.join(self.run_dir, "Demultiplexing")
         self.final_sequencing_file = os.path.join(self.run_dir, "RunUploaded.json")
-        self.demux_stats_file = os.path.join(self.demux_dir, "RunStats.json") #TODO: How to handle SideA/SideB?
+        self.demux_stats_file = os.path.join(
+            self.demux_dir, "RunStats.json"
+        )  # TODO: How to handle SideA/SideB?
         self.run_manifest_file = os.path.join(self.run_dir, "RunManifest.csv")
-    
+
     def check_sequencing_status(self):
         if os.path.exists(self.final_sequencing_file):
             with open(self.final_sequencing_file) as json_file:
@@ -32,15 +34,17 @@ class Run:
                 return True
         else:
             return False
-    
+
     def get_demultiplexing_status(self):
         if not os.path.exists(self.demux_dir):
             return "not started"
-        elif os.path.exists(self.demux_dir) and not os.path.isfile(self.demux_stats_file):
+        elif os.path.exists(self.demux_dir) and not os.path.isfile(
+            self.demux_stats_file
+        ):
             return "ongoing"
         elif os.path.exists(self.demux_dir) and os.path.isfile(self.demux_stats_file):
             return "finished"
-    
+
     def manifest_exists(self):
         return os.path.isfile(self.run_manifest_file)
     
@@ -57,24 +61,27 @@ class Run:
         return
      
     def generate_demux_command(self):
-        command = [self.CONFIG.get(self.software)["bin"], #TODO add path to bases2fastq executable to config
-                   self.run_dir,
-                   self.demux_dir, #TODO: how to handle SideA/SideB?
-                   "-p 12"
-                   ] 
+        command = [
+            self.CONFIG.get(self.software)[
+                "bin"
+            ],  # TODO add path to bases2fastq executable to config
+            self.run_dir,
+            self.demux_dir,  # TODO: how to handle SideA/SideB?
+            "-p 12",
+        ]
         return command
-    
+
     def start_demux(self):
         with chdir(self.run_dir):
             cmd = self.generate_demux_command()
             misc.call_external_command_detached(
-                cmd, with_log_files=True, prefix=f"demux_"
+                cmd, with_log_files=True, prefix="demux_"
             )
             logger.info(
                 "Bases2Fastq conversion and demultiplexing "
-                f"started for run {os.path.basename(self.id)} on {datetime.now()}"
+                f"started for run {os.path.basename(self.run_dir)} on {datetime.now()}"
             )
-    
+
     def is_transferred(self, transfer_file):
         #TODO: return true if run in transfer log, else false
         pass
@@ -106,6 +113,6 @@ class Run:
     def archive(self):
         #TODO: move run dir to nosync
         pass
-    
+
     def parse_rundir(self):
         pass
