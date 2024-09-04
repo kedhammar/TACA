@@ -44,6 +44,18 @@ class Run:
     def manifest_exists(self):
         return os.path.isfile(self.run_manifest_file)
     
+    def get_sample_info(self):
+        sample_info = {} #TODO: populate 
+        return sample_info
+    
+    def get_sample_types(self, sample_info):
+        sample_types = () #TODO: populate 
+        return sample_types
+    
+    def make_manifest(self, sample_info, sample_type):
+        #TODO: make a manifest for a sample_type based on sample_info
+        return
+     
     def generate_demux_command(self):
         command = [self.CONFIG.get(self.software)["bin"], #TODO add path to bases2fastq executable to config
                    self.run_dir,
@@ -64,6 +76,35 @@ class Run:
             )
     
     def is_transferred(self, transfer_file):
+        #TODO: return true if run in transfer log, else false
+        pass
+    
+    def transfer_ongoing(self):
+        #TODO: return true if hidden transfer file marker exists, else false
+        pass
+    
+    def sync_metadata(self):
+        #TODO: copy metadata from demuxed run to ngi-nas-ns
+        pass
+    
+    def make_transfer_indicator(self):
+        #TODO: touch a hidden file in the run directory
+        pass
+    
+    def transfer(self):
+        #TODO: rsync run to analysis cluster
+        pass
+    
+    def remove_transfer_indicator(self):
+        #TODO: remove hidden file in run directory
+        pass
+    
+    def update_transfer_log(self, transfer_file):
+        #TODO: update the transfer log
+        pass
+    
+    def archive(self):
+        #TODO: move run dir to nosync
         pass
     
     def parse_rundir(self):

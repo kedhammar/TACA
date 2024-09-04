@@ -37,37 +37,51 @@ def run_preprocessing(given_run):
             #TODO: compare previous status with current status and update statusdb document if different
             return
         elif sequencing_done and demultiplexing_status == "not started":
-            if not run.manifest_exists(): # Assumes that we use the same manifest as for sequencing. TODO: demux settings need to be added to the original manifest by lims
-                #TODO: email operator that manifest is missing
+            if not run.manifest_exists():
+                #TODO: email operator warning
                 return
-            # Start demux
-            run.start_demux()
-            #TODO: compare previous status with current status and update statusdb document if different
-            return
+            elif run.manifest_exists():
+                # Get sample info from manifest
+                sample_info = run.get_sample_info()
+                sample_types = run.get_sample_types(sample_info)
+                if len(sample_types) == 1:
+                    run.start_demux()
+                elif len(sample_types) > 1:
+                    for sample_type in sample_types:
+                        run.make_manifest(sample_info, sample_type)
+                        run.start_demux()
+                else:
+                    #TODO: warn that no samples were found in the run manifest
+                    return
+                #TODO: compare previous status with current status and update statusdb document if different
         elif sequencing_done and demultiplexing_status == "ongoing":
             #TODO: compare previous status with current status and update statusdb document if different
             return
         elif sequencing_done and demultiplexing_status == "finished":
-            # Sync metadata to ngi-data-ns
-            # check if run is transferred or transfer is ongoing
-            # if run has not been transferred and transfer is not ongoing
-                # make a hidden file to indicate that transfer has started
-                # compare previous status with current status and update statusdb document if different
+            transfer_file = CONFIG.get('Element').get('Aviti').get('transfer_log')
+            if not run.is_transferred(transfer_file) and not run.transfer_ongoing():
+                run.sync_metadata()
+                run.make_transfer_indicator()
+                #TODO: compare previous status with current status and update statusdb document if different
                     # Also update statusdb with a timestamp of when the transfer started
-                # transfer run to miarka 
-                # remove hidden file if transfer was successful
-                # Update transfer log
-                # update statusdb document
-                # archive run to nosync
-                # update statusdb document
-            # elif run is being transferred (hidden file exists)
-                # compare previous status with current status and update statusdb document if different
-                # return
-            # elif run is already transferred (in transfer log)
-                # compare previous status with current status and update statusdb document if different
+                run.transfer()
+                run.remove_transfer_indicator()
+                run.update_transfer_log(transfer_file)
+                #TODO: update statusdb document
+                run.archive()
+            elif not run.is_transferred(transfer_file) and run.transfer_ongoing():
+                #TODO: compare previous status with current status and update statusdb document if different
+                logger.info("Run is being transferred. Skipping.")
+                return
+            elif run.is_transferred(transfer_file):
+                #TODO: compare previous status with current status and update statusdb document if different
                 # warn that transferred run has not been archived
-            pass
-        
+                logger.warn("The run has already been transferred but has not been archived. Please investigate")
+                return
+            else:
+                logger.warn("Unknown transfer status. Please investigate")
+                
+            
 
     if given_run:
         run = Aviti_Run(run) #TODO: Needs to change if more Element machines are aquired in the future
