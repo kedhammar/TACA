@@ -28,23 +28,25 @@ def run_preprocessing(given_run):
             if run.status_changed(current_run_status):
                 run.update_statusdb(current_run_status) #TODO: what info needs to be gathered and uploaded?
         elif sequencing_done and demultiplexing_status == "not started": # Sequencing done. Start demux
-            if not run.manifest_exists():
+            if not run.manifest_exists(): #TODO: this should check for the zip file in lims output location
                 logger.warn(f"Run manifest is missing for {run.flowcell_id}")
                 #TODO: email operator warning
                 return
             elif run.manifest_exists():
-                sample_info = run.get_sample_info_from_manifest()
-                sample_types = run.get_sample_types(sample_info)
-                if len(sample_types) == 1:
-                    run.start_demux()
-                elif len(sample_types) > 1:
-                    for sample_type in sample_types:
-                        run.make_manifest(sample_info, sample_type)
-                        run.start_demux()
-                else:
-                    logger.warn(f"No samples were found in the sample manifest for run {run.flowcell_id}.")
-                    #TODO: email operator warning
-                    return
+                os.mkdir(run.demux_dir)
+                run.copy_manifests()
+                run_manifests = glob.glob(
+                    os.path.join(run.run_dir, "RunManifest_*.csv")
+                    )  # TODO: is this filename right?
+                sub_demux_count = 0
+                for run_manifest in run_manifests.sort():
+                    if len(run_manifests) == 1:
+                        demux_dir = run.demux_dir
+                    elif len(run_manifests) > 1:
+                        demux_dir = f"Demultiplexing_{sub_demux_count}"
+                    os.mkdir(demux_dir)
+                    run.start_demux(run_manifest, demux_dir)
+                    sub_demux_count += 1
                 current_run_status = "demultiplexing"
                 if run.status_changed(current_run_status):
                     run.update_statusdb(current_run_status)
@@ -56,6 +58,8 @@ def run_preprocessing(given_run):
         elif sequencing_done and demultiplexing_status == "finished":
             transfer_file = CONFIG.get('Element').get('Aviti').get('transfer_log')
             if not run.is_transferred(transfer_file) and not run.transfer_ongoing():
+                #TODO: if multiple demux dirs, aggregate the results into Demultiplexing?
+                run.aggregate_demux_results
                 run.sync_metadata()
                 run.make_transfer_indicator()
                 current_run_status = "transferring"

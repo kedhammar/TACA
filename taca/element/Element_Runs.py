@@ -57,19 +57,11 @@ class Run:
         pass
 
     def manifest_exists(self):
-        return os.path.isfile(self.run_manifest_file)
+        return os.path.isfile(self.run_manifest_file) #TODO: still true?
     
-    def get_sample_info_from_manifest(self):
-        sample_info = {} #TODO: populate with sample info from manifest
-        return sample_info
-    
-    def get_sample_types(self, sample_info):
-        sample_types = () #TODO: populate 
-        return sample_types
-    
-    def make_manifest(self, sample_info, sample_type):
-        #TODO: make a manifest for a sample_type based on sample_info
-        return
+    def copy_manifests():
+        #TODO: copy manifest zip file from lims location and unzip
+        pass
      
     def generate_demux_command(self):
         command = [
@@ -82,7 +74,7 @@ class Run:
         ]
         return command
 
-    def start_demux(self):
+    def start_demux(self, run_manifest, demux_dir):
         with chdir(self.run_dir):
             cmd = self.generate_demux_command()
             misc.call_external_command_detached(
