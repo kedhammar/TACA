@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import shutil
 from datetime import datetime
 
 from taca.utils import misc
@@ -23,7 +24,8 @@ class Run:
         self.demux_stats_file = os.path.join(
             self.demux_dir, "RunStats.json" # Assumes demux is finished when this file is created
         )
-        self.run_manifest_file = os.path.join(self.run_dir, "RunManifest.csv")
+        self.run_manifest_zip_file = os.path.join(self.CONFIG.get('Aviti').get('manifest_zip_location'),
+                                                  self.flowcell_id + '.tar.gz') #TODO: change and add to taca.yaml
     
     def check_sequencing_status(self):
         if os.path.exists(self.final_sequencing_file):
@@ -57,26 +59,24 @@ class Run:
         pass
 
     def manifest_exists(self):
-        return os.path.isfile(self.run_manifest_file) #TODO: still true?
+        return os.path.isfile(self.run_manifest_zip_file)
     
-    def copy_manifests():
-        #TODO: copy manifest zip file from lims location and unzip
-        pass
+    def copy_manifests(self):
+        shutil.copy(self.run_manifest_zip_file, self.run_dir)
+        #TODO: unzip
      
-    def generate_demux_command(self):
+    def generate_demux_command(self, run_manifest, demux_dir):
         command = [
-            self.CONFIG.get(self.software)[
-                "bin"
-            ],  # TODO add path to bases2fastq executable to config
+            self.CONFIG.get(self.software)["bin"],  # TODO add path to bases2fastq executable to config
             self.run_dir,
-            self.demux_dir,  # TODO: how to handle SideA/SideB?
+            demux_dir,
             "-p 12",
         ]
         return command
 
     def start_demux(self, run_manifest, demux_dir):
         with chdir(self.run_dir):
-            cmd = self.generate_demux_command()
+            cmd = self.generate_demux_command(run_manifest, demux_dir)
             misc.call_external_command_detached(
                 cmd, with_log_files=True, prefix="demux_"
             )

@@ -36,8 +36,8 @@ def run_preprocessing(given_run):
                 os.mkdir(run.demux_dir)
                 run.copy_manifests()
                 run_manifests = glob.glob(
-                    os.path.join(run.run_dir, "RunManifest_*.csv")
-                    )  # TODO: is this filename right?
+                    os.path.join(run.run_dir, "RunManifest_*.csv")  # TODO: is this filename right?
+                    )
                 sub_demux_count = 0
                 for run_manifest in run_manifests.sort():
                     if len(run_manifests) == 1:
