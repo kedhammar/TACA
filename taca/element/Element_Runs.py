@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import shutil
 from datetime import datetime
 
 from taca.utils import misc
@@ -18,17 +19,21 @@ class Run:
             raise RuntimeError(f"Could not locate run directory {run_dir}")
         self.run_parameters_parsed = False
 
-        self.run_dir = os.path.abspath(run_dir)  # TODO: How to handle SideA/SideB?
+        self.run_dir = os.path.abspath(run_dir)
         self.CONFIG = configuration
 
         self.demux_dir = os.path.join(self.run_dir, "Demultiplexing")
         self.final_sequencing_file = os.path.join(self.run_dir, "RunUploaded.json")
-
         self.demux_stats_file = os.path.join(
             self.demux_dir,
             "RunStats.json",  # Assumes demux is finished when this file is created
         )
         self.run_manifest_file = os.path.join(self.run_dir, "RunManifest.csv")
+        self.run_manifest_zip_file = os.path.join(
+            self.CONFIG.get("Aviti").get("manifest_zip_location"),
+            self.flowcell_id + ".tar.gz",
+        )  # TODO: change and add to taca.yaml
+        # TODO, need to be real careful when using the flowcell_id as it is manually entered and can mean three different things
 
         # Instrument generated files
         self.run_parameters_file = os.path.join(self.run_dir, "RunParameters.json")
@@ -39,6 +44,20 @@ class Run:
         self.run_uploaded_file = os.path.join(self.run_dir, "RunUploaded.json")
 
         self.db = ElementRunsConnection(self.CONFIG["statusdb"], dbname="element_runs")
+
+        # Fields to be set by TACA
+        self.status = None
+
+        # Fields that will be set when parsing run parameters
+        self.run_name = None
+        self.run_id = None
+        self.side = None
+        self.side_letter = None
+        self.run_type = None
+        self.flowcell_id = None
+        self.instrument_name = None
+        self.date = None
+        self.operator_name = None
 
     def __str__(self) -> str:
         if self.run_parameters_parsed:
@@ -54,8 +73,14 @@ class Run:
             raise RuntimeError(f"Run parameters not parsed for run {self.run_dir}")
 
     def parse_run_parameters(self) -> None:
-        with open(self.run_parameters_file) as json_file:
-            run_parameters = json.load(json_file)
+        try:
+            with open(self.run_parameters_file) as json_file:
+                run_parameters = json.load(json_file)
+        except FileNotFoundError:
+            logger.warning(
+                f"Run parameters file not found for {self}, might not be ready yet"
+            )
+            return
 
         # Manually entered, but should be side and flowcell id
         self.run_name = run_parameters.get("RunName")
@@ -72,10 +97,16 @@ class Run:
         self.instrument_name = run_parameters.get("InstrumentName")
         self.date = run_parameters.get("Date")
         self.operator_name = run_parameters.get("OperatorName")
+        self.run_parameters_parsed = True
 
     def to_doc_obj(self):
         # TODO
-        pass
+        doc_obj = {
+            "run_path": self.run_dir,
+            "run_status": self.status,
+            "pore_count_history": [],
+        }
+        return doc_obj
 
     def check_sequencing_status(self):
         if os.path.exists(self.final_sequencing_file):
@@ -109,26 +140,26 @@ class Run:
         self.db.upload_to_statusdb(doc_obj)
 
     def manifest_exists(self):
-        return os.path.isfile(self.run_manifest_file)  # TODO: still true?
+        return os.path.isfile(self.run_manifest_zip_file)
 
     def copy_manifests(self):
-        # TODO: copy manifest zip file from lims location and unzip
-        pass
+        shutil.copy(self.run_manifest_zip_file, self.run_dir)
+        # TODO: unzip
 
-    def generate_demux_command(self):
+    def generate_demux_command(self, run_manifest, demux_dir):
         command = [
             self.CONFIG.get(self.software)[
                 "bin"
             ],  # TODO add path to bases2fastq executable to config
             self.run_dir,
-            self.demux_dir,  # TODO: how to handle SideA/SideB?
+            demux_dir,
             "-p 12",
         ]
         return command
 
     def start_demux(self, run_manifest, demux_dir):
         with chdir(self.run_dir):
-            cmd = self.generate_demux_command()
+            cmd = self.generate_demux_command(run_manifest, demux_dir)
             misc.call_external_command_detached(
                 cmd, with_log_files=True, prefix="demux_"
             )
@@ -167,7 +198,4 @@ class Run:
 
     def archive(self):
         # TODO: move run dir to nosync
-        pass
-
-    def parse_rundir(self):
         pass

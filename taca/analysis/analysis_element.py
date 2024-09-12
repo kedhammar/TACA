@@ -25,8 +25,8 @@ def run_preprocessing(given_run):
         sequencing_done = run.check_sequencing_status()
         demultiplexing_status = run.get_demultiplexing_status()
         if not sequencing_done:  # Sequencing ongoing
-            current_run_status = "sequencing"
-            if run.status_changed(current_run_status):
+            run.status = "sequencing"
+            if run.status_changed:
                 run.update_statusdb()
         elif (
             sequencing_done and demultiplexing_status == "not started"
@@ -41,8 +41,10 @@ def run_preprocessing(given_run):
                 os.mkdir(run.demux_dir)
                 run.copy_manifests()
                 run_manifests = glob.glob(
-                    os.path.join(run.run_dir, "RunManifest_*.csv")
-                )  # TODO: is this filename right?
+                    os.path.join(
+                        run.run_dir, "RunManifest_*.csv"
+                    )  # TODO: is this filename right?
+                )
                 sub_demux_count = 0
                 for run_manifest in run_manifests.sort():
                     if len(run_manifests) == 1:
@@ -52,13 +54,13 @@ def run_preprocessing(given_run):
                     os.mkdir(demux_dir)
                     run.start_demux(run_manifest, demux_dir)
                     sub_demux_count += 1
-                current_run_status = "demultiplexing"
-                if run.status_changed(current_run_status):
-                    run.update_statusdb(current_run_status)
+                run.status = "demultiplexing"
+                if run.status_changed:
+                    run.update_statusdb(run.status)
         elif sequencing_done and demultiplexing_status == "ongoing":
-            current_run_status = "demultiplexing"
-            if run.status_changed(current_run_status):
-                run.update_statusdb(current_run_status)
+            run.status = "demultiplexing"
+            if run.status_changed:
+                run.update_statusdb(run.status)
             return
         elif sequencing_done and demultiplexing_status == "finished":
             transfer_file = CONFIG.get("Element").get("Aviti").get("transfer_log")
@@ -67,24 +69,24 @@ def run_preprocessing(given_run):
                 run.aggregate_demux_results
                 run.sync_metadata()
                 run.make_transfer_indicator()
-                current_run_status = "transferring"
-                if run.status_changed(current_run_status):
-                    run.update_statusdb(current_run_status)
+                run.status = "transferring"
+                if run.status_changed:
+                    run.update_statusdb(run.status)
                     # TODO: Also update statusdb with a timestamp of when the transfer started
                 run.transfer()
                 run.remove_transfer_indicator()
                 run.update_transfer_log(transfer_file)
-                current_run_status = "transferred"
-                if run.status_changed(current_run_status):
-                    run.update_statusdb(current_run_status)
+                run.status = "transferred"
+                if run.status_changed:
+                    run.update_statusdb(run.status)
                 run.archive()
-                current_run_status = "archived"
-                if run.status_changed(current_run_status):
-                    run.update_statusdb(current_run_status)
+                run.status = "archived"
+                if run.status_changed:
+                    run.update_statusdb(run.status)
             elif not run.is_transferred(transfer_file) and run.transfer_ongoing():
-                current_run_status = "transferring"
-                if run.status_changed(current_run_status):
-                    run.update_statusdb(current_run_status)
+                run.status = "transferring"
+                if run.status_changed:
+                    run.update_statusdb(run.status)
                 logger.info(f"{run} is being transferred. Skipping.")
                 return
             elif run.is_transferred(transfer_file):
