@@ -15,15 +15,16 @@ class Run:
     def __init__(self, run_dir, configuration):
         if not os.path.exists(run_dir):
             raise RuntimeError(f"Could not locate run directory {run_dir}")
-        self.run_dir = os.path.abspath(run_dir)
+        self.flowcell_id = run_dir #TODO: get flowcell id from json instead
+        self.run_dir = os.path.abspath(run_dir) # TODO: How to handle SideA/SideB?
         self.CONFIG = configuration
         self.demux_dir = os.path.join(self.run_dir, "Demultiplexing")
         self.final_sequencing_file = os.path.join(self.run_dir, "RunUploaded.json")
         self.demux_stats_file = os.path.join(
-            self.demux_dir, "RunStats.json"
-        )  # TODO: How to handle SideA/SideB?
+            self.demux_dir, "RunStats.json" # Assumes demux is finished when this file is created
+        )
         self.run_manifest_file = os.path.join(self.run_dir, "RunManifest.csv")
-
+    
     def check_sequencing_status(self):
         if os.path.exists(self.final_sequencing_file):
             with open(self.final_sequencing_file) as json_file:
@@ -34,7 +35,7 @@ class Run:
                 return True
         else:
             return False
-
+    
     def get_demultiplexing_status(self):
         if not os.path.exists(self.demux_dir):
             return "not started"
@@ -44,21 +45,23 @@ class Run:
             return "ongoing"
         elif os.path.exists(self.demux_dir) and os.path.isfile(self.demux_stats_file):
             return "finished"
+        else:
+            return "unknown"
+    
+    def status_changed(self, current_run_status):
+        #TODO: get document from statusdb, check status field, return true if status of run changed
+        pass
+
+    def update_statusdb(self, current_run_status):
+        #TODO: Get document from statusdb. Gather data about run and update the statusdb document, then upload to statusdb
+        pass
 
     def manifest_exists(self):
-        return os.path.isfile(self.run_manifest_file)
+        return os.path.isfile(self.run_manifest_file) #TODO: still true?
     
-    def get_sample_info(self):
-        sample_info = {} #TODO: populate 
-        return sample_info
-    
-    def get_sample_types(self, sample_info):
-        sample_types = () #TODO: populate 
-        return sample_types
-    
-    def make_manifest(self, sample_info, sample_type):
-        #TODO: make a manifest for a sample_type based on sample_info
-        return
+    def copy_manifests():
+        #TODO: copy manifest zip file from lims location and unzip
+        pass
      
     def generate_demux_command(self):
         command = [
@@ -71,7 +74,7 @@ class Run:
         ]
         return command
 
-    def start_demux(self):
+    def start_demux(self, run_manifest, demux_dir):
         with chdir(self.run_dir):
             cmd = self.generate_demux_command()
             misc.call_external_command_detached(
