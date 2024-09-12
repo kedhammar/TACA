@@ -5,6 +5,7 @@ from datetime import datetime
 
 from taca.utils import misc
 from taca.utils.filesystem import chdir
+from taca.utils.statusdb import ElementRunsConnection
 
 logger = logging.getLogger(__name__)
 
@@ -15,16 +16,67 @@ class Run:
     def __init__(self, run_dir, configuration):
         if not os.path.exists(run_dir):
             raise RuntimeError(f"Could not locate run directory {run_dir}")
-        self.flowcell_id = run_dir #TODO: get flowcell id from json instead
-        self.run_dir = os.path.abspath(run_dir) # TODO: How to handle SideA/SideB?
+        self.run_parameters_parsed = False
+
+        self.run_dir = os.path.abspath(run_dir)  # TODO: How to handle SideA/SideB?
         self.CONFIG = configuration
+
         self.demux_dir = os.path.join(self.run_dir, "Demultiplexing")
         self.final_sequencing_file = os.path.join(self.run_dir, "RunUploaded.json")
+
         self.demux_stats_file = os.path.join(
-            self.demux_dir, "RunStats.json" # Assumes demux is finished when this file is created
+            self.demux_dir,
+            "RunStats.json",  # Assumes demux is finished when this file is created
         )
         self.run_manifest_file = os.path.join(self.run_dir, "RunManifest.csv")
-    
+
+        # Instrument generated files
+        self.run_parameters_file = os.path.join(self.run_dir, "RunParameters.json")
+        self.run_stats_file = os.path.join(self.run_dir, "RunStats.json")
+        self.run_manifest_file_from_instrument = os.path.join(
+            self.run_dir, "RunManifest.json"
+        )
+        self.run_uploaded_file = os.path.join(self.run_dir, "RunUploaded.json")
+
+        self.db = ElementRunsConnection(self.CONFIG["statusdb"], dbname="element_runs")
+
+    def __str__(self) -> str:
+        if self.run_parameters_parsed:
+            return f"ElementRun({self.NGI_run_id})"
+        else:
+            return f"ElementRun({self.run_dir})"
+
+    @property
+    def NGI_run_id(self):
+        if self.run_parameters_parsed:
+            return f"{self.date}_{self.instrument_name}_{self.side_letter}{self.flowcell_id}"
+        else:
+            raise RuntimeError(f"Run parameters not parsed for run {self.run_dir}")
+
+    def parse_run_parameters(self) -> None:
+        with open(self.run_parameters_file) as json_file:
+            run_parameters = json.load(json_file)
+
+        # Manually entered, but should be side and flowcell id
+        self.run_name = run_parameters.get("RunName")
+
+        self.run_id = run_parameters.get(
+            "runID"
+        )  # Unique hash that we don't really use
+        self.side = run_parameters.get("Side")  # SideA or SideB
+        self.side_letter = self.side[-1]  # A or B
+        self.run_type = run_parameters.get(
+            "RunType"
+        )  # Sequencing, wash or prime I believe?
+        self.flowcell_id = run_parameters.get("FlowcellID")
+        self.instrument_name = run_parameters.get("InstrumentName")
+        self.date = run_parameters.get("Date")
+        self.operator_name = run_parameters.get("OperatorName")
+
+    def to_doc_obj(self):
+        # TODO
+        pass
+
     def check_sequencing_status(self):
         if os.path.exists(self.final_sequencing_file):
             with open(self.final_sequencing_file) as json_file:
@@ -35,7 +87,7 @@ class Run:
                 return True
         else:
             return False
-    
+
     def get_demultiplexing_status(self):
         if not os.path.exists(self.demux_dir):
             return "not started"
@@ -47,22 +99,22 @@ class Run:
             return "finished"
         else:
             return "unknown"
-    
+
     def status_changed(self, current_run_status):
-        #TODO: get document from statusdb, check status field, return true if status of run changed
+        # TODO: get document from statusdb, check status field, return true if status of run changed
         pass
 
-    def update_statusdb(self, current_run_status):
-        #TODO: Get document from statusdb. Gather data about run and update the statusdb document, then upload to statusdb
-        pass
+    def update_statusdb(self):
+        doc_obj = self.to_doc_obj()
+        self.db.upload_to_statusdb(doc_obj)
 
     def manifest_exists(self):
-        return os.path.isfile(self.run_manifest_file) #TODO: still true?
-    
-    def copy_manifests():
-        #TODO: copy manifest zip file from lims location and unzip
+        return os.path.isfile(self.run_manifest_file)  # TODO: still true?
+
+    def copy_manifests(self):
+        # TODO: copy manifest zip file from lims location and unzip
         pass
-     
+
     def generate_demux_command(self):
         command = [
             self.CONFIG.get(self.software)[
@@ -86,35 +138,35 @@ class Run:
             )
 
     def is_transferred(self, transfer_file):
-        #TODO: return true if run in transfer log, else false
+        # TODO: return true if run in transfer log, else false
         pass
-    
+
     def transfer_ongoing(self):
-        #TODO: return true if hidden transfer file marker exists, else false
+        # TODO: return true if hidden transfer file marker exists, else false
         pass
-    
+
     def sync_metadata(self):
-        #TODO: copy metadata from demuxed run to ngi-nas-ns
+        # TODO: copy metadata from demuxed run to ngi-nas-ns
         pass
-    
+
     def make_transfer_indicator(self):
-        #TODO: touch a hidden file in the run directory
+        # TODO: touch a hidden file in the run directory
         pass
-    
+
     def transfer(self):
-        #TODO: rsync run to analysis cluster
+        # TODO: rsync run to analysis cluster
         pass
-    
+
     def remove_transfer_indicator(self):
-        #TODO: remove hidden file in run directory
+        # TODO: remove hidden file in run directory
         pass
-    
+
     def update_transfer_log(self, transfer_file):
-        #TODO: update the transfer log
+        # TODO: update the transfer log
         pass
-    
+
     def archive(self):
-        #TODO: move run dir to nosync
+        # TODO: move run dir to nosync
         pass
 
     def parse_rundir(self):
