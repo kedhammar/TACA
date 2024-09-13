@@ -22,6 +22,8 @@ def run_preprocessing(given_run):
         :param taca.element.Run run: Run to be processed and transferred
         """
         run.parse_run_parameters()
+        # TODO Should we just abort if the run parameters is not found? We cannot assign the run id without it.
+
         sequencing_done = run.check_sequencing_status()
         demultiplexing_status = run.get_demultiplexing_status()
         if not sequencing_done:  # Sequencing ongoing
@@ -34,7 +36,9 @@ def run_preprocessing(given_run):
             if (
                 not run.manifest_exists()
             ):  # TODO: this should check for the zip file in lims output location
-                logger.warn(f"Run manifest is missing for {run}")
+                logger.warn(
+                    f"Run manifest is missing for {run}, demultiplexing aborted"
+                )
                 # TODO: email operator warning
                 return
             elif run.manifest_exists():
@@ -56,11 +60,11 @@ def run_preprocessing(given_run):
                     sub_demux_count += 1
                 run.status = "demultiplexing"
                 if run.status_changed:
-                    run.update_statusdb(run.status)
+                    run.update_statusdb()
         elif sequencing_done and demultiplexing_status == "ongoing":
             run.status = "demultiplexing"
             if run.status_changed:
-                run.update_statusdb(run.status)
+                run.update_statusdb()
             return
         elif sequencing_done and demultiplexing_status == "finished":
             transfer_file = CONFIG.get("Element").get("Aviti").get("transfer_log")
@@ -71,22 +75,22 @@ def run_preprocessing(given_run):
                 run.make_transfer_indicator()
                 run.status = "transferring"
                 if run.status_changed:
-                    run.update_statusdb(run.status)
+                    run.update_statusdb()
                     # TODO: Also update statusdb with a timestamp of when the transfer started
                 run.transfer()
                 run.remove_transfer_indicator()
                 run.update_transfer_log(transfer_file)
                 run.status = "transferred"
                 if run.status_changed:
-                    run.update_statusdb(run.status)
+                    run.update_statusdb()
                 run.archive()
                 run.status = "archived"
                 if run.status_changed:
-                    run.update_statusdb(run.status)
+                    run.update_statusdb()
             elif not run.is_transferred(transfer_file) and run.transfer_ongoing():
                 run.status = "transferring"
                 if run.status_changed:
-                    run.update_statusdb(run.status)
+                    run.update_statusdb()
                 logger.info(f"{run} is being transferred. Skipping.")
                 return
             elif run.is_transferred(transfer_file):
