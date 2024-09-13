@@ -73,6 +73,7 @@ class Run:
             raise RuntimeError(f"Run parameters not parsed for run {self.run_dir}")
 
     def parse_run_parameters(self) -> None:
+        """Parse run-information from the RunParameters.json file"""
         try:
             with open(self.run_parameters_file) as json_file:
                 run_parameters = json.load(json_file)
@@ -100,12 +101,31 @@ class Run:
         self.run_parameters_parsed = True
 
     def to_doc_obj(self):
-        # TODO
+        # TODO, are we sure what we should do when the RunParameters.json file is missing?
+
+        # Read in all instrument generated files
+        instrument_generated_files = {}
+        for file in [
+            self.run_parameters_file,
+            self.run_stats_file,
+            self.run_manifest_file_from_instrument,
+            self.run_uploaded_file,
+        ]:
+            if os.path.exists(file):
+                with open(file) as json_file:
+                    instrument_generated_files[os.path.basename(file)] = json.load(
+                        json_file
+                    )
+            else:
+                instrument_generated_files[os.path.basename(file)] = None
+
         doc_obj = {
             "run_path": self.run_dir,
             "run_status": self.status,
-            "pore_count_history": [],
+            "NGI_run_id": self.NGI_run_id,
+            "instrument_generated_files": instrument_generated_files,
         }
+
         return doc_obj
 
     def check_sequencing_status(self):
@@ -131,9 +151,13 @@ class Run:
         else:
             return "unknown"
 
-    def status_changed(self, current_run_status):
-        # TODO: get document from statusdb, check status field, return true if status of run changed
-        pass
+    def status_changed(self):
+        if not self.run_parameters_parsed:
+            raise RuntimeError(
+                f"Run parameters not parsed for run {self.run_dir}, cannot check status"
+            )
+        db_run_status = self.db.check_db_run_status(self.NGI_run_id)
+        return db_run_status != self.status
 
     def update_statusdb(self):
         doc_obj = self.to_doc_obj()
@@ -198,4 +222,8 @@ class Run:
 
     def archive(self):
         # TODO: move run dir to nosync
+        pass
+
+    def aggregate_demux_results(self):
+        # TODO: aggregate demux results
         pass
