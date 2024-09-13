@@ -67,7 +67,9 @@ def run_preprocessing(given_run):
                 run.update_statusdb()
             return
         elif sequencing_done and demultiplexing_status == "finished":
-            transfer_file = CONFIG.get("Element").get("Aviti").get("transfer_log")
+            transfer_file = (
+                CONFIG.get("Element").get(run.sequencer_type).get("transfer_log")
+            )
             if not run.is_transferred(transfer_file) and not run.transfer_ongoing():
                 # TODO: if multiple demux dirs, aggregate the results into Demultiplexing?
                 run.aggregate_demux_results
@@ -77,9 +79,10 @@ def run_preprocessing(given_run):
                 if run.status_changed:
                     run.update_statusdb()
                     # TODO: Also update statusdb with a timestamp of when the transfer started
-                run.transfer()
+                run.transfer()  # I think this should be a detached command as well
                 run.remove_transfer_indicator()
                 run.update_transfer_log(transfer_file)
+
                 run.status = "transferred"
                 if run.status_changed:
                     run.update_statusdb()
@@ -95,14 +98,12 @@ def run_preprocessing(given_run):
                 return
             elif run.is_transferred(transfer_file):
                 logger.warn(
-                    f"The run {run.flowcell_id} has already been transferred but has not been archived. Please investigate"
+                    f"The run {run} has already been transferred but has not been archived. Please investigate"
                 )
                 # TODO: email operator warning
                 return
             else:
-                logger.warn(
-                    f"Unknown transfer status of run {run.flowcell_id}. Please investigate"
-                )
+                logger.warn(f"Unknown transfer status of run {run}. Please investigate")
 
     if given_run:
         run = Aviti_Run(given_run)
