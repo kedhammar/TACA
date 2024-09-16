@@ -31,6 +31,9 @@ class Run:
             self.demux_dir,
             "RunStats.json",  # Assumes demux is finished when this file is created
         )
+        self.transfer_file = (
+            self.CONFIG.get("Element").get(self.sequencer_type).get("transfer_log")
+        )  # TODO: change and add to taca.yaml
 
         # Instrument generated files
         self.run_parameters_file = os.path.join(self.run_dir, "RunParameters.json")
@@ -82,7 +85,7 @@ class Run:
             logger.warning(
                 f"Run parameters file not found for {self}, might not be ready yet"
             )
-            return
+            raise
 
         # Manually entered, but should be side and flowcell id
         self.run_name = run_parameters.get("RunName")
@@ -146,9 +149,9 @@ class Run:
         elif os.path.exists(self.demux_dir) and not os.path.isfile(
             self.demux_stats_file
         ):
-            return "ongoing"
+            return "ongoing"  # TODO: check for exit status file instead
         elif os.path.exists(self.demux_dir) and os.path.isfile(self.demux_stats_file):
-            return "finished"
+            return "finished"  # TODO: check exit status of demux in exit status file
         else:
             return "unknown"
 
@@ -248,8 +251,12 @@ class Run:
             ],  # TODO add path to bases2fastq executable to config
             self.run_dir,
             demux_dir,
-            "-p 12",
-        ]
+            "-p 12",  # TODO: how many? Considering that we may start several demux runs at once
+            f"-r {run_manifest}",
+            "--legacy-fastq",  # TODO: except if Smart-seq3
+            "--force-index-orientation",
+        ]  # TODO: any other options?
+        # TODO: write exit status of command to file
         return command
 
     def start_demux(self, run_manifest, demux_dir):
@@ -261,15 +268,31 @@ class Run:
             )
             logger.info(
                 "Bases2Fastq conversion and demultiplexing "
-                f"started for run {os.path.basename(self.run_dir)} on {datetime.now()}"
+                f"started for run {self} on {datetime.now()}"
             )
 
-    def is_transferred(self, transfer_file):
-        # TODO: return true if run in transfer log, else false
-        pass
+    def in_transfer_log(self):
+        with open(self.transfer_file, "r") as transfer_file:
+            for row in transfer_file.read():
+                if self.NGI_run_id in row:
+                    return True
+        return False
 
     def transfer_ongoing(self):
         # TODO: return true if hidden transfer file marker exists, else false
+
+        pass
+
+    def rsync_complete(self):
+        # TODO: return true if .rsync_exit_status exists
+        pass
+
+    def get_rsync_exit_status():
+        # TODO: return status of rsync from .rsync_exit_status
+        pass
+
+    def aggregate_demux_results(self):
+        # TODO: aggregate demux results
         pass
 
     def sync_metadata(self):
@@ -288,14 +311,10 @@ class Run:
         # TODO: remove hidden file in run directory
         pass
 
-    def update_transfer_log(self, transfer_file):
+    def update_transfer_log(self):
         # TODO: update the transfer log
         pass
 
     def archive(self):
         # TODO: move run dir to nosync
-        pass
-
-    def aggregate_demux_results(self):
-        # TODO: aggregate demux results
         pass

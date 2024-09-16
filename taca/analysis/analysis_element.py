@@ -21,8 +21,13 @@ def run_preprocessing(given_run):
 
         :param taca.element.Run run: Run to be processed and transferred
         """
-        run.parse_run_parameters()
-        # TODO Should we just abort if the run parameters is not found? We cannot assign the run id without it.
+        try:
+            run.parse_run_parameters()
+        except FileNotFoundError:
+            logger.warn(
+                f"Cannot reliably set NGI_run_id for {run} due to missing RunParameters.json. Aborting run processing"
+            )
+            raise
 
         sequencing_done = run.check_sequencing_status()
         demultiplexing_status = run.get_demultiplexing_status()
@@ -67,12 +72,8 @@ def run_preprocessing(given_run):
                 run.update_statusdb()
             return
         elif sequencing_done and demultiplexing_status == "finished":
-            transfer_file = (
-                CONFIG.get("Element").get(run.sequencer_type).get("transfer_log")
-            )
-            if not run.is_transferred(transfer_file) and not run.transfer_ongoing():
-                # TODO: if multiple demux dirs, aggregate the results into Demultiplexing?
-                run.aggregate_demux_results
+            if not run.in_transfer_log() and not run.transfer_ongoing() and not run.rsync_complete():
+                run.aggregate_demux_results() # TODO: if multiple demux dirs, aggregate the results into Demultiplexing?
                 run.sync_metadata()
                 run.make_transfer_indicator()
                 run.status = "transferring"
@@ -80,30 +81,35 @@ def run_preprocessing(given_run):
                     run.update_statusdb()
                     # TODO: Also update statusdb with a timestamp of when the transfer started
                 run.transfer()  # I think this should be a detached command as well
-                run.remove_transfer_indicator()
-                run.update_transfer_log(transfer_file)
-
-                run.status = "transferred"
-                if run.status_changed:
-                    run.update_statusdb()
-                run.archive()
-                run.status = "archived"
-                if run.status_changed:
-                    run.update_statusdb()
-            elif not run.is_transferred(transfer_file) and run.transfer_ongoing():
+            elif run.transfer_ongoing() and not run.rsync_complete():
                 run.status = "transferring"
                 if run.status_changed:
                     run.update_statusdb()
                 logger.info(f"{run} is being transferred. Skipping.")
                 return
-            elif run.is_transferred(transfer_file):
-                logger.warn(
+            elif run.rsync_complete() and not run.in_transfer_log():
+                if run.rsync_success():
+                    run.remove_transfer_indicator()
+                    run.update_transfer_log()
+                    run.status = "transferred"
+                    if run.status_changed:
+                        run.update_statusdb()
+                    run.archive()
+                    run.status = "archived"
+                    if run.status_changed:
+                        run.update_statusdb()
+                else:
+                    run.status = "transfer failed"
+                    logger.warning(f"An issue occurred while transfering {run} to the analysis cluster." )
+                    # TODO: email warning to operator
+            elif run.in_transfer_log():
+                logger.warning(
                     f"The run {run} has already been transferred but has not been archived. Please investigate"
                 )
                 # TODO: email operator warning
                 return
             else:
-                logger.warn(f"Unknown transfer status of run {run}. Please investigate")
+                logger.warning(f"Unknown transfer status of run {run}. Please investigate")
 
     if given_run:
         run = Aviti_Run(given_run)
