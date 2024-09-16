@@ -21,8 +21,13 @@ def run_preprocessing(given_run):
 
         :param taca.element.Run run: Run to be processed and transferred
         """
-        run.parse_run_parameters()
-        # TODO Should we just abort if the run parameters is not found? We cannot assign the run id without it.
+        try:
+            run.parse_run_parameters()
+        except FileNotFoundError:
+            logger.warn(
+                f"Cannot reliably set NGI_run_id for {run} due to missing RunParameters.json. Aborting run processing"
+            )
+            raise
 
         sequencing_done = run.check_sequencing_status()
         demultiplexing_status = run.get_demultiplexing_status()
