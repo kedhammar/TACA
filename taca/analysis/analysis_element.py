@@ -72,7 +72,7 @@ def run_preprocessing(given_run):
                 run.update_statusdb()
             return
         elif sequencing_done and demultiplexing_status == "finished":
-            if not run.is_transferred() and not run.transfer_ongoing() and not run.rsync_complete():
+            if not run.in_transfer_log() and not run.transfer_ongoing() and not run.rsync_complete():
                 run.aggregate_demux_results() # TODO: if multiple demux dirs, aggregate the results into Demultiplexing?
                 run.sync_metadata()
                 run.make_transfer_indicator()
@@ -87,7 +87,7 @@ def run_preprocessing(given_run):
                     run.update_statusdb()
                 logger.info(f"{run} is being transferred. Skipping.")
                 return
-            elif run.rsync_complete() and not run.is_transferred():
+            elif run.rsync_complete() and not run.in_transfer_log():
                 if run.rsync_success():
                     run.remove_transfer_indicator()
                     run.update_transfer_log()
@@ -102,7 +102,7 @@ def run_preprocessing(given_run):
                     run.status = "transfer failed"
                     logger.warning(f"An issue occurred while transfering {run} to the analysis cluster." )
                     # TODO: email warning to operator
-            elif run.is_transferred():
+            elif run.in_transfer_log():
                 logger.warning(
                     f"The run {run} has already been transferred but has not been archived. Please investigate"
                 )

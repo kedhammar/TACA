@@ -198,7 +198,7 @@ class Run:
                 f"started for run {self} on {datetime.now()}"
             )
 
-    def is_transferred(self):
+    def in_transfer_log(self):
         with open(self.transfer_file, 'r') as transfer_file:
             for row in transfer_file.read():
                 if self.NGI_run_id in row:
