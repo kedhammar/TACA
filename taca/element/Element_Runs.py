@@ -1,8 +1,11 @@
 import json
 import logging
 import os
+import re
 import shutil
+import zipfile
 from datetime import datetime
+from glob import glob
 
 from taca.utils import misc
 from taca.utils.filesystem import chdir
@@ -28,12 +31,6 @@ class Run:
             self.demux_dir,
             "RunStats.json",  # Assumes demux is finished when this file is created
         )
-        self.run_manifest_file = os.path.join(self.run_dir, "RunManifest.csv")
-        self.run_manifest_zip_file = os.path.join(
-            self.CONFIG.get("Aviti").get("manifest_zip_location"),
-            self.flowcell_id + ".tar.gz",
-        )  # TODO: change and add to taca.yaml
-        # TODO, need to be real careful when using the flowcell_id as it is manually entered and can mean three different things
 
         # Instrument generated files
         self.run_parameters_file = os.path.join(self.run_dir, "RunParameters.json")
@@ -47,6 +44,10 @@ class Run:
 
         # Fields to be set by TACA
         self.status = None
+        self.lims_step_id = None
+        self.lims_full_manifest = None
+        self.lims_start_manifest = None
+        self.lims_demux_manifests = None
 
         # Fields that will be set when parsing run parameters
         self.run_name = None
@@ -166,9 +167,79 @@ class Run:
     def manifest_exists(self):
         return os.path.isfile(self.run_manifest_zip_file)
 
-    def copy_manifests(self):
-        shutil.copy(self.run_manifest_zip_file, self.run_dir)
-        # TODO: unzip
+    def get_lims_step_id(self) -> str | None:
+        """If the run was started using a LIMS-generated manifest,
+        the ID of the LIMS step can be extracted from it.
+        """
+        assert self.manifest_exists(), "Run manifest not found"
+        with open(self.run_manifest_file_from_instrument) as csv_file:
+            manifest_lines = csv_file.readlines()
+        for line in manifest_lines:
+            if "lims_step_id" in line:
+                lims_step_id = line.split(",")[1]
+                return lims_step_id
+        return None
+
+    def copy_manifests(self) -> bool:
+        """Fetch the LIMS-generated run manifests from ngi-nas-ns and unzip them into a run subdir."""
+
+        # Specify dir in which LIMS drop the manifest zip files
+        dir_to_search = os.path.join(
+            self.CONFIG.get("Aviti").get(
+                "manifest_zip_location"
+            ),  # TODO: change and add to taca.yaml
+            datetime.now().year,
+        )
+
+        # Use LIMS step ID if available, else flowcell ID, to make a query pattern
+        if self.lims_step_id:
+            logging.info(
+                f"Using LIMS step ID '{self.lims_step_id}' to find LIMS run manifests."
+            )
+            glob_pattern = f"{dir_to_search}/*{self.lims_step_id}*.zip"
+        else:
+            logging.warning(
+                "LIMS step ID not available, using flowcell ID to find LIMS run manifests."
+            )
+            glob_pattern = f"{dir_to_search}/*{self.flowcell_id}*.zip"
+
+        # Find paths matching the pattern
+        glob_results = glob(glob_pattern)
+        if len(glob_results) == 0:
+            logger.warning(
+                f"No manifest found for run '{self.run_dir}' with pattern '{glob_pattern}'."
+            )
+            return False  # TODO determine whether to raise an error here instead
+        elif len(glob_results) > 1:
+            logger.warning(
+                f"Multiple manifests found for run '{self.run_dir}' with pattern '{glob_pattern}', using latest one."
+            )
+            glob_results.sort()
+            zip_src_path = glob_results[-1]
+        else:
+            zip_src_path = glob_results[0]
+
+        # Make a run subdir named after the zip file and extract manifests there
+        zip_name = os.path.basename(zip_src_path)
+        zip_dst_path = os.path.join(self.run_dir, zip_name)
+        os.mkdir(zip_dst_path)
+
+        with zipfile.ZipFile(zip_src_path, "r") as zip_ref:
+            zip_ref.extractall(zip_dst_path)
+
+        # Set the paths of the different manifests as attributes
+        manifests = os.listdir(zip_dst_path)
+        self.lims_full_manifest = [
+            m for m in manifests if re.match(r".*_untrimmed\.csv$", m)
+        ][0]
+        self.lims_start_manifest = [
+            m for m in manifests if re.match(r".*_trimmed\.csv$", m)
+        ][0]
+        self.lims_demux_manifests = [
+            m for m in manifests if re.match(r".*_\d+\.csv$", m)
+        ]
+
+        return True
 
     def generate_demux_command(self, run_manifest, demux_dir):
         command = [
@@ -184,6 +255,7 @@ class Run:
     def start_demux(self, run_manifest, demux_dir):
         with chdir(self.run_dir):
             cmd = self.generate_demux_command(run_manifest, demux_dir)
+            # TODO handle multiple composite manifests for demux
             misc.call_external_command_detached(
                 cmd, with_log_files=True, prefix="demux_"
             )
