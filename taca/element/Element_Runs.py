@@ -83,7 +83,7 @@ class Run:
             logger.warning(
                 f"Run parameters file not found for {self}, might not be ready yet"
             )
-            return
+            raise
 
         # Manually entered, but should be side and flowcell id
         self.run_name = run_parameters.get("RunName")
