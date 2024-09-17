@@ -179,7 +179,7 @@ class Run:
             ],  # TODO add path to bases2fastq executable to config
             self.run_dir,
             demux_dir,
-            "-p 12", # TODO: how many? Considering that we may start several demux runs at once
+            "-p 8",
             f"-r {run_manifest}",
             "--legacy-fastq", # TODO: except if Smart-seq3
             "--force-index-orientation",
@@ -198,6 +198,16 @@ class Run:
                 f"started for run {self} on {datetime.now()}"
             )
 
+    def get_transfer_status(self):
+        if not self.in_transfer_log() and not self.transfer_ongoing() and not self.rsync_complete():
+            return "not started"
+        elif self.transfer_ongoing() and not self.rsync_complete():
+            return "ongoing"
+        elif self.rsync_complete() and not self.in_transfer_log():
+            return "finished"
+        elif self.in_transfer_log():
+            return "unknown"
+    
     def in_transfer_log(self):
         with open(self.transfer_file, 'r') as transfer_file:
             for row in transfer_file.read():
