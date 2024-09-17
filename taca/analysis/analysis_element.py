@@ -74,8 +74,11 @@ def run_preprocessing(given_run):
         elif sequencing_done and demultiplexing_status == "finished":
             transfer_status = run.get_transfer_status()
             if transfer_status == "not started":
-                #TODO: if multiple demux dir exist, move the data dirs into Demultiplexing
-                run.aggregate_demux_results()
+                demux_results_dirs = glob.glob(
+                    os.path.join(run.run_dir, "Delmultiplexing*")
+                    )
+                if len(demux_results_dirs > 1):
+                    run.aggregate_demux_results(demux_results_dirs)
                 run.sync_metadata()
                 run.make_transfer_indicator()
                 run.status = "transferring"

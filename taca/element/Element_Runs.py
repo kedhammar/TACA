@@ -4,6 +4,7 @@ import os
 import re
 import zipfile
 import subprocess
+import shutil
 from datetime import datetime
 from pathlib import Path
 from glob import glob
@@ -374,14 +375,14 @@ class Run:
             + " -p 8"
             + f" -r {run_manifest}"
             + " --legacy-fastq"  # TODO: except if Smart-seq3
-            + f" --force-index-orientation; echo $? > {self.rsync_exit_file}"
+            + f" --force-index-orientation"
             )  # TODO: any other options?
         return command
 
     def start_demux(self, run_manifest, demux_dir):
         with chdir(self.run_dir):
             cmd = self.generate_demux_command(run_manifest, demux_dir)
-            # TODO handle multiple composite manifests for demux
+            # TODO: handle multiple composite manifests for demux
             try:
                 p_handle = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True, cwd=self.run_dir)
                 logger.info(
@@ -426,9 +427,12 @@ class Run:
         else:
             return False
 
-    def aggregate_demux_results(self):
-        # TODO: aggregate demux results. Move project data dir from each sub demux dir to Demultiplexing
-        pass
+    def aggregate_demux_results(self, demux_results_dirs):
+        for demux_dir in demux_results_dirs:
+            data_dirs = [f.path for f in os.scandir(os.path.join(demux_dir, 'Samples')) if f.is_dir()]
+        for data_dir in data_dirs:
+            if not "PhiX" in data_dir and not "Unassigned" in data_dir:
+                shutil.move(data_dir, self.demux_dir)            
 
     def sync_metadata(self):
         # TODO: copy metadata from demuxed run to ngi-nas-ns
