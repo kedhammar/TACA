@@ -392,7 +392,7 @@ class Run:
         elif self.transfer_ongoing() and not self.rsync_complete():
             return "ongoing"
         elif self.rsync_complete() and not self.in_transfer_log():
-            return "finished"
+            return "rsync done"
         elif self.in_transfer_log():
             return "unknown"
     
