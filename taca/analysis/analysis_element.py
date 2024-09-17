@@ -24,7 +24,7 @@ def run_preprocessing(given_run):
         try:
             run.parse_run_parameters()
         except FileNotFoundError:
-            logger.warn(
+            logger.warning(
                 f"Cannot reliably set NGI_run_id for {run} due to missing RunParameters.json. Aborting run processing"
             )
             raise
@@ -41,7 +41,7 @@ def run_preprocessing(given_run):
             if (
                 not run.manifest_exists()
             ):  # TODO: this should check for the zip file in lims output location
-                logger.warn(
+                logger.warning(
                     f"Run manifest is missing for {run}, demultiplexing aborted"
                 )
                 # TODO: email operator warning
@@ -74,7 +74,8 @@ def run_preprocessing(given_run):
         elif sequencing_done and demultiplexing_status == "finished":
             transfer_status = run.get_transfer_status()
             if transfer_status == "not started":
-                run.aggregate_demux_results() # TODO: if multiple demux dirs, aggregate the results into Demultiplexing?
+                #TODO: if multiple demux dir exist, move the data dirs into Demultiplexing
+                run.aggregate_demux_results()
                 run.sync_metadata()
                 run.make_transfer_indicator()
                 run.status = "transferring"

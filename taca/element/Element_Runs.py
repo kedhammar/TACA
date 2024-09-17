@@ -30,10 +30,7 @@ class Run:
 
         self.demux_dir = os.path.join(self.run_dir, "Demultiplexing")
         self.final_sequencing_file = os.path.join(self.run_dir, "RunUploaded.json")
-        self.demux_stats_file = os.path.join(
-            self.demux_dir,
-            "RunStats.json",  # Assumes demux is finished when this file is created
-        )
+        self.demux_stats_file = "RunStats.json"  # Assumes demux is finished when this file is created
         self.transfer_file = (
             self.CONFIG.get("Element").get(self.sequencer_type).get("transfer_log")
         )  # TODO: change and add to taca.yaml
@@ -150,12 +147,21 @@ class Run:
     def get_demultiplexing_status(self):
         if not os.path.exists(self.demux_dir):
             return "not started"
-        elif os.path.exists(self.demux_dir) and not os.path.isfile(
-            self.demux_stats_file
-        ):
-            return "ongoing"  # TODO: check for exit status file instead
-        elif os.path.exists(self.demux_dir) and os.path.isfile(self.demux_stats_file):
-            return "finished"  # TODO: check exit status of demux in exit status file
+        demux_dirs = glob.glob(
+            os.path.join(self.run_dir, "Delmultiplexing*")
+            )
+        finished_count = 0
+        for demux_dir in demux_dirs:
+            if os.path.exists(self.demux_dir) and not os.path.isfile(
+                os.path.join(demux_dir, self.demux_stats_file)
+                ):
+                return "ongoing"
+            elif os.path.exists(self.demux_dir) and os.path.isfile(
+                os.path.join(demux_dir, self.demux_stats_file)
+                ):
+                finished_count += 1  # TODO: check exit status of demux in exit status file
+        if finished_count == len(demux_dirs):
+            return "finished"
         else:
             return "unknown"
 
@@ -421,7 +427,7 @@ class Run:
             return False
 
     def aggregate_demux_results(self):
-        # TODO: aggregate demux results
+        # TODO: aggregate demux results. Move project data dir from each sub demux dir to Demultiplexing
         pass
 
     def sync_metadata(self):
