@@ -89,7 +89,7 @@ def run_preprocessing(given_run):
                 logger.info(f"{run} is being transferred. Skipping.")
                 return
             elif transfer_status == "rsync done":
-                if run.rsync_success():
+                if run.rsync_successful():
                     run.remove_transfer_indicator()
                     run.update_transfer_log()
                     run.status = "transferred"
