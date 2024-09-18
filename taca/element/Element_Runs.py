@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import re
+import csv
 import zipfile
 import subprocess
 import shutil
@@ -107,7 +108,7 @@ class Run:
         self.run_parameters_parsed = True
 
     def to_doc_obj(self):
-        # TODO, are we sure what we should do when the RunParameters.json file is missing?
+        # TODO: are we sure what we should do when the RunParameters.json file is missing?
 
         # Read in all instrument generated files
         instrument_generated_files = {}
@@ -432,8 +433,50 @@ class Run:
         for demux_dir in demux_results_dirs:
             data_dirs = [f.path for f in os.scandir(os.path.join(demux_dir, 'Samples')) if f.is_dir()]
         for data_dir in data_dirs:
-            if not "PhiX" in data_dir and not "Unassigned" in data_dir:
-                shutil.move(data_dir, self.demux_dir)            
+            if not "PhiX" in data_dir in data_dir:
+                shutil.move(data_dir, self.demux_dir)
+                
+    def upload_demux_results_to_statusdb(self):
+        # TODO: dump contents of IndexAssignment.csv and UnassignedSequences.csv into statusdb document
+        doc_obj = self.db.get_db_entry(self.NGI_run_id)
+        index_assignement_file = os.path.join(self.run_dir, "Demultiplexing", "IndexAssignment.csv")
+        with open(index_assignement_file, 'r') as index_file:
+            reader = csv.DictReader(index_file)
+            index_assignments = [row for row in reader]
+        unassigned_sequences_file = os.path.join(self.run_dir, "Demultiplexing", "UnassignedSequences.csv")
+        with open(unassigned_sequences_file, 'r') as unassigned_file:
+            reader = csv.DictReader(unassigned_file)
+            unassigned_sequences = [row for row in reader]
+        project_dirs = [f.path for f in os.scandir(os.path.join(self.run_dir, "Demultiplexing")) if f.is_dir() and not "PhiX" in f]
+        for project_dir in project_dirs:
+            run_stats_file = glob.glob(os.path.join(project_dir, "*_RunStats.json"))
+            with open(run_stats_file) as stats_json:
+                project_sample_stats_raw = json.load(stats_json)
+            collected_sample_stats = {}
+            for sample_stats in project_sample_stats_raw["SampleStats"]:
+                sample_name = sample_stats["SampleName"]
+                percent_q30 = sample_stats["PercentQ30"]
+                quality_score_mean = sample_stats["QualityScoreMean"]
+                percent_mismatch = sample_stats["PercentMismatch"]
+                collected_sample_stats[sample_name] = {
+                    "PercentQ30": percent_q30,
+                    "QualityScoreMean": quality_score_mean,
+                    "PercentMismatch": percent_mismatch
+                    }
+            for assignment in index_assignments:
+                sample = assignment.get("SampleName")
+                sample_stats_to_add = collected_sample_stats.get(sample)
+                assignment["PercentQ30"] = sample_stats_to_add.get("PercentQ30")
+                assignment["QualityScoreMean"] = sample_stats_to_add.get("QualityScoreMean")
+                assignment["PercentMismatch"] = sample_stats_to_add.get("PercentMismatch")
+        demultiplex_stats = {
+            "Demultiplex_Stats": {
+                "Index_Assignment": index_assignments,
+                "Unassigned_Sequences": unassigned_sequences
+                }
+            }
+        doc_obj["Aviti": demultiplex_stats]
+        self.db.upload_to_statusdb(doc_obj)
 
     def sync_metadata(self):
         # TODO: copy metadata from demuxed run to ngi-nas-ns
