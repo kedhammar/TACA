@@ -447,8 +447,12 @@ class Run:
         with open(unassigned_sequences_file, 'r') as unassigned_file:
             reader = csv.DictReader(unassigned_file)
             unassigned_sequences = [row for row in reader]
-        project_dirs = [f.path for f in os.scandir(os.path.join(self.run_dir, "Demultiplexing")) if f.is_dir() and not "PhiX" in f]
-        for project_dir in project_dirs:
+        dirs = os.scandir("Demultiplexing")
+        project_dirs = []
+        for directory in dirs:
+            if os.path.isdir(directory.path) and not "Unassigned" in directory.path:
+                project_dirs.append(directory.path)
+        for project_dir in project_dirs: # TODO: remove this block when q30 is added to IndexAssignment.csv by Element
             run_stats_file = glob.glob(os.path.join(project_dir, "*_RunStats.json"))
             with open(run_stats_file) as stats_json:
                 project_sample_stats_raw = json.load(stats_json)
