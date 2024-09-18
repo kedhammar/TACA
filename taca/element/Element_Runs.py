@@ -469,10 +469,11 @@ class Run:
                     }
             for assignment in index_assignments:
                 sample = assignment.get("SampleName")
-                sample_stats_to_add = collected_sample_stats.get(sample)
-                assignment["PercentQ30"] = sample_stats_to_add.get("PercentQ30")
-                assignment["QualityScoreMean"] = sample_stats_to_add.get("QualityScoreMean")
-                assignment["PercentMismatch"] = sample_stats_to_add.get("PercentMismatch")
+                if sample != "PhiX":
+                    sample_stats_to_add = collected_sample_stats.get(sample)
+                    assignment["PercentQ30"] = sample_stats_to_add.get("PercentQ30")
+                    assignment["QualityScoreMean"] = sample_stats_to_add.get("QualityScoreMean")
+                    assignment["PercentMismatch"] = sample_stats_to_add.get("PercentMismatch")
         demultiplex_stats = {
             "Demultiplex_Stats": {
                 "Index_Assignment": index_assignments,
