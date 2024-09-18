@@ -428,6 +428,7 @@ class Run:
             return False
 
     def aggregate_demux_results(self, demux_results_dirs):
+        # TODO: Correct this based on comments from Chuan
         for demux_dir in demux_results_dirs:
             data_dirs = [f.path for f in os.scandir(os.path.join(demux_dir, 'Samples')) if f.is_dir()]
         for data_dir in data_dirs:
@@ -443,8 +444,28 @@ class Run:
         Path(transfer_indicator).touch()
 
     def transfer(self):
-        # TODO: rsync run to analysis cluster
-        pass
+        transfer_details = self.CONFIG.get("Element").get(self.sequencer_type).get("transfer_details") #TODO: Add section to taca.yaml
+        command = ("rsync"
+                   + " -rLav"
+                   + f" --chown={transfer_details.get("owner")}"
+                   + f" --chmod={transfer_details.get("permissions")}"
+                   + " --exclude BaseCalls" # TODO: check that we actually want to exclude these
+                   + " --exclude Alignment"
+                   + f" {self.run_dir}"
+                   + f" {transfer_details.get("user")@transfer_details.get("host")}:/"
+                   + "; echo $? > .rsync_exit_status"
+            )  # TODO: any other options?
+        try:
+            p_handle = subprocess.Popen(command, stdout=subprocess.PIPE, shell=True)
+            logger.info(
+                "Transfer to analysis cluster "
+                f"started for run {self} on {datetime.now()}"
+            )
+        except subprocess.CalledProcessError:
+            logger.warning("An error occurred while starting transfer to analysis cluster "
+                            f"for {self} on {datetime.now()}."
+            )
+        return
 
     def remove_transfer_indicator(self):
         # TODO: remove hidden file in run directory
