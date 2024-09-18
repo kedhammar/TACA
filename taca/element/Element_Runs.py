@@ -480,7 +480,7 @@ class Run:
                 "Unassigned_Sequences": unassigned_sequences
                 }
             }
-        doc_obj["Aviti": demultiplex_stats]
+        doc_obj["Aviti"] = demultiplex_stats
         self.db.upload_to_statusdb(doc_obj)
 
     def sync_metadata(self):
