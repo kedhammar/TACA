@@ -1,4 +1,5 @@
 import csv
+import glob
 import json
 import logging
 import os
@@ -7,7 +8,6 @@ import shutil
 import subprocess
 import zipfile
 from datetime import datetime
-from glob import glob
 from pathlib import Path
 
 import pandas as pd
