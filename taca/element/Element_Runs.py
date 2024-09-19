@@ -516,13 +516,22 @@ class Run:
         return
 
     def remove_transfer_indicator(self):
-        # TODO: remove hidden file in run directory
-        pass
+        transfer_indicator = os.path.join(self.run_dir, '.rsync_ongoing')
+        Path(transfer_indicator).unlink()
 
     def update_transfer_log(self):
-        # TODO: update the transfer log
-        pass
+        """Update transfer log with run id and date."""
+        try:
+            with open(self.transfer_file, "a") as f:
+                tsv_writer = csv.writer(f, delimiter="\t")
+                tsv_writer.writerow([self.NGI_run_id, str(datetime.now())])
+        except OSError:
+            msg = f"{self}: Could not update the transfer logfile {self.transfer_file}"
+            logger.error(msg)
+            raise OSError(msg)
 
     def archive(self):
-        # TODO: move run dir to nosync
-        pass
+        """Move directory to nosync."""
+        src = self.run_dir
+        dst = os.path.join(self.run_dir, os.pardir, "nosync")
+        shutil.move(src, dst)
