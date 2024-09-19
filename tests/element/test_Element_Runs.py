@@ -111,9 +111,7 @@ class TestRun:
         tmp: tempfile.TemporaryDirectory = create_dirs
 
         if p["demux_dir"] and not p["demux_done"]:
-            import pdb
 
-            pdb.set_trace()
         run = to_test.Run(
             create_element_run_dir(
                 tmp,
