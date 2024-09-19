@@ -22,6 +22,10 @@ class Run:
     """Defines an Element run"""
 
     def __init__(self, run_dir, configuration):
+        if not hasattr(self, "sequencer_type"):
+            # Mostly for testing, since this class is not meant to be instantiated
+            self.sequencer_type = "GenericElement"
+
         if not os.path.exists(run_dir):
             raise RuntimeError(f"Could not locate run directory {run_dir}")
         self.run_parameters_parsed = False
