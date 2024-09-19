@@ -63,7 +63,6 @@ def run_preprocessing(given_run):
                     run.update_statusdb()
                 return
             else:
-                # TODO: this should check for the zip file in lims output location
                 logger.warning(
                     f"Run manifest is missing for {run}, demultiplexing aborted"
                 )
@@ -111,6 +110,7 @@ def run_preprocessing(given_run):
                     run.update_statusdb()
                 run.archive()
                 run.status = "archived"
+                
                 if run.status_changed:
                     run.update_statusdb()
             else:
