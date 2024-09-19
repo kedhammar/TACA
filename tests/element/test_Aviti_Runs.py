@@ -1,4 +1,5 @@
 import tempfile
+from unittest.mock import patch
 
 import pytest
 
@@ -10,6 +11,11 @@ class TestAviti_Run:
     def test_init(self, create_dirs: pytest.fixture):
         tmp: tempfile.TemporaryDirectory = create_dirs
         run_dir = create_element_run_dir(tmp)
+
+        # Mock db
+        mock_db = patch("taca.utils.statusdb.ElementRunsConnection")
+        mock_db.start()
+
         run = to_test.Aviti_Run(run_dir, {})
         assert run.run_dir == run_dir
         assert run.sequencer_type == "Aviti"
