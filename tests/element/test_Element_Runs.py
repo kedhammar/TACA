@@ -64,6 +64,11 @@ class TestRun:
     def test_init(self, create_dirs: pytest.fixture):
         tmp: tempfile.TemporaryDirectory = create_dirs
         run_dir = create_element_run_dir(tmp)
+
+        # Mock db
+        mock_db = patch("taca.element.Element_Runs.ElementRunsConnection")
+        mock_db.start()
+
         run = to_test.Run(run_dir, {})
         assert run.run_dir == run_dir
 

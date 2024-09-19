@@ -13,7 +13,7 @@ class TestAviti_Run:
         run_dir = create_element_run_dir(tmp)
 
         # Mock db
-        mock_db = patch("taca.utils.statusdb.ElementRunsConnection")
+        mock_db = patch("taca.element.Element_Runs.ElementRunsConnection")
         mock_db.start()
 
         run = to_test.Aviti_Run(run_dir, {})
