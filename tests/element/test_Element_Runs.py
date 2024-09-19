@@ -1,7 +1,7 @@
 import json
 import os
 import tempfile
-from unittest.mock import patch
+from unittest import mock
 
 import pytest
 
@@ -60,14 +60,11 @@ def create_element_run_dir(
     return run_path
 
 
+@mock.patch("taca.element.Element_Runs.ElementRunsConnection")
 class TestRun:
-    def test_init(self, create_dirs: pytest.fixture):
+    def test_init(self, mock_db: mock.Mock, create_dirs: pytest.fixture):
         tmp: tempfile.TemporaryDirectory = create_dirs
         run_dir = create_element_run_dir(tmp)
-
-        # Mock db
-        mock_db = patch("taca.element.Element_Runs.ElementRunsConnection")
-        mock_db.start()
 
         run = to_test.Run(run_dir, {})
         assert run.run_dir == run_dir
@@ -82,7 +79,10 @@ class TestRun:
         ids=["success", "failure", "ongoing"],
     )
     def test_check_sequencing_status(
-        self, p: pytest.fixture, create_dirs: pytest.fixture
+        self,
+        mock_db: mock.Mock,
+        p: pytest.fixture,
+        create_dirs: pytest.fixture,
     ):
         tmp: tempfile.TemporaryDirectory = create_dirs
 
@@ -106,10 +106,14 @@ class TestRun:
         ids=["not started", "ongoing", "finished"],
     )
     def test_get_demultiplexing_status(
-        self, p: pytest.fixture, create_dirs: pytest.fixture
+        self, mock_db: mock.Mock, p: pytest.fixture, create_dirs: pytest.fixture
     ):
         tmp: tempfile.TemporaryDirectory = create_dirs
 
+        if p["demux_dir"] and not p["demux_done"]:
+            import pdb
+
+            pdb.set_trace()
         run = to_test.Run(
             create_element_run_dir(
                 tmp,
@@ -128,7 +132,9 @@ class TestRun:
         ],
         ids=["exists", "does not exist"],
     )
-    def test_manifest_exists(self, create_dirs: pytest.fixture, p: pytest.fixture):
+    def test_manifest_exists(
+        self, mock_db: mock.Mock, create_dirs: pytest.fixture, p: pytest.fixture
+    ):
         tmp: tempfile.TemporaryDirectory = create_dirs
 
         run = to_test.Run(
@@ -141,13 +147,13 @@ class TestRun:
         assert run.manifest_exists() == p["expected"]
 
     @pytest.mark.skip(reason="Not implemented yet")
-    def test_generate_demux_command(self):
+    def test_generate_demux_command(self, mock_db):
         pass
 
-    def test_start_demux(self, create_dirs):
-        with patch(
+    def test_start_demux(self, mock_db, create_dirs):
+        with mock.patch(
             "taca.utils.misc.call_external_command_detached"
-        ) as mock_call, patch(
+        ) as mock_call, mock.patch(
             "taca.element.Element_Runs.Run.generate_demux_command"
         ) as mock_command:
             mock_command.return_value = "test command"
@@ -159,9 +165,9 @@ class TestRun:
             )
 
     @pytest.mark.skip(reason="Not implemented yet")
-    def test_is_transferred(self, create_dirs):
+    def test_is_transferred(self, mock_db, create_dirs):
         pass
 
     @pytest.mark.skip(reason="Not implemented yet")
-    def test_parse_rundir(self, create_dirs):
+    def test_parse_rundir(self, mock_db, create_dirs):
         pass
