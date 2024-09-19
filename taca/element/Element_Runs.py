@@ -180,7 +180,8 @@ class Run:
         self.db.upload_to_statusdb(doc_obj)
 
     def manifest_exists(self):
-        return os.path.isfile(self.run_manifest_zip_file)
+        zip_src_path = self.find_manifest_zip()
+        return os.path.isfile(zip_src_path)
 
     def get_lims_step_id(self) -> str | None:
         """If the run was started using a LIMS-generated manifest,
@@ -197,12 +198,8 @@ class Run:
                 lims_step_id = line.split(",")[1]
                 return lims_step_id
         return None
-
-    def copy_manifests(self) -> bool:
-        """Fetch the LIMS-generated run manifests from ngi-nas-ns and unzip them into a run subdir."""
-
-        # TODO test me
-
+    
+    def find_manifest_zip(self):
         # Specify dir in which LIMS drop the manifest zip files
         dir_to_search = os.path.join(
             self.CONFIG.get("Aviti").get(
@@ -238,7 +235,13 @@ class Run:
             zip_src_path = glob_results[-1]
         else:
             zip_src_path = glob_results[0]
+        return zip_src_path
 
+
+    def copy_manifests(self) -> bool:
+        """Fetch the LIMS-generated run manifests from ngi-nas-ns and unzip them into a run subdir."""
+        # TODO: test me
+        zip_src_path = self.find_manifest_zip()
         # Make a run subdir named after the zip file and extract manifests there
         zip_name = os.path.basename(zip_src_path)
         zip_dst_path = os.path.join(self.run_dir, zip_name)
@@ -437,7 +440,6 @@ class Run:
                 shutil.move(data_dir, self.demux_dir)
                 
     def upload_demux_results_to_statusdb(self):
-        # TODO: dump contents of IndexAssignment.csv and UnassignedSequences.csv into statusdb document
         doc_obj = self.db.get_db_entry(self.NGI_run_id)
         index_assignement_file = os.path.join(self.run_dir, "Demultiplexing", "IndexAssignment.csv")
         with open(index_assignement_file, 'r') as index_file:

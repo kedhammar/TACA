@@ -40,7 +40,7 @@ def run_preprocessing(given_run):
         ):  # Sequencing done. Start demux
             if (
                 not run.manifest_exists()
-            ):  # TODO: this should check for the zip file in lims output location
+            ):
                 logger.warning(
                     f"Run manifest is missing for {run}, demultiplexing aborted"
                 )
@@ -86,7 +86,7 @@ def run_preprocessing(given_run):
                 if run.status_changed:
                     run.update_statusdb()
                     # TODO: Also update statusdb with a timestamp of when the transfer started
-                run.transfer()  # I think this should be a detached command as well
+                run.transfer()
             elif transfer_status == "ongoing":
                 run.status = "transferring"
                 if run.status_changed:
