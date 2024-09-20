@@ -538,7 +538,17 @@ class Run:
 
     # Symplink the output FastQ files of undet only if a lane does not have multiple demux
     def aggregate_undet_fastq(self, demux_runmanifest):
-
+        lanes = sorted(list(set(sample['Lane'] for sample in demux_runmanifest)))
+        for lane in lanes:
+            sub_demux = list(set(sample['sub_demux_count'] for sample in demux_runmanifest if sample['Lane']==lane))
+            if sub_demux == 1:
+                project_dest = os.path.join(self.run_dir, self.demux_dir, "Undetermined")
+                if not os.path.exists(project_dest):
+                    os.makedirs(project_dest)
+                fastqfiles = glob.glob(os.path.join(self.run_dir, f"Demultiplexing_{sub_demux[0]}", "Samples", "Undetermined", "*.fastq.gz"))
+                for fastqfile in fastqfiles:
+                    base_name = os.path.basename(fastqfile)
+                    os.symlink(fastqfile, os.path.join(project_dest, base_name))
 
 
     # Aggregate demux results
