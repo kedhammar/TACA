@@ -56,10 +56,7 @@ def run_preprocessing(given_run):
                 )
                 sub_demux_count = 0
                 for run_manifest in run_manifests.sort():
-                    if len(run_manifests) == 1:
-                        demux_dir = run.demux_dir
-                    elif len(run_manifests) > 1:
-                        demux_dir = f"Demultiplexing_{sub_demux_count}"
+                    demux_dir = f"Demultiplexing_{sub_demux_count}"
                     os.mkdir(demux_dir)
                     run.start_demux(run_manifest, demux_dir)
                     sub_demux_count += 1
@@ -75,10 +72,9 @@ def run_preprocessing(given_run):
             transfer_status = run.get_transfer_status()
             if transfer_status == "not started":
                 demux_results_dirs = glob.glob(
-                    os.path.join(run.run_dir, "Delmultiplexing*")
+                    os.path.join(run.run_dir, "Delmultiplexing_*")
                     )
-                if len(demux_results_dirs > 1):
-                    run.aggregate_demux_results(demux_results_dirs)
+                run.aggregate_demux_results(demux_results_dirs)
                 run.upload_demux_results_to_statusdb()
                 run.sync_metadata()
                 run.make_transfer_indicator()

@@ -395,7 +395,7 @@ class Run:
                                f"{self} on {datetime.now()}."
                 )
         return
-            
+
 
     def get_transfer_status(self):
         if not self.in_transfer_log() and not self.transfer_ongoing() and not self.rsync_complete():
@@ -406,7 +406,7 @@ class Run:
             return "rsync done"
         elif self.in_transfer_log():
             return "unknown"
-    
+
     def in_transfer_log(self):
         with open(self.transfer_file, "r") as transfer_file:
             for row in transfer_file.read():
@@ -428,14 +428,146 @@ class Run:
         else:
             return False
 
-    def aggregate_demux_results(self, demux_results_dirs):
-        # TODO: Correct this based on comments from Chuan
+    # Clear all content under a dir
+    def clear_dir(dir):
+        for filename in os.listdir(dir):
+            file_path = os.path.join(dir, filename)
+            try:
+                if os.path.isfile(file_path) or os.path.islink(file_path):
+                    os.unlink(file_path)
+                elif os.path.isdir(file_path):
+                    shutil.rmtree(file_path)
+            except Exception as e:
+                print(f"Failed to delete {file_path} Reason {e}")
+
+    # Create symlink for a simple demultiplexing dir
+    def symlink_demux_dir(src_dir, dest_dir):
+        # Ensure the destination directory exists
+        if not os.path.exists(dest_dir):
+            os.makedirs(dest_dir)
+        # Clear all content under dest_dir
+        clear_dir(dest_dir)
+        # Loop through all files and directories in the source directory
+        for item in os.listdir(src_dir):
+            src_path = os.path.join(src_dir, item)
+            # Move content of Samples to the parental dir
+            if item == "Samples":
+                dest_path = dest_dir
+            else:
+                dest_path = os.path.join(dest_dir, item)
+            try:
+                # Create symbolic link only if it doesn't already exist
+                if not os.path.exists(dest_path):
+                    os.symlink(src_path, dest_path)
+                    print(f"Linked {src_path} to {dest_path}")
+                else:
+                    print(f"{dest_path} already exists.")
+            except OSError as e:
+                print(f"Error linking {src_path} to {dest_path}: {e}")
+
+
+    # Collect demux info into a list of dictionaries
+    # Structure: [{'sub_demux_count':XXX, 'SampleName':XXX, 'Index1':XXX, 'Index2':XXX, 'Lane':XXX, 'Project':XXX, 'Recipe':XXX}]
+    def collect_demux_runmanifest(self, demux_results_dirs):
+        demux_runmanifest = []
         for demux_dir in demux_results_dirs:
-            data_dirs = [f.path for f in os.scandir(os.path.join(demux_dir, 'Samples')) if f.is_dir()]
-        for data_dir in data_dirs:
-            if not "PhiX" in data_dir in data_dir:
-                shutil.move(data_dir, self.demux_dir)
-                
+            sub_demux_count = demux_dir.split('_')[1]
+            with open(os.path.join(self.run_dir, demux_dir, 'RunManifest.csv'), 'r') as file:
+                lines = file.readlines()
+            sample_section = False
+            headers = []
+            # Loop through each line
+            for line in lines:
+                # Check if we reached the "[SAMPLES]" section
+                if '[SAMPLES]' in line:
+                    sample_section = True
+                    continue
+                # Exit the sample section if another section is encountered
+                if sample_section and line.startswith('['):
+                    break
+                # If in the sample section, process the sample lines
+                if sample_section:
+                    # Clean up the line
+                    line = line.strip()
+                    # Skip empty lines
+                    if not line:
+                        continue
+                    # Get the headers from the first line
+                    if not headers:
+                        headers = line.split(',')
+                    else:
+                        # Parse sample data
+                        values = line.split(',')
+                        sample_dict = dict(zip(headers, values))
+                        sample_dict['sub_demux_count'] = sub_demux_count
+                        demux_runmanifest.append(sample_dict)
+        sorted_demux_runmanifest = sorted(demux_runmanifest, key=lambda x: (x['Lane'], x['SampleName'], x['sub_demux_count']))
+        return sorted_demux_runmanifest
+
+
+    # Aggregate the output FastQ files of samples from multiple demux
+    def aggregate_sample_fastq(self, demux_runmanifest):
+        lanes = sorted(list(set(sample['Lane'] for sample in demux_runmanifest)))
+        unique_sample_demux = set()
+        for lane in lanes:
+            sample_count = 1
+            for sample in demux_runmanifest:
+                lanenr = sample['Lane']
+                project = sample['Project']
+                sample = sample['SampleName']
+                sub_demux_count = sample['sub_demux_count']
+                # Skip PhiX
+                if lanenr == lane and sample != "PhiX":
+                    sample_tuple = (sample, sub_demux_count)
+                    if sample_tuple not in unique_sample_demux:
+                        project_dest = os.path.join(self.run_dir, self.demux_dir, project)
+                        sample_dest = os.path.join(self.run_dir, self.demux_dir, project, sample)
+                        if not os.path.exists(project_dest):
+                            os.makedirs(project_dest)
+                        if not os.path.exists(sample_dest):
+                            os.makedirs(sample_dest)
+                        fastqfiles = glob.glob(os.path.join(self.run_dir, f"Demultiplexing_{sub_demux_count}", "Samples", project, sample, f"*L00{lane}*.fastq.gz"))
+                        for fastqfile in fastqfiles:
+                            old_name = os.path.basename(fastqfile)
+                            read_label = re.search(rf"L00{lane}_(.*?)_001", old_name).group(1)
+                            new_name = "_".join([sample, f"S{sample_count}", f"L00{lane}", read_label, "001.fastq.gz"])
+                            os.symlink(fastqfile, os.path.join(sample_dest, new_name))
+                        unique_sample_demux.add(sample_tuple)
+                        sample_count += 1
+
+
+    # Symplink the output FastQ files of undet only if a lane does not have multiple demux
+    def aggregate_undet_fastq(self, demux_runmanifest):
+
+
+
+    # Aggregate demux results
+    def aggregate_demux_results(self, demux_results_dirs):
+        # In case of single demux
+        if len(demux_results_dirs) == 1:
+            # TODO: Check NoIndex case. Can Base2Fastq generate FastQs for both reads and indexes for NoIndex sample?
+            # Otherwise just softlink contents of Demultplexing_0 into Demultiplexing
+            symlink_demux_dir(demux_results_dirs[0], os.path.join(self.run_dir, self.demux_dir))
+        else:
+            # Ensure the destination directory exists
+            if not os.path.exists(os.path.join(self.run_dir, self.demux_dir):
+                os.makedirs(os.path.join(self.run_dir, self.demux_dir)
+            # Clear all content under dest_dir
+            clear_dir(os.path.join(self.run_dir, self.demux_dir)
+            demux_runmanifest = collect_demux_runmanifest(demux_results_dirs)
+            # Aggregate the output FastQ files of samples from multiple demux
+            aggregate_sample_fastq(demux_runmanifest)
+            # Symplink the output FastQ files of undet only if a lane does not have multiple demux
+            aggregate_undet_fastq(demux_runmanifest)
+            # Aggregate stats in IndexAssignment.csv
+            TBD
+            # Aggregate stats in UnassignedSequences.csv
+            TBD
+            # Aggregate stats in Project_RunStats.json
+            TBD
+
+
+
     def upload_demux_results_to_statusdb(self):
         # TODO: dump contents of IndexAssignment.csv and UnassignedSequences.csv into statusdb document
         doc_obj = self.db.get_db_entry(self.NGI_run_id)
