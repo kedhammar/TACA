@@ -541,7 +541,7 @@ class Run:
         lanes = sorted(list(set(sample['Lane'] for sample in demux_runmanifest)))
         for lane in lanes:
             sub_demux = list(set(sample['sub_demux_count'] for sample in demux_runmanifest if sample['Lane']==lane))
-            if sub_demux == 1:
+            if len(sub_demux) == 1:
                 project_dest = os.path.join(self.run_dir, self.demux_dir, "Undetermined")
                 if not os.path.exists(project_dest):
                     os.makedirs(project_dest)
