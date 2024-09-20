@@ -551,6 +551,15 @@ class Run:
                     os.symlink(fastqfile, os.path.join(project_dest, base_name))
 
 
+    # Aggregate
+    def aggregate_stats_unassigned(demux_runmanifest):
+        lanes = sorted(list(set(sample['Lane'] for sample in demux_runmanifest)))
+        for lane in lanes:
+            sub_demux = list(set(sample['sub_demux_count'] for sample in demux_runmanifest if sample['Lane']==lane))
+            if len(sub_demux) == 1:
+                unassigned_csv = os.path.join(self.run_dir, f"Demultiplexing_{sub_demux[0]}", "UnassignedSequences.csv")
+
+
     # Aggregate demux results
     def aggregate_demux_results(self, demux_results_dirs):
         # In case of single demux
@@ -572,7 +581,7 @@ class Run:
             # Aggregate stats in IndexAssignment.csv
             TBD
             # Aggregate stats in UnassignedSequences.csv
-            TBD
+            aggregate_stats_unassigned(demux_runmanifest)
             # Aggregate stats in Project_RunStats.json
             TBD
 
