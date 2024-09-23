@@ -550,14 +550,66 @@ class Run:
                     base_name = os.path.basename(fastqfile)
                     os.symlink(fastqfile, os.path.join(project_dest, base_name))
 
+    # Write to csv
+    def write_to_csv(data, filename):
+        # Get the fieldnames from the keys of the first dictionary
+        fieldnames = data[0].keys()
+        # Open the file and write the CSV
+        with open(filename, mode='w', newline='') as file:
+            writer = csv.DictWriter(file, fieldnames=fieldnames)
+            # Write the header (fieldnames)
+            writer.writeheader()
+            # Write the data (rows)
+            writer.writerows(data)
 
-    # Aggregate
-    def aggregate_stats_unassigned(demux_runmanifest):
+
+    # Aggregate stats in UnassignedSequences.csv
+    def aggregate_stats_unassigned(self, demux_runmanifest):
+        aggregated_unassigned_indexes = []
         lanes = sorted(list(set(sample['Lane'] for sample in demux_runmanifest)))
         for lane in lanes:
-            sub_demux = list(set(sample['sub_demux_count'] for sample in demux_runmanifest if sample['Lane']==lane))
-            if len(sub_demux) == 1:
-                unassigned_csv = os.path.join(self.run_dir, f"Demultiplexing_{sub_demux[0]}", "UnassignedSequences.csv")
+            sub_demux_index_lens = set()
+            for sample in demux_runmanifest:
+                if sample['Lane'] == lane:
+                    sub_demux_index_lens.add((sample['sub_demux_count'], (len(sample.get("Index1", "")), len(sample.get("Index2", "")))))
+            # List of sub-demux with a decreasing order of index lengths
+            sub_demux_list = [x[0] for x in sorted(sub_demux_index_lens, key=lambda x: sum(x[1]), reverse=True)]
+            sub_demux_with_max_index_lens = sub_demux_list[0]
+            # Start with the unassigned list with the longest index
+            max_unassigned_csv = os.path.join(self.run_dir, f"Demultiplexing_{sub_demux_with_max_index_lens}", "UnassignedSequences.csv")
+            with open(max_unassigned_csv, 'r') as max_unassigned_file:
+                reader = csv.DictReader(max_unassigned_file)
+                max_unassigned_indexes = [row for row in reader]
+            # Filter by lane
+            max_unassigned_indexes = [idx for idx in max_unassigned_indexes if idx["Lane"] == lane]
+            # Complicated case with multiple demuxes. Take the full list if there is only one sub-demux otherwise
+            if len(sub_demux_list) > 1:
+                # Order: from longer to shorter indexes
+                sub_demux_with_shorter_index_lens = sub_demux_list[1:]
+                for sub_demux in sub_demux_with_shorter_index_lens:
+                    unassigned_csv = os.path.join(self.run_dir, f"Demultiplexing_{sub_demux}", "UnassignedSequences.csv")
+                    with open(unassigned_csv, 'r') as unassigned_file:
+                        reader = csv.DictReader(unassigned_file)
+                        unassigned_indexes = [row for row in reader]
+                    # Filter by lane
+                    unassigned_indexes = [unassigned_index for unassigned_index in unassigned_indexes if unassigned_index["Lane"] == lane]
+                    # Remove overlapped indexes from the list of max_unassigned_indexes
+                    idx1_overlapped_len = min([demux_lens_pair[1] for demux_lens_pair in sub_demux_index_lens if demux_lens_pair[0] == sub_demux][0][0],
+                                              [demux_lens_pair[1] for demux_lens_pair in sub_demux_index_lens if demux_lens_pair[0] == sub_demux_with_max_index_lens][0][0])
+                    idx2_overlapped_len = min([demux_lens_pair[1] for demux_lens_pair in sub_demux_index_lens if demux_lens_pair[0] == sub_demux][0][1],
+                                              [demux_lens_pair[1] for demux_lens_pair in sub_demux_index_lens if demux_lens_pair[0] == sub_demux_with_max_index_lens][0][1])
+                    for unassigned_index in unassigned_indexes:
+                        idx1_overlapped_seq = unassigned_index['I1'][:idx1_overlapped_len]
+                        idx2_overlapped_seq = unassigned_index['I2'][:idx2_overlapped_len]
+                        # Remove the overlapped record from the max_unassigned_indexes list
+                        max_unassigned_indexes = [max_unassigned_index for max_unassigned_index in max_unassigned_indexes if not (max_unassigned_index['I1'][:idx1_overlapped_len] == idx1_overlapped_seq and max_unassigned_index['I2'][:idx2_overlapped_len] == idx2_overlapped_seq)]
+            # Append to the aggregated_unassigned_indexes list
+            aggregated_unassigned_indexes += max_unassigned_indexes
+        # Sort aggregated_unassigned_indexes list first by lane and then by Count in the decreasing order
+        aggregated_unassigned_indexes = sorted(aggregated_unassigned_indexes, key=lambda x: (x['Lane'], -int(x['Count'])))
+        # Write to a new UnassignedSequences.csv file under
+        aggregated_unassigned_csv = os.path.join(self.run_dir, self.demux_dir, "UnassignedSequences.csv")
+        write_to_csv(aggregated_unassigned_indexes, aggregated_unassigned_csv)
 
 
     # Aggregate demux results
