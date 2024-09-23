@@ -134,7 +134,7 @@ def run_preprocessing(given_run):
             return
 
     if given_run:
-        run = Aviti_Run(given_run)
+        run = Aviti_Run(given_run, CONFIG.get("element_analysis"))
         # TODO: Needs to change if more types of Element machines are aquired in the future
 
         _process(run)

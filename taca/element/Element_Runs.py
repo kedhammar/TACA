@@ -211,9 +211,9 @@ class Run:
     def find_manifest_zip(self):
         # Specify dir in which LIMS drop the manifest zip files
         dir_to_search = os.path.join(
-            self.CONFIG.get("Aviti").get(
-                "manifest_zip_location"
-            ),  # TODO: change and add to taca.yaml
+            self.CONFIG.get("Element", {})
+            .get(self.sequencer_type, {})
+            .get("manifest_zip_location"),  # TODO: add to taca.yaml
             datetime.now().year,
         )
 
@@ -383,7 +383,7 @@ class Run:
 
     def generate_demux_command(self, run_manifest, demux_dir):
         command = (
-            f"{self.CONFIG.get(self.software)['bin']}"  # TODO: add path to bases2fastq executable to config
+            f"{self.CONFIG.get('bases2fastq')}"  # TODO: add path to bases2fastq executable to config
             + f" {self.run_dir}"
             + f" {demux_dir}"
             + " -p 8"
@@ -523,7 +523,7 @@ class Run:
 
     def transfer(self):
         transfer_details = (
-            self.CONFIG.get("Element").get(self.sequencer_type).get("transfer_details")
+            self.CONFIG.get(self.sequencer_type).get("transfer_details")
         )  # TODO: Add section to taca.yaml
         command = (
             "rsync"
@@ -533,7 +533,7 @@ class Run:
             + " --exclude BaseCalls"  # TODO: check that we actually want to exclude these
             + " --exclude Alignment"
             + f" {self.run_dir}"
-            + f" {transfer_details.get('user')@transfer_details.get('host')}:/"
+            + f" {transfer_details.get('user')@transfer_details.get('host')}:/aviti"
             + "; echo $? > .rsync_exit_status"
         )  # TODO: any other options?
         try:
