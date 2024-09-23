@@ -563,6 +563,50 @@ class Run:
             writer.writerows(data)
 
 
+    # Aggregate stats in IndexAssignment.csv
+    def aggregate_stats_assigned(self, demux_runmanifest):
+        aggregated_assigned_indexes = []
+        sub_demux_list = sorted(list(set(sample['sub_demux_count'] for sample in demux_runmanifest)))
+        lanes = sorted(list(set(sample['Lane'] for sample in demux_runmanifest)))
+        for sub_demux in sub_demux_list:
+            # Read in IndexAssignment.csv
+            assigned_csv = os.path.join(self.run_dir, f"Demultiplexing_{sub_demux}", "IndexAssignment.csv")
+            if os.path.exists(assigned_csv):
+                with open(assigned_csv, 'r') as assigned_file:
+                    reader = csv.DictReader(assigned_file)
+                    index_assignment = [row for row in reader]
+                for sample in index_assignment:
+                    if sample['Lane'] in lanes:
+                        sample['sub_demux_count'] = sub_demux
+                        aggregated_assigned_indexes.append(sample)
+            else:
+                logger.warning(f"No IndexAssignment.csv file found for sub-demultiplexing {sub_demux}.")
+        # Remove redundant rows for PhiX
+        aggregated_assigned_indexes_filtered = []
+        unique_phiX_combination = set()
+        for sample in aggregated_assigned_indexes:
+            if sample['SampleName'] == 'PhiX':
+                combination = (sample['I1'], sample['I2'], sample['Lane'])
+                if combination not in unique_phiX_combination:
+                    aggregated_assigned_indexes_filtered.append(sample)
+                    unique_phiX_combination.add(combination)
+            else:
+                aggregated_assigned_indexes_filtered.append(sample)
+        # Sort the list by Lane, SampleName and sub_demux_count
+        aggregated_assigned_indexes_filtered_sorted = sorted(aggregated_assigned_indexes_filtered, key=lambda x: (x['Lane'], x['SampleName'], x['sub_demux_count']))
+        # Fix new sample number based on SampleName and Lane
+        sample_count = 0
+        previous_samplename_lane = ('NA', 'NA')
+        for sample in aggregated_assigned_indexes_filtered_sorted:
+            if (sample['SampleName'], sample['Lane']) != previous_samplename_lane:
+                sample_count += 1
+                previous_samplename_lane = (sample['SampleName'], sample['Lane'])
+            sample['SampleNumber'] = sample_count
+        # Write to a new UnassignedSequences.csv file under demux_dir
+        aggregated_assigned_indexes_csv = os.path.join(self.run_dir, self.demux_dir, "IndexAssignment.csv")
+        write_to_csv(aggregated_assigned_indexes_filtered_sorted, aggregated_assigned_indexes_csv)
+
+
     # Aggregate stats in UnassignedSequences.csv
     def aggregate_stats_unassigned(self, demux_runmanifest):
         aggregated_unassigned_indexes = []
@@ -577,9 +621,13 @@ class Run:
             sub_demux_with_max_index_lens = sub_demux_list[0]
             # Start with the unassigned list with the longest index
             max_unassigned_csv = os.path.join(self.run_dir, f"Demultiplexing_{sub_demux_with_max_index_lens}", "UnassignedSequences.csv")
-            with open(max_unassigned_csv, 'r') as max_unassigned_file:
-                reader = csv.DictReader(max_unassigned_file)
-                max_unassigned_indexes = [row for row in reader]
+            if os.path.exists(max_unassigned_csv):
+                with open(max_unassigned_csv, 'r') as max_unassigned_file:
+                    reader = csv.DictReader(max_unassigned_file)
+                    max_unassigned_indexes = [row for row in reader]
+            else:
+                logger.warning(f"No UnassignedSequences.csv file found for sub-demultiplexing {sub_demux_with_max_index_lens}.")
+                break
             # Filter by lane
             max_unassigned_indexes = [idx for idx in max_unassigned_indexes if idx["Lane"] == lane]
             # Complicated case with multiple demuxes. Take the full list if there is only one sub-demux otherwise
@@ -588,9 +636,13 @@ class Run:
                 sub_demux_with_shorter_index_lens = sub_demux_list[1:]
                 for sub_demux in sub_demux_with_shorter_index_lens:
                     unassigned_csv = os.path.join(self.run_dir, f"Demultiplexing_{sub_demux}", "UnassignedSequences.csv")
-                    with open(unassigned_csv, 'r') as unassigned_file:
-                        reader = csv.DictReader(unassigned_file)
-                        unassigned_indexes = [row for row in reader]
+                    if os.path.exists(unassigned_csv):
+                        with open(unassigned_csv, 'r') as unassigned_file:
+                            reader = csv.DictReader(unassigned_file)
+                            unassigned_indexes = [row for row in reader]
+                    else:
+                        logger.warning(f"No UnassignedSequences.csv file found for sub-demultiplexing {sub_demux}.")
+                        continue
                     # Filter by lane
                     unassigned_indexes = [unassigned_index for unassigned_index in unassigned_indexes if unassigned_index["Lane"] == lane]
                     # Remove overlapped indexes from the list of max_unassigned_indexes
@@ -607,7 +659,7 @@ class Run:
             aggregated_unassigned_indexes += max_unassigned_indexes
         # Sort aggregated_unassigned_indexes list first by lane and then by Count in the decreasing order
         aggregated_unassigned_indexes = sorted(aggregated_unassigned_indexes, key=lambda x: (x['Lane'], -int(x['Count'])))
-        # Write to a new UnassignedSequences.csv file under
+        # Write to a new UnassignedSequences.csv file under demux_dir
         aggregated_unassigned_csv = os.path.join(self.run_dir, self.demux_dir, "UnassignedSequences.csv")
         write_to_csv(aggregated_unassigned_indexes, aggregated_unassigned_csv)
 
@@ -631,7 +683,7 @@ class Run:
             # Symplink the output FastQ files of undet only if a lane does not have multiple demux
             aggregate_undet_fastq(demux_runmanifest)
             # Aggregate stats in IndexAssignment.csv
-            TBD
+            aggregate_stats_assigned(demux_runmanifest)
             # Aggregate stats in UnassignedSequences.csv
             aggregate_stats_unassigned(demux_runmanifest)
             # Aggregate stats in Project_RunStats.json
