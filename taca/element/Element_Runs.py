@@ -484,7 +484,7 @@ class Run:
     def collect_demux_runmanifest(self, demux_results_dirs):
         demux_runmanifest = []
         for demux_dir in demux_results_dirs:
-            sub_demux_count = demux_dir.split('_')[1]
+            sub_demux_count = os.path.basename(demux_dir).split('_')[1]
             with open(os.path.join(self.run_dir, demux_dir, 'RunManifest.csv'), 'r') as file:
                 lines = file.readlines()
             sample_section = False
@@ -527,23 +527,23 @@ class Run:
             for sample in demux_runmanifest:
                 lanenr = sample['Lane']
                 project = sample['Project']
-                sample = sample['SampleName']
+                sample_name = sample['SampleName']
                 sub_demux_count = sample['sub_demux_count']
                 # Skip PhiX
-                if lanenr == lane and sample != "PhiX":
-                    sample_tuple = (sample, sub_demux_count)
+                if lanenr == lane and sample_name != "PhiX":
+                    sample_tuple = (sample_name, sub_demux_count)
                     if sample_tuple not in unique_sample_demux:
                         project_dest = os.path.join(self.run_dir, self.demux_dir, project)
-                        sample_dest = os.path.join(self.run_dir, self.demux_dir, project, sample)
+                        sample_dest = os.path.join(self.run_dir, self.demux_dir, project, sample_name)
                         if not os.path.exists(project_dest):
                             os.makedirs(project_dest)
                         if not os.path.exists(sample_dest):
                             os.makedirs(sample_dest)
-                        fastqfiles = glob.glob(os.path.join(self.run_dir, f"Demultiplexing_{sub_demux_count}", "Samples", project, sample, f"*L00{lane}*.fastq.gz"))
+                        fastqfiles = glob.glob(os.path.join(self.run_dir, f"Demultiplexing_{sub_demux_count}", "Samples", project, sample_name, f"*L00{lane}*.fastq.gz"))
                         for fastqfile in fastqfiles:
                             old_name = os.path.basename(fastqfile)
                             read_label = re.search(rf"L00{lane}_(.*?)_001", old_name).group(1)
-                            new_name = "_".join([sample, f"S{sample_count}", f"L00{lane}", read_label, "001.fastq.gz"])
+                            new_name = "_".join([sample_name, f"S{sample_count}", f"L00{lane}", read_label, "001.fastq.gz"])
                             os.symlink(fastqfile, os.path.join(sample_dest, new_name))
                         unique_sample_demux.add(sample_tuple)
                         sample_count += 1
@@ -558,7 +558,7 @@ class Run:
                 project_dest = os.path.join(self.run_dir, self.demux_dir, "Undetermined")
                 if not os.path.exists(project_dest):
                     os.makedirs(project_dest)
-                fastqfiles = glob.glob(os.path.join(self.run_dir, f"Demultiplexing_{sub_demux[0]}", "Samples", "Undetermined", "*.fastq.gz"))
+                fastqfiles = glob.glob(os.path.join(self.run_dir, f"Demultiplexing_{sub_demux[0]}", "Samples", "Undetermined", f"*L00{lane}*.fastq.gz"))
                 for fastqfile in fastqfiles:
                     base_name = os.path.basename(fastqfile)
                     os.symlink(fastqfile, os.path.join(project_dest, base_name))
@@ -585,7 +585,7 @@ class Run:
                         percentage_q40 = occurrence["PercentQ40"]
                         quality_score_mean = occurrence["QualityScoreMean"]
                         project_runstats.append({ "SampleName"       : sample_name,
-                                                  "Lane"             : lane,
+                                                  "Lane"             : str(lane),
                                                   "ExpectedSequence" : expected_sequence,
                                                   "PercentMismatch"  : percentage_mismatch,
                                                   "PercentQ30"       : percentage_q30,
@@ -615,7 +615,12 @@ class Run:
                     index_assignment = [row for row in reader]
                 for sample in index_assignment:
                     if sample['Lane'] in lanes:
+                        project_runstats_sample = [d for d in project_runstats if d['SampleName'] == sample['SampleName'] and d['Lane'] == sample['Lane'] and d['ExpectedSequence'] == sample['I1']+sample['I2']]
                         sample['sub_demux_count'] = sub_demux
+                        sample['PercentMismatch'] = project_runstats_sample[0]['PercentMismatch']
+                        sample['PercentQ30'] = project_runstats_sample[0]['PercentQ30']
+                        sample['PercentQ40'] = project_runstats_sample[0]['PercentQ40']
+                        sample['QualityScoreMean'] = project_runstats_sample[0]['QualityScoreMean']
                         aggregated_assigned_indexes.append(sample)
             else:
                 logger.warning(f"No IndexAssignment.csv file found for sub-demultiplexing {sub_demux}.")
@@ -704,26 +709,20 @@ class Run:
 
     # Aggregate demux results
     def aggregate_demux_results(self, demux_results_dirs):
-        # In case of single demux
-        if len(demux_results_dirs) == 1:
-            # TODO: Check NoIndex case. Can Base2Fastq generate FastQs for both reads and indexes for NoIndex sample?
-            # Otherwise just softlink contents of Demultplexing_0 into Demultiplexing
-            symlink_demux_dir(demux_results_dirs[0], os.path.join(self.run_dir, self.demux_dir))
-        else:
-            # Ensure the destination directory exists
-            if not os.path.exists(os.path.join(self.run_dir, self.demux_dir):
-                os.makedirs(os.path.join(self.run_dir, self.demux_dir)
-            # Clear all content under dest_dir
-            clear_dir(os.path.join(self.run_dir, self.demux_dir)
-            demux_runmanifest = collect_demux_runmanifest(demux_results_dirs)
-            # Aggregate the output FastQ files of samples from multiple demux
-            aggregate_sample_fastq(demux_runmanifest)
-            # Symplink the output FastQ files of undet only if a lane does not have multiple demux
-            aggregate_undet_fastq(demux_runmanifest)
-            # Aggregate stats in IndexAssignment.csv
-            aggregate_stats_assigned(demux_runmanifest)
-            # Aggregate stats in UnassignedSequences.csv
-            aggregate_stats_unassigned(demux_runmanifest)
+        # Ensure the destination directory exists
+        if not os.path.exists(os.path.join(self.run_dir, self.demux_dir)):
+            os.makedirs(os.path.join(self.run_dir, self.demux_dir))
+        # Clear all content under dest_dir
+        clear_dir(os.path.join(self.run_dir, self.demux_dir))
+        demux_runmanifest = collect_demux_runmanifest(demux_results_dirs)
+        # Aggregate the output FastQ files of samples from multiple demux
+        aggregate_sample_fastq(demux_runmanifest)
+        # Symplink the output FastQ files of undet only if a lane does not have multiple demux
+        aggregate_undet_fastq(demux_runmanifest)
+        # Aggregate stats in IndexAssignment.csv
+        aggregate_stats_assigned(demux_runmanifest)
+        # Aggregate stats in UnassignedSequences.csv
+        aggregate_stats_unassigned(demux_runmanifest)
 
 
     def upload_demux_results_to_statusdb(self):

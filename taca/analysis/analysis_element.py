@@ -72,7 +72,7 @@ def run_preprocessing(given_run):
             transfer_status = run.get_transfer_status()
             if transfer_status == "not started":
                 demux_results_dirs = glob.glob(
-                    os.path.join(run.run_dir, "Delmultiplexing_*")
+                    os.path.join(run.run_dir, "Demultiplexing_*")
                     )
                 run.aggregate_demux_results(demux_results_dirs)
                 run.upload_demux_results_to_statusdb()
