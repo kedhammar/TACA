@@ -39,7 +39,7 @@ class Run:
             "RunStats.json"  # Assumes demux is finished when this file is created
         )
         self.transfer_file = (
-            self.CONFIG.get("Element", {})
+            self.CONFIG.get("element_analysis").get("Element", {})
             .get(self.sequencer_type, {})
             .get("transfer_log")
         )  # TODO: change and add to taca.yaml
@@ -112,7 +112,8 @@ class Run:
         )  # Sequencing, wash or prime I believe?
         self.flowcell_id = run_parameters.get("FlowcellID")
         self.instrument_name = run_parameters.get("InstrumentName")
-        self.date = run_parameters.get("Date")
+        self.date = run_parameters.get("Date")[0:10].replace("-", "")
+        self.year = self.date[0:4]
         self.operator_name = run_parameters.get("OperatorName")
         self.run_parameters_parsed = True
 
@@ -136,6 +137,7 @@ class Run:
                 instrument_generated_files[os.path.basename(file)] = None
 
         doc_obj = {
+            "name": self.NGI_run_id,
             "run_path": self.run_dir,
             "run_status": self.status,
             "NGI_run_id": self.NGI_run_id,
@@ -158,7 +160,7 @@ class Run:
     def get_demultiplexing_status(self):
         if not os.path.exists(self.demux_dir):
             return "not started"
-        demux_dirs = glob.glob(os.path.join(self.run_dir, "Delmultiplexing*"))
+        demux_dirs = glob.glob(os.path.join(self.run_dir, "Demultiplexing*"))
         finished_count = 0
         for demux_dir in demux_dirs:
             if os.path.exists(self.demux_dir) and not os.path.isfile(
@@ -211,10 +213,10 @@ class Run:
     def find_manifest_zip(self):
         # Specify dir in which LIMS drop the manifest zip files
         dir_to_search = os.path.join(
-            self.CONFIG.get("Element", {})
+            self.CONFIG.get("element_analysis").get("Element", {})
             .get(self.sequencer_type, {})
             .get("manifest_zip_location"),  # TODO: add to taca.yaml
-            datetime.now().year,
+            str(self.year),
         )
 
         # Use LIMS step ID if available, else flowcell ID, to make a query pattern
@@ -230,7 +232,7 @@ class Run:
             glob_pattern = f"{dir_to_search}/*{self.flowcell_id}*.zip"
 
         # Find paths matching the pattern
-        glob_results = glob(glob_pattern)
+        glob_results = glob.glob(glob_pattern)
         if len(glob_results) == 0:
             logger.warning(
                 f"No manifest found for run '{self.run_dir}' with pattern '{glob_pattern}'."
@@ -383,7 +385,7 @@ class Run:
 
     def generate_demux_command(self, run_manifest, demux_dir):
         command = (
-            f"{self.CONFIG.get('bases2fastq')}"  # TODO: add path to bases2fastq executable to config
+            f"{self.CONFIG.get("element_analysis").get('bases2fastq')}"  # TODO: add path to bases2fastq executable to config
             + f" {self.run_dir}"
             + f" {demux_dir}"
             + " -p 8"
@@ -523,7 +525,7 @@ class Run:
 
     def transfer(self):
         transfer_details = (
-            self.CONFIG.get(self.sequencer_type).get("transfer_details")
+            self.CONFIG.get("element_analysis").get(self.sequencer_type).get("transfer_details")
         )  # TODO: Add section to taca.yaml
         command = (
             "rsync"

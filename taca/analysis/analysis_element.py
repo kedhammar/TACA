@@ -134,7 +134,7 @@ def run_preprocessing(given_run):
             return
 
     if given_run:
-        run = Aviti_Run(given_run, CONFIG.get("element_analysis"))
+        run = Aviti_Run(given_run, CONFIG)
         # TODO: Needs to change if more types of Element machines are aquired in the future
 
         _process(run)
@@ -148,7 +148,7 @@ def run_preprocessing(given_run):
                 os.path.join(data_dir, "[1-9]*_*_*_*")
             )  # TODO: adapt to aviti format
             for run in runs:
-                runObj = Aviti_Run(run)
+                runObj = Aviti_Run(run, CONFIG)
                 try:
                     _process(runObj)
                 except:  # TODO: chatch error message and print it
