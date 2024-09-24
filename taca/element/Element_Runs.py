@@ -466,6 +466,19 @@ class Run:
                 print(f"Error linking {src_path} to {dest_path}: {e}")
 
 
+    # Write to csv
+    def write_to_csv(data, filename):
+        # Get the fieldnames from the keys of the first dictionary
+        fieldnames = data[0].keys()
+        # Open the file and write the CSV
+        with open(filename, mode='w', newline='') as file:
+            writer = csv.DictWriter(file, fieldnames=fieldnames)
+            # Write the header (fieldnames)
+            writer.writeheader()
+            # Write the data (rows)
+            writer.writerows(data)
+
+
     # Collect demux info into a list of dictionaries
     # Structure: [{'sub_demux_count':XXX, 'SampleName':XXX, 'Index1':XXX, 'Index2':XXX, 'Lane':XXX, 'Project':XXX, 'Recipe':XXX}]
     def collect_demux_runmanifest(self, demux_results_dirs):
@@ -550,17 +563,38 @@ class Run:
                     base_name = os.path.basename(fastqfile)
                     os.symlink(fastqfile, os.path.join(project_dest, base_name))
 
-    # Write to csv
-    def write_to_csv(data, filename):
-        # Get the fieldnames from the keys of the first dictionary
-        fieldnames = data[0].keys()
-        # Open the file and write the CSV
-        with open(filename, mode='w', newline='') as file:
-            writer = csv.DictWriter(file, fieldnames=fieldnames)
-            # Write the header (fieldnames)
-            writer.writeheader()
-            # Write the data (rows)
-            writer.writerows(data)
+
+    # Read in each Project_RunStats.json to fetch PercentMismatch, PercentQ30, PercentQ40 and QualityScoreMean
+    # Note that Element promised that they would include these stats into IndexAssignment.csv
+    # But for now we have to do this by ourselves in this hard way
+    def get_project_runstats(self, sub_demux, demux_runmanifest):
+        project_runstats = []
+        project_list = sorted(list(set(sample['Project'] for sample in demux_runmanifest if sample['sub_demux_count']==sub_demux)))
+        for project in project_list:
+            project_runstats_json_path = os.path.join(self.run_dir, f"Demultiplexing_{sub_demux}", "Samples", project, f"{project}_RunStats.json")
+            if os.path.exists(project_runstats_json_path):
+                with open(project_runstats_json_path) as stats_json:
+                    project_runstats_json = json.load(stats_json)
+                for sample in project_runstats_json["SampleStats"]:
+                    sample_name = sample["SampleName"]
+                    for occurrence in sample["Occurrences"]:
+                        lane = occurrence["Lane"]
+                        expected_sequence = occurrence["ExpectedSequence"]
+                        percentage_mismatch = occurrence["PercentMismatch"]
+                        percentage_q30 = occurrence["PercentQ30"]
+                        percentage_q40 = occurrence["PercentQ40"]
+                        quality_score_mean = occurrence["QualityScoreMean"]
+                        project_runstats.append({ "SampleName"       : sample_name,
+                                                  "Lane"             : lane,
+                                                  "ExpectedSequence" : expected_sequence,
+                                                  "PercentMismatch"  : percentage_mismatch,
+                                                  "PercentQ30"       : percentage_q30,
+                                                  "PercentQ40"       : percentage_q40,
+                                                  "QualityScoreMean" : quality_score_mean
+                        })
+            else:
+                continue
+        return project_runstats
 
 
     # Aggregate stats in IndexAssignment.csv
@@ -569,6 +603,10 @@ class Run:
         sub_demux_list = sorted(list(set(sample['sub_demux_count'] for sample in demux_runmanifest)))
         lanes = sorted(list(set(sample['Lane'] for sample in demux_runmanifest)))
         for sub_demux in sub_demux_list:
+            # Read in each Project_RunStats.json to fetch PercentMismatch, PercentQ30, PercentQ40 and QualityScoreMean
+            # Note that Element promised that they would include these stats into IndexAssignment.csv
+            # But for now we have to do this by ourselves in this hard way
+            project_runstats = get_project_runstats(sub_demux, demux_runmanifest)
             # Read in IndexAssignment.csv
             assigned_csv = os.path.join(self.run_dir, f"Demultiplexing_{sub_demux}", "IndexAssignment.csv")
             if os.path.exists(assigned_csv):
@@ -686,9 +724,6 @@ class Run:
             aggregate_stats_assigned(demux_runmanifest)
             # Aggregate stats in UnassignedSequences.csv
             aggregate_stats_unassigned(demux_runmanifest)
-            # Aggregate stats in Project_RunStats.json
-            TBD
-
 
 
     def upload_demux_results_to_statusdb(self):
