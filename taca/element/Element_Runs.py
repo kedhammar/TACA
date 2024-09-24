@@ -36,7 +36,7 @@ class Run:
         self.demux_dir = os.path.join(self.run_dir, "Demultiplexing")
         self.final_sequencing_file = os.path.join(self.run_dir, "RunUploaded.json")
         self.demux_stats_file = (
-            "RunStats.json"  # Assumes demux is finished when this file is created
+            "*RunStats.json"  # Assumes demux is finished when this file is created
         )
         self.transfer_file = (
             self.CONFIG.get("element_analysis").get("Element", {})
@@ -160,20 +160,17 @@ class Run:
     def get_demultiplexing_status(self):
         if not os.path.exists(self.demux_dir):
             return "not started"
-        demux_dirs = glob.glob(os.path.join(self.run_dir, "Demultiplexing*"))
+        sub_demux_dirs = glob.glob(os.path.join(self.run_dir, "Demultiplexing_*"))
         finished_count = 0
-        for demux_dir in demux_dirs:
-            if os.path.exists(self.demux_dir) and not os.path.isfile(
-                os.path.join(demux_dir, self.demux_stats_file)
-            ):
+        for demux_dir in sub_demux_dirs:
+            found_demux_stats_file = glob.glob(os.path.join(demux_dir, self.demux_stats_file))
+            if not found_demux_stats_file:
                 return "ongoing"
-            elif os.path.exists(self.demux_dir) and os.path.isfile(
-                os.path.join(demux_dir, self.demux_stats_file)
-            ):
+            elif found_demux_stats_file:
                 finished_count += (
                     1  # TODO: check exit status of demux in exit status file
                 )
-        if finished_count == len(demux_dirs):
+        if finished_count == len(sub_demux_dirs):
             return "finished"
         else:
             return "unknown"
