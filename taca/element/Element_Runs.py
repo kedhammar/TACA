@@ -441,7 +441,7 @@ class Run:
     def rsync_successful(self):
         with open(os.path.join(self.run_dir, ".rsync_exit_status")) as rsync_exit_file:
             rsync_exit_status = rsync_exit_file.readlines()
-        if rsync_exit_status[0].strip() == 0:
+        if rsync_exit_status[0].strip() == '0':
             return True
         else:
             return False
@@ -522,7 +522,7 @@ class Run:
 
     def transfer(self):
         transfer_details = (
-            self.CONFIG.get("element_analysis").get(self.sequencer_type).get("transfer_details")
+            self.CONFIG.get("element_analysis").get("transfer_details")
         )  # TODO: Add section to taca.yaml
         command = (
             "rsync"
@@ -532,8 +532,8 @@ class Run:
             + " --exclude BaseCalls"  # TODO: check that we actually want to exclude these
             + " --exclude Alignment"
             + f" {self.run_dir}"
-            + f" {transfer_details.get('user')@transfer_details.get('host')}:/aviti"
-            + "; echo $? > .rsync_exit_status"
+            + f" {transfer_details.get('user')}@{transfer_details.get('host')}:/aviti"
+            + f"; echo $? > {os.path.join(self.run_dir, ".rsync_exit_status")}"
         )  # TODO: any other options?
         try:
             p_handle = subprocess.Popen(command, stdout=subprocess.PIPE, shell=True)
@@ -568,3 +568,4 @@ class Run:
         src = self.run_dir
         dst = os.path.join(self.run_dir, os.pardir, "nosync")
         shutil.move(src, dst)
+        self.run_dir = 

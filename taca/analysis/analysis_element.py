@@ -85,7 +85,7 @@ def run_preprocessing(given_run):
             demux_results_dirs = glob.glob(
                 os.path.join(run.run_dir, "Delmultiplexing*")
             )
-            if len(demux_results_dirs > 1):
+            if len(demux_results_dirs) > 1:
                 run.aggregate_demux_results(demux_results_dirs)
             run.sync_metadata()
             run.make_transfer_indicator()
@@ -93,13 +93,13 @@ def run_preprocessing(given_run):
             if run.status_changed:
                 run.update_statusdb()
                 # TODO: Also update statusdb with a timestamp of when the transfer started
-            run.transfer()  # I think this should be a detached command as well
+            run.transfer()
             return
         elif transfer_status == "ongoing":
             run.status = "transferring"
             if run.status_changed:
                 run.update_statusdb()
-            logger.info(f"{run} is being transferred. Skipping.")
+            logger.info(f"{run} is being transferred. Skipping.") # TODO: fix formatting, currently prints "ElementRun(20240910_AV242106_B2403418431) is being transferred"
             return
         elif transfer_status == "rsync done":
             if run.rsync_successful():
