@@ -29,24 +29,19 @@ def run_preprocessing(given_run):
             )
             raise
 
+        #### Sequencing status ####
         sequencing_done = run.check_sequencing_status()
-        demultiplexing_status = run.get_demultiplexing_status()
         if not sequencing_done:  # Sequencing ongoing
             run.status = "sequencing"
             if run.status_changed:
                 run.update_statusdb()
-        elif (
-            sequencing_done and demultiplexing_status == "not started"
-        ):  # Sequencing done. Start demux
-            if (
-                not run.manifest_exists()
-            ):  # TODO: this should check for the zip file in lims output location
-                logger.warning(
-                    f"Run manifest is missing for {run}, demultiplexing aborted"
-                )
-                # TODO: email operator warning
-                return
-            elif run.manifest_exists():
+            return
+
+        #### Demultiplexing status ####
+        demultiplexing_status = run.get_demultiplexing_status()
+        if demultiplexing_status == "not started":
+            # Sequencing done. Start demux
+            if run.manifest_exists():
                 os.mkdir(run.demux_dir)
                 run.copy_manifests()
                 run_manifests = glob.glob(
@@ -63,58 +58,81 @@ def run_preprocessing(given_run):
                 run.status = "demultiplexing"
                 if run.status_changed:
                     run.update_statusdb()
-        elif sequencing_done and demultiplexing_status == "ongoing":
+                return
+            else:
+                logger.warning(
+                    f"Run manifest is missing for {run}, demultiplexing aborted"
+                )
+                # TODO: email operator warning
+                return
+        elif demultiplexing_status == "ongoing":
             run.status = "demultiplexing"
             if run.status_changed:
                 run.update_statusdb()
             return
-        elif sequencing_done and demultiplexing_status == "finished":
-            transfer_status = run.get_transfer_status()
-            if transfer_status == "not started":
-                demux_results_dirs = glob.glob(
-                    os.path.join(run.run_dir, "Demultiplexing_*")
-                    )
-                run.aggregate_demux_results(demux_results_dirs)
-                run.upload_demux_results_to_statusdb()
-                run.sync_metadata()
-                run.make_transfer_indicator()
-                run.status = "transferring"
+          
+        elif demultiplexing_status != "finished":
+            logger.warning(
+                f"Unknown demultiplexing status {demultiplexing_status} of run {run}. Please investigate"
+            )
+            return
+
+        #### Transfer status ####
+        transfer_status = run.get_transfer_status()
+        if transfer_status == "not started":
+            demux_results_dirs = glob.glob(
+                os.path.join(run.run_dir, "Delmultiplexing_*")
+            )
+            run.aggregate_demux_results(demux_results_dirs)
+            run.upload_demux_results_to_statusdb()
+            run.sync_metadata()
+            run.make_transfer_indicator()
+            run.status = "transferring"
+            if run.status_changed:
+                run.update_statusdb()
+                # TODO: Also update statusdb with a timestamp of when the transfer started
+            run.transfer()
+            return
+        elif transfer_status == "ongoing":
+            run.status = "transferring"
+            if run.status_changed:
+                run.update_statusdb()
+            logger.info(f"{run} is being transferred. Skipping.") # TODO: fix formatting, currently prints "ElementRun(20240910_AV242106_B2403418431) is being transferred"
+            return
+        elif transfer_status == "rsync done":
+            if run.rsync_successful():
+                run.remove_transfer_indicator()
+                run.update_transfer_log()
+                run.status = "transferred"
                 if run.status_changed:
                     run.update_statusdb()
-                    # TODO: Also update statusdb with a timestamp of when the transfer started
-                run.transfer()  # I think this should be a detached command as well
-            elif transfer_status == "ongoing":
-                run.status = "transferring"
+                run.archive()
+                run.status = "archived"
+                
                 if run.status_changed:
                     run.update_statusdb()
-                logger.info(f"{run} is being transferred. Skipping.")
-                return
-            elif transfer_status == "rsync done":
-                if run.rsync_successful():
-                    run.remove_transfer_indicator()
-                    run.update_transfer_log()
-                    run.status = "transferred"
-                    if run.status_changed:
-                        run.update_statusdb()
-                    run.archive()
-                    run.status = "archived"
-                    if run.status_changed:
-                        run.update_statusdb()
-                else:
-                    run.status = "transfer failed"
-                    logger.warning(f"An issue occurred while transfering {run} to the analysis cluster." )
-                    # TODO: email warning to operator
-            elif transfer_status == "unknown":
-                logger.warning(
-                    f"The run {run} has already been transferred but has not been archived. Please investigate"
-                )
-                # TODO: email operator warning
-                return
             else:
-                logger.warning(f"Unknown transfer status of run {run}. Please investigate")
+                run.status = "transfer failed"
+                logger.warning(
+                    f"An issue occurred while transfering {run} to the analysis cluster."
+                )
+                # TODO: email warning to operator
+            return
+        elif transfer_status == "unknown":
+            logger.warning(
+                f"The run {run} has already been transferred but has not been archived. Please investigate"
+            )
+            # TODO: email operator warning
+            return
+        else:
+            # TODO Merge with the one above?
+            logger.warning(
+                f"Unknown transfer status {transfer_status} of run {run}. Please investigate"
+            )
+            return
 
     if given_run:
-        run = Aviti_Run(given_run)
+        run = Aviti_Run(given_run, CONFIG)
         # TODO: Needs to change if more types of Element machines are aquired in the future
 
         _process(run)
@@ -128,7 +146,7 @@ def run_preprocessing(given_run):
                 os.path.join(data_dir, "[1-9]*_*_*_*")
             )  # TODO: adapt to aviti format
             for run in runs:
-                runObj = Aviti_Run(run)
+                runObj = Aviti_Run(run, CONFIG)
                 try:
                     _process(runObj)
                 except:  # TODO: chatch error message and print it

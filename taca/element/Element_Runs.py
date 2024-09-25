@@ -1,18 +1,17 @@
+import csv
+import glob
 import json
 import logging
 import os
 import re
-import csv
-import zipfile
-import subprocess
 import shutil
+import subprocess
+import zipfile
 from datetime import datetime
 from pathlib import Path
-from glob import glob
 
 import pandas as pd
 
-from taca.utils import misc
 from taca.utils.filesystem import chdir
 from taca.utils.statusdb import ElementRunsConnection
 
@@ -23,6 +22,10 @@ class Run:
     """Defines an Element run"""
 
     def __init__(self, run_dir, configuration):
+        if not hasattr(self, "sequencer_type"):
+            # Mostly for testing, since this class is not meant to be instantiated
+            self.sequencer_type = "GenericElement"
+
         if not os.path.exists(run_dir):
             raise RuntimeError(f"Could not locate run directory {run_dir}")
         self.run_parameters_parsed = False
@@ -32,11 +35,15 @@ class Run:
 
         self.demux_dir = os.path.join(self.run_dir, "Demultiplexing")
         self.final_sequencing_file = os.path.join(self.run_dir, "RunUploaded.json")
-        self.demux_stats_file = "RunStats.json"  # Assumes demux is finished when this file is created
+        self.demux_stats_file = (
+            "*RunStats.json"  # Assumes demux is finished when this file is created
+        )
         self.transfer_file = (
-            self.CONFIG.get("Element").get(self.sequencer_type).get("transfer_log")
+            self.CONFIG.get("element_analysis").get("Element", {})
+            .get(self.sequencer_type, {})
+            .get("transfer_log")
         )  # TODO: change and add to taca.yaml
-        self.rsync_exit_file = os.path.join(self.run_dir, '.rsync_exit_status')
+        self.rsync_exit_file = os.path.join(self.run_dir, ".rsync_exit_status")
 
         # Instrument generated files
         self.run_parameters_file = os.path.join(self.run_dir, "RunParameters.json")
@@ -46,7 +53,9 @@ class Run:
         )
         self.run_uploaded_file = os.path.join(self.run_dir, "RunUploaded.json")
 
-        self.db = ElementRunsConnection(self.CONFIG["statusdb"], dbname="element_runs")
+        self.db = ElementRunsConnection(
+            self.CONFIG.get("statusdb", {}), dbname="element_runs"
+        )
 
         # Fields to be set by TACA
         self.status = None
@@ -103,7 +112,8 @@ class Run:
         )  # Sequencing, wash or prime I believe?
         self.flowcell_id = run_parameters.get("FlowcellID")
         self.instrument_name = run_parameters.get("InstrumentName")
-        self.date = run_parameters.get("Date")
+        self.date = run_parameters.get("Date")[0:10].replace("-", "")
+        self.year = self.date[0:4]
         self.operator_name = run_parameters.get("OperatorName")
         self.run_parameters_parsed = True
 
@@ -127,6 +137,7 @@ class Run:
                 instrument_generated_files[os.path.basename(file)] = None
 
         doc_obj = {
+            "name": self.NGI_run_id,
             "run_path": self.run_dir,
             "run_status": self.status,
             "NGI_run_id": self.NGI_run_id,
@@ -149,20 +160,17 @@ class Run:
     def get_demultiplexing_status(self):
         if not os.path.exists(self.demux_dir):
             return "not started"
-        demux_dirs = glob.glob(
-            os.path.join(self.run_dir, "Delmultiplexing*")
-            )
+        sub_demux_dirs = glob.glob(os.path.join(self.run_dir, "Demultiplexing_*"))
         finished_count = 0
-        for demux_dir in demux_dirs:
-            if os.path.exists(self.demux_dir) and not os.path.isfile(
-                os.path.join(demux_dir, self.demux_stats_file)
-                ):
+        for demux_dir in sub_demux_dirs:
+            found_demux_stats_file = glob.glob(os.path.join(demux_dir, self.demux_stats_file))
+            if not found_demux_stats_file:
                 return "ongoing"
-            elif os.path.exists(self.demux_dir) and os.path.isfile(
-                os.path.join(demux_dir, self.demux_stats_file)
-                ):
-                finished_count += 1  # TODO: check exit status of demux in exit status file
-        if finished_count == len(demux_dirs):
+            elif found_demux_stats_file:
+                finished_count += (
+                    1  # TODO: check exit status of demux in exit status file
+                )
+        if finished_count == len(sub_demux_dirs):
             return "finished"
         else:
             return "unknown"
@@ -180,7 +188,8 @@ class Run:
         self.db.upload_to_statusdb(doc_obj)
 
     def manifest_exists(self):
-        return os.path.isfile(self.run_manifest_zip_file)
+        zip_src_path = self.find_manifest_zip()
+        return os.path.isfile(zip_src_path)
 
     def get_lims_step_id(self) -> str | None:
         """If the run was started using a LIMS-generated manifest,
@@ -197,18 +206,14 @@ class Run:
                 lims_step_id = line.split(",")[1]
                 return lims_step_id
         return None
-
-    def copy_manifests(self) -> bool:
-        """Fetch the LIMS-generated run manifests from ngi-nas-ns and unzip them into a run subdir."""
-
-        # TODO test me
-
+    
+    def find_manifest_zip(self):
         # Specify dir in which LIMS drop the manifest zip files
         dir_to_search = os.path.join(
-            self.CONFIG.get("Aviti").get(
-                "manifest_zip_location"
-            ),  # TODO: change and add to taca.yaml
-            datetime.now().year,
+            self.CONFIG.get("element_analysis").get("Element", {})
+            .get(self.sequencer_type, {})
+            .get("manifest_zip_location"),  # TODO: add to taca.yaml
+            str(self.year),
         )
 
         # Use LIMS step ID if available, else flowcell ID, to make a query pattern
@@ -224,7 +229,7 @@ class Run:
             glob_pattern = f"{dir_to_search}/*{self.flowcell_id}*.zip"
 
         # Find paths matching the pattern
-        glob_results = glob(glob_pattern)
+        glob_results = glob.glob(glob_pattern)
         if len(glob_results) == 0:
             logger.warning(
                 f"No manifest found for run '{self.run_dir}' with pattern '{glob_pattern}'."
@@ -238,7 +243,13 @@ class Run:
             zip_src_path = glob_results[-1]
         else:
             zip_src_path = glob_results[0]
+        return zip_src_path
 
+
+    def copy_manifests(self) -> bool:
+        """Fetch the LIMS-generated run manifests from ngi-nas-ns and unzip them into a run subdir."""
+        # TODO: test me
+        zip_src_path = self.find_manifest_zip()
         # Make a run subdir named after the zip file and extract manifests there
         zip_name = os.path.basename(zip_src_path)
         zip_dst_path = os.path.join(self.run_dir, zip_name)
@@ -370,14 +381,15 @@ class Run:
         return manifest_paths
 
     def generate_demux_command(self, run_manifest, demux_dir):
-        command = (f"{self.CONFIG.get(self.software)["bin"]}"   # TODO: add path to bases2fastq executable to config
+        command = (
+            f"{self.CONFIG.get("element_analysis").get('bases2fastq')}"  # TODO: add path to bases2fastq executable to config
             + f" {self.run_dir}"
             + f" {demux_dir}"
             + " -p 8"
             + f" -r {run_manifest}"
             + " --legacy-fastq"  # TODO: except if Smart-seq3
-            + f" --force-index-orientation"
-            )  # TODO: any other options?
+            + " --force-index-orientation"
+        )  # TODO: any other options?
         return command
 
     def start_demux(self, run_manifest, demux_dir):
@@ -385,20 +397,26 @@ class Run:
             cmd = self.generate_demux_command(run_manifest, demux_dir)
             # TODO: handle multiple composite manifests for demux
             try:
-                p_handle = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True, cwd=self.run_dir)
+                p_handle = subprocess.Popen(
+                    cmd, stdout=subprocess.PIPE, shell=True, cwd=self.run_dir
+                )
                 logger.info(
                     "Bases2Fastq conversion and demultiplexing "
                     f"started for run {self} on {datetime.now()}"
                 )
             except subprocess.CalledProcessError:
-                logger.warning("An error occurred while starting demultiplexing for "
-                               f"{self} on {datetime.now()}."
+                logger.warning(
+                    "An error occurred while starting demultiplexing for "
+                    f"{self} on {datetime.now()}."
                 )
         return
 
-
     def get_transfer_status(self):
-        if not self.in_transfer_log() and not self.transfer_ongoing() and not self.rsync_complete():
+        if (
+            not self.in_transfer_log()
+            and not self.transfer_ongoing()
+            and not self.rsync_complete()
+        ):
             return "not started"
         elif self.transfer_ongoing() and not self.rsync_complete():
             return "ongoing"
@@ -408,22 +426,22 @@ class Run:
             return "unknown"
 
     def in_transfer_log(self):
-        with open(self.transfer_file, "r") as transfer_file:
+        with open(self.transfer_file) as transfer_file:
             for row in transfer_file.read():
                 if self.NGI_run_id in row:
                     return True
         return False
 
     def transfer_ongoing(self):
-        return os.path.isfile(os.path.join(self.run_dir, '.rsync_ongoing'))
+        return os.path.isfile(os.path.join(self.run_dir, ".rsync_ongoing"))
 
     def rsync_complete(self):
         return os.path.isfile(self.rsync_exit_file)
 
     def rsync_successful(self):
-        with open(os.path.join(self.run_dir, '.rsync_exit_status')) as rsync_exit_file:
+        with open(os.path.join(self.run_dir, ".rsync_exit_status")) as rsync_exit_file:
             rsync_exit_status = rsync_exit_file.readlines()
-        if rsync_exit_status[0].strip() == 0:
+        if rsync_exit_status[0].strip() == '0':
             return True
         else:
             return False
@@ -724,20 +742,26 @@ class Run:
         # Aggregate stats in UnassignedSequences.csv
         aggregate_stats_unassigned(demux_runmanifest)
 
-
     def upload_demux_results_to_statusdb(self):
-        # TODO: dump contents of IndexAssignment.csv and UnassignedSequences.csv into statusdb document
         doc_obj = self.db.get_db_entry(self.NGI_run_id)
-        index_assignement_file = os.path.join(self.run_dir, "Demultiplexing", "IndexAssignment.csv")
-        with open(index_assignement_file, 'r') as index_file:
+        index_assignement_file = os.path.join(
+            self.run_dir, "Demultiplexing", "IndexAssignment.csv"
+        )
+        with open(index_assignement_file) as index_file:
             reader = csv.DictReader(index_file)
             index_assignments = [row for row in reader]
-        unassigned_sequences_file = os.path.join(self.run_dir, "Demultiplexing", "UnassignedSequences.csv")
-        with open(unassigned_sequences_file, 'r') as unassigned_file:
+        unassigned_sequences_file = os.path.join(
+            self.run_dir, "Demultiplexing", "UnassignedSequences.csv"
+        )
+        with open(unassigned_sequences_file) as unassigned_file:
             reader = csv.DictReader(unassigned_file)
             unassigned_sequences = [row for row in reader]
-        project_dirs = [f.path for f in os.scandir(os.path.join(self.run_dir, "Demultiplexing")) if f.is_dir() and not "PhiX" in f]
-        for project_dir in project_dirs:
+        dirs = os.scandir("Demultiplexing")
+        project_dirs = []
+        for directory in dirs:
+            if os.path.isdir(directory.path) and "Unassigned" not in directory.path:
+                project_dirs.append(directory.path)
+        for project_dir in project_dirs:  # TODO: remove this block when q30 is added to IndexAssignment.csv by Element
             run_stats_file = glob.glob(os.path.join(project_dir, "*_RunStats.json"))
             with open(run_stats_file) as stats_json:
                 project_sample_stats_raw = json.load(stats_json)
@@ -750,21 +774,26 @@ class Run:
                 collected_sample_stats[sample_name] = {
                     "PercentQ30": percent_q30,
                     "QualityScoreMean": quality_score_mean,
-                    "PercentMismatch": percent_mismatch
-                    }
+                    "PercentMismatch": percent_mismatch,
+                }
             for assignment in index_assignments:
                 sample = assignment.get("SampleName")
-                sample_stats_to_add = collected_sample_stats.get(sample)
-                assignment["PercentQ30"] = sample_stats_to_add.get("PercentQ30")
-                assignment["QualityScoreMean"] = sample_stats_to_add.get("QualityScoreMean")
-                assignment["PercentMismatch"] = sample_stats_to_add.get("PercentMismatch")
+                if sample != "PhiX":
+                    sample_stats_to_add = collected_sample_stats.get(sample)
+                    assignment["PercentQ30"] = sample_stats_to_add.get("PercentQ30")
+                    assignment["QualityScoreMean"] = sample_stats_to_add.get(
+                        "QualityScoreMean"
+                    )
+                    assignment["PercentMismatch"] = sample_stats_to_add.get(
+                        "PercentMismatch"
+                    )
         demultiplex_stats = {
             "Demultiplex_Stats": {
                 "Index_Assignment": index_assignments,
-                "Unassigned_Sequences": unassigned_sequences
-                }
+                "Unassigned_Sequences": unassigned_sequences,
             }
-        doc_obj["Aviti": demultiplex_stats]
+        }
+        doc_obj["Aviti"] = demultiplex_stats
         self.db.upload_to_statusdb(doc_obj)
 
     def sync_metadata(self):
@@ -772,21 +801,24 @@ class Run:
         pass
 
     def make_transfer_indicator(self):
-        transfer_indicator = os.path.join(self.run_dir, '.rsync_ongoing')
+        transfer_indicator = os.path.join(self.run_dir, ".rsync_ongoing")
         Path(transfer_indicator).touch()
 
     def transfer(self):
-        transfer_details = self.CONFIG.get("Element").get(self.sequencer_type).get("transfer_details") #TODO: Add section to taca.yaml
-        command = ("rsync"
-                   + " -rLav"
-                   + f" --chown={transfer_details.get("owner")}"
-                   + f" --chmod={transfer_details.get("permissions")}"
-                   + " --exclude BaseCalls" # TODO: check that we actually want to exclude these
-                   + " --exclude Alignment"
-                   + f" {self.run_dir}"
-                   + f" {transfer_details.get("user")@transfer_details.get("host")}:/"
-                   + "; echo $? > .rsync_exit_status"
-            )  # TODO: any other options?
+        transfer_details = (
+            self.CONFIG.get("element_analysis").get("transfer_details")
+        )  # TODO: Add section to taca.yaml
+        command = (
+            "rsync"
+            + " -rLav"
+            + f" --chown={transfer_details.get('owner')}"
+            + f" --chmod={transfer_details.get('permissions')}"
+            + " --exclude BaseCalls"  # TODO: check that we actually want to exclude these
+            + " --exclude Alignment"
+            + f" {self.run_dir}"
+            + f" {transfer_details.get('user')}@{transfer_details.get('host')}:/aviti"
+            + f"; echo $? > {os.path.join(self.run_dir, ".rsync_exit_status")}"
+        )  # TODO: any other options?
         try:
             p_handle = subprocess.Popen(command, stdout=subprocess.PIPE, shell=True)
             logger.info(
@@ -794,19 +826,30 @@ class Run:
                 f"started for run {self} on {datetime.now()}"
             )
         except subprocess.CalledProcessError:
-            logger.warning("An error occurred while starting transfer to analysis cluster "
-                            f"for {self} on {datetime.now()}."
+            logger.warning(
+                "An error occurred while starting transfer to analysis cluster "
+                f"for {self} on {datetime.now()}."
             )
         return
 
     def remove_transfer_indicator(self):
-        # TODO: remove hidden file in run directory
-        pass
+        transfer_indicator = os.path.join(self.run_dir, '.rsync_ongoing')
+        Path(transfer_indicator).unlink()
 
     def update_transfer_log(self):
-        # TODO: update the transfer log
-        pass
+        """Update transfer log with run id and date."""
+        try:
+            with open(self.transfer_file, "a") as f:
+                tsv_writer = csv.writer(f, delimiter="\t")
+                tsv_writer.writerow([self.NGI_run_id, str(datetime.now())])
+        except OSError:
+            msg = f"{self}: Could not update the transfer logfile {self.transfer_file}"
+            logger.error(msg)
+            raise OSError(msg)
 
     def archive(self):
-        # TODO: move run dir to nosync
-        pass
+        """Move directory to nosync."""
+        src = self.run_dir
+        dst = os.path.join(self.run_dir, os.pardir, "nosync")
+        shutil.move(src, dst)
+        self.run_dir = 
