@@ -459,29 +459,6 @@ class Run:
                 print(f"Failed to delete {file_path} Reason {e}")
 
     # Create symlink for a simple demultiplexing dir
-    def symlink_demux_dir(src_dir, dest_dir):
-        # Ensure the destination directory exists
-        if not os.path.exists(dest_dir):
-            os.makedirs(dest_dir)
-        # Clear all content under dest_dir
-        clear_dir(dest_dir)
-        # Loop through all files and directories in the source directory
-        for item in os.listdir(src_dir):
-            src_path = os.path.join(src_dir, item)
-            # Move content of Samples to the parental dir
-            if item == "Samples":
-                dest_path = dest_dir
-            else:
-                dest_path = os.path.join(dest_dir, item)
-            try:
-                # Create symbolic link only if it doesn't already exist
-                if not os.path.exists(dest_path):
-                    os.symlink(src_path, dest_path)
-                    print(f"Linked {src_path} to {dest_path}")
-                else:
-                    print(f"{dest_path} already exists.")
-            except OSError as e:
-                print(f"Error linking {src_path} to {dest_path}: {e}")
 
 
     # Write to csv
