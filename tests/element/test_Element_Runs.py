@@ -7,6 +7,17 @@ import pytest
 
 from taca.element import Element_Runs as to_test
 
+CONFIG = {
+    "element_analysis": {
+        "Element": {
+            "GenericElement": {
+                "demux_dir": "mock_demux_dir_path",
+                "transfer_log": "mock_transfer_log_file.log",
+            },
+        },
+    },
+}
+
 
 def create_element_run_dir(
     tmp: tempfile.TemporaryDirectory,
@@ -15,6 +26,7 @@ def create_element_run_dir(
     run_finished: bool = True,
     sync_finished: bool = True,
     demux_dir: bool = True,
+    n_demux_subdirs: int = 1,
     demux_done: bool = True,
     outcome_completed: bool = True,
 ) -> str:
@@ -27,8 +39,12 @@ def create_element_run_dir(
         ├── RunParameters.json
         ├── RunUploaded.json
         ├── .sync_finished
-        └── Demultiplexing
-            └── RunStats.json
+        ├── Demultiplexing
+            ├── Demultiplexing_0
+            |   └── RunStats.json
+            ├── Demultiplexing_1
+            |   └── RunStats.json
+            └── ...
 
     """
 
@@ -53,9 +69,18 @@ def create_element_run_dir(
 
     if demux_dir:
         os.mkdir(os.path.join(run_path, "Demultiplexing"))
-
-    if demux_done:
-        open(os.path.join(run_path, "Demultiplexing", "RunStats.json"), "w").close()
+        for i in range(n_demux_subdirs):
+            os.mkdir(os.path.join(run_path, "Demultiplexing", f"Demultiplexing_{i}"))
+            if demux_done:
+                open(
+                    os.path.join(
+                        run_path,
+                        "Demultiplexing",
+                        f"Demultiplexing_{i}",
+                        "RunStats.json",
+                    ),
+                    "w",
+                ).close()
 
     return run_path
 
@@ -66,7 +91,7 @@ class TestRun:
         tmp: tempfile.TemporaryDirectory = create_dirs
         run_dir = create_element_run_dir(tmp)
 
-        run = to_test.Run(run_dir, {})
+        run = to_test.Run(run_dir, CONFIG)
         assert run.run_dir == run_dir
 
     @pytest.mark.parametrize(
@@ -92,7 +117,7 @@ class TestRun:
                 run_finished=p["run_finished"],
                 outcome_completed=p["outcome_completed"],
             ),
-            {},
+            CONFIG,
         )
         assert run.check_sequencing_status() is p["expected"]
 
@@ -110,15 +135,13 @@ class TestRun:
     ):
         tmp: tempfile.TemporaryDirectory = create_dirs
 
-        if p["demux_dir"] and not p["demux_done"]:
-
         run = to_test.Run(
             create_element_run_dir(
                 tmp,
                 demux_dir=p["demux_dir"],
                 demux_done=p["demux_done"],
             ),
-            {},
+            CONFIG,
         )
         assert run.get_demultiplexing_status() == p["expected"]
 
@@ -140,7 +163,7 @@ class TestRun:
                 tmp,
                 run_finished=p["run_finished"],
             ),
-            {},
+            CONFIG,
         )
         assert run.manifest_exists() == p["expected"]
 
@@ -155,7 +178,7 @@ class TestRun:
             "taca.element.Element_Runs.Run.generate_demux_command"
         ) as mock_command:
             mock_command.return_value = "test command"
-            run = to_test.Run(create_element_run_dir(create_dirs), {})
+            run = to_test.Run(create_element_run_dir(create_dirs), CONFIG)
             run.start_demux()
             mock_command.assert_called_once()
             mock_call.assert_called_once_with(

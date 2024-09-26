@@ -433,7 +433,7 @@ class Run:
 
     def generate_demux_command(self, run_manifest, demux_dir):
         command = (
-            f"{self.CONFIG.get("element_analysis").get('bases2fastq')}"  # TODO: add path to bases2fastq executable to config
+            f"{self.CONFIG.get('element_analysis').get('bases2fastq')}"  # TODO: add path to bases2fastq executable to config
             + f" {self.run_dir}"
             + f" {demux_dir}"
             + " -p 8"
@@ -790,7 +790,7 @@ class Run:
             + " --exclude Alignment"
             + f" {self.run_dir}"
             + f" {transfer_details.get('user')}@{transfer_details.get('host')}:/aviti"
-            + f"; echo $? > {os.path.join(self.run_dir, ".rsync_exit_status")}"
+            + f"; echo $? > {os.path.join(self.run_dir, '.rsync_exit_status')}"
         )  # TODO: any other options?
         try:
             p_handle = subprocess.Popen(command, stdout=subprocess.PIPE, shell=True)
