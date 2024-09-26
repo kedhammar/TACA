@@ -735,7 +735,7 @@ class Run:
         demux_runmanifest = collect_demux_runmanifest(demux_results_dirs)
         # Aggregate the output FastQ files of samples from multiple demux
         aggregate_sample_fastq(demux_runmanifest)
-        # Symplink the output FastQ files of undet only if a lane does not have multiple demux
+        # Symlink the output FastQ files of undet only if a lane does not have multiple demux
         aggregate_undet_fastq(demux_runmanifest)
         # Aggregate stats in IndexAssignment.csv
         aggregate_stats_assigned(demux_runmanifest)
