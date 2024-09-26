@@ -458,9 +458,6 @@ class Run:
             except Exception as e:
                 print(f"Failed to delete {file_path} Reason {e}")
 
-    # Create symlink for a simple demultiplexing dir
-
-
     # Write to csv
     def write_to_csv(data, filename):
         # Get the fieldnames from the keys of the first dictionary
@@ -601,7 +598,7 @@ class Run:
             # Read in each Project_RunStats.json to fetch PercentMismatch, PercentQ30, PercentQ40 and QualityScoreMean
             # Note that Element promised that they would include these stats into IndexAssignment.csv
             # But for now we have to do this by ourselves in this hard way
-            project_runstats = get_project_runstats(sub_demux, demux_runmanifest)
+            project_runstats = self.get_project_runstats(sub_demux, demux_runmanifest)
             # Read in IndexAssignment.csv
             assigned_csv = os.path.join(self.run_dir, f"Demultiplexing_{sub_demux}", "IndexAssignment.csv")
             if os.path.exists(assigned_csv):
@@ -642,7 +639,7 @@ class Run:
             sample['SampleNumber'] = sample_count
         # Write to a new UnassignedSequences.csv file under demux_dir
         aggregated_assigned_indexes_csv = os.path.join(self.run_dir, self.demux_dir, "IndexAssignment.csv")
-        write_to_csv(aggregated_assigned_indexes_filtered_sorted, aggregated_assigned_indexes_csv)
+        self.write_to_csv(aggregated_assigned_indexes_filtered_sorted, aggregated_assigned_indexes_csv)
 
 
     # Aggregate stats in UnassignedSequences.csv
@@ -699,7 +696,7 @@ class Run:
         aggregated_unassigned_indexes = sorted(aggregated_unassigned_indexes, key=lambda x: (x['Lane'], -int(x['Count'])))
         # Write to a new UnassignedSequences.csv file under demux_dir
         aggregated_unassigned_csv = os.path.join(self.run_dir, self.demux_dir, "UnassignedSequences.csv")
-        write_to_csv(aggregated_unassigned_indexes, aggregated_unassigned_csv)
+        self.write_to_csv(aggregated_unassigned_indexes, aggregated_unassigned_csv)
 
 
     # Aggregate demux results
@@ -708,16 +705,16 @@ class Run:
         if not os.path.exists(os.path.join(self.run_dir, self.demux_dir)):
             os.makedirs(os.path.join(self.run_dir, self.demux_dir))
         # Clear all content under dest_dir
-        clear_dir(os.path.join(self.run_dir, self.demux_dir))
-        demux_runmanifest = collect_demux_runmanifest(demux_results_dirs)
+        self.clear_dir(os.path.join(self.run_dir, self.demux_dir))
+        demux_runmanifest = self.collect_demux_runmanifest(demux_results_dirs)
         # Aggregate the output FastQ files of samples from multiple demux
-        aggregate_sample_fastq(demux_runmanifest)
+        self.aggregate_sample_fastq(demux_runmanifest)
         # Symlink the output FastQ files of undet only if a lane does not have multiple demux
-        aggregate_undet_fastq(demux_runmanifest)
+        self.aggregate_undet_fastq(demux_runmanifest)
         # Aggregate stats in IndexAssignment.csv
-        aggregate_stats_assigned(demux_runmanifest)
+        self.aggregate_stats_assigned(demux_runmanifest)
         # Aggregate stats in UnassignedSequences.csv
-        aggregate_stats_unassigned(demux_runmanifest)
+        self.aggregate_stats_unassigned(demux_runmanifest)
 
     def upload_demux_results_to_statusdb(self):
         doc_obj = self.db.get_db_entry(self.NGI_run_id)
@@ -829,4 +826,4 @@ class Run:
         src = self.run_dir
         dst = os.path.join(self.run_dir, os.pardir, "nosync")
         shutil.move(src, dst)
-        self.run_dir = 
+        self.run_dir = os.path.join(dst, self.NGI_run_id) # Needs to be redirected to new location so that TACA can find files to upload to statusdb
