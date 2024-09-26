@@ -446,17 +446,278 @@ class Run:
         else:
             return False
 
-    def aggregate_demux_results(self, demux_results_dirs):
-        # TODO: Correct this based on comments from Chuan
+    # Clear all content under a dir
+    def clear_dir(dir):
+        for filename in os.listdir(dir):
+            file_path = os.path.join(dir, filename)
+            try:
+                if os.path.isfile(file_path) or os.path.islink(file_path):
+                    os.unlink(file_path)
+                elif os.path.isdir(file_path):
+                    shutil.rmtree(file_path)
+            except Exception as e:
+                print(f"Failed to delete {file_path} Reason {e}")
+
+    # Create symlink for a simple demultiplexing dir
+
+
+    # Write to csv
+    def write_to_csv(data, filename):
+        # Get the fieldnames from the keys of the first dictionary
+        fieldnames = data[0].keys()
+        # Open the file and write the CSV
+        with open(filename, mode='w', newline='') as file:
+            writer = csv.DictWriter(file, fieldnames=fieldnames)
+            # Write the header (fieldnames)
+            writer.writeheader()
+            # Write the data (rows)
+            writer.writerows(data)
+
+
+    # Collect demux info into a list of dictionaries
+    # Structure: [{'sub_demux_count':XXX, 'SampleName':XXX, 'Index1':XXX, 'Index2':XXX, 'Lane':XXX, 'Project':XXX, 'Recipe':XXX}]
+    def collect_demux_runmanifest(self, demux_results_dirs):
+        demux_runmanifest = []
         for demux_dir in demux_results_dirs:
-            data_dirs = [
-                f.path
-                for f in os.scandir(os.path.join(demux_dir, "Samples"))
-                if f.is_dir()
-            ]
-        for data_dir in data_dirs:
-            if not "PhiX" in data_dir in data_dir:
-                shutil.move(data_dir, self.demux_dir)
+            sub_demux_count = os.path.basename(demux_dir).split('_')[1]
+            with open(os.path.join(self.run_dir, demux_dir, 'RunManifest.csv'), 'r') as file:
+                lines = file.readlines()
+            sample_section = False
+            headers = []
+            # Loop through each line
+            for line in lines:
+                # Check if we reached the "[SAMPLES]" section
+                if '[SAMPLES]' in line:
+                    sample_section = True
+                    continue
+                # Exit the sample section if another section is encountered
+                if sample_section and line.startswith('['):
+                    break
+                # If in the sample section, process the sample lines
+                if sample_section:
+                    # Clean up the line
+                    line = line.strip()
+                    # Skip empty lines
+                    if not line:
+                        continue
+                    # Get the headers from the first line
+                    if not headers:
+                        headers = line.split(',')
+                    else:
+                        # Parse sample data
+                        values = line.split(',')
+                        sample_dict = dict(zip(headers, values))
+                        sample_dict['sub_demux_count'] = sub_demux_count
+                        demux_runmanifest.append(sample_dict)
+        sorted_demux_runmanifest = sorted(demux_runmanifest, key=lambda x: (x['Lane'], x['SampleName'], x['sub_demux_count']))
+        return sorted_demux_runmanifest
+
+
+    # Aggregate the output FastQ files of samples from multiple demux
+    def aggregate_sample_fastq(self, demux_runmanifest):
+        lanes = sorted(list(set(sample['Lane'] for sample in demux_runmanifest)))
+        unique_sample_demux = set()
+        for lane in lanes:
+            sample_count = 1
+            for sample in demux_runmanifest:
+                lanenr = sample['Lane']
+                project = sample['Project']
+                sample_name = sample['SampleName']
+                sub_demux_count = sample['sub_demux_count']
+                # Skip PhiX
+                if lanenr == lane and sample_name != "PhiX":
+                    sample_tuple = (sample_name, sub_demux_count)
+                    if sample_tuple not in unique_sample_demux:
+                        project_dest = os.path.join(self.run_dir, self.demux_dir, project)
+                        sample_dest = os.path.join(self.run_dir, self.demux_dir, project, sample_name)
+                        if not os.path.exists(project_dest):
+                            os.makedirs(project_dest)
+                        if not os.path.exists(sample_dest):
+                            os.makedirs(sample_dest)
+                        fastqfiles = glob.glob(os.path.join(self.run_dir, f"Demultiplexing_{sub_demux_count}", "Samples", project, sample_name, f"*L00{lane}*.fastq.gz"))
+                        for fastqfile in fastqfiles:
+                            old_name = os.path.basename(fastqfile)
+                            read_label = re.search(rf"L00{lane}_(.*?)_001", old_name).group(1)
+                            new_name = "_".join([sample_name, f"S{sample_count}", f"L00{lane}", read_label, "001.fastq.gz"])
+                            os.symlink(fastqfile, os.path.join(sample_dest, new_name))
+                        unique_sample_demux.add(sample_tuple)
+                        sample_count += 1
+
+
+    # Symlink the output FastQ files of undet only if a lane does not have multiple demux
+    def aggregate_undet_fastq(self, demux_runmanifest):
+        lanes = sorted(list(set(sample['Lane'] for sample in demux_runmanifest)))
+        for lane in lanes:
+            sub_demux = list(set(sample['sub_demux_count'] for sample in demux_runmanifest if sample['Lane']==lane))
+            if len(sub_demux) == 1:
+                project_dest = os.path.join(self.run_dir, self.demux_dir, "Undetermined")
+                if not os.path.exists(project_dest):
+                    os.makedirs(project_dest)
+                fastqfiles = glob.glob(os.path.join(self.run_dir, f"Demultiplexing_{sub_demux[0]}", "Samples", "Undetermined", f"*L00{lane}*.fastq.gz"))
+                for fastqfile in fastqfiles:
+                    base_name = os.path.basename(fastqfile)
+                    os.symlink(fastqfile, os.path.join(project_dest, base_name))
+
+
+    # Read in each Project_RunStats.json to fetch PercentMismatch, PercentQ30, PercentQ40 and QualityScoreMean
+    # Note that Element promised that they would include these stats into IndexAssignment.csv
+    # But for now we have to do this by ourselves in this hard way
+    def get_project_runstats(self, sub_demux, demux_runmanifest):
+        project_runstats = []
+        project_list = sorted(list(set(sample['Project'] for sample in demux_runmanifest if sample['sub_demux_count']==sub_demux)))
+        for project in project_list:
+            project_runstats_json_path = os.path.join(self.run_dir, f"Demultiplexing_{sub_demux}", "Samples", project, f"{project}_RunStats.json")
+            if os.path.exists(project_runstats_json_path):
+                with open(project_runstats_json_path) as stats_json:
+                    project_runstats_json = json.load(stats_json)
+                for sample in project_runstats_json["SampleStats"]:
+                    sample_name = sample["SampleName"]
+                    for occurrence in sample["Occurrences"]:
+                        lane = occurrence["Lane"]
+                        expected_sequence = occurrence["ExpectedSequence"]
+                        percentage_mismatch = occurrence["PercentMismatch"]
+                        percentage_q30 = occurrence["PercentQ30"]
+                        percentage_q40 = occurrence["PercentQ40"]
+                        quality_score_mean = occurrence["QualityScoreMean"]
+                        project_runstats.append({ "SampleName"       : sample_name,
+                                                  "Lane"             : str(lane),
+                                                  "ExpectedSequence" : expected_sequence,
+                                                  "PercentMismatch"  : percentage_mismatch,
+                                                  "PercentQ30"       : percentage_q30,
+                                                  "PercentQ40"       : percentage_q40,
+                                                  "QualityScoreMean" : quality_score_mean
+                        })
+            else:
+                continue
+        return project_runstats
+
+
+    # Aggregate stats in IndexAssignment.csv
+    def aggregate_stats_assigned(self, demux_runmanifest):
+        aggregated_assigned_indexes = []
+        sub_demux_list = sorted(list(set(sample['sub_demux_count'] for sample in demux_runmanifest)))
+        lanes = sorted(list(set(sample['Lane'] for sample in demux_runmanifest)))
+        for sub_demux in sub_demux_list:
+            # Read in each Project_RunStats.json to fetch PercentMismatch, PercentQ30, PercentQ40 and QualityScoreMean
+            # Note that Element promised that they would include these stats into IndexAssignment.csv
+            # But for now we have to do this by ourselves in this hard way
+            project_runstats = get_project_runstats(sub_demux, demux_runmanifest)
+            # Read in IndexAssignment.csv
+            assigned_csv = os.path.join(self.run_dir, f"Demultiplexing_{sub_demux}", "IndexAssignment.csv")
+            if os.path.exists(assigned_csv):
+                with open(assigned_csv, 'r') as assigned_file:
+                    reader = csv.DictReader(assigned_file)
+                    index_assignment = [row for row in reader]
+                for sample in index_assignment:
+                    if sample['Lane'] in lanes:
+                        project_runstats_sample = [d for d in project_runstats if d['SampleName'] == sample['SampleName'] and d['Lane'] == sample['Lane'] and d['ExpectedSequence'] == sample['I1']+sample['I2']]
+                        sample['sub_demux_count'] = sub_demux
+                        sample['PercentMismatch'] = project_runstats_sample[0]['PercentMismatch']
+                        sample['PercentQ30'] = project_runstats_sample[0]['PercentQ30']
+                        sample['PercentQ40'] = project_runstats_sample[0]['PercentQ40']
+                        sample['QualityScoreMean'] = project_runstats_sample[0]['QualityScoreMean']
+                        aggregated_assigned_indexes.append(sample)
+            else:
+                logger.warning(f"No IndexAssignment.csv file found for sub-demultiplexing {sub_demux}.")
+        # Remove redundant rows for PhiX
+        aggregated_assigned_indexes_filtered = []
+        unique_phiX_combination = set()
+        for sample in aggregated_assigned_indexes:
+            if sample['SampleName'] == 'PhiX':
+                combination = (sample['I1'], sample['I2'], sample['Lane'])
+                if combination not in unique_phiX_combination:
+                    aggregated_assigned_indexes_filtered.append(sample)
+                    unique_phiX_combination.add(combination)
+            else:
+                aggregated_assigned_indexes_filtered.append(sample)
+        # Sort the list by Lane, SampleName and sub_demux_count
+        aggregated_assigned_indexes_filtered_sorted = sorted(aggregated_assigned_indexes_filtered, key=lambda x: (x['Lane'], x['SampleName'], x['sub_demux_count']))
+        # Fix new sample number based on SampleName and Lane
+        sample_count = 0
+        previous_samplename_lane = ('NA', 'NA')
+        for sample in aggregated_assigned_indexes_filtered_sorted:
+            if (sample['SampleName'], sample['Lane']) != previous_samplename_lane:
+                sample_count += 1
+                previous_samplename_lane = (sample['SampleName'], sample['Lane'])
+            sample['SampleNumber'] = sample_count
+        # Write to a new UnassignedSequences.csv file under demux_dir
+        aggregated_assigned_indexes_csv = os.path.join(self.run_dir, self.demux_dir, "IndexAssignment.csv")
+        write_to_csv(aggregated_assigned_indexes_filtered_sorted, aggregated_assigned_indexes_csv)
+
+
+    # Aggregate stats in UnassignedSequences.csv
+    def aggregate_stats_unassigned(self, demux_runmanifest):
+        aggregated_unassigned_indexes = []
+        lanes = sorted(list(set(sample['Lane'] for sample in demux_runmanifest)))
+        for lane in lanes:
+            sub_demux_index_lens = set()
+            for sample in demux_runmanifest:
+                if sample['Lane'] == lane:
+                    sub_demux_index_lens.add((sample['sub_demux_count'], (len(sample.get("Index1", "")), len(sample.get("Index2", "")))))
+            # List of sub-demux with a decreasing order of index lengths
+            sub_demux_list = [x[0] for x in sorted(sub_demux_index_lens, key=lambda x: sum(x[1]), reverse=True)]
+            sub_demux_with_max_index_lens = sub_demux_list[0]
+            # Start with the unassigned list with the longest index
+            max_unassigned_csv = os.path.join(self.run_dir, f"Demultiplexing_{sub_demux_with_max_index_lens}", "UnassignedSequences.csv")
+            if os.path.exists(max_unassigned_csv):
+                with open(max_unassigned_csv, 'r') as max_unassigned_file:
+                    reader = csv.DictReader(max_unassigned_file)
+                    max_unassigned_indexes = [row for row in reader]
+            else:
+                logger.warning(f"No UnassignedSequences.csv file found for sub-demultiplexing {sub_demux_with_max_index_lens}.")
+                break
+            # Filter by lane
+            max_unassigned_indexes = [idx for idx in max_unassigned_indexes if idx["Lane"] == lane]
+            # Complicated case with multiple demuxes. Take the full list if there is only one sub-demux otherwise
+            if len(sub_demux_list) > 1:
+                # Order: from longer to shorter indexes
+                sub_demux_with_shorter_index_lens = sub_demux_list[1:]
+                for sub_demux in sub_demux_with_shorter_index_lens:
+                    unassigned_csv = os.path.join(self.run_dir, f"Demultiplexing_{sub_demux}", "UnassignedSequences.csv")
+                    if os.path.exists(unassigned_csv):
+                        with open(unassigned_csv, 'r') as unassigned_file:
+                            reader = csv.DictReader(unassigned_file)
+                            unassigned_indexes = [row for row in reader]
+                    else:
+                        logger.warning(f"No UnassignedSequences.csv file found for sub-demultiplexing {sub_demux}.")
+                        continue
+                    # Filter by lane
+                    unassigned_indexes = [unassigned_index for unassigned_index in unassigned_indexes if unassigned_index["Lane"] == lane]
+                    # Remove overlapped indexes from the list of max_unassigned_indexes
+                    idx1_overlapped_len = min([demux_lens_pair[1] for demux_lens_pair in sub_demux_index_lens if demux_lens_pair[0] == sub_demux][0][0],
+                                              [demux_lens_pair[1] for demux_lens_pair in sub_demux_index_lens if demux_lens_pair[0] == sub_demux_with_max_index_lens][0][0])
+                    idx2_overlapped_len = min([demux_lens_pair[1] for demux_lens_pair in sub_demux_index_lens if demux_lens_pair[0] == sub_demux][0][1],
+                                              [demux_lens_pair[1] for demux_lens_pair in sub_demux_index_lens if demux_lens_pair[0] == sub_demux_with_max_index_lens][0][1])
+                    for unassigned_index in unassigned_indexes:
+                        idx1_overlapped_seq = unassigned_index['I1'][:idx1_overlapped_len]
+                        idx2_overlapped_seq = unassigned_index['I2'][:idx2_overlapped_len]
+                        # Remove the overlapped record from the max_unassigned_indexes list
+                        max_unassigned_indexes = [max_unassigned_index for max_unassigned_index in max_unassigned_indexes if not (max_unassigned_index['I1'][:idx1_overlapped_len] == idx1_overlapped_seq and max_unassigned_index['I2'][:idx2_overlapped_len] == idx2_overlapped_seq)]
+            # Append to the aggregated_unassigned_indexes list
+            aggregated_unassigned_indexes += max_unassigned_indexes
+        # Sort aggregated_unassigned_indexes list first by lane and then by Count in the decreasing order
+        aggregated_unassigned_indexes = sorted(aggregated_unassigned_indexes, key=lambda x: (x['Lane'], -int(x['Count'])))
+        # Write to a new UnassignedSequences.csv file under demux_dir
+        aggregated_unassigned_csv = os.path.join(self.run_dir, self.demux_dir, "UnassignedSequences.csv")
+        write_to_csv(aggregated_unassigned_indexes, aggregated_unassigned_csv)
+
+
+    # Aggregate demux results
+    def aggregate_demux_results(self, demux_results_dirs):
+        # Ensure the destination directory exists
+        if not os.path.exists(os.path.join(self.run_dir, self.demux_dir)):
+            os.makedirs(os.path.join(self.run_dir, self.demux_dir))
+        # Clear all content under dest_dir
+        clear_dir(os.path.join(self.run_dir, self.demux_dir))
+        demux_runmanifest = collect_demux_runmanifest(demux_results_dirs)
+        # Aggregate the output FastQ files of samples from multiple demux
+        aggregate_sample_fastq(demux_runmanifest)
+        # Symlink the output FastQ files of undet only if a lane does not have multiple demux
+        aggregate_undet_fastq(demux_runmanifest)
+        # Aggregate stats in IndexAssignment.csv
+        aggregate_stats_assigned(demux_runmanifest)
+        # Aggregate stats in UnassignedSequences.csv
+        aggregate_stats_unassigned(demux_runmanifest)
 
     def upload_demux_results_to_statusdb(self):
         doc_obj = self.db.get_db_entry(self.NGI_run_id)

@@ -1,5 +1,9 @@
 # TACA Version Log
 
+## 20240924.1
+
+Aggregate aviti demultiplexing results
+
 ## 20240705.1
 
 Add section header in samplesheet for run folder transfer
