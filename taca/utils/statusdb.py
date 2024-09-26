@@ -210,7 +210,7 @@ def update_doc(db, obj, over_write_db_entry=False):
         db.save(obj)
         logger.info("Saving {}".format(obj["name"]))
     else:
-        logger.warn("More than one row with name {} found".format(obj["name"]))
+        logger.warning("More than one row with name {} found".format(obj["name"]))
 
 
 def merge_dicts(d1, d2):
