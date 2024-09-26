@@ -84,7 +84,6 @@ def run_preprocessing(given_run):
                 os.path.join(run.run_dir, "Delmultiplexing_*")
             )
             run.aggregate_demux_results(demux_results_dirs)
-            run.upload_demux_results_to_statusdb()
             run.sync_metadata()
             run.make_transfer_indicator()
             run.status = "transferring"

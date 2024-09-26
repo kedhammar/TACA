@@ -42,12 +42,12 @@ class Run:
             self.CONFIG.get("element_analysis").get("Element", {})
             .get(self.sequencer_type, {})
             .get("transfer_log")
-        )  # TODO: change and add to taca.yaml
+        )  # TODO: add to taca.yaml
         self.rsync_exit_file = os.path.join(self.run_dir, ".rsync_exit_status")
 
         # Instrument generated files
         self.run_parameters_file = os.path.join(self.run_dir, "RunParameters.json")
-        self.run_stats_file = os.path.join(self.run_dir, "RunStats.json")
+        self.run_stats_file = os.path.join(self.run_dir, "AvitiRunStats.json")
         self.run_manifest_file_from_instrument = os.path.join(
             self.run_dir, "RunManifest.json"
         )
@@ -135,13 +135,64 @@ class Run:
                     )
             else:
                 instrument_generated_files[os.path.basename(file)] = None
+        # Aggregated demux stats files
+        index_assignement_file = os.path.join(
+            self.run_dir, "Demultiplexing", "IndexAssignment.csv"
+        )
+        if os.path.exists(index_assignement_file):
+            with open(index_assignement_file) as index_file:
+                reader = csv.DictReader(index_file)
+                index_assignments = [row for row in reader]
+        else:
+            index_assignments = None
 
+        unassigned_sequences_file = os.path.join(
+            self.run_dir, "Demultiplexing", "UnassignedSequences.csv"
+        )
+        if os.path.exists(unassigned_sequences_file):
+            with open(unassigned_sequences_file) as unassigned_file:
+                reader = csv.DictReader(unassigned_file)
+                unassigned_sequences = [row for row in reader]
+        else:
+            unassigned_sequences = None
+
+        demultiplex_stats = {
+            "Demultiplex_Stats": {
+                "Index_Assignment": index_assignments,
+                "Unassigned_Sequences": unassigned_sequences,
+            }
+        }
+        
+        demux_command_file = os.path.join(self.run_dir, ".bases2fastq_command")
+        if os.path.exists(demux_command_file):
+            with open(demux_command_file) as command_file:
+                demux_command = command_file.readlines()[0]
+        else:
+            demux_command = None
+        demux_version_file = os.path.join(self.run_dir,"Demultiplexing_0", "RunStats.json")
+        if os.path.exists(demux_version_file):
+            with open(demux_version_file) as json_file:
+                    demux_info = json.load(
+                        json_file
+                    )
+            demux_version = demux_info.get("AnalysisVersion")
+        else:
+            demux_version = None
+
+        software_info = {
+            "Version": demux_version,
+            "bin": self.CONFIG.get("element_analysis").get("bases2fastq"),
+            "options": demux_command,
+        }
+        
         doc_obj = {
             "name": self.NGI_run_id,
             "run_path": self.run_dir,
             "run_status": self.status,
             "NGI_run_id": self.NGI_run_id,
             "instrument_generated_files": instrument_generated_files,
+            "Element": demultiplex_stats,
+            "Software": software_info,
         }
 
         return doc_obj
@@ -390,6 +441,8 @@ class Run:
             + " --legacy-fastq"  # TODO: except if Smart-seq3
             + " --force-index-orientation"
         )  # TODO: any other options?
+        with open(os.path.join(self.run_dir, '.bases2fastq_command')) as command_file:
+            command_file.write(command)
         return command
 
     def start_demux(self, run_manifest, demux_dir):
@@ -716,60 +769,6 @@ class Run:
         # Aggregate stats in UnassignedSequences.csv
         self.aggregate_stats_unassigned(demux_runmanifest)
 
-    def upload_demux_results_to_statusdb(self):
-        doc_obj = self.db.get_db_entry(self.NGI_run_id)
-        index_assignement_file = os.path.join(
-            self.run_dir, "Demultiplexing", "IndexAssignment.csv"
-        )
-        with open(index_assignement_file) as index_file:
-            reader = csv.DictReader(index_file)
-            index_assignments = [row for row in reader]
-        unassigned_sequences_file = os.path.join(
-            self.run_dir, "Demultiplexing", "UnassignedSequences.csv"
-        )
-        with open(unassigned_sequences_file) as unassigned_file:
-            reader = csv.DictReader(unassigned_file)
-            unassigned_sequences = [row for row in reader]
-        dirs = os.scandir("Demultiplexing")
-        project_dirs = []
-        for directory in dirs:
-            if os.path.isdir(directory.path) and "Unassigned" not in directory.path:
-                project_dirs.append(directory.path)
-        for project_dir in project_dirs:  # TODO: remove this block when q30 is added to IndexAssignment.csv by Element
-            run_stats_file = glob.glob(os.path.join(project_dir, "*_RunStats.json"))
-            with open(run_stats_file) as stats_json:
-                project_sample_stats_raw = json.load(stats_json)
-            collected_sample_stats = {}
-            for sample_stats in project_sample_stats_raw["SampleStats"]:
-                sample_name = sample_stats["SampleName"]
-                percent_q30 = sample_stats["PercentQ30"]
-                quality_score_mean = sample_stats["QualityScoreMean"]
-                percent_mismatch = sample_stats["PercentMismatch"]
-                collected_sample_stats[sample_name] = {
-                    "PercentQ30": percent_q30,
-                    "QualityScoreMean": quality_score_mean,
-                    "PercentMismatch": percent_mismatch,
-                }
-            for assignment in index_assignments:
-                sample = assignment.get("SampleName")
-                if sample != "PhiX":
-                    sample_stats_to_add = collected_sample_stats.get(sample)
-                    assignment["PercentQ30"] = sample_stats_to_add.get("PercentQ30")
-                    assignment["QualityScoreMean"] = sample_stats_to_add.get(
-                        "QualityScoreMean"
-                    )
-                    assignment["PercentMismatch"] = sample_stats_to_add.get(
-                        "PercentMismatch"
-                    )
-        demultiplex_stats = {
-            "Demultiplex_Stats": {
-                "Index_Assignment": index_assignments,
-                "Unassigned_Sequences": unassigned_sequences,
-            }
-        }
-        doc_obj["Aviti"] = demultiplex_stats
-        self.db.upload_to_statusdb(doc_obj)
-
     def sync_metadata(self):
         # TODO: copy metadata from demuxed run to ngi-nas-ns
         pass
@@ -821,9 +820,20 @@ class Run:
             logger.error(msg)
             raise OSError(msg)
 
+    def update_paths_after_archiving(self, new_location):
+        self.run_dir = os.path.join(new_location, self.NGI_run_id) # Needs to be redirected to new location so that TACA can find files to upload to statusdb
+        self.run_parameters_file = os.path.join(self.run_dir, "RunParameters.json")
+        self.run_stats_file = os.path.join(self.run_dir, "RunStats.json")
+        self.run_manifest_file_from_instrument = os.path.join(
+            self.run_dir, "RunManifest.json"
+        )
+        self.run_uploaded_file = os.path.join(self.run_dir, "RunUploaded.json")
+        # TODO: also update location of demux files?
+
     def archive(self):
         """Move directory to nosync."""
         src = self.run_dir
-        dst = os.path.join(self.run_dir, os.pardir, "nosync")
+        parent_dir = Path(self.run_dir).parent.absolute()
+        dst = os.path.join(parent_dir, "nosync")
         shutil.move(src, dst)
-        self.run_dir = os.path.join(dst, self.NGI_run_id) # Needs to be redirected to new location so that TACA can find files to upload to statusdb
+        self.update_paths_after_archiving(dst)
