@@ -567,7 +567,7 @@ class Run:
                         sample_count += 1
 
 
-    # Symplink the output FastQ files of undet only if a lane does not have multiple demux
+    # Symlink the output FastQ files of undet only if a lane does not have multiple demux
     def aggregate_undet_fastq(self, demux_runmanifest):
         lanes = sorted(list(set(sample['Lane'] for sample in demux_runmanifest)))
         for lane in lanes:
