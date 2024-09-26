@@ -440,31 +440,6 @@ class Run:
             except Exception as e:
                 print(f"Failed to delete {file_path} Reason {e}")
 
-    # Create symlink for a simple demultiplexing dir
-    def symlink_demux_dir(src_dir, dest_dir):
-        # Ensure the destination directory exists
-        if not os.path.exists(dest_dir):
-            os.makedirs(dest_dir)
-        # Clear all content under dest_dir
-        clear_dir(dest_dir)
-        # Loop through all files and directories in the source directory
-        for item in os.listdir(src_dir):
-            src_path = os.path.join(src_dir, item)
-            # Move content of Samples to the parental dir
-            if item == "Samples":
-                dest_path = dest_dir
-            else:
-                dest_path = os.path.join(dest_dir, item)
-            try:
-                # Create symbolic link only if it doesn't already exist
-                if not os.path.exists(dest_path):
-                    os.symlink(src_path, dest_path)
-                    print(f"Linked {src_path} to {dest_path}")
-                else:
-                    print(f"{dest_path} already exists.")
-            except OSError as e:
-                print(f"Error linking {src_path} to {dest_path}: {e}")
-
 
     # Write to csv
     def write_to_csv(data, filename):
@@ -549,7 +524,7 @@ class Run:
                         sample_count += 1
 
 
-    # Symplink the output FastQ files of undet only if a lane does not have multiple demux
+    # Symlink the output FastQ files of undet only if a lane does not have multiple demux
     def aggregate_undet_fastq(self, demux_runmanifest):
         lanes = sorted(list(set(sample['Lane'] for sample in demux_runmanifest)))
         for lane in lanes:
@@ -717,7 +692,7 @@ class Run:
         demux_runmanifest = collect_demux_runmanifest(demux_results_dirs)
         # Aggregate the output FastQ files of samples from multiple demux
         aggregate_sample_fastq(demux_runmanifest)
-        # Symplink the output FastQ files of undet only if a lane does not have multiple demux
+        # Symlink the output FastQ files of undet only if a lane does not have multiple demux
         aggregate_undet_fastq(demux_runmanifest)
         # Aggregate stats in IndexAssignment.csv
         aggregate_stats_assigned(demux_runmanifest)
