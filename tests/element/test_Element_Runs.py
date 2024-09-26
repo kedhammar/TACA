@@ -13,8 +13,8 @@ def get_config(tmp: tempfile.TemporaryDirectory) -> dict:
         "element_analysis": {
             "Element": {
                 "GenericElement": {
-                    "manifest_zip_location": f"{tmp}/ngi-nas-ns/samplesheets/Aviti",
-                    "transfer_log": f"{tmp}/log/transfer_aviti.tsv",
+                    "manifest_zip_location": f"{tmp.name}/ngi-nas-ns/samplesheets/Aviti",
+                    "transfer_log": f"{tmp.name}/log/transfer_aviti.tsv",
                 },
             },
         },
