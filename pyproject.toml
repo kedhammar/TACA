@@ -39,7 +39,7 @@ filterwarnings = [
 addopts = "--ignore tests_old/"
 
 # CLI coverage reports, messes with IDE debugging
-#addopts = "--ignore tests_old/ --cov=./taca --cov-report=xml -vv"
+# pytest --ignore tests_old/ --cov=./taca --cov-report term-missing -vv
 
 
 [tool.coverage.run]
