@@ -511,6 +511,7 @@ class Run:
             except Exception as e:
                 print(f"Failed to delete {file_path} Reason {e}")
 
+
     # Write to csv
     def write_to_csv(data, filename):
         # Get the fieldnames from the keys of the first dictionary
