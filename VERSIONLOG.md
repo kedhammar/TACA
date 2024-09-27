@@ -1,5 +1,10 @@
 # TACA Version Log
 
+## 20240927.1
+
+Add project name in IndexAssignment;
+Correct index percentage in undet
+
 ## 20240924.1
 
 Aggregate aviti demultiplexing results

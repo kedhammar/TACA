@@ -162,7 +162,7 @@ class Run:
                 "Unassigned_Sequences": unassigned_sequences,
             }
         }
-        
+
         demux_command_file = os.path.join(self.run_dir, ".bases2fastq_command")
         if os.path.exists(demux_command_file):
             with open(demux_command_file) as command_file:
@@ -184,7 +184,7 @@ class Run:
             "bin": self.CONFIG.get("element_analysis").get("bases2fastq"),
             "options": demux_command,
         }
-        
+
         doc_obj = {
             "name": self.NGI_run_id,
             "run_path": self.run_dir,
@@ -257,7 +257,7 @@ class Run:
                 lims_step_id = line.split(",")[1]
                 return lims_step_id
         return None
-    
+
     def find_manifest_zip(self):
         # Specify dir in which LIMS drop the manifest zip files
         dir_to_search = os.path.join(
@@ -674,6 +674,8 @@ class Run:
         aggregated_assigned_indexes_filtered = []
         unique_phiX_combination = set()
         for sample in aggregated_assigned_indexes:
+            # Add project name
+            sample['Project'] = [d for d in demux_runmanifest if d['SampleName'] == sample['SampleName']][0]['Project']
             if sample['SampleName'] == 'PhiX':
                 combination = (sample['I1'], sample['I2'], sample['Lane'])
                 if combination not in unique_phiX_combination:
@@ -748,6 +750,19 @@ class Run:
             aggregated_unassigned_indexes += max_unassigned_indexes
         # Sort aggregated_unassigned_indexes list first by lane and then by Count in the decreasing order
         aggregated_unassigned_indexes = sorted(aggregated_unassigned_indexes, key=lambda x: (x['Lane'], -int(x['Count'])))
+        # Fetch PFCount for each lane
+        pfcount_lane = {}
+        aviti_runstats_json = os.path.join(self.run_dir, "AvitiRunStats.json")
+        if os.path.exists(aviti_runstats_json):
+            with open(aviti_runstats_json) as stats_json:
+                aviti_runstats_json = json.load(stats_json)
+            for lane_stats in aviti_runstats_json["LaneStats"]:
+                pfcount_lane[str(lane_stats["Lane"])] = float(lane_stats["PFCount"])
+        else:
+            logger.warning(f"No AvitiRunStats.json file found for the run.")
+        # Modify the % Polonies values based on PFCount for each lane
+        for unassigned_index in aggregated_unassigned_indexes:
+            unassigned_index["% Polonies"] = float(unassigned_index["Count"])/pfcount_lane[unassigned_index["Lane"]]*100
         # Write to a new UnassignedSequences.csv file under demux_dir
         aggregated_unassigned_csv = os.path.join(self.run_dir, self.demux_dir, "UnassignedSequences.csv")
         self.write_to_csv(aggregated_unassigned_indexes, aggregated_unassigned_csv)
