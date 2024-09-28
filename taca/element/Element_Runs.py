@@ -580,7 +580,7 @@ class Run:
                     sample_tuple = (sample_name, sub_demux_count)
                     if sample_tuple not in unique_sample_demux:
                         project_dest = os.path.join(self.run_dir, self.demux_dir, project)
-                        sample_dest = os.path.join(self.run_dir, self.demux_dir, project, sample_name)
+                        sample_dest = os.path.join(self.run_dir, self.demux_dir, project, f"Sample_{sample_name}")
                         if not os.path.exists(project_dest):
                             os.makedirs(project_dest)
                         if not os.path.exists(sample_dest):
