@@ -106,7 +106,7 @@ class Run:
             "runID"
         )  # Unique hash that we don't really use
         self.side = run_parameters.get("Side")  # SideA or SideB
-        self.side_letter = self.side[-1]  # A or B
+        self.side_letter = self.side[-1]  # A or B TODO: compare side letter with manually entered letter in run name
         self.run_type = run_parameters.get(
             "RunType"
         )  # Sequencing, wash or prime I believe?
@@ -299,7 +299,6 @@ class Run:
 
     def copy_manifests(self) -> bool:
         """Fetch the LIMS-generated run manifests from ngi-nas-ns and unzip them into a run subdir."""
-        # TODO: test me
         zip_src_path = self.find_manifest_zip()
         # Make a run subdir named after the zip file and extract manifests there
         zip_name = os.path.basename(zip_src_path)
@@ -439,9 +438,9 @@ class Run:
             + " -p 8"
             + " --num-unassigned 500"
             + f" -r {run_manifest}"
-            + " --legacy-fastq"  # TODO: except if Smart-seq3
+            + " --legacy-fastq"
             + " --force-index-orientation"
-        )  # TODO: any other options?
+        )
         with open(os.path.join(self.run_dir, '.bases2fastq_command')) as command_file:
             command_file.write(command)
         return command
@@ -792,7 +791,7 @@ class Run:
                          os.path.join(self.run_dir, "Demultiplexing", "UnassignedSequences.csv"),
                          self.run_parameters_file,
                          ]
-        metadata_archive = self.CONFIG.get("element_analysis").get("metadata_location") # TODO: add to aca.yaml
+        metadata_archive = self.CONFIG.get("element_analysis").get("metadata_location") # TODO: add to taca.yaml
         dest = os.path.join(metadata_archive, self.NGI_run_id)
         os.makedirs(dest)
         for f in files_to_copy:
