@@ -285,7 +285,7 @@ class Run:
             logger.warning(
                 f"No manifest found for run '{self.run_dir}' with pattern '{glob_pattern}'."
             )
-            return False  # TODO determine whether to raise an error here instead
+            return False  # TODO: determine whether to raise an error here instead
         elif len(glob_results) > 1:
             logger.warning(
                 f"Multiple manifests found for run '{self.run_dir}' with pattern '{glob_pattern}', using latest one."
@@ -448,7 +448,6 @@ class Run:
     def start_demux(self, run_manifest, demux_dir):
         with chdir(self.run_dir):
             cmd = self.generate_demux_command(run_manifest, demux_dir)
-            # TODO: handle multiple composite manifests for demux
             try:
                 p_handle = subprocess.Popen(
                     cmd, stdout=subprocess.PIPE, shell=True, cwd=self.run_dir
@@ -803,12 +802,12 @@ class Run:
             + " -rLav"
             + f" --chown={transfer_details.get('owner')}"
             + f" --chmod={transfer_details.get('permissions')}"
-            + " --exclude BaseCalls"  # TODO: check that we actually want to exclude these
+            + " --exclude BaseCalls"
             + " --exclude Alignment"
             + f" {self.run_dir}"
             + f" {transfer_details.get('user')}@{transfer_details.get('host')}:/aviti"
             + f"; echo $? > {os.path.join(self.run_dir, '.rsync_exit_status')}"
-        )  # TODO: any other options?
+        )
         try:
             p_handle = subprocess.Popen(command, stdout=subprocess.PIPE, shell=True)
             logger.info(
@@ -845,7 +844,6 @@ class Run:
             self.run_dir, "RunManifest.json"
         )
         self.run_uploaded_file = os.path.join(self.run_dir, "RunUploaded.json")
-        # TODO: also update location of demux files?
 
     def archive(self):
         """Move directory to nosync."""
