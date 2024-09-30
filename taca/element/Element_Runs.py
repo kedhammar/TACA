@@ -162,7 +162,7 @@ class Run:
                 "Unassigned_Sequences": unassigned_sequences,
             }
         }
-        
+
         demux_command_file = os.path.join(self.run_dir, ".bases2fastq_command")
         if os.path.exists(demux_command_file):
             with open(demux_command_file) as command_file:
@@ -184,7 +184,7 @@ class Run:
             "bin": self.CONFIG.get("element_analysis").get("bases2fastq"),
             "options": demux_command,
         }
-        
+
         doc_obj = {
             "name": self.NGI_run_id,
             "run_path": self.run_dir,
@@ -257,7 +257,7 @@ class Run:
                 lims_step_id = line.split(",")[1]
                 return lims_step_id
         return None
-    
+
     def find_manifest_zip(self):
         # Specify dir in which LIMS drop the manifest zip files
         dir_to_search = os.path.join(
@@ -580,7 +580,7 @@ class Run:
                     sample_tuple = (sample_name, sub_demux_count)
                     if sample_tuple not in unique_sample_demux:
                         project_dest = os.path.join(self.run_dir, self.demux_dir, project)
-                        sample_dest = os.path.join(self.run_dir, self.demux_dir, project, sample_name)
+                        sample_dest = os.path.join(self.run_dir, self.demux_dir, project, f"Sample_{sample_name}")
                         if not os.path.exists(project_dest):
                             os.makedirs(project_dest)
                         if not os.path.exists(sample_dest):
@@ -669,11 +669,13 @@ class Run:
                         sample['QualityScoreMean'] = project_runstats_sample[0]['QualityScoreMean']
                         aggregated_assigned_indexes.append(sample)
             else:
-                logger.warning(f"No IndexAssignment.csv file found for sub-demultiplexing {sub_demux}.")
+                logger.warning(f"No {os.path.basename(assigned_csv)} file found for sub-demultiplexing {sub_demux}.")
         # Remove redundant rows for PhiX
         aggregated_assigned_indexes_filtered = []
         unique_phiX_combination = set()
         for sample in aggregated_assigned_indexes:
+            # Add project name
+            sample['Project'] = [d for d in demux_runmanifest if d['SampleName'] == sample['SampleName']][0]['Project']
             if sample['SampleName'] == 'PhiX':
                 combination = (sample['I1'], sample['I2'], sample['Lane'])
                 if combination not in unique_phiX_combination:
@@ -715,7 +717,7 @@ class Run:
                     reader = csv.DictReader(max_unassigned_file)
                     max_unassigned_indexes = [row for row in reader]
             else:
-                logger.warning(f"No UnassignedSequences.csv file found for sub-demultiplexing {sub_demux_with_max_index_lens}.")
+                logger.warning(f"No {os.path.basename(max_unassigned_csv)} file found for sub-demultiplexing {sub_demux_with_max_index_lens}.")
                 break
             # Filter by lane
             max_unassigned_indexes = [idx for idx in max_unassigned_indexes if idx["Lane"] == lane]
@@ -730,7 +732,7 @@ class Run:
                             reader = csv.DictReader(unassigned_file)
                             unassigned_indexes = [row for row in reader]
                     else:
-                        logger.warning(f"No UnassignedSequences.csv file found for sub-demultiplexing {sub_demux}.")
+                        logger.warning(f"No {os.path.basename(unassigned_csv)} file found for sub-demultiplexing {sub_demux}.")
                         continue
                     # Filter by lane
                     unassigned_indexes = [unassigned_index for unassigned_index in unassigned_indexes if unassigned_index["Lane"] == lane]
@@ -748,6 +750,20 @@ class Run:
             aggregated_unassigned_indexes += max_unassigned_indexes
         # Sort aggregated_unassigned_indexes list first by lane and then by Count in the decreasing order
         aggregated_unassigned_indexes = sorted(aggregated_unassigned_indexes, key=lambda x: (x['Lane'], -int(x['Count'])))
+        # Fetch PFCount for each lane
+        pfcount_lane = {}
+        if os.path.exists(self.run_stats_file):
+            with open(self.run_stats_file) as stats_json:
+                aviti_runstats_json = json.load(stats_json)
+            for lane_stats in aviti_runstats_json["LaneStats"]:
+                pfcount_lane[str(lane_stats["Lane"])] = float(lane_stats["PFCount"])
+            # Modify the % Polonies values based on PFCount for each lane
+            for unassigned_index in aggregated_unassigned_indexes:
+                if pfcount_lane.get(unassigned_index["Lane"]):
+                    unassigned_index["% Polonies"] = float(unassigned_index["Count"])/pfcount_lane[unassigned_index["Lane"]]*100
+        else:
+            logger.warning(f"No {os.path.basename(self.run_stats_file)} file found for the run.")
+
         # Write to a new UnassignedSequences.csv file under demux_dir
         aggregated_unassigned_csv = os.path.join(self.run_dir, self.demux_dir, "UnassignedSequences.csv")
         self.write_to_csv(aggregated_unassigned_indexes, aggregated_unassigned_csv)
@@ -824,7 +840,7 @@ class Run:
     def update_paths_after_archiving(self, new_location):
         self.run_dir = os.path.join(new_location, self.NGI_run_id) # Needs to be redirected to new location so that TACA can find files to upload to statusdb
         self.run_parameters_file = os.path.join(self.run_dir, "RunParameters.json")
-        self.run_stats_file = os.path.join(self.run_dir, "RunStats.json")
+        self.run_stats_file = os.path.join(self.run_dir, "AvitiRunStats.json")
         self.run_manifest_file_from_instrument = os.path.join(
             self.run_dir, "RunManifest.json"
         )
