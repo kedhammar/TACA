@@ -752,17 +752,18 @@ class Run:
         aggregated_unassigned_indexes = sorted(aggregated_unassigned_indexes, key=lambda x: (x['Lane'], -int(x['Count'])))
         # Fetch PFCount for each lane
         pfcount_lane = {}
-        aviti_runstats_json = os.path.join(self.run_dir, "AvitiRunStats.json")
-        if os.path.exists(aviti_runstats_json):
-            with open(aviti_runstats_json) as stats_json:
+        if os.path.exists(self.run_stats_file):
+            with open(self.run_stats_file) as stats_json:
                 aviti_runstats_json = json.load(stats_json)
             for lane_stats in aviti_runstats_json["LaneStats"]:
                 pfcount_lane[str(lane_stats["Lane"])] = float(lane_stats["PFCount"])
+            # Modify the % Polonies values based on PFCount for each lane
+            for unassigned_index in aggregated_unassigned_indexes:
+                if pfcount_lane.get(unassigned_index["Lane"]):
+                    unassigned_index["% Polonies"] = float(unassigned_index["Count"])/pfcount_lane[unassigned_index["Lane"]]*100
         else:
             logger.warning(f"No AvitiRunStats.json file found for the run.")
-        # Modify the % Polonies values based on PFCount for each lane
-        for unassigned_index in aggregated_unassigned_indexes:
-            unassigned_index["% Polonies"] = float(unassigned_index["Count"])/pfcount_lane[unassigned_index["Lane"]]*100
+
         # Write to a new UnassignedSequences.csv file under demux_dir
         aggregated_unassigned_csv = os.path.join(self.run_dir, self.demux_dir, "UnassignedSequences.csv")
         self.write_to_csv(aggregated_unassigned_indexes, aggregated_unassigned_csv)
@@ -839,7 +840,7 @@ class Run:
     def update_paths_after_archiving(self, new_location):
         self.run_dir = os.path.join(new_location, self.NGI_run_id) # Needs to be redirected to new location so that TACA can find files to upload to statusdb
         self.run_parameters_file = os.path.join(self.run_dir, "RunParameters.json")
-        self.run_stats_file = os.path.join(self.run_dir, "RunStats.json")
+        self.run_stats_file = os.path.join(self.run_dir, "AvitiRunStats.json")
         self.run_manifest_file_from_instrument = os.path.join(
             self.run_dir, "RunManifest.json"
         )
