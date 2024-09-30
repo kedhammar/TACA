@@ -1,5 +1,9 @@
 # TACA Version Log
 
+## 20240927.1
+
+For re-demux: keep PDC archive date if exists
+
 ## 20240816.1
 
 Update command used to run Anglerfish.
