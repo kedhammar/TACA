@@ -786,8 +786,15 @@ class Run:
         self.aggregate_stats_unassigned(demux_runmanifest)
 
     def sync_metadata(self):
-        # TODO: copy metadata from demuxed run to ngi-nas-ns
-        pass
+        files_to_copy = [self.run_stats_file,
+                         os.path.join(self.run_dir, "Demultiplexing", "IndexAssignment.csv"),
+                         os.path.join(self.run_dir, "Demultiplexing", "UnassignedSequences.csv")
+                         ]
+        metadata_archive = self.CONFIG.get("element_analysis").get("metadata_location") # TODO: add to aca.yaml
+        dest = os.path.join(metadata_archive, self.NGI_run_id)
+        os.makedirs(dest)
+        for f in files_to_copy:
+            shutil.copy(f, dest)
 
     def make_transfer_indicator(self):
         transfer_indicator = os.path.join(self.run_dir, ".rsync_ongoing")
