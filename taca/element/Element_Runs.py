@@ -703,7 +703,10 @@ class Run:
                             self.run_dir, self.demux_dir, project
                         )
                         sample_dest = os.path.join(
-                            self.run_dir, self.demux_dir, project, sample_name
+                            self.run_dir,
+                            self.demux_dir,
+                            project,
+                            f"Sample_{sample_name}",
                         )
                         if not os.path.exists(project_dest):
                             os.makedirs(project_dest)
@@ -857,12 +860,16 @@ class Run:
                         aggregated_assigned_indexes.append(sample)
             else:
                 logger.warning(
-                    f"No IndexAssignment.csv file found for sub-demultiplexing {sub_demux}."
+                    f"No {os.path.basename(assigned_csv)} file found for sub-demultiplexing {sub_demux}."
                 )
         # Remove redundant rows for PhiX
         aggregated_assigned_indexes_filtered = []
         unique_phiX_combination = set()
         for sample in aggregated_assigned_indexes:
+            # Add project name
+            sample["Project"] = [
+                d for d in demux_runmanifest if d["SampleName"] == sample["SampleName"]
+            ][0]["Project"]
             if sample["SampleName"] == "PhiX":
                 combination = (sample["I1"], sample["I2"], sample["Lane"])
                 if combination not in unique_phiX_combination:
@@ -928,7 +935,7 @@ class Run:
                     max_unassigned_indexes = [row for row in reader]
             else:
                 logger.warning(
-                    f"No UnassignedSequences.csv file found for sub-demultiplexing {sub_demux_with_max_index_lens}."
+                    f"No {os.path.basename(max_unassigned_csv)} file found for sub-demultiplexing {sub_demux_with_max_index_lens}."
                 )
                 break
             # Filter by lane
@@ -951,7 +958,7 @@ class Run:
                             unassigned_indexes = [row for row in reader]
                     else:
                         logger.warning(
-                            f"No UnassignedSequences.csv file found for sub-demultiplexing {sub_demux}."
+                            f"No {os.path.basename(unassigned_csv)} file found for sub-demultiplexing {sub_demux}."
                         )
                         continue
                     # Filter by lane
@@ -1009,6 +1016,26 @@ class Run:
         aggregated_unassigned_indexes = sorted(
             aggregated_unassigned_indexes, key=lambda x: (x["Lane"], -int(x["Count"]))
         )
+        # Fetch PFCount for each lane
+        pfcount_lane = {}
+        if os.path.exists(self.run_stats_file):
+            with open(self.run_stats_file) as stats_json:
+                aviti_runstats_json = json.load(stats_json)
+            for lane_stats in aviti_runstats_json["LaneStats"]:
+                pfcount_lane[str(lane_stats["Lane"])] = float(lane_stats["PFCount"])
+            # Modify the % Polonies values based on PFCount for each lane
+            for unassigned_index in aggregated_unassigned_indexes:
+                if pfcount_lane.get(unassigned_index["Lane"]):
+                    unassigned_index["% Polonies"] = (
+                        float(unassigned_index["Count"])
+                        / pfcount_lane[unassigned_index["Lane"]]
+                        * 100
+                    )
+        else:
+            logger.warning(
+                f"No {os.path.basename(self.run_stats_file)} file found for the run."
+            )
+
         # Write to a new UnassignedSequences.csv file under demux_dir
         aggregated_unassigned_csv = os.path.join(
             self.run_dir, self.demux_dir, "UnassignedSequences.csv"
