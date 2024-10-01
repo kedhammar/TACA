@@ -410,7 +410,7 @@ class Run:
 
     def make_demux_manifests(
         self, manifest_to_split: os.PathLike, outdir: os.PathLike | None = None
-    ) -> list[os.PathLike]:
+    ) -> list[str]:
         """Derive composite demultiplexing manifests
         from a single information-rich manifest.
         """
