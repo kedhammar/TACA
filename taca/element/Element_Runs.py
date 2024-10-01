@@ -18,6 +18,69 @@ from taca.utils.statusdb import ElementRunsConnection
 logger = logging.getLogger(__name__)
 
 
+def get_mask(seq: str, mask_type: str, which_index: int) -> str:
+    """Example usage:
+
+    get_mask("ACGTACGTNNNNNNNN", "umi", 1)   -> 'I1:N8Y8'
+    get_mask("ACGTACGTNNNNNNNN", "index", 2) -> 'I2:Y8N8'
+    """
+
+    # Input assertions
+    assert re.match(r"^[ACGTN]+$", seq), f"Index '{seq}' has non-ACGTN characters"
+    assert mask_type in ["umi", "index"], "Mask type must be 'umi' or 'index'"
+    assert which_index in [1, 2], "Index number must be 1 or 2"
+
+    # Define dict to convert base to mask classifier
+    base2mask = (
+        {
+            "N": "N",
+            "A": "Y",
+            "C": "Y",
+            "G": "Y",
+            "T": "Y",
+        }
+        if mask_type == "index"
+        else {
+            "N": "Y",
+            "A": "N",
+            "C": "N",
+            "G": "N",
+            "T": "N",
+        }
+    )
+
+    # Dynamically build the mask sequence
+    mask_seq = "I1:" if which_index == 1 else "I2:"
+    current_group = ""
+    current_group_len = 0
+    for letter in seq:
+        if base2mask[letter] == current_group:
+            current_group_len += 1
+        else:
+            mask_seq += (
+                f"{current_group}{current_group_len}" if current_group_len > 0 else ""
+            )
+            current_group = base2mask[letter]
+            current_group_len = 1
+    mask_seq += f"{current_group}{current_group_len}"
+
+    # Use the worlds ugliest string parsing to check that the mask length matches the input sequence length
+    assert sum(
+        [
+            int(n)
+            for n in mask_seq[3:]
+            .replace("N", "-")
+            .replace("Y", "-")
+            .strip("-")
+            .split("-")
+        ]
+    ) == len(
+        seq
+    ), f"Length of mask '{mask_seq}' does not match length of input seq '{seq}'"
+
+    return mask_seq
+
+
 class Run:
     """Defines an Element run"""
 
@@ -344,7 +407,7 @@ class Run:
             manifest_contents = f.read()
 
         # Get '[SAMPLES]' section
-        split_contents = "[SAMPLES]".split(manifest_contents)
+        split_contents = manifest_contents.split("[SAMPLES]")
         assert (
             len(split_contents) == 2
         ), f"Could not split sample rows out of manifest {manifest_contents}"
@@ -374,6 +437,15 @@ class Run:
         ## Build composite manifests
 
         manifest_root_name = f"{self.NGI_run_id}_demux"
+
+        # Address UMI masks
+        for n in [1, 2]:
+            df_samples[f"I{n}Mask"] = df_samples[f"Index{n}"].apply(
+                lambda seq: get_mask(seq, "umi", n)
+            )
+            df_samples["UmiMask"] = df_samples[f"Index{n}"].apply(
+                lambda seq: get_mask(seq, "umi", n)
+            )
 
         # Get idx lengths for calculations
         df_samples.loc[:, "len_idx1"] = df["Index1"].apply(len)
