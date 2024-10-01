@@ -396,11 +396,9 @@ class Run:
     def make_demux_manifests(
         self, manifest_to_split: os.PathLike, outdir: os.PathLike | None = None
     ) -> list[os.PathLike]:
-        """Derive composite demultiplexing manifests (grouped by index duplicity and lengths)
+        """Derive composite demultiplexing manifests
         from a single information-rich manifest.
         """
-
-        # TODO test me
 
         # Read specified manifest
         with open(manifest_to_split) as f:
@@ -411,7 +409,7 @@ class Run:
         assert (
             len(split_contents) == 2
         ), f"Could not split sample rows out of manifest {manifest_contents}"
-        sample_section = split_contents[1].split("\n")
+        sample_section = split_contents[1].strip().split("\n")
 
         # Split into header and rows
         header = sample_section[0]
@@ -435,36 +433,40 @@ class Run:
             outdir = self.run_dir
 
         ## Build composite manifests
-
         manifest_root_name = f"{self.NGI_run_id}_demux"
 
-        # Address UMI masks
+        # Bool indicating whether UMI is present
+        df_samples["has_umi"] = df_samples["Index2"].str.contains("N")
+
+        # Add cols denoting idx and umi masks
         for n in [1, 2]:
             df_samples[f"I{n}Mask"] = df_samples[f"Index{n}"].apply(
-                lambda seq: get_mask(seq, "umi", n)
+                lambda seq: get_mask(seq, "index", n)
             )
-            df_samples["UmiMask"] = df_samples[f"Index{n}"].apply(
-                lambda seq: get_mask(seq, "umi", n)
-            )
+        df_samples["UmiMask"] = df_samples["Index2"].apply(
+            lambda seq: get_mask(seq, "umi", 2)
+        )
 
-        # Get idx lengths for calculations
-        df_samples.loc[:, "len_idx1"] = df["Index1"].apply(len)
-        df_samples.loc[:, "len_idx2"] = df["Index2"].apply(len)
+        # Re-make idx col without Ns
+        df_samples["Index2_umi"] = df_samples["Index2"]
+        df_samples.loc[:, "Index2"] = df_samples["Index2"].apply(
+            lambda x: x.replace("N", "")
+        )
 
-        # Break down by index lengths and lane, creating composite manifests
+        # Break down by masks and lane, creating composite manifests
         manifests = []
         n = 0
-        for (len_idx1, len_idx2, lane), group in df_samples.groupby(
-            ["len_idx1", "len_idx2", "Lane"]
-        ):
+        grouped_df = df_samples.groupby(["I1Mask", "I2Mask", "UmiMask", "Lane"])
+        for (I1Mask, I2Mask, UmiMask, lane), group in grouped_df:
             file_name = f"{manifest_root_name}_{n}.csv"
+
             runValues_section = "\n".join(
                 [
                     "[RUNVALUES]",
                     "KeyName, Value",
                     f'manifest_file, "{file_name}"',
-                    f"manifest_group, {n+1}/{len(df.groupby(['len_idx1', 'len_idx2', 'Lane']))}",
-                    f"grouped_by, len_idx1:{len_idx1} len_idx2:{len_idx2} lane:{lane}",
+                    f"manifest_group, {n+1}/{len(grouped_df)}",
+                    f"grouped_by, I1Mask:'{I1Mask}' I2Mask:'{I2Mask}' UmiMask:'{UmiMask}' lane:{lane}",
                 ]
             )
 
@@ -472,24 +474,35 @@ class Run:
                 [
                     "[SETTINGS]",
                     "SettingName, Value",
+                    f"I1Mask, {I1Mask}",
+                    f"I2Mask, {I2Mask}",
                 ]
             )
 
+            if group["has_umi"].all():
+                settings_section += "\n" + "\n".join(
+                    [
+                        f"UmiMask, {UmiMask}",
+                        "UmiFastQ, True",
+                    ]
+                )
+
             # Add PhiX stratified by index length
-            if group["phix_loaded"].any():
-                # Subset controls by lane
-                group_controls = df_controls[df_controls["Lane"] == lane].copy()
+            # Subset controls by lane
+            group_controls = df_controls[df_controls["Lane"] == lane].copy()
 
-                # Trim PhiX indexes to match group
-                group_controls.loc[:, "Index1"] = group_controls.loc[:, "Index1"].apply(
-                    lambda x: x[:len_idx1]
-                )
-                group_controls.loc[:, "Index2"] = group_controls.loc[:, "Index2"].apply(
-                    lambda x: x[:len_idx2]
-                )
+            # Trim PhiX indexes to match group
+            i1_len = group["Index1"].apply(len).max()
+            group_controls.loc[:, "Index1"] = group_controls.loc[:, "Index1"].apply(
+                lambda x: x[:i1_len]
+            )
+            i2_len = group["Index2"].apply(len).max()
+            group_controls.loc[:, "Index2"] = group_controls.loc[:, "Index2"].apply(
+                lambda x: x[:i2_len]
+            )
 
-                # Add PhiX to group
-                group = pd.concat([group, group_controls], axis=0, ignore_index=True)
+            # Add PhiX to group
+            group = pd.concat([group, group_controls], axis=0, ignore_index=True)
 
             samples_section = (
                 f"[SAMPLES]\n{group.iloc[:, 0:6].to_csv(index=None, header=True)}"
