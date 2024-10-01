@@ -107,7 +107,9 @@ class Run:
             "runID"
         )  # Unique hash that we don't really use
         self.side = run_parameters.get("Side")  # SideA or SideB
-        self.side_letter = self.side[-1]  # A or B
+        self.side_letter = self.side[
+            -1
+        ]  # A or B TODO: compare side letter with manually entered letter in run name
         self.run_type = run_parameters.get(
             "RunType"
         )  # Sequencing, wash or prime I believe?
@@ -289,7 +291,7 @@ class Run:
             logger.warning(
                 f"No manifest found for run '{self.run_dir}' with pattern '{glob_pattern}'."
             )
-            return False  # TODO determine whether to raise an error here instead
+            return False  # TODO: determine whether to raise an error here instead
         elif len(glob_results) > 1:
             logger.warning(
                 f"Multiple manifests found for run '{self.run_dir}' with pattern '{glob_pattern}', using latest one."
@@ -302,7 +304,6 @@ class Run:
 
     def copy_manifests(self) -> bool:
         """Fetch the LIMS-generated run manifests from ngi-nas-ns and unzip them into a run subdir."""
-        # TODO: test me
         zip_src_path = self.find_manifest_zip()
         # Make a run subdir named after the zip file and extract manifests there
         zip_name = os.path.basename(zip_src_path)
@@ -440,8 +441,9 @@ class Run:
             + f" {self.run_dir}"
             + f" {demux_dir}"
             + " -p 8"
+            + " --num-unassigned 500"
             + f" -r {run_manifest}"
-            + " --legacy-fastq"  # TODO: except if Smart-seq3
+            + " --legacy-fastq"
             + " --force-index-orientation"
         )  # TODO: any other options?
         with open(os.path.join(self.run_dir, ".bases2fastq_command")) as command_file:
@@ -451,7 +453,6 @@ class Run:
     def start_demux(self, run_manifest, demux_dir):
         with chdir(self.run_dir):
             cmd = self.generate_demux_command(run_manifest, demux_dir)
-            # TODO: handle multiple composite manifests for demux
             try:
                 p_handle = subprocess.Popen(
                     cmd, stdout=subprocess.PIPE, shell=True, cwd=self.run_dir
@@ -918,8 +919,19 @@ class Run:
         self.aggregate_stats_unassigned(demux_runmanifest)
 
     def sync_metadata(self):
-        # TODO: copy metadata from demuxed run to ngi-nas-ns
-        pass
+        files_to_copy = [
+            self.run_stats_file,
+            os.path.join(self.run_dir, "Demultiplexing", "IndexAssignment.csv"),
+            os.path.join(self.run_dir, "Demultiplexing", "UnassignedSequences.csv"),
+            self.run_parameters_file,
+        ]
+        metadata_archive = self.CONFIG.get("element_analysis").get(
+            "metadata_location"
+        )  # TODO: add to taca.yaml
+        dest = os.path.join(metadata_archive, self.NGI_run_id)
+        os.makedirs(dest)
+        for f in files_to_copy:
+            shutil.copy(f, dest)
 
     def make_transfer_indicator(self):
         transfer_indicator = os.path.join(self.run_dir, ".rsync_ongoing")
@@ -934,12 +946,12 @@ class Run:
             + " -rLav"
             + f" --chown={transfer_details.get('owner')}"
             + f" --chmod={transfer_details.get('permissions')}"
-            + " --exclude BaseCalls"  # TODO: check that we actually want to exclude these
+            + " --exclude BaseCalls"
             + " --exclude Alignment"
             + f" {self.run_dir}"
             + f" {transfer_details.get('user')}@{transfer_details.get('host')}:/aviti"
             + f"; echo $? > {os.path.join(self.run_dir, '.rsync_exit_status')}"
-        )  # TODO: any other options?
+        )
         try:
             p_handle = subprocess.Popen(command, stdout=subprocess.PIPE, shell=True)
             logger.info(
@@ -973,12 +985,11 @@ class Run:
             new_location, self.NGI_run_id
         )  # Needs to be redirected to new location so that TACA can find files to upload to statusdb
         self.run_parameters_file = os.path.join(self.run_dir, "RunParameters.json")
-        self.run_stats_file = os.path.join(self.run_dir, "RunStats.json")
+        self.run_stats_file = os.path.join(self.run_dir, "AvitiRunStats.json")
         self.run_manifest_file_from_instrument = os.path.join(
             self.run_dir, "RunManifest.json"
         )
         self.run_uploaded_file = os.path.join(self.run_dir, "RunUploaded.json")
-        # TODO: also update location of demux files?
 
     def archive(self):
         """Move directory to nosync."""
