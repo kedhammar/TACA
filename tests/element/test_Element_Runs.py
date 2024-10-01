@@ -18,6 +18,7 @@ def get_config(tmp: tempfile.TemporaryDirectory) -> dict:
                 },
             },
         },
+        "statusdb": {},
     }
     return config
 
