@@ -321,6 +321,9 @@ class Run:
         self.lims_start_manifest = [
             m for m in manifests if re.match(r".*_trimmed\.csv$", m)
         ][0]
+        self.lims_empty_manifest = [
+            m for m in manifests if re.match(r".*_empty\.csv$", m)
+        ][0]
         self.lims_demux_manifests = [
             m for m in manifests if re.match(r".*_\d+\.csv$", m)
         ]
