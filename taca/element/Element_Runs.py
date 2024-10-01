@@ -575,6 +575,7 @@ class Run:
                 logger.info(
                     "Bases2Fastq conversion and demultiplexing "
                     f"started for run {self} on {datetime.now()}"
+                    f"with p_handle {p_handle}"
                 )
             except subprocess.CalledProcessError:
                 logger.warning(
@@ -648,9 +649,7 @@ class Run:
         demux_runmanifest = []
         for demux_dir in demux_results_dirs:
             sub_demux_count = os.path.basename(demux_dir).split("_")[1]
-            with open(
-                os.path.join(self.run_dir, demux_dir, "RunManifest.csv"), "r"
-            ) as file:
+            with open(os.path.join(self.run_dir, demux_dir, "RunManifest.csv")) as file:
                 lines = file.readlines()
             sample_section = False
             headers = []
@@ -834,7 +833,7 @@ class Run:
                 self.run_dir, f"Demultiplexing_{sub_demux}", "IndexAssignment.csv"
             )
             if os.path.exists(assigned_csv):
-                with open(assigned_csv, "r") as assigned_file:
+                with open(assigned_csv) as assigned_file:
                     reader = csv.DictReader(assigned_file)
                     index_assignment = [row for row in reader]
                 for sample in index_assignment:
@@ -924,7 +923,7 @@ class Run:
                 "UnassignedSequences.csv",
             )
             if os.path.exists(max_unassigned_csv):
-                with open(max_unassigned_csv, "r") as max_unassigned_file:
+                with open(max_unassigned_csv) as max_unassigned_file:
                     reader = csv.DictReader(max_unassigned_file)
                     max_unassigned_indexes = [row for row in reader]
             else:
@@ -947,7 +946,7 @@ class Run:
                         "UnassignedSequences.csv",
                     )
                     if os.path.exists(unassigned_csv):
-                        with open(unassigned_csv, "r") as unassigned_file:
+                        with open(unassigned_csv) as unassigned_file:
                             reader = csv.DictReader(unassigned_file)
                             unassigned_indexes = [row for row in reader]
                     else:
@@ -1072,6 +1071,7 @@ class Run:
             logger.info(
                 "Transfer to analysis cluster "
                 f"started for run {self} on {datetime.now()}"
+                f"with p_handle {p_handle}"
             )
         except subprocess.CalledProcessError:
             logger.warning(

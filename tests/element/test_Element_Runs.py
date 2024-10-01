@@ -77,7 +77,7 @@ def create_element_run_dir(
             open(
                 os.path.join(
                     run_path,
-                    f"Demultiplexing",
+                    "Demultiplexing",
                     "RunStats.json",
                 ),
                 "w",
