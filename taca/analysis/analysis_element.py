@@ -45,9 +45,7 @@ def run_preprocessing(given_run):
                 os.mkdir(run.demux_dir)
                 run.copy_manifests()
                 run_manifests = glob.glob(
-                    os.path.join(
-                        run.run_dir, "RunManifest_*.csv"
-                    )  # TODO: is this filename right?
+                    os.path.join(run.run_dir, "RunManifest_*.csv")
                 )
                 sub_demux_count = 0
                 for run_manifest in run_manifests.sort():
@@ -96,7 +94,9 @@ def run_preprocessing(given_run):
             run.status = "transferring"
             if run.status_changed:
                 run.update_statusdb()
-            logger.info(f"{run} is being transferred. Skipping.") # TODO: fix formatting, currently prints "ElementRun(20240910_AV242106_B2403418431) is being transferred"
+            logger.info(
+                f"{run} is being transferred. Skipping."
+            )  # TODO: fix formatting, currently prints "ElementRun(20240910_AV242106_B2403418431) is being transferred"
             return
         elif transfer_status == "rsync done":
             if run.rsync_successful():
@@ -117,38 +117,27 @@ def run_preprocessing(given_run):
                 )
                 # TODO: email warning to operator
             return
-        elif transfer_status == "unknown":
-            logger.warning(
-                f"The run {run} has already been transferred but has not been archived. Please investigate"
-            )
-            # TODO: email operator warning
-            return
         else:
-            # TODO Merge with the one above?
             logger.warning(
                 f"Unknown transfer status {transfer_status} of run {run}. Please investigate"
-            )
+            )  # TODO: email warning to operator
             return
 
     if given_run:
         run = Aviti_Run(given_run, CONFIG)
-        # TODO: Needs to change if more types of Element machines are aquired in the future
-
         _process(run)
     else:
         data_dirs = CONFIG.get("element_analysis").get(
             "data_dirs"
         )  # TODO: add to config
-        for data_dir in data_dirs:  # TODO: make sure to look in both side A and B
-            # Run folder looks like DATE_*_*_*, the last section is the FC name.
-            runs = glob.glob(
-                os.path.join(data_dir, "[1-9]*_*_*_*")
-            )  # TODO: adapt to aviti format
+        for data_dir in data_dirs:
+            # Run folder looks like DATE_*_*, the last section is the FC side (A/B) and name
+            runs = glob.glob(os.path.join(data_dir, "[1-9]*_*_*"))
             for run in runs:
                 runObj = Aviti_Run(run, CONFIG)
                 try:
                     _process(runObj)
-                except:  # TODO: chatch error message and print it
+                except:
                     # This function might throw and exception,
                     # it is better to continue processing other runs
                     logger.warning(f"There was an error processing the run {run}")
