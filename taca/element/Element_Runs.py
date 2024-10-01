@@ -18,17 +18,27 @@ from taca.utils.statusdb import ElementRunsConnection
 logger = logging.getLogger(__name__)
 
 
-def get_mask(seq: str, mask_type: str, which_index: int) -> str:
+def get_mask(
+    seq: str,
+    mask_type: str,
+    prefix: str,
+    cycles_used: int | None = None,
+) -> str:
     """Example usage:
 
-    get_mask("ACGTACGTNNNNNNNN", "umi", 1)   -> 'I1:N8Y8'
-    get_mask("ACGTACGTNNNNNNNN", "index", 2) -> 'I2:Y8N8'
+    get_mask("ACGTNNN", "umi", "I1:", None) -> 'I1:N4Y3'
+    get_mask("ACGTNNN", "index", "I2:", 10) -> 'I2:Y4N3N3'
     """
 
     # Input assertions
     assert re.match(r"^[ACGTN]+$", seq), f"Index '{seq}' has non-ACGTN characters"
     assert mask_type in ["umi", "index"], "Mask type must be 'umi' or 'index'"
-    assert which_index in [1, 2], "Index number must be 1 or 2"
+    assert prefix in [
+        "R1:",
+        "R2:",
+        "I1:",
+        "I2:",
+    ], f"Mask prefix {prefix} not recognized"
 
     # Define dict to convert base to mask classifier
     base2mask = (
@@ -50,7 +60,7 @@ def get_mask(seq: str, mask_type: str, which_index: int) -> str:
     )
 
     # Dynamically build the mask sequence
-    mask_seq = "I1:" if which_index == 1 else "I2:"
+    mask_seq = prefix
     current_group = ""
     current_group_len = 0
     for letter in seq:
@@ -77,6 +87,11 @@ def get_mask(seq: str, mask_type: str, which_index: int) -> str:
     ) == len(
         seq
     ), f"Length of mask '{mask_seq}' does not match length of input seq '{seq}'"
+
+    # TODO update this when we get the actual cycles used from the run parameters
+    if cycles_used is not None:
+        if cycles_used > len(mask_seq):
+            mask_seq += f"N{cycles_used-len(mask_seq)}"
 
     return mask_seq
 
@@ -428,23 +443,20 @@ class Run:
         df_samples = df[df["Project"] != "Control"].copy()
         df_controls = df[df["Project"] == "Control"].copy()
 
-        # Apply default dir path for output
-        if outdir is None:
-            outdir = self.run_dir
-
-        ## Build composite manifests
-        manifest_root_name = f"{self.NGI_run_id}_demux"
-
         # Bool indicating whether UMI is present
         df_samples["has_umi"] = df_samples["Index2"].str.contains("N")
 
         # Add cols denoting idx and umi masks
-        for n in [1, 2]:
-            df_samples[f"I{n}Mask"] = df_samples[f"Index{n}"].apply(
-                lambda seq: get_mask(seq, "index", n)
-            )
+        df_samples["I1Mask"] = df_samples[
+            "Index1"
+        ].apply(  # TODO get cycles from run parameters
+            lambda seq: get_mask(seq, "index", "I1:", None)
+        )
+        df_samples["I2Mask"] = df_samples["Index2"].apply(
+            lambda seq: get_mask(seq, "index", "I2:", None)
+        )
         df_samples["UmiMask"] = df_samples["Index2"].apply(
-            lambda seq: get_mask(seq, "umi", 2)
+            lambda seq: get_mask(seq, "umi", "I2:", None)
         )
 
         # Re-make idx col without Ns
@@ -453,11 +465,20 @@ class Run:
             lambda x: x.replace("N", "")
         )
 
-        # Break down by masks and lane, creating composite manifests
+        # Apply default dir path for output
+        if outdir is None:
+            outdir = self.run_dir
+
+        # Break down into groups by non-consolable properties
+        grouped_df = df_samples.groupby(
+            ["I1Mask", "I2Mask", "UmiMask", "Lane", "Recipe"]
+        )
+
+        # Iterate over groups to build composite manifests
+        manifest_root_name = f"{self.NGI_run_id}_demux"
         manifests = []
         n = 0
-        grouped_df = df_samples.groupby(["I1Mask", "I2Mask", "UmiMask", "Lane"])
-        for (I1Mask, I2Mask, UmiMask, lane), group in grouped_df:
+        for (I1Mask, I2Mask, UmiMask, lane, recipe), group in grouped_df:
             file_name = f"{manifest_root_name}_{n}.csv"
 
             runValues_section = "\n".join(
@@ -466,16 +487,22 @@ class Run:
                     "KeyName, Value",
                     f'manifest_file, "{file_name}"',
                     f"manifest_group, {n+1}/{len(grouped_df)}",
-                    f"grouped_by, I1Mask:'{I1Mask}' I2Mask:'{I2Mask}' UmiMask:'{UmiMask}' lane:{lane}",
+                    f"grouped_by, I1Mask:'{I1Mask}' I2Mask:'{I2Mask}' UmiMask:'{UmiMask}' lane:{lane} recipe:'{recipe}'",
                 ]
             )
+
+            recipe_split = recipe.split("-")
+            R1Mask = f"R1:Y{recipe_split[0]}N*"  # TODO remove asterisk by getting de-facto cycles from run parameters
+            R2Mask = f"R2:Y{recipe_split[3]}N*"  # TODO remove asterisk by getting de-facto cycles from run parameters
 
             settings_section = "\n".join(
                 [
                     "[SETTINGS]",
                     "SettingName, Value",
+                    f"R1Mask, {R1Mask}",
                     f"I1Mask, {I1Mask}",
                     f"I2Mask, {I2Mask}",
+                    f"R2Mask, {R2Mask}",
                 ]
             )
 
@@ -483,7 +510,7 @@ class Run:
                 settings_section += "\n" + "\n".join(
                     [
                         f"UmiMask, {UmiMask}",
-                        "UmiFastQ, True",
+                        "UmiFastQ, TRUE",
                     ]
                 )
 
