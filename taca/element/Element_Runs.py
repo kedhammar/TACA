@@ -18,6 +18,84 @@ from taca.utils.statusdb import ElementRunsConnection
 logger = logging.getLogger(__name__)
 
 
+def get_mask(
+    seq: str,
+    mask_type: str,
+    prefix: str,
+    cycles_used: int | None = None,
+) -> str:
+    """Example usage:
+
+    get_mask("ACGTNNN", "umi", "I1:", None) -> 'I1:N4Y3'
+    get_mask("ACGTNNN", "index", "I2:", 10) -> 'I2:Y4N3N3'
+    """
+
+    # Input assertions
+    assert re.match(r"^[ACGTN]+$", seq), f"Index '{seq}' has non-ACGTN characters"
+    assert mask_type in ["umi", "index"], "Mask type must be 'umi' or 'index'"
+    assert prefix in [
+        "R1:",
+        "R2:",
+        "I1:",
+        "I2:",
+    ], f"Mask prefix {prefix} not recognized"
+
+    # Define dict to convert base to mask classifier
+    base2mask = (
+        {
+            "N": "N",
+            "A": "Y",
+            "C": "Y",
+            "G": "Y",
+            "T": "Y",
+        }
+        if mask_type == "index"
+        else {
+            "N": "Y",
+            "A": "N",
+            "C": "N",
+            "G": "N",
+            "T": "N",
+        }
+    )
+
+    # Dynamically build the mask sequence
+    mask_seq = prefix
+    current_group = ""
+    current_group_len = 0
+    for letter in seq:
+        if base2mask[letter] == current_group:
+            current_group_len += 1
+        else:
+            mask_seq += (
+                f"{current_group}{current_group_len}" if current_group_len > 0 else ""
+            )
+            current_group = base2mask[letter]
+            current_group_len = 1
+    mask_seq += f"{current_group}{current_group_len}"
+
+    # Use the worlds ugliest string parsing to check that the mask length matches the input sequence length
+    assert sum(
+        [
+            int(n)
+            for n in mask_seq[3:]
+            .replace("N", "-")
+            .replace("Y", "-")
+            .strip("-")
+            .split("-")
+        ]
+    ) == len(
+        seq
+    ), f"Length of mask '{mask_seq}' does not match length of input seq '{seq}'"
+
+    # TODO update this when we get the actual cycles used from the run parameters
+    if cycles_used is not None:
+        if cycles_used > len(mask_seq):
+            mask_seq += f"N{cycles_used-len(mask_seq)}"
+
+    return mask_seq
+
+
 class Run:
     """Defines an Element run"""
 
@@ -321,6 +399,9 @@ class Run:
         self.lims_start_manifest = [
             m for m in manifests if re.match(r".*_trimmed\.csv$", m)
         ][0]
+        self.lims_empty_manifest = [
+            m for m in manifests if re.match(r".*_empty\.csv$", m)
+        ][0]
         self.lims_demux_manifests = [
             m for m in manifests if re.match(r".*_\d+\.csv$", m)
         ]
@@ -329,23 +410,21 @@ class Run:
 
     def make_demux_manifests(
         self, manifest_to_split: os.PathLike, outdir: os.PathLike | None = None
-    ) -> list[os.PathLike]:
-        """Derive composite demultiplexing manifests (grouped by index duplicity and lengths)
+    ) -> list[str]:
+        """Derive composite demultiplexing manifests
         from a single information-rich manifest.
         """
-
-        # TODO test me
 
         # Read specified manifest
         with open(manifest_to_split) as f:
             manifest_contents = f.read()
 
         # Get '[SAMPLES]' section
-        split_contents = "[SAMPLES]".split(manifest_contents)
+        split_contents = manifest_contents.split("[SAMPLES]")
         assert (
             len(split_contents) == 2
         ), f"Could not split sample rows out of manifest {manifest_contents}"
-        sample_section = split_contents[1].split("\n")
+        sample_section = split_contents[1].strip().split("\n")
 
         # Split into header and rows
         header = sample_section[0]
@@ -364,57 +443,93 @@ class Run:
         df_samples = df[df["Project"] != "Control"].copy()
         df_controls = df[df["Project"] == "Control"].copy()
 
+        # Bool indicating whether UMI is present
+        df_samples["has_umi"] = df_samples["Index2"].str.contains("N")
+
+        # Add cols denoting idx and umi masks
+        df_samples["I1Mask"] = df_samples[
+            "Index1"
+        ].apply(  # TODO get cycles from run parameters
+            lambda seq: get_mask(seq, "index", "I1:", None)
+        )
+        df_samples["I2Mask"] = df_samples["Index2"].apply(
+            lambda seq: get_mask(seq, "index", "I2:", None)
+        )
+        df_samples["UmiMask"] = df_samples["Index2"].apply(
+            lambda seq: get_mask(seq, "umi", "I2:", None)
+        )
+
+        # Re-make idx col without Ns
+        df_samples["Index2_umi"] = df_samples["Index2"]
+        df_samples.loc[:, "Index2"] = df_samples["Index2"].apply(
+            lambda x: x.replace("N", "")
+        )
+
         # Apply default dir path for output
         if outdir is None:
             outdir = self.run_dir
 
-        ## Build composite manifests
+        # Break down into groups by non-consolable properties
+        grouped_df = df_samples.groupby(
+            ["I1Mask", "I2Mask", "UmiMask", "Lane", "Recipe"]
+        )
 
+        # Iterate over groups to build composite manifests
         manifest_root_name = f"{self.NGI_run_id}_demux"
-
-        # Get idx lengths for calculations
-        df_samples.loc[:, "len_idx1"] = df["Index1"].apply(len)
-        df_samples.loc[:, "len_idx2"] = df["Index2"].apply(len)
-
-        # Break down by index lengths and lane, creating composite manifests
         manifests = []
         n = 0
-        for (len_idx1, len_idx2, lane), group in df_samples.groupby(
-            ["len_idx1", "len_idx2", "Lane"]
-        ):
+        for (I1Mask, I2Mask, UmiMask, lane, recipe), group in grouped_df:
             file_name = f"{manifest_root_name}_{n}.csv"
+
             runValues_section = "\n".join(
                 [
                     "[RUNVALUES]",
                     "KeyName, Value",
                     f'manifest_file, "{file_name}"',
-                    f"manifest_group, {n+1}/{len(df.groupby(['len_idx1', 'len_idx2', 'Lane']))}",
-                    f"grouped_by, len_idx1:{len_idx1} len_idx2:{len_idx2} lane:{lane}",
+                    f"manifest_group, {n+1}/{len(grouped_df)}",
+                    f"grouped_by, I1Mask:'{I1Mask}' I2Mask:'{I2Mask}' UmiMask:'{UmiMask}' lane:{lane} recipe:'{recipe}'",
                 ]
             )
+
+            recipe_split = recipe.split("-")
+            R1Mask = f"R1:Y{recipe_split[0]}N*"  # TODO remove asterisk by getting de-facto cycles from run parameters
+            R2Mask = f"R2:Y{recipe_split[3]}N*"  # TODO remove asterisk by getting de-facto cycles from run parameters
 
             settings_section = "\n".join(
                 [
                     "[SETTINGS]",
                     "SettingName, Value",
+                    f"R1Mask, {R1Mask}",
+                    f"I1Mask, {I1Mask}",
+                    f"I2Mask, {I2Mask}",
+                    f"R2Mask, {R2Mask}",
                 ]
             )
 
+            if group["has_umi"].all():
+                settings_section += "\n" + "\n".join(
+                    [
+                        f"UmiMask, {UmiMask}",
+                        "UmiFastQ, TRUE",
+                    ]
+                )
+
             # Add PhiX stratified by index length
-            if group["phix_loaded"].any():
-                # Subset controls by lane
-                group_controls = df_controls[df_controls["Lane"] == lane].copy()
+            # Subset controls by lane
+            group_controls = df_controls[df_controls["Lane"] == lane].copy()
 
-                # Trim PhiX indexes to match group
-                group_controls.loc[:, "Index1"] = group_controls.loc[:, "Index1"].apply(
-                    lambda x: x[:len_idx1]
-                )
-                group_controls.loc[:, "Index2"] = group_controls.loc[:, "Index2"].apply(
-                    lambda x: x[:len_idx2]
-                )
+            # Trim PhiX indexes to match group
+            i1_len = group["Index1"].apply(len).max()
+            group_controls.loc[:, "Index1"] = group_controls.loc[:, "Index1"].apply(
+                lambda x: x[:i1_len]
+            )
+            i2_len = group["Index2"].apply(len).max()
+            group_controls.loc[:, "Index2"] = group_controls.loc[:, "Index2"].apply(
+                lambda x: x[:i2_len]
+            )
 
-                # Add PhiX to group
-                group = pd.concat([group, group_controls], axis=0, ignore_index=True)
+            # Add PhiX to group
+            group = pd.concat([group, group_controls], axis=0, ignore_index=True)
 
             samples_section = (
                 f"[SAMPLES]\n{group.iloc[:, 0:6].to_csv(index=None, header=True)}"
@@ -445,7 +560,7 @@ class Run:
             + f" -r {run_manifest}"
             + " --legacy-fastq"
             + " --force-index-orientation"
-        )
+        )  # TODO: any other options?
         with open(os.path.join(self.run_dir, ".bases2fastq_command")) as command_file:
             command_file.write(command)
         return command
@@ -460,6 +575,7 @@ class Run:
                 logger.info(
                     "Bases2Fastq conversion and demultiplexing "
                     f"started for run {self} on {datetime.now()}"
+                    f"with p_handle {p_handle}"
                 )
             except subprocess.CalledProcessError:
                 logger.warning(
@@ -982,6 +1098,7 @@ class Run:
             logger.info(
                 "Transfer to analysis cluster "
                 f"started for run {self} on {datetime.now()}"
+                f"with p_handle {p_handle}"
             )
         except subprocess.CalledProcessError:
             logger.warning(
