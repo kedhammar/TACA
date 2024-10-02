@@ -192,7 +192,7 @@ class Run:
             "RunType"
         )  # Sequencing, wash or prime I believe?
         self.flowcell_id = run_parameters.get("FlowcellID")
-        self.cycles = run_parameters.get("Cycles", {'R1': 0, 'R2': 0, 'I1': 0, 'I2': 0})
+        self.cycles = run_parameters.get("Cycles", {"R1": 0, "R2": 0, "I1": 0, "I2": 0})
         self.instrument_name = run_parameters.get("InstrumentName")
         self.date = run_parameters.get("Date")[0:10].replace("-", "")
         self.year = self.date[0:4]
@@ -448,16 +448,29 @@ class Run:
         df_samples["has_umi"] = df_samples["Index2"].str.contains("N")
 
         # Add cols denoting idx and umi masks
-        df_samples["I1Mask"] = df_samples[
-            "Index1"
-        ].apply(  # TODO get cycles from run parameters
-            lambda seq: get_mask(seq, "index", "I1:", None)
+        df_samples["I1Mask"] = df_samples["Index1"].apply(
+            lambda seq: get_mask(
+                seq=seq,
+                mask_type="index",
+                prefix="I1:",
+                cycles_used=self.cycles["I1"],
+            )
         )
         df_samples["I2Mask"] = df_samples["Index2"].apply(
-            lambda seq: get_mask(seq, "index", "I2:", None)
+            lambda seq: get_mask(
+                seq=seq,
+                mask_type="index",
+                prefix="I2:",
+                cycles_used=self.cycles["I2"],
+            )
         )
         df_samples["UmiMask"] = df_samples["Index2"].apply(
-            lambda seq: get_mask(seq, "umi", "I2:", None)
+            lambda seq: get_mask(
+                seq=seq,
+                mask_type="umi",
+                prefix="I2:",
+                cycles_used=self.cycles["I2"],
+            )
         )
 
         # Re-make idx col without Ns
