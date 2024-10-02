@@ -22,12 +22,12 @@ def get_mask(
     seq: str,
     mask_type: str,
     prefix: str,
-    cycles_used: int | None = None,
+    cycles_used: int,
 ) -> str:
     """Example usage:
 
     get_mask("ACGTNNN", "umi", "I1:", None) -> 'I1:N4Y3'
-    get_mask("ACGTNNN", "index", "I2:", 10) -> 'I2:Y4N3N3'
+    get_mask("ACGTNNN", "index", "I2:", 10) -> 'I2:Y4N6'
     """
 
     # Input assertions
@@ -59,41 +59,50 @@ def get_mask(
         }
     )
 
-    # Dynamically build the mask sequence
-    mask_seq = prefix
+    # Instantiate the mask string
+    mask = ""
+    # Add the prefix
+    mask += prefix
+    # Loop through the input sequence and dynamically add mask groups
     current_group = ""
     current_group_len = 0
-    for letter in seq:
-        if base2mask[letter] == current_group:
+    mask_len = 0
+    for base in seq:
+        mask_len += 1
+        if base2mask[base] == current_group:
             current_group_len += 1
         else:
-            mask_seq += (
+            mask += (
                 f"{current_group}{current_group_len}" if current_group_len > 0 else ""
             )
-            current_group = base2mask[letter]
+            current_group = base2mask[base]
             current_group_len = 1
-    mask_seq += f"{current_group}{current_group_len}"
+    # For the last mask group, check if we need to pad with Ns to match the number of cycles used
+    if cycles_used > mask_len:
+        diff = cycles_used - mask_len
+        if current_group == "N":
+            current_group_len += diff
+            mask += f"{current_group}{current_group_len}"
+        else:
+            mask += f"{current_group}{current_group_len}"
+            mask += f"N{diff}"
 
-    # Use the worlds ugliest string parsing to check that the mask length matches the input sequence length
-    assert sum(
-        [
-            int(n)
-            for n in mask_seq[3:]
-            .replace("N", "-")
-            .replace("Y", "-")
-            .strip("-")
-            .split("-")
-        ]
-    ) == len(
-        seq
-    ), f"Length of mask '{mask_seq}' does not match length of input seq '{seq}'"
+    # Parse mask string to check that it matches the number of cycles used
+    assert (
+        sum(
+            [
+                int(n)
+                for n in mask[3:]
+                .replace("N", "-")
+                .replace("Y", "-")
+                .strip("-")
+                .split("-")
+            ]
+        )
+        == cycles_used
+    ), f"Length of mask '{mask}' does not match number of cycles used '{cycles_used}'."
 
-    # TODO update this when we get the actual cycles used from the run parameters
-    if cycles_used is not None:
-        if cycles_used > len(mask_seq):
-            mask_seq += f"N{cycles_used-len(mask_seq)}"
-
-    return mask_seq
+    return mask
 
 
 class Run:
@@ -192,7 +201,7 @@ class Run:
             "RunType"
         )  # Sequencing, wash or prime I believe?
         self.flowcell_id = run_parameters.get("FlowcellID")
-        self.cycles = run_parameters.get("Cycles", {'R1': 0, 'R2': 0, 'I1': 0, 'I2': 0})
+        self.cycles = run_parameters.get("Cycles", {"R1": 0, "R2": 0, "I1": 0, "I2": 0})
         self.instrument_name = run_parameters.get("InstrumentName")
         self.date = run_parameters.get("Date")[0:10].replace("-", "")
         self.year = self.date[0:4]
@@ -448,16 +457,29 @@ class Run:
         df_samples["has_umi"] = df_samples["Index2"].str.contains("N")
 
         # Add cols denoting idx and umi masks
-        df_samples["I1Mask"] = df_samples[
-            "Index1"
-        ].apply(  # TODO get cycles from run parameters
-            lambda seq: get_mask(seq, "index", "I1:", None)
+        df_samples["I1Mask"] = df_samples["Index1"].apply(
+            lambda seq: get_mask(
+                seq=seq,
+                mask_type="index",
+                prefix="I1:",
+                cycles_used=self.cycles["I1"],
+            )
         )
         df_samples["I2Mask"] = df_samples["Index2"].apply(
-            lambda seq: get_mask(seq, "index", "I2:", None)
+            lambda seq: get_mask(
+                seq=seq,
+                mask_type="index",
+                prefix="I2:",
+                cycles_used=self.cycles["I2"],
+            )
         )
         df_samples["UmiMask"] = df_samples["Index2"].apply(
-            lambda seq: get_mask(seq, "umi", "I2:", None)
+            lambda seq: get_mask(
+                seq=seq,
+                mask_type="umi",
+                prefix="I2:",
+                cycles_used=self.cycles["I2"],
+            )
         )
 
         # Re-make idx col without Ns
@@ -493,8 +515,8 @@ class Run:
             )
 
             recipe_split = recipe.split("-")
-            R1Mask = f"R1:Y{recipe_split[0]}N*"  # TODO remove asterisk by getting de-facto cycles from run parameters
-            R2Mask = f"R2:Y{recipe_split[3]}N*"  # TODO remove asterisk by getting de-facto cycles from run parameters
+            R1Mask = f"R1:Y{recipe_split[0]}N{self.cycles['R1']}"
+            R2Mask = f"R2:Y{recipe_split[3]}N{self.cycles['R2']}"
 
             settings_section = "\n".join(
                 [
