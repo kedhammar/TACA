@@ -6,6 +6,7 @@ import os
 
 from taca.element.Aviti_Runs import Aviti_Run
 from taca.utils.config import CONFIG
+from taca.utils.misc import send_mail
 
 logger = logging.getLogger(__name__)
 
@@ -27,11 +28,16 @@ def run_preprocessing(given_run):
             logger.warning(
                 f"Cannot reliably set NGI_run_id for {run} due to missing RunParameters.json. Aborting run processing"
             )
+            email_subject = f"Issues processing {run}"
+            email_message = (
+                f"RunParameters.json missing for {run}. Processing was aborted."
+            )
+            send_mail(email_subject, email_message, CONFIG["mail"]["recipients"])
             raise
 
         #### Sequencing status ####
         sequencing_done = run.check_sequencing_status()
-        if not sequencing_done:  # Sequencing ongoing
+        if not sequencing_done:
             run.status = "sequencing"
             if run.status_changed:
                 run.update_statusdb()
@@ -40,7 +46,6 @@ def run_preprocessing(given_run):
         #### Demultiplexing status ####
         demultiplexing_status = run.get_demultiplexing_status()
         if demultiplexing_status == "not started":
-            # Sequencing done. Start demux
             if run.manifest_exists():
                 os.mkdir(run.demux_dir)
                 run.copy_manifests()
@@ -61,7 +66,11 @@ def run_preprocessing(given_run):
                 logger.warning(
                     f"Run manifest is missing for {run}, demultiplexing aborted"
                 )
-                # TODO: email operator warning
+                email_subject = f"Issues processing {run}"
+                email_message = (
+                    f"Run manifest is missing for {run}, demultiplexing aborted"
+                )
+                send_mail(email_subject, email_message, CONFIG["mail"]["recipients"])
                 return
         elif demultiplexing_status == "ongoing":
             run.status = "demultiplexing"
@@ -71,8 +80,13 @@ def run_preprocessing(given_run):
 
         elif demultiplexing_status != "finished":
             logger.warning(
-                f"Unknown demultiplexing status {demultiplexing_status} of run {run}. Please investigate"
+                f"Unknown demultiplexing status {demultiplexing_status} of run {run}. Please investigate."
             )
+            email_subject = f"Issues processing {run}"
+            email_message = (
+                f"Unknown demultiplexing status {demultiplexing_status} of run {run}. Please investigate."
+            )
+            send_mail(email_subject, email_message, CONFIG["mail"]["recipients"])
             return
 
         #### Transfer status ####
@@ -115,12 +129,17 @@ def run_preprocessing(given_run):
                 logger.warning(
                     f"An issue occurred while transfering {run} to the analysis cluster."
                 )
-                # TODO: email warning to operator
+                email_subject = f"Issues processing {run}"
+                email_message = f"An issue occurred while transfering {run} to the analysis cluster."
+                send_mail(email_subject, email_message, CONFIG["mail"]["recipients"])
             return
         else:
             logger.warning(
-                f"Unknown transfer status {transfer_status} of run {run}. Please investigate"
-            )  # TODO: email warning to operator
+                f"Unknown transfer status {transfer_status} of run {run}, please investigate."
+            )
+            email_subject = f"Issues processing {run}"
+            email_message = f"Unknown transfer status {transfer_status} of run {run}, please investigate."
+            send_mail(email_subject, email_message, CONFIG["mail"]["recipients"])
             return
 
     if given_run:
