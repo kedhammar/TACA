@@ -46,9 +46,10 @@ def run_preprocessing(given_run):
         #### Demultiplexing status ####
         demultiplexing_status = run.get_demultiplexing_status()
         if demultiplexing_status == "not started":
-            if run.manifest_exists():
+            lims_zip_path = run.find_lims_zip()
+            if lims_zip_path is not None:
                 os.mkdir(run.demux_dir)
-                run.copy_manifests()
+                run.copy_manifests(lims_zip_path)
                 run_manifests = glob.glob(
                     os.path.join(run.run_dir, "RunManifest_*.csv")
                 )
@@ -83,9 +84,7 @@ def run_preprocessing(given_run):
                 f"Unknown demultiplexing status {demultiplexing_status} of run {run}. Please investigate."
             )
             email_subject = f"Issues processing {run}"
-            email_message = (
-                f"Unknown demultiplexing status {demultiplexing_status} of run {run}. Please investigate."
-            )
+            email_message = f"Unknown demultiplexing status {demultiplexing_status} of run {run}. Please investigate."
             send_mail(email_subject, email_message, CONFIG["mail"]["recipients"])
             return
 
@@ -146,9 +145,7 @@ def run_preprocessing(given_run):
         run = Aviti_Run(given_run, CONFIG)
         _process(run)
     else:
-        data_dirs = CONFIG.get("element_analysis").get(
-            "data_dirs"
-        )
+        data_dirs = CONFIG.get("element_analysis").get("data_dirs")
         for data_dir in data_dirs:
             # Run folder looks like DATE_*_*, the last section is the FC side (A/B) and name
             runs = glob.glob(os.path.join(data_dir, "[1-9]*_*_*"))

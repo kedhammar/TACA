@@ -331,27 +331,19 @@ class Run:
         doc_obj = self.to_doc_obj()
         self.db.upload_to_statusdb(doc_obj)
 
-    def manifest_exists(self):
-        zip_src_path = self.find_manifest_zip()
-        return os.path.isfile(zip_src_path)
-
     def get_lims_step_id(self) -> str | None:
         """If the run was started using a LIMS-generated manifest,
         the ID of the LIMS step can be extracted from it.
         """
 
-        # TODO: test me
+        with open(self.run_manifest_file_from_instrument) as json_file:
+            manifest_json = json.load(json_file)
 
-        assert self.manifest_exists(), "Run manifest not found"
-        with open(self.run_manifest_file_from_instrument) as csv_file:
-            manifest_lines = csv_file.readlines()
-        for line in manifest_lines:
-            if "lims_step_id" in line:
-                lims_step_id = line.split(",")[1]
-                return lims_step_id
-        return None
+        lims_step_id = manifest_json.get("RunValues").get("lims_step_id")
 
-    def find_manifest_zip(self):
+        return lims_step_id
+
+    def find_lims_zip(self) -> str | None:
         # Specify dir in which LIMS drop the manifest zip files
         dir_to_search = os.path.join(
             self.CONFIG.get("element_analysis")
@@ -362,7 +354,8 @@ class Run:
         )
 
         # Use LIMS step ID if available, else flowcell ID, to make a query pattern
-        if self.lims_step_id:
+        self.lims_step_id = self.get_lims_step_id()
+        if self.lims_step_id is not None:
             logging.info(
                 f"Using LIMS step ID '{self.lims_step_id}' to find LIMS run manifests."
             )
@@ -379,20 +372,19 @@ class Run:
             logger.warning(
                 f"No manifest found for run '{self.run_dir}' with pattern '{glob_pattern}'."
             )
-            return False  # TODO: determine whether to raise an error here instead
+            return None
         elif len(glob_results) > 1:
             logger.warning(
                 f"Multiple manifests found for run '{self.run_dir}' with pattern '{glob_pattern}', using latest one."
             )
             glob_results.sort()
-            zip_src_path = glob_results[-1]
+            lims_zip_src_path = glob_results[-1]
         else:
-            zip_src_path = glob_results[0]
-        return zip_src_path
+            lims_zip_src_path = glob_results[0]
+        return lims_zip_src_path
 
-    def copy_manifests(self) -> bool:
+    def copy_manifests(self, zip_src_path) -> bool:
         """Fetch the LIMS-generated run manifests from ngi-nas-ns and unzip them into a run subdir."""
-        zip_src_path = self.find_manifest_zip()
         # Make a run subdir named after the zip file and extract manifests there
         zip_name = os.path.basename(zip_src_path)
         zip_dst_path = os.path.join(self.run_dir, zip_name)
