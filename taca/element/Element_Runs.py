@@ -86,6 +86,8 @@ def get_mask(
         else:
             mask += f"{current_group}{current_group_len}"
             mask += f"N{diff}"
+    else:
+        mask += f"{current_group}{current_group_len}"
 
     # Parse mask string to check that it matches the number of cycles used
     assert (
@@ -386,29 +388,24 @@ class Run:
     def copy_manifests(self, zip_src_path) -> bool:
         """Fetch the LIMS-generated run manifests from ngi-nas-ns and unzip them into a run subdir."""
         # Make a run subdir named after the zip file and extract manifests there
-        zip_name = os.path.basename(zip_src_path)
-        zip_dst_path = os.path.join(self.run_dir, zip_name)
-        os.mkdir(zip_dst_path)
 
+        # Extract the contents of the zip file into the destination directory
+        unzipped_manifests = []
         with zipfile.ZipFile(zip_src_path, "r") as zip_ref:
-            zip_ref.extractall(zip_dst_path)
+            for member in zip_ref.namelist():
+                # Extract each file individually into the destination directory
+                filename = os.path.basename(member)
+                if filename:  # Skip directories
+                    source = zip_ref.open(member)
+                    target = open(os.path.join(self.run_dir, filename), "wb")
+                    unzipped_manifests.append(target.name)
+                    with source, target:
+                        target.write(source.read())
 
-        # Set the paths of the different manifests as attributes
-        manifests = os.listdir(zip_dst_path)
-        self.lims_full_manifest = [
-            m for m in manifests if re.match(r".*_untrimmed\.csv$", m)
+        # Pick out the manifest to use
+        self.lims_manifest = [
+            m for m in unzipped_manifests if re.match(r".*_untrimmed\.csv$", m)
         ][0]
-        self.lims_start_manifest = [
-            m for m in manifests if re.match(r".*_trimmed\.csv$", m)
-        ][0]
-        self.lims_empty_manifest = [
-            m for m in manifests if re.match(r".*_empty\.csv$", m)
-        ][0]
-        self.lims_demux_manifests = [
-            m for m in manifests if re.match(r".*_\d+\.csv$", m)
-        ]
-
-        return True
 
     def make_demux_manifests(
         self, manifest_to_split: os.PathLike, outdir: os.PathLike | None = None

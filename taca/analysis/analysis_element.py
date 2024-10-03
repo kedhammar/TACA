@@ -50,14 +50,14 @@ def run_preprocessing(given_run):
             if lims_zip_path is not None:
                 os.mkdir(run.demux_dir)
                 run.copy_manifests(lims_zip_path)
-                run_manifests = glob.glob(
-                    os.path.join(run.run_dir, "RunManifest_*.csv")
+                demux_manifests = run.make_demux_manifests(
+                    manifest_to_split=run.lims_manifest
                 )
                 sub_demux_count = 0
-                for run_manifest in run_manifests.sort():
+                for demux_manifest in demux_manifests.sort():
                     demux_dir = f"Demultiplexing_{sub_demux_count}"
                     os.mkdir(demux_dir)
-                    run.start_demux(run_manifest, demux_dir)
+                    run.start_demux(demux_manifest, demux_dir)
                     sub_demux_count += 1
                 run.status = "demultiplexing"
                 if run.status_changed:
