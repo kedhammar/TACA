@@ -130,7 +130,7 @@ class Run:
             .get("Element", {})
             .get(self.sequencer_type, {})
             .get("transfer_log")
-        )  # TODO: add to taca.yaml
+        )
         self.rsync_exit_file = os.path.join(self.run_dir, ".rsync_exit_status")
 
         # Instrument generated files
@@ -340,7 +340,7 @@ class Run:
         the ID of the LIMS step can be extracted from it.
         """
 
-        # TODO test me
+        # TODO: test me
 
         assert self.manifest_exists(), "Run manifest not found"
         with open(self.run_manifest_file_from_instrument) as csv_file:
@@ -357,7 +357,7 @@ class Run:
             self.CONFIG.get("element_analysis")
             .get("Element", {})
             .get(self.sequencer_type, {})
-            .get("manifest_zip_location"),  # TODO: add to taca.yaml
+            .get("manifest_zip_location"),
             str(self.year),
         )
 
@@ -575,7 +575,7 @@ class Run:
 
     def generate_demux_command(self, run_manifest, demux_dir):
         command = (
-            f"{self.CONFIG.get('element_analysis').get('bases2fastq')}"  # TODO: add path to bases2fastq executable to config
+            f"{self.CONFIG.get('element_analysis').get('bases2fastq')}"
             + f" {self.run_dir}"
             + f" {demux_dir}"
             + " -p 8"
@@ -583,7 +583,7 @@ class Run:
             + f" -r {run_manifest}"
             + " --legacy-fastq"
             + " --force-index-orientation"
-        )  # TODO: any other options?
+        )
         with open(os.path.join(self.run_dir, ".bases2fastq_command")) as command_file:
             command_file.write(command)
         return command
@@ -1091,7 +1091,7 @@ class Run:
         ]
         metadata_archive = self.CONFIG.get("element_analysis").get(
             "metadata_location"
-        )  # TODO: add to taca.yaml
+        )
         dest = os.path.join(metadata_archive, self.NGI_run_id)
         os.makedirs(dest)
         for f in files_to_copy:
@@ -1104,7 +1104,7 @@ class Run:
     def transfer(self):
         transfer_details = self.CONFIG.get("element_analysis").get(
             "transfer_details"
-        )  # TODO: Add section to taca.yaml
+        )
         command = (
             "rsync"
             + " -rLav"

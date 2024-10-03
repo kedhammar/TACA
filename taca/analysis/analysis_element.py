@@ -148,7 +148,7 @@ def run_preprocessing(given_run):
     else:
         data_dirs = CONFIG.get("element_analysis").get(
             "data_dirs"
-        )  # TODO: add to config
+        )
         for data_dir in data_dirs:
             # Run folder looks like DATE_*_*, the last section is the FC side (A/B) and name
             runs = glob.glob(os.path.join(data_dir, "[1-9]*_*_*"))
