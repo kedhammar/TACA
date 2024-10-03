@@ -385,7 +385,7 @@ class Run:
             lims_zip_src_path = glob_results[0]
         return lims_zip_src_path
 
-    def copy_manifests(self, zip_src_path) -> bool:
+    def copy_manifests(self, zip_src_path):
         """Fetch the LIMS-generated run manifests from ngi-nas-ns and unzip them into a run subdir."""
         # Make a run subdir named after the zip file and extract manifests there
 
