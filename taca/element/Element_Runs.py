@@ -191,7 +191,7 @@ class Run:
         self.run_name = run_parameters.get("RunName")
 
         self.run_id = run_parameters.get(
-            "runID"
+            "RunID"
         )  # Unique hash that we don't really use
         self.side = run_parameters.get("Side")  # SideA or SideB
         self.side_letter = self.side[
@@ -1089,9 +1089,7 @@ class Run:
             os.path.join(self.run_dir, "Demultiplexing", "UnassignedSequences.csv"),
             self.run_parameters_file,
         ]
-        metadata_archive = self.CONFIG.get("element_analysis").get(
-            "metadata_location"
-        )
+        metadata_archive = self.CONFIG.get("element_analysis").get("metadata_location")
         dest = os.path.join(metadata_archive, self.NGI_run_id)
         os.makedirs(dest)
         for f in files_to_copy:
@@ -1102,9 +1100,7 @@ class Run:
         Path(transfer_indicator).touch()
 
     def transfer(self):
-        transfer_details = self.CONFIG.get("element_analysis").get(
-            "transfer_details"
-        )
+        transfer_details = self.CONFIG.get("element_analysis").get("transfer_details")
         command = (
             "rsync"
             + " -rLav"
