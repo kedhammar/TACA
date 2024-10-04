@@ -442,10 +442,10 @@ class Run:
         df_samples = df[df["Project"] != "Control"].copy()
         df_controls = df[df["Project"] == "Control"].copy()
 
-        # Bool indicating whether UMI is present
+        # Add bool indicating whether UMI is present
         df_samples["has_umi"] = df_samples["Index2"].str.contains("N")
 
-        # Add cols denoting idx and umi masks
+        # Add masks for indices and UMIs
         df_samples["I1Mask"] = df_samples["Index1"].apply(
             lambda seq: get_mask(
                 seq=seq,
@@ -471,7 +471,7 @@ class Run:
             )
         )
 
-        # Re-make idx col without Ns
+        # Re-make Index2 column without any Ns
         df_samples["Index2_umi"] = df_samples["Index2"]
         df_samples.loc[:, "Index2"] = df_samples["Index2"].apply(
             lambda x: x.replace("N", "")
@@ -482,15 +482,21 @@ class Run:
             outdir = self.run_dir
 
         # Break down into groups by non-consolable properties
-        grouped_df = df_samples.groupby(
-            ["I1Mask", "I2Mask", "UmiMask", "Lane", "Recipe"]
-        )
+        grouped_df = df_samples.groupby(["I1Mask", "I2Mask", "UmiMask", "Recipe"])
+
+        # Sanity check
+        if sum([len(group) for _, group in grouped_df]) < len(df_samples):
+            msg = "Some samples were not included in any submanifest."
+            logging.error(msg)
+            raise AssertionError(msg)
+        elif sum([len(group) for _, group in grouped_df]) > len(df_samples):
+            logging.warning("Some samples were included in multiple submanifests.")
 
         # Iterate over groups to build composite manifests
         manifest_root_name = f"{self.NGI_run_id}_demux"
         manifests = []
         n = 0
-        for (I1Mask, I2Mask, UmiMask, lane, recipe), group in grouped_df:
+        for (I1Mask, I2Mask, UmiMask, recipe), group in grouped_df:
             file_name = f"{manifest_root_name}_{n}.csv"
 
             runValues_section = "\n".join(
@@ -499,7 +505,7 @@ class Run:
                     "KeyName, Value",
                     f'manifest_file, "{file_name}"',
                     f"manifest_group, {n+1}/{len(grouped_df)}",
-                    f"grouped_by, I1Mask:'{I1Mask}' I2Mask:'{I2Mask}' UmiMask:'{UmiMask}' lane:{lane} recipe:'{recipe}'",
+                    f"grouped_by, I1Mask:'{I1Mask}' I2Mask:'{I2Mask}' UmiMask:'{UmiMask}' recipe:'{recipe}'",
                 ]
             )
 
@@ -527,8 +533,9 @@ class Run:
                 )
 
             # Add PhiX stratified by index length
-            # Subset controls by lane
-            group_controls = df_controls[df_controls["Lane"] == lane].copy()
+            group_controls = df_controls[
+                df_controls["Lane"].isin(group["Lane"].unique())
+            ].copy()
 
             # Trim PhiX indexes to match group
             i1_len = group["Index1"].apply(len).max()
