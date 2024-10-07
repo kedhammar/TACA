@@ -30,9 +30,14 @@ def get_mask(
     get_mask("ACGTNNN", "index", "I2:", 10) -> 'I2:Y4N6'
     """
 
+    if not seq and prefix == "I2:":
+        mask = "I2:N*"
+        return mask
+    if not seq and mask_type == "umi":
+        mask = "I2:Y*"
+        return mask
+    
     # Input assertions
-    if not seq:
-        return ""
     assert re.match(r"^[ACGTN]+$", seq), f"Index '{seq}' has non-ACGTN characters"
     assert mask_type in ["umi", "index"], "Mask type must be 'umi' or 'index'"
     assert prefix in [
@@ -519,14 +524,12 @@ class Run:
                 [
                     "[SETTINGS]",
                     "SettingName, Value",
-                    f"R1Mask, {R1Mask}",
+                    f"R1FastqMask, {R1Mask}",
                     f"I1Mask, {I1Mask}",
-                    f"R2Mask, {R2Mask}",
+                    f"I2Mask, {I2Mask}"
+                    f"R2FastqMask, {R2Mask}",
                 ]
             )
-            
-            if I2Mask != "":
-                settings_section += f"\nI2Mask, {I2Mask}"
 
             if group["has_umi"].all():
                 settings_section += "\n" + "\n".join(
@@ -584,7 +587,9 @@ class Run:
             + " --legacy-fastq"
             + " --force-index-orientation"
         )
-        with open(os.path.join(self.run_dir, ".bases2fastq_command")) as command_file:
+        with open(
+            os.path.join(self.run_dir, ".bases2fastq_command"), "w"
+        ) as command_file:
             command_file.write(command)
         return command
 

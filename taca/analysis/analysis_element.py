@@ -55,9 +55,11 @@ def run_preprocessing(given_run):
                 )
                 sub_demux_count = 0
                 for demux_manifest in sorted(demux_manifests):
-                    demux_dir = f"Demultiplexing_{sub_demux_count}"
-                    os.mkdir(demux_dir)
-                    run.start_demux(demux_manifest, demux_dir)
+                    sub_demux_dir = os.path.join(
+                        run.run_dir, f"Demultiplexing_{sub_demux_count}"
+                    )
+                    os.mkdir(sub_demux_dir)
+                    run.start_demux(demux_manifest, sub_demux_dir)
                     sub_demux_count += 1
                 run.status = "demultiplexing"
                 if run.status_changed:
