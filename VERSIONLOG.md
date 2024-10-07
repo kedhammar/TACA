@@ -1,5 +1,9 @@
 # TACA Version Log
 
+## 20241007.1
+
+Update taca-ngi-pipeline repo URL in README
+
 ## 20240927.1
 
 For re-demux: keep PDC archive date if exists
