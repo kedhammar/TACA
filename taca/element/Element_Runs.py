@@ -517,8 +517,8 @@ class Run:
             )
 
             recipe_split = recipe.split("-")
-            R1Mask = f"R1:Y{recipe_split[0]}N{self.cycles['R1']}"
-            R2Mask = f"R2:Y{recipe_split[3]}N{self.cycles['R2']}"
+            R1Mask = f"R1:Y{recipe_split[0]}"
+            R2Mask = f"R2:Y{recipe_split[3]}"
 
             settings_section = "\n".join(
                 [
@@ -526,7 +526,7 @@ class Run:
                     "SettingName, Value",
                     f"R1FastqMask, {R1Mask}",
                     f"I1Mask, {I1Mask}",
-                    f"I2Mask, {I2Mask}"
+                    f"I2Mask, {I2Mask}",
                     f"R2FastqMask, {R2Mask}",
                 ]
             )
