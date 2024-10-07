@@ -639,7 +639,7 @@ class Run:
             return False
 
     # Clear all content under a dir
-    def clear_dir(dir):
+    def clear_dir(self, dir):
         for filename in os.listdir(dir):
             file_path = os.path.join(dir, filename)
             try:
@@ -651,7 +651,7 @@ class Run:
                 print(f"Failed to delete {file_path} Reason {e}")
 
     # Write to csv
-    def write_to_csv(data, filename):
+    def write_to_csv(self, data, filename):
         # Get the fieldnames from the keys of the first dictionary
         fieldnames = data[0].keys()
         # Open the file and write the CSV
