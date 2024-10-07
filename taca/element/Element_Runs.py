@@ -31,6 +31,8 @@ def get_mask(
     """
 
     # Input assertions
+    if not seq:
+        return None
     assert re.match(r"^[ACGTN]+$", seq), f"Index '{seq}' has non-ACGTN characters"
     assert mask_type in ["umi", "index"], "Mask type must be 'umi' or 'index'"
     assert prefix in [
@@ -519,10 +521,12 @@ class Run:
                     "SettingName, Value",
                     f"R1Mask, {R1Mask}",
                     f"I1Mask, {I1Mask}",
-                    f"I2Mask, {I2Mask}",
                     f"R2Mask, {R2Mask}",
                 ]
             )
+            
+            if I2Mask:
+                settings_section += f"\nI2Mask, {I2Mask}"
 
             if group["has_umi"].all():
                 settings_section += "\n" + "\n".join(
