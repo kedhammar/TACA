@@ -54,7 +54,7 @@ def run_preprocessing(given_run):
                     manifest_to_split=run.lims_manifest
                 )
                 sub_demux_count = 0
-                for demux_manifest in demux_manifests.sort():
+                for demux_manifest in sorted(demux_manifests):
                     demux_dir = f"Demultiplexing_{sub_demux_count}"
                     os.mkdir(demux_dir)
                     run.start_demux(demux_manifest, demux_dir)
