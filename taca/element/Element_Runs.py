@@ -86,6 +86,8 @@ def get_mask(
         else:
             mask += f"{current_group}{current_group_len}"
             mask += f"N{diff}"
+    else:
+        mask += f"{current_group}{current_group_len}"
 
     # Parse mask string to check that it matches the number of cycles used
     assert (
@@ -191,7 +193,7 @@ class Run:
         self.run_name = run_parameters.get("RunName")
 
         self.run_id = run_parameters.get(
-            "runID"
+            "RunID"
         )  # Unique hash that we don't really use
         self.side = run_parameters.get("Side")  # SideA or SideB
         self.side_letter = self.side[
@@ -331,27 +333,19 @@ class Run:
         doc_obj = self.to_doc_obj()
         self.db.upload_to_statusdb(doc_obj)
 
-    def manifest_exists(self):
-        zip_src_path = self.find_manifest_zip()
-        return os.path.isfile(zip_src_path)
-
     def get_lims_step_id(self) -> str | None:
         """If the run was started using a LIMS-generated manifest,
         the ID of the LIMS step can be extracted from it.
         """
 
-        # TODO: test me
+        with open(self.run_manifest_file_from_instrument) as json_file:
+            manifest_json = json.load(json_file)
 
-        assert self.manifest_exists(), "Run manifest not found"
-        with open(self.run_manifest_file_from_instrument) as csv_file:
-            manifest_lines = csv_file.readlines()
-        for line in manifest_lines:
-            if "lims_step_id" in line:
-                lims_step_id = line.split(",")[1]
-                return lims_step_id
-        return None
+        lims_step_id = manifest_json.get("RunValues").get("lims_step_id")
 
-    def find_manifest_zip(self):
+        return lims_step_id
+
+    def find_lims_zip(self) -> str | None:
         # Specify dir in which LIMS drop the manifest zip files
         dir_to_search = os.path.join(
             self.CONFIG.get("element_analysis")
@@ -362,7 +356,8 @@ class Run:
         )
 
         # Use LIMS step ID if available, else flowcell ID, to make a query pattern
-        if self.lims_step_id:
+        self.lims_step_id = self.get_lims_step_id()
+        if self.lims_step_id is not None:
             logging.info(
                 f"Using LIMS step ID '{self.lims_step_id}' to find LIMS run manifests."
             )
@@ -379,44 +374,38 @@ class Run:
             logger.warning(
                 f"No manifest found for run '{self.run_dir}' with pattern '{glob_pattern}'."
             )
-            return False  # TODO: determine whether to raise an error here instead
+            return None
         elif len(glob_results) > 1:
             logger.warning(
                 f"Multiple manifests found for run '{self.run_dir}' with pattern '{glob_pattern}', using latest one."
             )
             glob_results.sort()
-            zip_src_path = glob_results[-1]
+            lims_zip_src_path = glob_results[-1]
         else:
-            zip_src_path = glob_results[0]
-        return zip_src_path
+            lims_zip_src_path = glob_results[0]
+        return lims_zip_src_path
 
-    def copy_manifests(self) -> bool:
+    def copy_manifests(self, zip_src_path):
         """Fetch the LIMS-generated run manifests from ngi-nas-ns and unzip them into a run subdir."""
-        zip_src_path = self.find_manifest_zip()
         # Make a run subdir named after the zip file and extract manifests there
-        zip_name = os.path.basename(zip_src_path)
-        zip_dst_path = os.path.join(self.run_dir, zip_name)
-        os.mkdir(zip_dst_path)
 
+        # Extract the contents of the zip file into the destination directory
+        unzipped_manifests = []
         with zipfile.ZipFile(zip_src_path, "r") as zip_ref:
-            zip_ref.extractall(zip_dst_path)
+            for member in zip_ref.namelist():
+                # Extract each file individually into the destination directory
+                filename = os.path.basename(member)
+                if filename:  # Skip directories
+                    source = zip_ref.open(member)
+                    target = open(os.path.join(self.run_dir, filename), "wb")
+                    unzipped_manifests.append(target.name)
+                    with source, target:
+                        target.write(source.read())
 
-        # Set the paths of the different manifests as attributes
-        manifests = os.listdir(zip_dst_path)
-        self.lims_full_manifest = [
-            m for m in manifests if re.match(r".*_untrimmed\.csv$", m)
+        # Pick out the manifest to use
+        self.lims_manifest = [
+            m for m in unzipped_manifests if re.match(r".*_untrimmed\.csv$", m)
         ][0]
-        self.lims_start_manifest = [
-            m for m in manifests if re.match(r".*_trimmed\.csv$", m)
-        ][0]
-        self.lims_empty_manifest = [
-            m for m in manifests if re.match(r".*_empty\.csv$", m)
-        ][0]
-        self.lims_demux_manifests = [
-            m for m in manifests if re.match(r".*_\d+\.csv$", m)
-        ]
-
-        return True
 
     def make_demux_manifests(
         self, manifest_to_split: os.PathLike, outdir: os.PathLike | None = None
@@ -453,10 +442,10 @@ class Run:
         df_samples = df[df["Project"] != "Control"].copy()
         df_controls = df[df["Project"] == "Control"].copy()
 
-        # Bool indicating whether UMI is present
+        # Add bool indicating whether UMI is present
         df_samples["has_umi"] = df_samples["Index2"].str.contains("N")
 
-        # Add cols denoting idx and umi masks
+        # Add masks for indices and UMIs
         df_samples["I1Mask"] = df_samples["Index1"].apply(
             lambda seq: get_mask(
                 seq=seq,
@@ -482,7 +471,7 @@ class Run:
             )
         )
 
-        # Re-make idx col without Ns
+        # Re-make Index2 column without any Ns
         df_samples["Index2_umi"] = df_samples["Index2"]
         df_samples.loc[:, "Index2"] = df_samples["Index2"].apply(
             lambda x: x.replace("N", "")
@@ -493,15 +482,21 @@ class Run:
             outdir = self.run_dir
 
         # Break down into groups by non-consolable properties
-        grouped_df = df_samples.groupby(
-            ["I1Mask", "I2Mask", "UmiMask", "Lane", "Recipe"]
-        )
+        grouped_df = df_samples.groupby(["I1Mask", "I2Mask", "UmiMask", "Recipe"])
+
+        # Sanity check
+        if sum([len(group) for _, group in grouped_df]) < len(df_samples):
+            msg = "Some samples were not included in any submanifest."
+            logging.error(msg)
+            raise AssertionError(msg)
+        elif sum([len(group) for _, group in grouped_df]) > len(df_samples):
+            logging.warning("Some samples were included in multiple submanifests.")
 
         # Iterate over groups to build composite manifests
         manifest_root_name = f"{self.NGI_run_id}_demux"
         manifests = []
         n = 0
-        for (I1Mask, I2Mask, UmiMask, lane, recipe), group in grouped_df:
+        for (I1Mask, I2Mask, UmiMask, recipe), group in grouped_df:
             file_name = f"{manifest_root_name}_{n}.csv"
 
             runValues_section = "\n".join(
@@ -510,7 +505,7 @@ class Run:
                     "KeyName, Value",
                     f'manifest_file, "{file_name}"',
                     f"manifest_group, {n+1}/{len(grouped_df)}",
-                    f"grouped_by, I1Mask:'{I1Mask}' I2Mask:'{I2Mask}' UmiMask:'{UmiMask}' lane:{lane} recipe:'{recipe}'",
+                    f"grouped_by, I1Mask:'{I1Mask}' I2Mask:'{I2Mask}' UmiMask:'{UmiMask}' recipe:'{recipe}'",
                 ]
             )
 
@@ -538,8 +533,9 @@ class Run:
                 )
 
             # Add PhiX stratified by index length
-            # Subset controls by lane
-            group_controls = df_controls[df_controls["Lane"] == lane].copy()
+            group_controls = df_controls[
+                df_controls["Lane"].isin(group["Lane"].unique())
+            ].copy()
 
             # Trim PhiX indexes to match group
             i1_len = group["Index1"].apply(len).max()
@@ -1089,9 +1085,7 @@ class Run:
             os.path.join(self.run_dir, "Demultiplexing", "UnassignedSequences.csv"),
             self.run_parameters_file,
         ]
-        metadata_archive = self.CONFIG.get("element_analysis").get(
-            "metadata_location"
-        )
+        metadata_archive = self.CONFIG.get("element_analysis").get("metadata_location")
         dest = os.path.join(metadata_archive, self.NGI_run_id)
         os.makedirs(dest)
         for f in files_to_copy:
@@ -1102,9 +1096,7 @@ class Run:
         Path(transfer_indicator).touch()
 
     def transfer(self):
-        transfer_details = self.CONFIG.get("element_analysis").get(
-            "transfer_details"
-        )
+        transfer_details = self.CONFIG.get("element_analysis").get("transfer_details")
         command = (
             "rsync"
             + " -rLav"
