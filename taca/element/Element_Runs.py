@@ -20,32 +20,36 @@ logger = logging.getLogger(__name__)
 
 def get_mask(
     seq: str,
-    mask_type: str,
+    keep_Ns: bool,
     prefix: str,
     cycles_used: int,
 ) -> str:
-    """Example usage:
+    """
+    Inputs:
+        seq             Sequence string to make mask from
+        keep_Ns         Whether Ns should be "Y" or "N" in the mask, vice versa for ACGT
+        prefix          Prefix to add to the mask
+        cycles_used     Number of cycles used in the sequencing run
 
-    get_mask("ACGTNNN", "umi", "I1:", None) -> 'I1:N4Y3'
-    get_mask("ACGTNNN", "index", "I2:", 10) -> 'I2:Y4N6'
+    Example usage:
+        get_mask( "ACGTNNN", True,  "I1:",  7 ) -> 'I1:N4Y3'
+        get_mask( "ACGTNNN", False, "I2:", 10 ) -> 'I2:Y4N6'
     """
 
-    if not seq and prefix == "I2:":
-        mask = "I2:N*"
-        return mask
-    if not seq and mask_type == "umi":
-        mask = "I2:Y*"
-        return mask
-    
     # Input assertions
-    assert re.match(r"^[ACGTN]+$", seq), f"Index '{seq}' has non-ACGTN characters"
-    assert mask_type in ["umi", "index"], "Mask type must be 'umi' or 'index'"
+    if seq != "":
+        assert re.match(r"^[ACGTN]+$", seq), f"Index '{seq}' has non-ACGTN characters"
     assert prefix in [
         "R1:",
         "R2:",
         "I1:",
         "I2:",
     ], f"Mask prefix {prefix} not recognized"
+
+    # Handle no-input cases
+    if seq == "":
+        mask = f"{prefix}N{cycles_used}"
+        return mask
 
     # Define dict to convert base to mask classifier
     base2mask = (
@@ -56,7 +60,7 @@ def get_mask(
             "G": "Y",
             "T": "Y",
         }
-        if mask_type == "index"
+        if keep_Ns is False
         else {
             "N": "Y",
             "A": "N",
@@ -452,11 +456,11 @@ class Run:
         # Add bool indicating whether UMI is present
         df_samples["has_umi"] = df_samples["Index2"].str.contains("N")
 
-        # Add masks for indices and UMIs
+        # Add masks
         df_samples["I1Mask"] = df_samples["Index1"].apply(
             lambda seq: get_mask(
                 seq=seq,
-                mask_type="index",
+                keep_Ns=False,
                 prefix="I1:",
                 cycles_used=self.cycles["I1"],
             )
@@ -464,7 +468,7 @@ class Run:
         df_samples["I2Mask"] = df_samples["Index2"].apply(
             lambda seq: get_mask(
                 seq=seq,
-                mask_type="index",
+                keep_Ns=False,
                 prefix="I2:",
                 cycles_used=self.cycles["I2"],
             )
@@ -472,14 +476,30 @@ class Run:
         df_samples["UmiMask"] = df_samples["Index2"].apply(
             lambda seq: get_mask(
                 seq=seq,
-                mask_type="umi",
+                keep_Ns=True,
                 prefix="I2:",
                 cycles_used=self.cycles["I2"],
             )
         )
+        df_samples["R1Mask"] = df_samples["Recipe"].apply(
+            lambda recipe: get_mask(
+                seq="N" * int(recipe.split("-")[0]),
+                keep_Ns=True,
+                prefix="R1:",
+                cycles_used=self.cycles["R1"],
+            )
+        )
+        df_samples["R2Mask"] = df_samples["Recipe"].apply(
+            lambda recipe: get_mask(
+                seq="N" * int(recipe.split("-")[3]),
+                keep_Ns=True,
+                prefix="R2:",
+                cycles_used=self.cycles["R2"],
+            )
+        )
 
         # Re-make Index2 column without any Ns
-        df_samples["Index2_umi"] = df_samples["Index2"]
+        df_samples["Index2_with_Ns"] = df_samples["Index2"]
         df_samples.loc[:, "Index2"] = df_samples["Index2"].apply(
             lambda x: x.replace("N", "")
         )
@@ -489,7 +509,9 @@ class Run:
             outdir = self.run_dir
 
         # Break down into groups by non-consolable properties
-        grouped_df = df_samples.groupby(["I1Mask", "I2Mask", "UmiMask", "Recipe"])
+        grouped_df = df_samples.groupby(
+            ["I1Mask", "I2Mask", "UmiMask", "R1Mask", "R2Mask", "Recipe"]
+        )
 
         # Sanity check
         if sum([len(group) for _, group in grouped_df]) < len(df_samples):
@@ -503,22 +525,17 @@ class Run:
         manifest_root_name = f"{self.NGI_run_id}_demux"
         manifests = []
         n = 0
-        for (I1Mask, I2Mask, UmiMask, recipe), group in grouped_df:
+        for (I1Mask, I2Mask, UmiMask, R1Mask, R2Mask, recipe), group in grouped_df:
             file_name = f"{manifest_root_name}_{n}.csv"
 
             runValues_section = "\n".join(
                 [
                     "[RUNVALUES]",
                     "KeyName, Value",
-                    f'manifest_file, "{file_name}"',
+                    f"manifest_file, {file_name}",
                     f"manifest_group, {n+1}/{len(grouped_df)}",
-                    f"grouped_by, I1Mask:'{I1Mask}' I2Mask:'{I2Mask}' UmiMask:'{UmiMask}' recipe:'{recipe}'",
                 ]
             )
-
-            recipe_split = recipe.split("-")
-            R1Mask = f"R1:Y{recipe_split[0]}"
-            R2Mask = f"R2:Y{recipe_split[3]}"
 
             settings_section = "\n".join(
                 [
