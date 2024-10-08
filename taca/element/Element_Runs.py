@@ -18,6 +18,106 @@ from taca.utils.statusdb import ElementRunsConnection
 logger = logging.getLogger(__name__)
 
 
+def get_mask(
+    seq: str,
+    keep_Ns: bool,
+    prefix: str,
+    cycles_used: int,
+) -> str:
+    """
+    Inputs:
+        seq             Sequence string to make mask from
+        keep_Ns         Whether Ns should be "Y" or "N" in the mask, vice versa for ACGT
+        prefix          Prefix to add to the mask
+        cycles_used     Number of cycles used in the sequencing run
+
+    Example usage:
+        get_mask( "ACGTNNN", True,  "I1:",  7 ) -> 'I1:N4Y3'
+        get_mask( "ACGTNNN", False, "I2:", 10 ) -> 'I2:Y4N6'
+    """
+
+    # Input assertions
+    if seq != "":
+        assert re.match(r"^[ACGTN]+$", seq), f"Index '{seq}' has non-ACGTN characters"
+    assert prefix in [
+        "R1:",
+        "R2:",
+        "I1:",
+        "I2:",
+    ], f"Mask prefix {prefix} not recognized"
+
+    # Handle no-input cases
+    if seq == "":
+        mask = f"{prefix}N{cycles_used}"
+        return mask
+
+    # Define dict to convert base to mask classifier
+    base2mask = (
+        {
+            "N": "N",
+            "A": "Y",
+            "C": "Y",
+            "G": "Y",
+            "T": "Y",
+        }
+        if keep_Ns is False
+        else {
+            "N": "Y",
+            "A": "N",
+            "C": "N",
+            "G": "N",
+            "T": "N",
+        }
+    )
+
+    # Instantiate the mask string
+    mask = ""
+    # Add the prefix
+    mask += prefix
+    # Loop through the input sequence and dynamically add mask groups
+    current_group = ""
+    current_group_len = 0
+    mask_len = 0
+    for base in seq:
+        mask_len += 1
+        if base2mask[base] == current_group:
+            current_group_len += 1
+        else:
+            mask += (
+                f"{current_group}{current_group_len}" if current_group_len > 0 else ""
+            )
+            current_group = base2mask[base]
+            current_group_len = 1
+    # For the last mask group, check if we need to pad with Ns to match the number of cycles used
+    if cycles_used > mask_len:
+        diff = cycles_used - mask_len
+        if current_group == "N":
+            current_group_len += diff
+            mask += f"{current_group}{current_group_len}"
+        else:
+            mask += f"{current_group}{current_group_len}"
+            mask += f"N{diff}"
+    else:
+        mask += f"{current_group}{current_group_len}"
+
+    # Parse mask string to check that it matches the number of cycles used
+    assert (
+        sum(
+            [
+                int(n)
+                for n in mask[3:]
+                .replace("N", "-")
+                .replace("Y", "-")
+                .strip("-")
+                .split("-")
+            ]
+        )
+        == cycles_used
+    ), f"Length of mask '{mask}' does not match number of cycles used '{cycles_used}'."
+
+    return mask
+
+
 class Run:
     """Defines an Element run"""
 
@@ -43,7 +143,7 @@ class Run:
             .get("Element", {})
             .get(self.sequencer_type, {})
             .get("transfer_log")
-        )  # TODO: add to taca.yaml
+        )
         self.rsync_exit_file = os.path.join(self.run_dir, ".rsync_exit_status")
 
         # Instrument generated files
@@ -104,7 +204,7 @@ class Run:
         self.run_name = run_parameters.get("RunName")
 
         self.run_id = run_parameters.get(
-            "runID"
+            "RunID"
         )  # Unique hash that we don't really use
         self.side = run_parameters.get("Side")  # SideA or SideB
         self.side_letter = self.side[
@@ -114,7 +214,7 @@ class Run:
             "RunType"
         )  # Sequencing, wash or prime I believe?
         self.flowcell_id = run_parameters.get("FlowcellID")
-        self.cycles = run_parameters.get("Cycles", {'R1': 0, 'R2': 0, 'I1': 0, 'I2': 0})
+        self.cycles = run_parameters.get("Cycles", {"R1": 0, "R2": 0, "I1": 0, "I2": 0})
         self.instrument_name = run_parameters.get("InstrumentName")
         self.date = run_parameters.get("Date")[0:10].replace("-", "")
         self.year = self.date[0:4]
@@ -244,38 +344,31 @@ class Run:
         doc_obj = self.to_doc_obj()
         self.db.upload_to_statusdb(doc_obj)
 
-    def manifest_exists(self):
-        zip_src_path = self.find_manifest_zip()
-        return os.path.isfile(zip_src_path)
-
     def get_lims_step_id(self) -> str | None:
         """If the run was started using a LIMS-generated manifest,
         the ID of the LIMS step can be extracted from it.
         """
 
-        # TODO test me
+        with open(self.run_manifest_file_from_instrument) as json_file:
+            manifest_json = json.load(json_file)
 
-        assert self.manifest_exists(), "Run manifest not found"
-        with open(self.run_manifest_file_from_instrument) as csv_file:
-            manifest_lines = csv_file.readlines()
-        for line in manifest_lines:
-            if "lims_step_id" in line:
-                lims_step_id = line.split(",")[1]
-                return lims_step_id
-        return None
+        lims_step_id = manifest_json.get("RunValues").get("lims_step_id")
 
-    def find_manifest_zip(self):
+        return lims_step_id
+
+    def find_lims_zip(self) -> str | None:
         # Specify dir in which LIMS drop the manifest zip files
         dir_to_search = os.path.join(
             self.CONFIG.get("element_analysis")
             .get("Element", {})
             .get(self.sequencer_type, {})
-            .get("manifest_zip_location"),  # TODO: add to taca.yaml
+            .get("manifest_zip_location"),
             str(self.year),
         )
 
         # Use LIMS step ID if available, else flowcell ID, to make a query pattern
-        if self.lims_step_id:
+        self.lims_step_id = self.get_lims_step_id()
+        if self.lims_step_id is not None:
             logging.info(
                 f"Using LIMS step ID '{self.lims_step_id}' to find LIMS run manifests."
             )
@@ -292,61 +385,56 @@ class Run:
             logger.warning(
                 f"No manifest found for run '{self.run_dir}' with pattern '{glob_pattern}'."
             )
-            return False  # TODO: determine whether to raise an error here instead
+            return None
         elif len(glob_results) > 1:
             logger.warning(
                 f"Multiple manifests found for run '{self.run_dir}' with pattern '{glob_pattern}', using latest one."
             )
             glob_results.sort()
-            zip_src_path = glob_results[-1]
+            lims_zip_src_path = glob_results[-1]
         else:
-            zip_src_path = glob_results[0]
-        return zip_src_path
+            lims_zip_src_path = glob_results[0]
+        return lims_zip_src_path
 
-    def copy_manifests(self) -> bool:
+    def copy_manifests(self, zip_src_path):
         """Fetch the LIMS-generated run manifests from ngi-nas-ns and unzip them into a run subdir."""
-        zip_src_path = self.find_manifest_zip()
         # Make a run subdir named after the zip file and extract manifests there
-        zip_name = os.path.basename(zip_src_path)
-        zip_dst_path = os.path.join(self.run_dir, zip_name)
-        os.mkdir(zip_dst_path)
 
+        # Extract the contents of the zip file into the destination directory
+        unzipped_manifests = []
         with zipfile.ZipFile(zip_src_path, "r") as zip_ref:
-            zip_ref.extractall(zip_dst_path)
+            for member in zip_ref.namelist():
+                # Extract each file individually into the destination directory
+                filename = os.path.basename(member)
+                if filename:  # Skip directories
+                    source = zip_ref.open(member)
+                    target = open(os.path.join(self.run_dir, filename), "wb")
+                    unzipped_manifests.append(target.name)
+                    with source, target:
+                        target.write(source.read())
 
-        # Set the paths of the different manifests as attributes
-        manifests = os.listdir(zip_dst_path)
-        self.lims_full_manifest = [
-            m for m in manifests if re.match(r".*_untrimmed\.csv$", m)
+        # Pick out the manifest to use
+        self.lims_manifest = [
+            m for m in unzipped_manifests if re.match(r".*_untrimmed\.csv$", m)
         ][0]
-        self.lims_start_manifest = [
-            m for m in manifests if re.match(r".*_trimmed\.csv$", m)
-        ][0]
-        self.lims_demux_manifests = [
-            m for m in manifests if re.match(r".*_\d+\.csv$", m)
-        ]
-
-        return True
 
     def make_demux_manifests(
         self, manifest_to_split: os.PathLike, outdir: os.PathLike | None = None
-    ) -> list[os.PathLike]:
-        """Derive composite demultiplexing manifests (grouped by index duplicity and lengths)
+    ) -> list[str]:
+        """Derive composite demultiplexing manifests
         from a single information-rich manifest.
         """
-
-        # TODO test me
 
         # Read specified manifest
         with open(manifest_to_split) as f:
             manifest_contents = f.read()
 
         # Get '[SAMPLES]' section
-        split_contents = "[SAMPLES]".split(manifest_contents)
+        split_contents = manifest_contents.split("[SAMPLES]")
         assert (
             len(split_contents) == 2
         ), f"Could not split sample rows out of manifest {manifest_contents}"
-        sample_section = split_contents[1].split("\n")
+        sample_section = split_contents[1].strip().split("\n")
 
         # Split into header and rows
         header = sample_section[0]
@@ -365,32 +453,87 @@ class Run:
         df_samples = df[df["Project"] != "Control"].copy()
         df_controls = df[df["Project"] == "Control"].copy()
 
+        # Add bool indicating whether UMI is present
+        df_samples["has_umi"] = df_samples["Index2"].str.contains("N")
+
+        # Add masks
+        df_samples["I1Mask"] = df_samples["Index1"].apply(
+            lambda seq: get_mask(
+                seq=seq,
+                keep_Ns=False,
+                prefix="I1:",
+                cycles_used=self.cycles["I1"],
+            )
+        )
+        df_samples["I2Mask"] = df_samples["Index2"].apply(
+            lambda seq: get_mask(
+                seq=seq,
+                keep_Ns=False,
+                prefix="I2:",
+                cycles_used=self.cycles["I2"],
+            )
+        )
+        df_samples["UmiMask"] = df_samples["Index2"].apply(
+            lambda seq: get_mask(
+                seq=seq,
+                keep_Ns=True,
+                prefix="I2:",
+                cycles_used=self.cycles["I2"],
+            )
+        )
+        df_samples["R1Mask"] = df_samples["Recipe"].apply(
+            lambda recipe: get_mask(
+                seq="N" * int(recipe.split("-")[0]),
+                keep_Ns=True,
+                prefix="R1:",
+                cycles_used=self.cycles["R1"],
+            )
+        )
+        df_samples["R2Mask"] = df_samples["Recipe"].apply(
+            lambda recipe: get_mask(
+                seq="N" * int(recipe.split("-")[3]),
+                keep_Ns=True,
+                prefix="R2:",
+                cycles_used=self.cycles["R2"],
+            )
+        )
+
+        # Re-make Index2 column without any Ns
+        df_samples["Index2_with_Ns"] = df_samples["Index2"]
+        df_samples.loc[:, "Index2"] = df_samples["Index2"].apply(
+            lambda x: x.replace("N", "")
+        )
+
         # Apply default dir path for output
         if outdir is None:
             outdir = self.run_dir
 
-        ## Build composite manifests
+        # Break down into groups by non-consolable properties
+        grouped_df = df_samples.groupby(
+            ["I1Mask", "I2Mask", "UmiMask", "R1Mask", "R2Mask", "Recipe"]
+        )
 
+        # Sanity check
+        if sum([len(group) for _, group in grouped_df]) < len(df_samples):
+            msg = "Some samples were not included in any submanifest."
+            logging.error(msg)
+            raise AssertionError(msg)
+        elif sum([len(group) for _, group in grouped_df]) > len(df_samples):
+            logging.warning("Some samples were included in multiple submanifests.")
+
+        # Iterate over groups to build composite manifests
         manifest_root_name = f"{self.NGI_run_id}_demux"
-
-        # Get idx lengths for calculations
-        df_samples.loc[:, "len_idx1"] = df["Index1"].apply(len)
-        df_samples.loc[:, "len_idx2"] = df["Index2"].apply(len)
-
-        # Break down by index lengths and lane, creating composite manifests
         manifests = []
         n = 0
-        for (len_idx1, len_idx2, lane), group in df_samples.groupby(
-            ["len_idx1", "len_idx2", "Lane"]
-        ):
+        for (I1Mask, I2Mask, UmiMask, R1Mask, R2Mask, recipe), group in grouped_df:
             file_name = f"{manifest_root_name}_{n}.csv"
+
             runValues_section = "\n".join(
                 [
                     "[RUNVALUES]",
                     "KeyName, Value",
-                    f'manifest_file, "{file_name}"',
-                    f"manifest_group, {n+1}/{len(df.groupby(['len_idx1', 'len_idx2', 'Lane']))}",
-                    f"grouped_by, len_idx1:{len_idx1} len_idx2:{len_idx2} lane:{lane}",
+                    f"manifest_file, {file_name}",
+                    f"manifest_group, {n+1}/{len(grouped_df)}",
                 ]
             )
 
@@ -398,24 +541,38 @@ class Run:
                 [
                     "[SETTINGS]",
                     "SettingName, Value",
+                    f"R1FastqMask, {R1Mask}",
+                    f"I1Mask, {I1Mask}",
+                    f"I2Mask, {I2Mask}",
+                    f"R2FastqMask, {R2Mask}",
                 ]
             )
 
+            if group["has_umi"].all():
+                settings_section += "\n" + "\n".join(
+                    [
+                        f"UmiMask, {UmiMask}",
+                        "UmiFastQ, TRUE",
+                    ]
+                )
+
             # Add PhiX stratified by index length
-            if group["phix_loaded"].any():
-                # Subset controls by lane
-                group_controls = df_controls[df_controls["Lane"] == lane].copy()
+            group_controls = df_controls[
+                df_controls["Lane"].isin(group["Lane"].unique())
+            ].copy()
 
-                # Trim PhiX indexes to match group
-                group_controls.loc[:, "Index1"] = group_controls.loc[:, "Index1"].apply(
-                    lambda x: x[:len_idx1]
-                )
-                group_controls.loc[:, "Index2"] = group_controls.loc[:, "Index2"].apply(
-                    lambda x: x[:len_idx2]
-                )
+            # Trim PhiX indexes to match group
+            i1_len = group["Index1"].apply(len).max()
+            group_controls.loc[:, "Index1"] = group_controls.loc[:, "Index1"].apply(
+                lambda x: x[:i1_len]
+            )
+            i2_len = group["Index2"].apply(len).max()
+            group_controls.loc[:, "Index2"] = group_controls.loc[:, "Index2"].apply(
+                lambda x: x[:i2_len]
+            )
 
-                # Add PhiX to group
-                group = pd.concat([group, group_controls], axis=0, ignore_index=True)
+            # Add PhiX to group
+            group = pd.concat([group, group_controls], axis=0, ignore_index=True)
 
             samples_section = (
                 f"[SAMPLES]\n{group.iloc[:, 0:6].to_csv(index=None, header=True)}"
@@ -438,7 +595,7 @@ class Run:
 
     def generate_demux_command(self, run_manifest, demux_dir):
         command = (
-            f"{self.CONFIG.get('element_analysis').get('bases2fastq')}"  # TODO: add path to bases2fastq executable to config
+            f"{self.CONFIG.get('element_analysis').get('bases2fastq')}"
             + f" {self.run_dir}"
             + f" {demux_dir}"
             + " -p 8"
@@ -447,7 +604,9 @@ class Run:
             + " --legacy-fastq"
             + " --force-index-orientation"
         )
-        with open(os.path.join(self.run_dir, ".bases2fastq_command")) as command_file:
+        with open(
+            os.path.join(self.run_dir, ".bases2fastq_command"), "w"
+        ) as command_file:
             command_file.write(command)
         return command
 
@@ -461,6 +620,7 @@ class Run:
                 logger.info(
                     "Bases2Fastq conversion and demultiplexing "
                     f"started for run {self} on {datetime.now()}"
+                    f"with p_handle {p_handle}"
                 )
             except subprocess.CalledProcessError:
                 logger.warning(
@@ -505,7 +665,7 @@ class Run:
             return False
 
     # Clear all content under a dir
-    def clear_dir(dir):
+    def clear_dir(self, dir):
         for filename in os.listdir(dir):
             file_path = os.path.join(dir, filename)
             try:
@@ -517,7 +677,7 @@ class Run:
                 print(f"Failed to delete {file_path} Reason {e}")
 
     # Write to csv
-    def write_to_csv(data, filename):
+    def write_to_csv(self, data, filename):
         # Get the fieldnames from the keys of the first dictionary
         fieldnames = data[0].keys()
         # Open the file and write the CSV
@@ -951,9 +1111,7 @@ class Run:
             os.path.join(self.run_dir, "Demultiplexing", "UnassignedSequences.csv"),
             self.run_parameters_file,
         ]
-        metadata_archive = self.CONFIG.get("element_analysis").get(
-            "metadata_location"
-        )  # TODO: add to taca.yaml
+        metadata_archive = self.CONFIG.get("element_analysis").get("metadata_location")
         dest = os.path.join(metadata_archive, self.NGI_run_id)
         os.makedirs(dest)
         for f in files_to_copy:
@@ -964,9 +1122,7 @@ class Run:
         Path(transfer_indicator).touch()
 
     def transfer(self):
-        transfer_details = self.CONFIG.get("element_analysis").get(
-            "transfer_details"
-        )  # TODO: Add section to taca.yaml
+        transfer_details = self.CONFIG.get("element_analysis").get("transfer_details")
         command = (
             "rsync"
             + " -rLav"
@@ -983,6 +1139,7 @@ class Run:
             logger.info(
                 "Transfer to analysis cluster "
                 f"started for run {self} on {datetime.now()}"
+                f"with p_handle {p_handle}"
             )
         except subprocess.CalledProcessError:
             logger.warning(

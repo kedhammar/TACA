@@ -12,12 +12,13 @@ def get_config(tmp: tempfile.TemporaryDirectory) -> dict:
     config = {
         "element_analysis": {
             "Element": {
-                "GenericElement": {
-                    "manifest_zip_location": f"{tmp}/ngi-nas-ns/samplesheets/Aviti",
-                    "transfer_log": f"{tmp}/log/transfer_aviti.tsv",
+                "Aviti": {
+                    "manifest_zip_location": f"{tmp.name}/ngi-nas-ns/samplesheets/Aviti",
+                    "transfer_log": f"{tmp.name}/log/transfer_aviti.tsv",
                 },
             },
         },
+        "statusdb": {},
     }
     return config
 
@@ -76,7 +77,7 @@ def create_element_run_dir(
             open(
                 os.path.join(
                     run_path,
-                    f"Demultiplexing",
+                    "Demultiplexing",
                     "RunStats.json",
                 ),
                 "w",
@@ -156,30 +157,6 @@ class TestRun:
         )
 
         assert run.get_demultiplexing_status() == p["expected"]
-
-    @pytest.mark.skip(reason="Not implemented yet")
-    @pytest.mark.parametrize(
-        "p",
-        [
-            {"run_finished": True, "expected": True},
-            {"run_finished": False, "expected": False},
-        ],
-        ids=["exists", "does not exist"],
-    )
-    def test_manifest_exists(
-        self, mock_db: mock.Mock, create_dirs: pytest.fixture, p: pytest.fixture
-    ):
-        tmp: tempfile.TemporaryDirectory = create_dirs
-
-        run = to_test.Run(
-            create_element_run_dir(
-                tmp,
-                run_finished=p["run_finished"],
-            ),
-            get_config(tmp),
-        )
-
-        assert run.manifest_exists() == p["expected"]
 
     @pytest.mark.skip(reason="Not implemented yet")
     def test_generate_demux_command(self, mock_db):
