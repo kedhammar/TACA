@@ -561,22 +561,24 @@ class Run:
                 ]
             )
 
-            if "Y" in I1UmiMask:
+            if "Y" in I1UmiMask and "Y" not in I2UmiMask:
                 settings_section += "\n" + "\n".join(
                     [
                         f"UmiMask, {I1UmiMask}",
                         "UmiFastQ, TRUE",
                     ]
                 )
-            elif "Y" in I2UmiMask:
+            elif "Y" in I2UmiMask and "Y" not in I1UmiMask:
                 settings_section += "\n" + "\n".join(
                     [
                         f"UmiMask, {I2UmiMask}",
                         "UmiFastQ, TRUE",
                     ]
                 )
-            else:
+            elif "Y" not in I1UmiMask and "Y" not in I2UmiMask:
                 pass
+            else:
+                raise AssertionError("Both I1 and I2 appear to contain UMIs.")
 
             # Add PhiX stratified by index length
             group_controls = df_controls[
