@@ -530,10 +530,12 @@ class ONT_qc_run(ONT_run):
 
         anglerfish_command = [
             self.anglerfish_path,
+            "run",
             f"--samplesheet {self.anglerfish_samplesheet}",
             f"--out_fastq {self.run_abspath}",
             f"--run_name {anglerfish_run_name}",
             f"--threads {n_threads}",
+            "--max_distance 1",
             "--lenient",
             "--skip_demux",
         ]
