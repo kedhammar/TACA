@@ -155,6 +155,19 @@ def _upload_to_statusdb(run):
         parser.obj["DemultiplexConfig"] = {
             "Setup": {"Software": run.CONFIG.get("bcl2fastq", {})}
         }
+    # Keep PDC archive date if there is one already
+    run_vals = parser.obj["name"].split("_")
+    if len(run_vals[0]) == 8:
+        run_date = run_vals[0][2:]
+    else:
+        run_date = run_vals[0]
+    run_fc = f"{run_date}_{run_vals[-1]}"
+    db_rows = db.view("names/name", reduce=False, include_docs=True)[run_fc].rows
+    if db_rows:
+        doc = db_rows[0].doc
+        if doc.get("pdc_archived") and not parser.obj.get("pdc_archived"):
+            parser.obj["pdc_archived"] = doc.get("pdc_archived")
+
     statusdb.update_doc(db, parser.obj, over_write_db_entry=True)
 
 
