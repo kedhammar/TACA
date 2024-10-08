@@ -613,14 +613,19 @@ class Run:
     def start_demux(self, run_manifest, demux_dir):
         with chdir(self.run_dir):
             cmd = self.generate_demux_command(run_manifest, demux_dir)
+            stderr_abspath = f"{self.run_dir}/bases2fastq_stderr.txt"
             try:
-                p_handle = subprocess.Popen(
-                    cmd, stdout=subprocess.PIPE, shell=True, cwd=self.run_dir
-                )
+                with open(stderr_abspath, "w") as stderr:
+                    process = subprocess.Popen(
+                        cmd,
+                        shell=True,
+                        cwd=self.run_dir,
+                        stderr=stderr,
+                        )
                 logger.info(
                     "Bases2Fastq conversion and demultiplexing "
                     f"started for run {self} on {datetime.now()}"
-                    f"with p_handle {p_handle}"
+                    f"with p_handle {process}"
                 )
             except subprocess.CalledProcessError:
                 logger.warning(
