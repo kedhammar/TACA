@@ -1,13 +1,8 @@
 # TACA Version Log
 
-## 20240927.1
+## 20241008.1
 
-Add project name in IndexAssignment;
-Correct index percentage in undet
-
-## 20240924.1
-
-Aggregate aviti demultiplexing results
+Add support for processing Element Aviti data
 
 ## 20240705.1
 

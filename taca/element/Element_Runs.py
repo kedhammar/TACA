@@ -390,7 +390,7 @@ class Run:
             logger.warning(
                 f"Multiple manifests found for run '{self.run_dir}' with pattern '{glob_pattern}', using latest one."
             )
-            glob_results.sort()
+            glob_results.sort() # TODO: add CLI option to specify manifest for re-demux
             lims_zip_src_path = glob_results[-1]
         else:
             lims_zip_src_path = glob_results[0]
@@ -621,7 +621,7 @@ class Run:
                         shell=True,
                         cwd=self.run_dir,
                         stderr=stderr,
-                        )
+                    )
                 logger.info(
                     "Bases2Fastq conversion and demultiplexing "
                     f"started for run {self} on {datetime.now()}"
@@ -817,7 +817,9 @@ class Run:
                     )
                 )
                 for fastqfile in fastqfiles:
-                    base_name = os.path.basename(fastqfile)
+                    base_name = os.path.basename(
+                        fastqfile
+                    )  # TODO: Make symlinks relative instead of absolute to maintain them after archiving
                     os.symlink(fastqfile, os.path.join(project_dest, base_name))
 
     # Read in each Project_RunStats.json to fetch PercentMismatch, PercentQ30, PercentQ40 and QualityScoreMean
