@@ -390,7 +390,7 @@ class Run:
             logger.warning(
                 f"Multiple manifests found for run '{self.run_dir}' with pattern '{glob_pattern}', using latest one."
             )
-            glob_results.sort() # TODO: add CLI option to specify manifest for re-demux
+            glob_results.sort()  # TODO: add CLI option to specify manifest for re-demux
             lims_zip_src_path = glob_results[-1]
         else:
             lims_zip_src_path = glob_results[0]
