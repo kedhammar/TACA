@@ -732,8 +732,8 @@ class Run:
     # Aggregate the output FastQ files of samples from multiple demux
     def aggregate_sample_fastq(self, demux_runmanifest):
         lanes = sorted(list(set(sample["Lane"] for sample in demux_runmanifest)))
-        unique_sample_demux = set()
         for lane in lanes:
+            unique_sample_demux = set()
             sample_count = 1
             for sample in demux_runmanifest:
                 lanenr = sample["Lane"]
