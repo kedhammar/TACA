@@ -1113,7 +1113,8 @@ class Run:
         ]
         metadata_archive = self.CONFIG.get("element_analysis").get("metadata_location")
         dest = os.path.join(metadata_archive, self.NGI_run_id)
-        os.makedirs(dest)
+        if not os.path.exists(dest):
+            os.makedirs(dest)
         for f in files_to_copy:
             shutil.copy(f, dest)
 
