@@ -453,9 +453,6 @@ class Run:
         df_samples = df[df["Project"] != "Control"].copy()
         df_controls = df[df["Project"] == "Control"].copy()
 
-        # Add bool indicating whether UMI is present
-        df_samples["has_umi"] = df_samples["Index2"].str.contains("N")
-
         # Add masks
         df_samples["I1Mask"] = df_samples["Index1"].apply(
             lambda seq: get_mask(
@@ -473,7 +470,15 @@ class Run:
                 cycles_used=self.cycles["I2"],
             )
         )
-        df_samples["UmiMask"] = df_samples["Index2"].apply(
+        df_samples["I1UmiMask"] = df_samples["Index1"].apply(
+            lambda seq: get_mask(
+                seq=seq,
+                keep_Ns=True,
+                prefix="I1:",
+                cycles_used=self.cycles["I1"],
+            )
+        )
+        df_samples["I2UmiMask"] = df_samples["Index2"].apply(
             lambda seq: get_mask(
                 seq=seq,
                 keep_Ns=True,
@@ -510,7 +515,7 @@ class Run:
 
         # Break down into groups by non-consolable properties
         grouped_df = df_samples.groupby(
-            ["I1Mask", "I2Mask", "UmiMask", "R1Mask", "R2Mask", "Recipe"]
+            ["I1Mask", "I2Mask", "I1UmiMask", "I2UmiMask", "R1Mask", "R2Mask", "Recipe"]
         )
 
         # Sanity check
@@ -525,7 +530,15 @@ class Run:
         manifest_root_name = f"{self.NGI_run_id}_demux"
         manifests = []
         n = 0
-        for (I1Mask, I2Mask, UmiMask, R1Mask, R2Mask, recipe), group in grouped_df:
+        for (
+            I1Mask,
+            I2Mask,
+            I1UmiMask,
+            I2UmiMask,
+            R1Mask,
+            R2Mask,
+            recipe,
+        ), group in grouped_df:
             file_name = f"{manifest_root_name}_{n}.csv"
 
             runValues_section = "\n".join(
@@ -548,13 +561,24 @@ class Run:
                 ]
             )
 
-            if group["has_umi"].all():
+            if "Y" in I1UmiMask and "Y" not in I2UmiMask:
                 settings_section += "\n" + "\n".join(
                     [
-                        f"UmiMask, {UmiMask}",
+                        f"UmiMask, {I1UmiMask}",
                         "UmiFastQ, TRUE",
                     ]
                 )
+            elif "Y" in I2UmiMask and "Y" not in I1UmiMask:
+                settings_section += "\n" + "\n".join(
+                    [
+                        f"UmiMask, {I2UmiMask}",
+                        "UmiFastQ, TRUE",
+                    ]
+                )
+            elif "Y" not in I1UmiMask and "Y" not in I2UmiMask:
+                pass
+            else:
+                raise AssertionError("Both I1 and I2 appear to contain UMIs.")
 
             # Add PhiX stratified by index length
             group_controls = df_controls[
