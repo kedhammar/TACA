@@ -515,7 +515,15 @@ class Run:
 
         # Break down into groups by non-consolable properties
         grouped_df = df_samples.groupby(
-            ["I1Mask", "I2Mask", "I1UmiMask", "I2UmiMask", "R1Mask", "R2Mask", "Recipe"]
+            [
+                "I1Mask",
+                "I2Mask",
+                "I1UmiMask",
+                "I2UmiMask",
+                "R1Mask",
+                "R2Mask",
+                "settings",
+            ]
         )
 
         # Sanity check
@@ -537,7 +545,7 @@ class Run:
             I2UmiMask,
             R1Mask,
             R2Mask,
-            recipe,
+            settings,
         ), group in grouped_df:
             file_name = f"{manifest_root_name}_{n}.csv"
 
@@ -547,38 +555,42 @@ class Run:
                     "KeyName, Value",
                     f"manifest_file, {file_name}",
                     f"manifest_group, {n+1}/{len(grouped_df)}",
+                    f"built_from, {manifest_to_split}",
                 ]
             )
+
+            # Instantiate settings
+            settings_kvs = {
+                "R1FastqMask": R1Mask,
+                "I1Mask": I1Mask,
+                "I2Mask": I2Mask,
+                "R2FastqMask": R2Mask,
+            }
+
+            # Add UMI settings
+            if "Y" in I1UmiMask and "Y" not in I2UmiMask:
+                settings_kvs["UmiMask"] = I1UmiMask
+                settings_kvs["UmiFastQ"] = "TRUE"
+            elif "Y" in I2UmiMask and "Y" not in I1UmiMask:
+                settings_kvs["UmiMask"] = I2UmiMask
+                settings_kvs["UmiFastQ"] = "TRUE"
+            elif "Y" not in I1UmiMask and "Y" not in I2UmiMask:
+                pass
+            else:
+                raise AssertionError("Both I1 and I2 appear to contain UMIs.")
+
+            # Unpack settings from LIMS manifest
+            for kv in settings.split(" "):
+                k, v = kv.split(":")
+                settings_kvs[k] = v
 
             settings_section = "\n".join(
                 [
                     "[SETTINGS]",
                     "SettingName, Value",
-                    f"R1FastqMask, {R1Mask}",
-                    f"I1Mask, {I1Mask}",
-                    f"I2Mask, {I2Mask}",
-                    f"R2FastqMask, {R2Mask}",
                 ]
+                + [f"{k}, {v}" for k, v in settings.items()]
             )
-
-            if "Y" in I1UmiMask and "Y" not in I2UmiMask:
-                settings_section += "\n" + "\n".join(
-                    [
-                        f"UmiMask, {I1UmiMask}",
-                        "UmiFastQ, TRUE",
-                    ]
-                )
-            elif "Y" in I2UmiMask and "Y" not in I1UmiMask:
-                settings_section += "\n" + "\n".join(
-                    [
-                        f"UmiMask, {I2UmiMask}",
-                        "UmiFastQ, TRUE",
-                    ]
-                )
-            elif "Y" not in I1UmiMask and "Y" not in I2UmiMask:
-                pass
-            else:
-                raise AssertionError("Both I1 and I2 appear to contain UMIs.")
 
             # Add PhiX stratified by index length
             group_controls = df_controls[
