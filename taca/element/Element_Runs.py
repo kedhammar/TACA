@@ -589,7 +589,7 @@ class Run:
                     "[SETTINGS]",
                     "SettingName, Value",
                 ]
-                + [f"{k}, {v}" for k, v in settings.items()]
+                + [f"{k}, {v}" for k, v in settings_kvs.items()]
             )
 
             # Add PhiX stratified by index length
