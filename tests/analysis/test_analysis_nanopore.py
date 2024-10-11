@@ -147,3 +147,6 @@ def test_ont_transfer(create_dirs, run_properties, caplog):
 
     # Start testing
     analysis_nanopore.ont_transfer(run_abspath=None, qc=False)
+
+    # Stop mocks
+    patch.stopall()
