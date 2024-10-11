@@ -460,9 +460,24 @@ class TestRun:
     @pytest.mark.parametrize(
         "p",
         [
-            {"run_finished": True, "outcome_completed": True, "expected": True},
-            {"run_finished": True, "outcome_completed": False, "expected": False},
-            {"run_finished": False, "outcome_completed": False, "expected": False},
+            {
+                "run_finished": True,
+                "metadata_files": True,
+                "outcome_completed": True,
+                "expected": True,
+            },
+            {
+                "run_finished": True,
+                "metadata_files": True,
+                "outcome_completed": False,
+                "expected": False,
+            },
+            {
+                "run_finished": False,
+                "metadata_files ": False,
+                "outcome_completed": False,
+                "expected": False,
+            },
         ],
         ids=["success", "failure", "ongoing"],
     )
