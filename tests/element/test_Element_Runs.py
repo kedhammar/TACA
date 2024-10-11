@@ -524,10 +524,6 @@ class TestRun:
 
         assert run.get_demultiplexing_status() == p["expected"]
 
-    @pytest.mark.skip(reason="Not implemented yet")
-    def test_generate_demux_command(self, mock_db):
-        pass
-
     def test_start_demux(self, mock_db, create_dirs):
         tmp: tempfile.TemporaryDirectory = create_dirs
         with mock.patch("subprocess.Popen") as mock_Popen, mock.patch(
@@ -538,11 +534,3 @@ class TestRun:
             run.start_demux("mock_run_manifest", "mock_demux_dir")
             mock_command.assert_called_once_with("mock_run_manifest", "mock_demux_dir")
             mock_Popen.assert_called_once()
-
-    @pytest.mark.skip(reason="Not implemented yet")
-    def test_is_transferred(self, mock_db, create_dirs):
-        pass
-
-    @pytest.mark.skip(reason="Not implemented yet")
-    def test_parse_rundir(self, mock_db, create_dirs):
-        pass
