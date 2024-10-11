@@ -8,10 +8,10 @@ import pytest
 from tests.element.test_Element_Runs import create_element_run_dir, get_config
 
 
-def parametrize_testruns() -> list[dict]:
+def parametrize_testruns() -> tuple[list[dict], list[str]]:
     """Helper function to build test parametrization from a friendly string table."""
 
-    testrun_descs = ["ready to demux", "demux_ongoing"]
+    testrun_descs: list[str] = ["ready to demux", "demux_ongoing"]
 
     kwarg_table = """
     lims_manifest  metadata_files  run_finished  outcome_completed  demux_dir  demux_done  rsync_ongoing  rsync_exit_status  nosync
@@ -26,7 +26,7 @@ def parametrize_testruns() -> list[dict]:
     df = pd.read_csv(data, sep=r"\s+")
 
     # Compile into list of parameters to use
-    testrun_kwargs = df.to_dict(orient="records")
+    testrun_kwargs: list[dict] = df.to_dict(orient="records")
 
     assert len(testrun_descs) == len(testrun_kwargs)
 
