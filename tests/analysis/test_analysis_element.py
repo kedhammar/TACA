@@ -26,4 +26,10 @@ def test_run_preprocessing(create_dirs):
     # Import module to test
     from taca.analysis import analysis_element as to_test
 
+    # Test
     to_test.run_preprocessing(run_dir)
+
+    # Stop mocks
+    mock_config.stop()
+    mock_db.stop()
+    mock_subprocess.stop()
