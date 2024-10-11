@@ -986,7 +986,7 @@ class Run:
             aggregated_assigned_indexes_filtered_sorted, aggregated_assigned_indexes_csv
         )
 
-        yield aggregated_assigned_indexes_filtered_sorted
+        return aggregated_assigned_indexes_filtered_sorted
 
 
     # Aggregate stats in UnassignedSequences.csv
