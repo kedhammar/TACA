@@ -11,11 +11,12 @@ from tests.element.test_Element_Runs import create_element_run_dir, get_config
 def parametrize_testruns() -> list[dict]:
     """Helper function to build test parametrization from a friendly string table."""
 
-    testrun_descs = ["ready to demux"]
+    testrun_descs = ["ready to demux", "demux_ongoing"]
 
     kwarg_table = """
     lims_manifest  metadata_files  run_finished  outcome_completed  demux_dir  demux_done  rsync_ongoing  rsync_exit_status  nosync
     True           True            True          True               False      False       False          None               False
+    True           True            True          True               True       False       False          None               False
     """
 
     # Turn string table to datastream
