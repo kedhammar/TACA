@@ -988,9 +988,10 @@ class Run:
 
         return aggregated_assigned_indexes_filtered_sorted
 
-
     # Aggregate stats in UnassignedSequences.csv
-    def aggregate_stats_unassigned(self, demux_runmanifest, aggregated_assigned_indexes_filtered_sorted):
+    def aggregate_stats_unassigned(
+        self, demux_runmanifest, aggregated_assigned_indexes_filtered_sorted
+    ):
         aggregated_unassigned_indexes = []
         lanes = sorted(list(set(sample["Lane"] for sample in demux_runmanifest)))
         for lane in lanes:
@@ -1121,7 +1122,10 @@ class Run:
             else:
                 # When there is no RunManifest uploaded at the sequencer, the lane numbers will all be 0
                 # In this case we assume that the lanes are ordered by their numbers
-                if all(lane_stats["Lane"] == 0 for lane_stats in aviti_runstats_json["LaneStats"]):
+                if all(
+                    lane_stats["Lane"] == 0
+                    for lane_stats in aviti_runstats_json["LaneStats"]
+                ):
                     lane_counter = 1
                     for lane_stats in aviti_runstats_json["LaneStats"]:
                         pfcount_lane[str(lane_counter)] = float(lane_stats["PFCount"])
@@ -1129,12 +1133,14 @@ class Run:
                 # Otherwise we parse the PF counts by matching the lane numbers
                 else:
                     for lane_stats in aviti_runstats_json["LaneStats"]:
-                        pfcount_lane[str(lane_stats["Lane"])] = float(lane_stats["PFCount"])
+                        pfcount_lane[str(lane_stats["Lane"])] = float(
+                            lane_stats["PFCount"]
+                        )
             # Prepare the dict for pf assigned coutn for each lane
             pf_assigned_lane = {}
             for sample in aggregated_assigned_indexes_filtered_sorted:
-                lane = sample['Lane']
-                num_polonies_assigned = int(sample['NumPoloniesAssigned'])
+                lane = sample["Lane"]
+                num_polonies_assigned = int(sample["NumPoloniesAssigned"])
                 if lane in pf_assigned_lane:
                     pf_assigned_lane[lane] += num_polonies_assigned
                 else:
@@ -1151,7 +1157,10 @@ class Run:
                     if pf_assigned_lane.get(unassigned_index["Lane"]):
                         unassigned_index["% Unassigned"] = (
                             float(unassigned_index["Count"])
-                            / (pfcount_lane[unassigned_index["Lane"]] - pf_assigned_lane[unassigned_index["Lane"]])
+                            / (
+                                pfcount_lane[unassigned_index["Lane"]]
+                                - pf_assigned_lane[unassigned_index["Lane"]]
+                            )
                             * 100
                         )
                     else:
@@ -1182,9 +1191,13 @@ class Run:
         # Symlink the output FastQ files of undet only if a lane does not have multiple demux
         self.aggregate_undet_fastq(demux_runmanifest)
         # Aggregate stats in IndexAssignment.csv
-        aggregated_assigned_indexes_filtered_sorted = self.aggregate_stats_assigned(demux_runmanifest)
+        aggregated_assigned_indexes_filtered_sorted = self.aggregate_stats_assigned(
+            demux_runmanifest
+        )
         # Aggregate stats in UnassignedSequences.csv
-        self.aggregate_stats_unassigned(demux_runmanifest, aggregated_assigned_indexes_filtered_sorted)
+        self.aggregate_stats_unassigned(
+            demux_runmanifest, aggregated_assigned_indexes_filtered_sorted
+        )
 
     def sync_metadata(self):
         files_to_copy = [
