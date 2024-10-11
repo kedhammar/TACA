@@ -1,10 +1,39 @@
+from io import StringIO
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
+
+import pandas as pd
+import pytest
 
 from tests.element.test_Element_Runs import create_element_run_dir, get_config
 
 
-def test_run_preprocessing(create_dirs):
+def get_run_kwargs() -> list[dict]:
+    parameter_string_table = """
+lims_manifest run_finished outcome_completed sync_finished demux_dir demux_done nosync
+False         False        False             False         False     False      False
+True          False        False             False         False     False      False
+True          True         False             False         False     False      False
+True          True         True              False         False     False      False
+True          True         True              True          False     False      False
+True          True         True              True          True      False      False
+True          True         True              True          True      True       False
+True          True         True              True          True      True       True
+"""
+    # Turn string table to datastream
+    data = StringIO(parameter_string_table)
+
+    # Read data, trimming whitespace
+    df = pd.read_csv(data, sep=r"\s+")
+
+    # Compile into list of parameters to use
+    run_kwargs = df.to_dict(orient="records")
+
+    return run_kwargs
+
+
+@pytest.mark.parametrize("run_kwargs", get_run_kwargs())
+def test_run_preprocessing(create_dirs, run_kwargs):
     tmp: TemporaryDirectory = create_dirs
 
     # Mock config
@@ -21,7 +50,7 @@ def test_run_preprocessing(create_dirs):
     mock_subprocess.start()
 
     # Create run dir and associated LIMS manifest
-    run_dir = create_element_run_dir(tmp=tmp)
+    run_dir = create_element_run_dir(tmp=tmp, **run_kwargs)
 
     # Import module to test
     from taca.analysis import analysis_element as to_test
