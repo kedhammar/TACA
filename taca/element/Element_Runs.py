@@ -986,8 +986,11 @@ class Run:
             aggregated_assigned_indexes_filtered_sorted, aggregated_assigned_indexes_csv
         )
 
+        yield aggregated_assigned_indexes_filtered_sorted
+
+
     # Aggregate stats in UnassignedSequences.csv
-    def aggregate_stats_unassigned(self, demux_runmanifest):
+    def aggregate_stats_unassigned(self, demux_runmanifest, aggregated_assigned_indexes_filtered_sorted):
         aggregated_unassigned_indexes = []
         lanes = sorted(list(set(sample["Lane"] for sample in demux_runmanifest)))
         for lane in lanes:
@@ -1105,12 +1108,37 @@ class Run:
             aggregated_unassigned_indexes, key=lambda x: (x["Lane"], -int(x["Count"]))
         )
         # Fetch PFCount for each lane
+        # to calculate % of unassigned index in total lane PF polonies
         pfcount_lane = {}
         if os.path.exists(self.run_stats_file):
             with open(self.run_stats_file) as stats_json:
                 aviti_runstats_json = json.load(stats_json)
-            for lane_stats in aviti_runstats_json["LaneStats"]:
-                pfcount_lane[str(lane_stats["Lane"])] = float(lane_stats["PFCount"])
+            # Check whether the lane numbers match between the run stat json and run manifests
+            if len(aviti_runstats_json["LaneStats"]) != len(lanes):
+                logger.warning(
+                    f"Inconsistent lane numbers between the {os.path.basename(self.run_stats_file)} file and run manifests!"
+                )
+            else:
+                # When there is no RunManifest uploaded at the sequencer, the lane numbers will all be 0
+                # In this case we assume that the lanes are ordered by their numbers
+                if all(lane_stats["Lane"] == 0 for lane_stats in aviti_runstats_json["LaneStats"]):
+                    lane_counter = 1
+                    for lane_stats in aviti_runstats_json["LaneStats"]:
+                        pfcount_lane[str(lane_counter)] = float(lane_stats["PFCount"])
+                        lane_counter += 1
+                # Otherwise we parse the PF counts by matching the lane numbers
+                else:
+                    for lane_stats in aviti_runstats_json["LaneStats"]:
+                        pfcount_lane[str(lane_stats["Lane"])] = float(lane_stats["PFCount"])
+            # Prepare the dict for pf assigned coutn for each lane
+            pf_assigned_lane = {}
+            for sample in aggregated_assigned_indexes_filtered_sorted:
+                lane = sample['Lane']
+                num_polonies_assigned = int(sample['NumPoloniesAssigned'])
+                if lane in pf_assigned_lane:
+                    pf_assigned_lane[lane] += num_polonies_assigned
+                else:
+                    pf_assigned_lane[lane] = num_polonies_assigned
             # Modify the % Polonies values based on PFCount for each lane
             for unassigned_index in aggregated_unassigned_indexes:
                 if pfcount_lane.get(unassigned_index["Lane"]):
@@ -1119,6 +1147,17 @@ class Run:
                         / pfcount_lane[unassigned_index["Lane"]]
                         * 100
                     )
+                    # Calculate the % Polonies values in the total unassigned for each lane
+                    if pf_assigned_lane.get(unassigned_index["Lane"]):
+                        unassigned_index["% Unassigned"] = (
+                            float(unassigned_index["Count"])
+                            / (pfcount_lane[unassigned_index["Lane"]] - pf_assigned_lane[unassigned_index["Lane"]])
+                            * 100
+                        )
+                    else:
+                        unassigned_index["% Unassigned"] = 0
+                else:
+                    unassigned_index["% Polonies"] = 0
         else:
             logger.warning(
                 f"No {os.path.basename(self.run_stats_file)} file found for the run."
@@ -1143,9 +1182,9 @@ class Run:
         # Symlink the output FastQ files of undet only if a lane does not have multiple demux
         self.aggregate_undet_fastq(demux_runmanifest)
         # Aggregate stats in IndexAssignment.csv
-        self.aggregate_stats_assigned(demux_runmanifest)
+        aggregated_assigned_indexes_filtered_sorted = self.aggregate_stats_assigned(demux_runmanifest)
         # Aggregate stats in UnassignedSequences.csv
-        self.aggregate_stats_unassigned(demux_runmanifest)
+        self.aggregate_stats_unassigned(demux_runmanifest, aggregated_assigned_indexes_filtered_sorted)
 
     def sync_metadata(self):
         files_to_copy = [
