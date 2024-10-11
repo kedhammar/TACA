@@ -26,13 +26,15 @@ def get_config(tmp: tempfile.TemporaryDirectory) -> dict:
 def create_element_run_dir(
     tmp: tempfile.TemporaryDirectory,
     run_name: str = "20240926_AV242106_A2349523513",
-    lims_manifest: bool = True,
-    run_finished: bool = True,
-    outcome_completed: bool = True,
-    sync_finished: bool = True,
+    metadata_files: bool = False,
+    lims_manifest: bool = False,
+    run_finished: bool = False,
+    outcome_completed: bool = False,
     demux_dir: bool = False,
     n_demux_subdirs: int = 2,
     demux_done: bool = False,
+    rsync_ongoing: bool = False,
+    rsync_exit_status: int | None = None,
     nosync: bool = False,
 ) -> str:
     """
@@ -134,7 +136,7 @@ PhiX_Adept,TGTGTCGACA,TGTCTGACAG,2,Control,0-0,,
         os.remove(csv_path)
 
     # Populate run dir with files and folders
-    if run_finished:
+    if metadata_files:
         with open(f"{run_path}/RunManifest.json", "w") as stream:
             stream.write("""{
     "KitConfiguration": {
@@ -397,6 +399,8 @@ PhiX_Adept,TGTGTCGACA,TGTCTGACAG,2,Control,0-0,,
   }
 }
 """)
+
+    if run_finished:
         with open(f"{run_path}/RunUploaded.json", "w") as stream:
             outcome = "OutcomeCompleted" if outcome_completed else "OutcomeFailed"
             stream.write(
@@ -411,8 +415,12 @@ PhiX_Adept,TGTGTCGACA,TGTCTGACAG,2,Control,0-0,,
                 + "}"
             )
 
-    if sync_finished:
-        open(f"{run_path}/.sync_finished", "w").close()
+    if rsync_ongoing:
+        open(f"{run_path}/.rsync_ongoing", "w").close()
+
+    if rsync_exit_status is not None:
+        with open(f"{run_path}/.rsync_exit_status", "w") as stream:
+            stream.write(str(rsync_exit_status))
 
     if demux_dir:
         os.mkdir(os.path.join(run_path, "Demultiplexing"))
@@ -469,7 +477,7 @@ class TestRun:
         run = to_test.Run(
             create_element_run_dir(
                 tmp,
-                run_finished=p["run_finished"],
+                metadata_files=p["run_finished"],
                 outcome_completed=p["outcome_completed"],
             ),
             get_config(tmp),

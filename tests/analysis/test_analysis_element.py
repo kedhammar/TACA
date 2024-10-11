@@ -8,31 +8,34 @@ import pytest
 from tests.element.test_Element_Runs import create_element_run_dir, get_config
 
 
-def get_run_kwargs() -> list[dict]:
-    parameter_string_table = """
-lims_manifest run_finished outcome_completed sync_finished demux_dir demux_done nosync
-False         False        False             False         False     False      False
-True          False        False             False         False     False      False
-True          True         False             False         False     False      False
-True          True         True              False         False     False      False
-True          True         True              True          False     False      False
-True          True         True              True          True      False      False
-True          True         True              True          True      True       False
-True          True         True              True          True      True       True
-"""
+def parametrize_testruns() -> list[dict]:
+    """Helper function to build test parametrization from a friendly string table."""
+
+    testrun_descs = ["ready to demux"]
+
+    kwarg_table = """
+    lims_manifest  metadata_files  run_finished  outcome_completed  demux_dir  demux_done  rsync_ongoing  rsync_exit_status  nosync
+    True           True            True          True               False      False       False          None               False
+    """
+
     # Turn string table to datastream
-    data = StringIO(parameter_string_table)
+    data = StringIO(kwarg_table)
 
     # Read data, trimming whitespace
     df = pd.read_csv(data, sep=r"\s+")
 
     # Compile into list of parameters to use
-    run_kwargs = df.to_dict(orient="records")
+    testrun_kwargs = df.to_dict(orient="records")
 
-    return run_kwargs
+    assert len(testrun_descs) == len(testrun_kwargs)
+
+    return testrun_kwargs, testrun_descs
 
 
-@pytest.mark.parametrize("run_kwargs", get_run_kwargs())
+testrun_kwargs, testrun_descs = parametrize_testruns()
+
+
+@pytest.mark.parametrize("run_kwargs", testrun_kwargs, ids=testrun_descs)
 def test_run_preprocessing(create_dirs, run_kwargs):
     tmp: TemporaryDirectory = create_dirs
 
