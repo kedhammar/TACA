@@ -27,13 +27,13 @@ def create_element_run_dir(
     tmp: tempfile.TemporaryDirectory,
     run_name: str = "20240926_AV242106_A2349523513",
     lims_manifest: bool = True,
-    nosync: bool = False,
     run_finished: bool = True,
-    sync_finished: bool = True,
-    demux_dir: bool = True,
-    n_demux_subdirs: int = 1,
-    demux_done: bool = True,
     outcome_completed: bool = True,
+    sync_finished: bool = True,
+    demux_dir: bool = False,
+    n_demux_subdirs: int = 0,
+    demux_done: bool = False,
+    nosync: bool = False,
 ) -> str:
     """
     Build a run dir for an Element run for test purposes.
@@ -67,66 +67,71 @@ def create_element_run_dir(
         manifest_root_name = "AVITI_run_manifest_2349523513_24-1061390_240926_171138_ChristianNatanaelsson"
         manifest_pdir = f"{tmp.name}/ngi-nas-ns/samplesheets/Aviti/2024"
 
+        os.mkdir(manifest_pdir)
+
         csv_path = f"{manifest_pdir}/{manifest_root_name}_untrimmed.csv"
         zip_path = f"{manifest_pdir}/{manifest_root_name}.zip"
 
         with open(csv_path, "w") as stream:
+            # This run manifest was generated after the sequencing run,
+            #  and is different from what it's file name implies.
             stream.write("""[RUNVALUES]
 KeyName, Value
-lims_step_name, "Load to Flowcell (AVITI) v1.0"
-lims_step_id, "24-1061390"
-manifest_file, "AVITI_run_manifest_2349523513_24-1061390_240926_171138_ChristianNatanaelsson_untrimmed.csv"
+lims_step_name, Load to Flowcell (AVITI) v1.0
+lims_step_id, 24-1061411
+manifest_file, AVITI_run_manifest_2349523513_24-1061411_241011_142515_AlfredKedhammar_untrimmed.csv
 
 [SETTINGS]
 SettingName, Value
 
 [SAMPLES]
-SampleName,Index1,Index2,Lane,Project,Recipe
-P32105_1001,AAAGCATA,,1,I__Adameyko_24_06,50-8-24-49
-P32105_1001,CTGCAGCC,,1,I__Adameyko_24_06,50-8-24-49
-P32105_1001,GCCTTTAT,,1,I__Adameyko_24_06,50-8-24-49
-P32105_1001,TGTAGCGG,,1,I__Adameyko_24_06,50-8-24-49
-P32105_1002,ATTGGACG,,1,I__Adameyko_24_06,50-8-24-49
-P32105_1002,CAGCTTAC,,1,I__Adameyko_24_06,50-8-24-49
-P32105_1002,GGCAAGGA,,1,I__Adameyko_24_06,50-8-24-49
-P32105_1002,TCATCCTT,,1,I__Adameyko_24_06,50-8-24-49
-P32105_1003,ACGTTACA,,1,I__Adameyko_24_06,50-8-24-49
-P32105_1003,CGTAGGTT,,1,I__Adameyko_24_06,50-8-24-49
-P32105_1003,GACGACGG,,1,I__Adameyko_24_06,50-8-24-49
-P32105_1003,TTACCTAC,,1,I__Adameyko_24_06,50-8-24-49
-P32105_1004,ACTTCACT,,1,I__Adameyko_24_06,50-8-24-49
-P32105_1004,CGAAGTTG,,1,I__Adameyko_24_06,50-8-24-49
-P32105_1004,GAGCACGC,,1,I__Adameyko_24_06,50-8-24-49
-P32105_1004,TTCGTGAA,,1,I__Adameyko_24_06,50-8-24-49
-PhiX_Adept,ATGTCGCTAG,CTAGCTCGTA,1,Control,0-0
-PhiX_Adept,CACAGATCGT,ACGAGAGTCT,1,Control,0-0
-PhiX_Adept,GCACATAGTC,GACTACTAGC,1,Control,0-0
-PhiX_Adept,TGTGTCGACA,TGTCTGACAG,1,Control,0-0
-P32105_1001,AAAGCATA,,2,I__Adameyko_24_06,50-8-24-49
-P32105_1001,CTGCAGCC,,2,I__Adameyko_24_06,50-8-24-49
-P32105_1001,GCCTTTAT,,2,I__Adameyko_24_06,50-8-24-49
-P32105_1001,TGTAGCGG,,2,I__Adameyko_24_06,50-8-24-49
-P32105_1002,ATTGGACG,,2,I__Adameyko_24_06,50-8-24-49
-P32105_1002,CAGCTTAC,,2,I__Adameyko_24_06,50-8-24-49
-P32105_1002,GGCAAGGA,,2,I__Adameyko_24_06,50-8-24-49
-P32105_1002,TCATCCTT,,2,I__Adameyko_24_06,50-8-24-49
-P32105_1003,ACGTTACA,,2,I__Adameyko_24_06,50-8-24-49
-P32105_1003,CGTAGGTT,,2,I__Adameyko_24_06,50-8-24-49
-P32105_1003,GACGACGG,,2,I__Adameyko_24_06,50-8-24-49
-P32105_1003,TTACCTAC,,2,I__Adameyko_24_06,50-8-24-49
-P32105_1004,ACTTCACT,,2,I__Adameyko_24_06,50-8-24-49
-P32105_1004,CGAAGTTG,,2,I__Adameyko_24_06,50-8-24-49
-P32105_1004,GAGCACGC,,2,I__Adameyko_24_06,50-8-24-49
-P32105_1004,TTCGTGAA,,2,I__Adameyko_24_06,50-8-24-49
-PhiX_Adept,ATGTCGCTAG,CTAGCTCGTA,2,Control,0-0
-PhiX_Adept,CACAGATCGT,ACGAGAGTCT,2,Control,0-0
-PhiX_Adept,GCACATAGTC,GACTACTAGC,2,Control,0-0
-PhiX_Adept,TGTGTCGACA,TGTCTGACAG,2,Control,0-0
+SampleName,Index1,Index2,Lane,Project,Recipe,lims_label,settings
+P32105_1001,AAAGCATA,NNNNNNNNNNNNNNNNNNNNNNNN,1,I__Adameyko_24_06,50-8-24-49,SI-NA-A3,I1Fastq:True
+P32105_1001,CTGCAGCC,NNNNNNNNNNNNNNNNNNNNNNNN,1,I__Adameyko_24_06,50-8-24-49,SI-NA-A3,I1Fastq:True
+P32105_1001,GCCTTTAT,NNNNNNNNNNNNNNNNNNNNNNNN,1,I__Adameyko_24_06,50-8-24-49,SI-NA-A3,I1Fastq:True
+P32105_1001,TGTAGCGG,NNNNNNNNNNNNNNNNNNNNNNNN,1,I__Adameyko_24_06,50-8-24-49,SI-NA-A3,I1Fastq:True
+P32105_1002,ATTGGACG,NNNNNNNNNNNNNNNNNNNNNNNN,1,I__Adameyko_24_06,50-8-24-49,SI-NA-B3,I1Fastq:True
+P32105_1002,CAGCTTAC,NNNNNNNNNNNNNNNNNNNNNNNN,1,I__Adameyko_24_06,50-8-24-49,SI-NA-B3,I1Fastq:True
+P32105_1002,GGCAAGGA,NNNNNNNNNNNNNNNNNNNNNNNN,1,I__Adameyko_24_06,50-8-24-49,SI-NA-B3,I1Fastq:True
+P32105_1002,TCATCCTT,NNNNNNNNNNNNNNNNNNNNNNNN,1,I__Adameyko_24_06,50-8-24-49,SI-NA-B3,I1Fastq:True
+P32105_1003,ACGTTACA,NNNNNNNNNNNNNNNNNNNNNNNN,1,I__Adameyko_24_06,50-8-24-49,SI-NA-C3,I1Fastq:True
+P32105_1003,CGTAGGTT,NNNNNNNNNNNNNNNNNNNNNNNN,1,I__Adameyko_24_06,50-8-24-49,SI-NA-C3,I1Fastq:True
+P32105_1003,GACGACGG,NNNNNNNNNNNNNNNNNNNNNNNN,1,I__Adameyko_24_06,50-8-24-49,SI-NA-C3,I1Fastq:True
+P32105_1003,TTACCTAC,NNNNNNNNNNNNNNNNNNNNNNNN,1,I__Adameyko_24_06,50-8-24-49,SI-NA-C3,I1Fastq:True
+P32105_1004,ACTTCACT,NNNNNNNNNNNNNNNNNNNNNNNN,1,I__Adameyko_24_06,50-8-24-49,SI-NA-D3,I1Fastq:True
+P32105_1004,CGAAGTTG,NNNNNNNNNNNNNNNNNNNNNNNN,1,I__Adameyko_24_06,50-8-24-49,SI-NA-D3,I1Fastq:True
+P32105_1004,GAGCACGC,NNNNNNNNNNNNNNNNNNNNNNNN,1,I__Adameyko_24_06,50-8-24-49,SI-NA-D3,I1Fastq:True
+P32105_1004,TTCGTGAA,NNNNNNNNNNNNNNNNNNNNNNNN,1,I__Adameyko_24_06,50-8-24-49,SI-NA-D3,I1Fastq:True
+PhiX_Adept,ATGTCGCTAG,CTAGCTCGTA,1,Control,0-0,,
+PhiX_Adept,CACAGATCGT,ACGAGAGTCT,1,Control,0-0,,
+PhiX_Adept,GCACATAGTC,GACTACTAGC,1,Control,0-0,,
+PhiX_Adept,TGTGTCGACA,TGTCTGACAG,1,Control,0-0,,
+P32105_1001,AAAGCATA,NNNNNNNNNNNNNNNNNNNNNNNN,2,I__Adameyko_24_06,50-8-24-49,SI-NA-A3,I1Fastq:True
+P32105_1001,CTGCAGCC,NNNNNNNNNNNNNNNNNNNNNNNN,2,I__Adameyko_24_06,50-8-24-49,SI-NA-A3,I1Fastq:True
+P32105_1001,GCCTTTAT,NNNNNNNNNNNNNNNNNNNNNNNN,2,I__Adameyko_24_06,50-8-24-49,SI-NA-A3,I1Fastq:True
+P32105_1001,TGTAGCGG,NNNNNNNNNNNNNNNNNNNNNNNN,2,I__Adameyko_24_06,50-8-24-49,SI-NA-A3,I1Fastq:True
+P32105_1002,ATTGGACG,NNNNNNNNNNNNNNNNNNNNNNNN,2,I__Adameyko_24_06,50-8-24-49,SI-NA-B3,I1Fastq:True
+P32105_1002,CAGCTTAC,NNNNNNNNNNNNNNNNNNNNNNNN,2,I__Adameyko_24_06,50-8-24-49,SI-NA-B3,I1Fastq:True
+P32105_1002,GGCAAGGA,NNNNNNNNNNNNNNNNNNNNNNNN,2,I__Adameyko_24_06,50-8-24-49,SI-NA-B3,I1Fastq:True
+P32105_1002,TCATCCTT,NNNNNNNNNNNNNNNNNNNNNNNN,2,I__Adameyko_24_06,50-8-24-49,SI-NA-B3,I1Fastq:True
+P32105_1003,ACGTTACA,NNNNNNNNNNNNNNNNNNNNNNNN,2,I__Adameyko_24_06,50-8-24-49,SI-NA-C3,I1Fastq:True
+P32105_1003,CGTAGGTT,NNNNNNNNNNNNNNNNNNNNNNNN,2,I__Adameyko_24_06,50-8-24-49,SI-NA-C3,I1Fastq:True
+P32105_1003,GACGACGG,NNNNNNNNNNNNNNNNNNNNNNNN,2,I__Adameyko_24_06,50-8-24-49,SI-NA-C3,I1Fastq:True
+P32105_1003,TTACCTAC,NNNNNNNNNNNNNNNNNNNNNNNN,2,I__Adameyko_24_06,50-8-24-49,SI-NA-C3,I1Fastq:True
+P32105_1004,ACTTCACT,NNNNNNNNNNNNNNNNNNNNNNNN,2,I__Adameyko_24_06,50-8-24-49,SI-NA-D3,I1Fastq:True
+P32105_1004,CGAAGTTG,NNNNNNNNNNNNNNNNNNNNNNNN,2,I__Adameyko_24_06,50-8-24-49,SI-NA-D3,I1Fastq:True
+P32105_1004,GAGCACGC,NNNNNNNNNNNNNNNNNNNNNNNN,2,I__Adameyko_24_06,50-8-24-49,SI-NA-D3,I1Fastq:True
+P32105_1004,TTCGTGAA,NNNNNNNNNNNNNNNNNNNNNNNN,2,I__Adameyko_24_06,50-8-24-49,SI-NA-D3,I1Fastq:True
+PhiX_Adept,ATGTCGCTAG,CTAGCTCGTA,2,Control,0-0,,
+PhiX_Adept,CACAGATCGT,ACGAGAGTCT,2,Control,0-0,,
+PhiX_Adept,GCACATAGTC,GACTACTAGC,2,Control,0-0,,
+PhiX_Adept,TGTGTCGACA,TGTCTGACAG,2,Control,0-0,,
 """)
 
         with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zipf:
             # Add the CSV file to the zip file
             zipf.write(csv_path, os.path.basename(csv_path))
+        os.remove(csv_path)
 
     # Populate run dir with files and folders
     if run_finished:
