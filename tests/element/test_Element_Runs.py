@@ -31,7 +31,7 @@ def create_element_run_dir(
     outcome_completed: bool = True,
     sync_finished: bool = True,
     demux_dir: bool = False,
-    n_demux_subdirs: int = 0,
+    n_demux_subdirs: int = 2,
     demux_done: bool = False,
     nosync: bool = False,
 ) -> str:
