@@ -1,5 +1,9 @@
 # TACA Version Log
 
+## 20241011.1
+
+Fix issue with 0 lane number; Add percentage of unassigned in total unassigned per lane
+
 ## 20241008.1
 
 Add support for processing Element Aviti data

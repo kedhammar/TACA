@@ -1136,7 +1136,7 @@ class Run:
                         pfcount_lane[str(lane_stats["Lane"])] = float(
                             lane_stats["PFCount"]
                         )
-            # Prepare the dict for pf assigned coutn for each lane
+            # Prepare the dict for pf assigned count for each lane
             pf_assigned_lane = {}
             for sample in aggregated_assigned_indexes_filtered_sorted:
                 lane = sample["Lane"]
