@@ -15,7 +15,7 @@ from tests.nanopore.test_ONT_run_classes import (
 )
 
 
-def build_run_properties() -> dict:
+def build_run_properties() -> list[dict]:
     """In order to parametrize the test in a comprehensive way, the parametrization is
     tabulated as a string here.
     """
