@@ -474,7 +474,7 @@ class TestRun:
             },
             {
                 "run_finished": False,
-                "metadata_files ": False,
+                "metadata_files": False,
                 "outcome_completed": False,
                 "expected": False,
             },
@@ -489,15 +489,15 @@ class TestRun:
     ):
         tmp: tempfile.TemporaryDirectory = create_dirs
 
+        expected_outcome = p.pop("expected")
         run = to_test.Run(
             create_element_run_dir(
                 tmp,
-                metadata_files=p["run_finished"],
-                outcome_completed=p["outcome_completed"],
+                **p,
             ),
             get_config(tmp),
         )
-        assert run.check_sequencing_status() is p["expected"]
+        assert run.check_sequencing_status() is expected_outcome
 
     @pytest.mark.parametrize(
         "p",
