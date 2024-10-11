@@ -1,13 +1,20 @@
 # TACA Version Log
 
+## 20241008.1
+
+Add support for processing Element Aviti data
+
+## 20241007.1
+
+Update taca-ngi-pipeline repo URL in README
+
 ## 20240927.1
 
-Add project name in IndexAssignment;
-Correct index percentage in undet
+For re-demux: keep PDC archive date if exists
 
-## 20240924.1
+## 20240816.1
 
-Aggregate aviti demultiplexing results
+Update command used to run Anglerfish.
 
 ## 20240705.1
 

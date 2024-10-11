@@ -390,7 +390,7 @@ class Run:
             logger.warning(
                 f"Multiple manifests found for run '{self.run_dir}' with pattern '{glob_pattern}', using latest one."
             )
-            glob_results.sort()
+            glob_results.sort()  # TODO: add CLI option to specify manifest for re-demux
             lims_zip_src_path = glob_results[-1]
         else:
             lims_zip_src_path = glob_results[0]
@@ -453,9 +453,6 @@ class Run:
         df_samples = df[df["Project"] != "Control"].copy()
         df_controls = df[df["Project"] == "Control"].copy()
 
-        # Add bool indicating whether UMI is present
-        df_samples["has_umi"] = df_samples["Index2"].str.contains("N")
-
         # Add masks
         df_samples["I1Mask"] = df_samples["Index1"].apply(
             lambda seq: get_mask(
@@ -473,7 +470,15 @@ class Run:
                 cycles_used=self.cycles["I2"],
             )
         )
-        df_samples["UmiMask"] = df_samples["Index2"].apply(
+        df_samples["I1UmiMask"] = df_samples["Index1"].apply(
+            lambda seq: get_mask(
+                seq=seq,
+                keep_Ns=True,
+                prefix="I1:",
+                cycles_used=self.cycles["I1"],
+            )
+        )
+        df_samples["I2UmiMask"] = df_samples["Index2"].apply(
             lambda seq: get_mask(
                 seq=seq,
                 keep_Ns=True,
@@ -510,7 +515,15 @@ class Run:
 
         # Break down into groups by non-consolable properties
         grouped_df = df_samples.groupby(
-            ["I1Mask", "I2Mask", "UmiMask", "R1Mask", "R2Mask", "Recipe"]
+            [
+                "I1Mask",
+                "I2Mask",
+                "I1UmiMask",
+                "I2UmiMask",
+                "R1Mask",
+                "R2Mask",
+                "settings",
+            ]
         )
 
         # Sanity check
@@ -525,7 +538,15 @@ class Run:
         manifest_root_name = f"{self.NGI_run_id}_demux"
         manifests = []
         n = 0
-        for (I1Mask, I2Mask, UmiMask, R1Mask, R2Mask, recipe), group in grouped_df:
+        for (
+            I1Mask,
+            I2Mask,
+            I1UmiMask,
+            I2UmiMask,
+            R1Mask,
+            R2Mask,
+            settings,
+        ), group in grouped_df:
             file_name = f"{manifest_root_name}_{n}.csv"
 
             runValues_section = "\n".join(
@@ -534,27 +555,42 @@ class Run:
                     "KeyName, Value",
                     f"manifest_file, {file_name}",
                     f"manifest_group, {n+1}/{len(grouped_df)}",
+                    f"built_from, {manifest_to_split}",
                 ]
             )
+
+            # Instantiate settings
+            settings_kvs = {
+                "R1FastqMask": R1Mask,
+                "I1Mask": I1Mask,
+                "I2Mask": I2Mask,
+                "R2FastqMask": R2Mask,
+            }
+
+            # Add UMI settings
+            if "Y" in I1UmiMask and "Y" not in I2UmiMask:
+                settings_kvs["UmiMask"] = I1UmiMask
+                settings_kvs["UmiFastQ"] = "TRUE"
+            elif "Y" in I2UmiMask and "Y" not in I1UmiMask:
+                settings_kvs["UmiMask"] = I2UmiMask
+                settings_kvs["UmiFastQ"] = "TRUE"
+            elif "Y" not in I1UmiMask and "Y" not in I2UmiMask:
+                pass
+            else:
+                raise AssertionError("Both I1 and I2 appear to contain UMIs.")
+
+            # Unpack settings from LIMS manifest
+            for kv in settings.split(" "):
+                k, v = kv.split(":")
+                settings_kvs[k] = v
 
             settings_section = "\n".join(
                 [
                     "[SETTINGS]",
                     "SettingName, Value",
-                    f"R1FastqMask, {R1Mask}",
-                    f"I1Mask, {I1Mask}",
-                    f"I2Mask, {I2Mask}",
-                    f"R2FastqMask, {R2Mask}",
                 ]
+                + [f"{k}, {v}" for k, v in settings_kvs.items()]
             )
-
-            if group["has_umi"].all():
-                settings_section += "\n" + "\n".join(
-                    [
-                        f"UmiMask, {UmiMask}",
-                        "UmiFastQ, TRUE",
-                    ]
-                )
 
             # Add PhiX stratified by index length
             group_controls = df_controls[
@@ -613,14 +649,19 @@ class Run:
     def start_demux(self, run_manifest, demux_dir):
         with chdir(self.run_dir):
             cmd = self.generate_demux_command(run_manifest, demux_dir)
+            stderr_abspath = f"{self.run_dir}/bases2fastq_stderr.txt"
             try:
-                p_handle = subprocess.Popen(
-                    cmd, stdout=subprocess.PIPE, shell=True, cwd=self.run_dir
-                )
+                with open(stderr_abspath, "w") as stderr:
+                    process = subprocess.Popen(
+                        cmd,
+                        shell=True,
+                        cwd=self.run_dir,
+                        stderr=stderr,
+                    )
                 logger.info(
                     "Bases2Fastq conversion and demultiplexing "
                     f"started for run {self} on {datetime.now()}"
-                    f"with p_handle {p_handle}"
+                    f"with p_handle {process}"
                 )
             except subprocess.CalledProcessError:
                 logger.warning(
@@ -812,7 +853,9 @@ class Run:
                     )
                 )
                 for fastqfile in fastqfiles:
-                    base_name = os.path.basename(fastqfile)
+                    base_name = os.path.basename(
+                        fastqfile
+                    )  # TODO: Make symlinks relative instead of absolute to maintain them after archiving
                     os.symlink(fastqfile, os.path.join(project_dest, base_name))
 
     # Read in each Project_RunStats.json to fetch PercentMismatch, PercentQ30, PercentQ40 and QualityScoreMean
@@ -1113,7 +1156,8 @@ class Run:
         ]
         metadata_archive = self.CONFIG.get("element_analysis").get("metadata_location")
         dest = os.path.join(metadata_archive, self.NGI_run_id)
-        os.makedirs(dest)
+        if not os.path.exists(dest):
+            os.makedirs(dest)
         for f in files_to_copy:
             shutil.copy(f, dest)
 

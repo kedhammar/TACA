@@ -111,7 +111,7 @@ To do this, add the hash of the commit containing the changes to `.git-blame-ign
 
 ### Deliver command
 
-There is also a [plugin for the deliver command](https://github.com/SciLifeLab/taca-ngi-pipeline). To install this in the same development environment:
+There is also a [plugin for the deliver command](https://github.com/NationalGenomicsInfrastructure/taca-ngi-pipeline). To install this in the same development environment:
 
 ```
 # Install taca delivery plugin for development
