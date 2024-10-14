@@ -62,7 +62,7 @@ def run_preprocessing(given_run):
                     run.start_demux(demux_manifest, sub_demux_dir)
                     sub_demux_count += 1
                 run.status = "demultiplexing"
-                if run.status_changed:
+                if run.status_changed():
                     run.update_statusdb()
                 return
             else:

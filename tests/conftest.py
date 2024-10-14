@@ -14,31 +14,33 @@ def create_dirs():
         │   ├── Chromium_10X_indexes.txt
         │   └── Smart-seq3_v1.5.csv
         ├── log
-        │   ├── transfer_minion_qc.tsv
+        │   ├── taca.log
+        │   ├── transfer.tsv
+        │   ├── transfer_aviti.tsv
         │   ├── transfer_minion.tsv
+        │   ├── transfer_minion_qc.tsv
         │   └── transfer_promethion.tsv
-        │   └── transfer_aviti.tsv
-        │   └── transfer.tsv
-        │   └── taca.log
         ├── miarka
         │   ├── minion
         │   │   └── qc
         │   └── promethion
         ├── minknow_reports
         ├── ngi-nas-ns
+        │   ├── Aviti_data
         │   ├── NextSeq_data
         │   ├── NovaSeqXPlus_data
         │   ├── NovaSeq_data
         │   ├── minion_data
         │   ├── miseq_data
         │   ├── promethion_data
-        │   ├── Aviti_data
         │   └── samplesheets
+        │       ├── Aviti
         │       ├── NovaSeqXPlus
         │       └── anglerfish
-        │       └── Aviti
         └── ngi_data
             └── sequencing
+                ├── AV242106
+                │   └── nosync
                 ├── MiSeq
                 │   └── nosync
                 ├── NextSeq
@@ -52,8 +54,6 @@ def create_dirs():
                 │   └── qc
                 │       └── nosync
                 └── promethion
-                │   └── nosync
-                └── AV242106
                     └── nosync
 
     --> Return the the temporary directory object
