@@ -21,8 +21,8 @@ jobs:
       - name: Install TACA
         run: pip install -e .
       - name: pytest
-        # Options are configured in pyproject.toml
-        run: pytest --cov=genologics --cov-report=xml
+        # Default options are configured in pyproject.toml
+        run: pytest --cov=./taca --cov-report=xml --cov-report term-missing -vv
       - name: CodeCov
         uses: codecov/codecov-action@v4
         with:
