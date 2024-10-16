@@ -1174,10 +1174,11 @@ class Run:
             )
 
         # Write to a new UnassignedSequences.csv file under demux_dir
-        aggregated_unassigned_csv = os.path.join(
-            self.run_dir, self.demux_dir, "UnassignedSequences.csv"
-        )
-        self.write_to_csv(aggregated_unassigned_indexes, aggregated_unassigned_csv)
+        if aggregated_unassigned_indexes:
+            aggregated_unassigned_csv = os.path.join(
+                self.run_dir, self.demux_dir, "UnassignedSequences.csv"
+            )
+            self.write_to_csv(aggregated_unassigned_indexes, aggregated_unassigned_csv)
 
     # Aggregate demux results
     def aggregate_demux_results(self, demux_results_dirs):
