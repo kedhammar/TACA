@@ -650,7 +650,7 @@ class Run:
     def start_demux(self, run_manifest, demux_dir):
         with chdir(self.run_dir):
             cmd = self.generate_demux_command(run_manifest, demux_dir)
-            stderr_abspath = f"{self.run_dir}/bases2fastq_stderr.txt"
+            stderr_abspath = f"{self.run_dir}/bases2fastq_stderr.txt" #TODO: individual files for each sub-demux
             try:
                 with open(stderr_abspath, "w") as stderr:
                     process = subprocess.Popen(
@@ -1198,8 +1198,11 @@ class Run:
         dest = os.path.join(metadata_archive, self.NGI_run_id)
         if not os.path.exists(dest):
             os.makedirs(dest)
-        for f in files_to_copy:
-            shutil.copy(f, dest)
+        for f in files_to_copy: # UnassignedSequences.csv missing in NoIndex case
+            if os.path.exists(f):
+                shutil.copy(f, dest)
+            else:
+                logger.warning(f"File {f} missing for run {self.run}")
 
     def make_transfer_indicator(self):
         transfer_indicator = os.path.join(self.run_dir, ".rsync_ongoing")
