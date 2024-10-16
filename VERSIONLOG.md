@@ -1,5 +1,9 @@
 # TACA Version Log
 
+## 20241016.1
+
+Fix wrong logic for collecting unassigned indexes
+
 ## 20241011.1
 
 Fix issue with 0 lane number; Add percentage of unassigned in total unassigned per lane

@@ -1040,25 +1040,11 @@ class Run:
                 # Order: from longer to shorter indexes
                 sub_demux_with_shorter_index_lens = sub_demux_list[1:]
                 for sub_demux in sub_demux_with_shorter_index_lens:
-                    unassigned_csv = os.path.join(
-                        self.run_dir,
-                        f"Demultiplexing_{sub_demux}",
-                        "UnassignedSequences.csv",
-                    )
-                    if os.path.exists(unassigned_csv):
-                        with open(unassigned_csv) as unassigned_file:
-                            reader = csv.DictReader(unassigned_file)
-                            unassigned_indexes = [row for row in reader]
-                    else:
-                        logger.warning(
-                            f"No {os.path.basename(unassigned_csv)} file found for sub-demultiplexing {sub_demux}."
-                        )
-                        continue
-                    # Filter by lane
-                    unassigned_indexes = [
-                        unassigned_index
-                        for unassigned_index in unassigned_indexes
-                        if unassigned_index["Lane"] == lane
+                    sub_demux_assigned_indexes = [
+                        sub_demux_assigned_index
+                        for sub_demux_assigned_index in aggregated_assigned_indexes_filtered_sorted
+                        if sub_demux_assigned_index["sub_demux_count"] == sub_demux
+                        and sub_demux_assigned_index["Lane"] == lane
                     ]
                     # Remove overlapped indexes from the list of max_unassigned_indexes
                     idx1_overlapped_len = min(
@@ -1085,11 +1071,11 @@ class Run:
                             if demux_lens_pair[0] == sub_demux_with_max_index_lens
                         ][0][1],
                     )
-                    for unassigned_index in unassigned_indexes:
-                        idx1_overlapped_seq = unassigned_index["I1"][
+                    for sub_demux_assigned_index in sub_demux_assigned_indexes:
+                        idx1_overlapped_seq = sub_demux_assigned_index["I1"][
                             :idx1_overlapped_len
                         ]
-                        idx2_overlapped_seq = unassigned_index["I2"][
+                        idx2_overlapped_seq = sub_demux_assigned_index["I2"][
                             :idx2_overlapped_len
                         ]
                         # Remove the overlapped record from the max_unassigned_indexes list
