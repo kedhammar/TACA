@@ -270,9 +270,9 @@ class Run:
         demux_command_file = os.path.join(self.run_dir, ".bases2fastq_command")
         if os.path.exists(demux_command_file):
             with open(demux_command_file) as command_file:
-                demux_command = command_file.readlines()[0]
+                demux_commands = command_file.readlines()
         else:
-            demux_command = None
+            demux_commands = None
         demux_version_file = os.path.join(
             self.run_dir, "Demultiplexing_0", "RunStats.json"
         )
@@ -286,7 +286,7 @@ class Run:
         software_info = {
             "Version": demux_version,
             "bin": self.CONFIG.get("element_analysis").get("bases2fastq"),
-            "options": demux_command,
+            "options": demux_commands,
         }
 
         doc_obj = {
@@ -580,9 +580,10 @@ class Run:
                 raise AssertionError("Both I1 and I2 appear to contain UMIs.")
 
             # Unpack settings from LIMS manifest
-            for kv in settings.split(" "):
-                k, v = kv.split(":")
-                settings_kvs[k] = v
+            if settings:
+                for kv in settings.split(" "):
+                    k, v = kv.split(":")
+                    settings_kvs[k] = v
 
             settings_section = "\n".join(
                 [
@@ -641,7 +642,7 @@ class Run:
             + " --force-index-orientation"
         )
         with open(
-            os.path.join(self.run_dir, ".bases2fastq_command"), "w"
+            os.path.join(self.run_dir, ".bases2fastq_command"), "a"
         ) as command_file:
             command_file.write(command)
         return command
