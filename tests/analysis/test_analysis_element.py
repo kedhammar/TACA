@@ -1,3 +1,4 @@
+import logging
 from io import StringIO
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
@@ -61,6 +62,56 @@ def test_run_preprocessing(create_dirs, run_kwargs):
 
     # Test
     to_test.run_preprocessing(run_dir)
+
+    # Stop mocks
+    patch.stopall()
+
+
+def test_incremental(create_dirs, caplog):
+    # Create tempdir
+    tmp: TemporaryDirectory = create_dirs
+
+    # Capture log
+    caplog.at_level(logging.INFO)
+
+    # Mock config
+    config = get_config(tmp)
+    mock_config = patch("taca.utils.config.CONFIG", new=config)
+    mock_config.start()
+
+    # Mock DB
+    mock_db = patch("taca.element.Element_Runs.ElementRunsConnection")
+    mock_db.start()
+
+    # Mock send mail
+    mock_mail = patch("taca.analysis.analysis_element.send_mail").start()
+
+    # Mock subprocess
+    mock_subprocess = patch("subprocess.Popen")
+    mock_subprocess.start()
+
+    # Import module to test
+    from taca.analysis import analysis_element as to_test
+
+    # Test: Empty dir, should raise error and send mail
+    run_dir = create_element_run_dir(
+        tmp=tmp,
+        lims_manifest=False,
+        metadata_files=False,
+        run_finished=False,
+        outcome_completed=False,
+        demux_dir=False,
+        demux_done=False,
+        rsync_ongoing=False,
+        rsync_exit_status=None,
+        nosync=False,
+    )
+
+    with pytest.raises(FileNotFoundError):
+        to_test.run_preprocessing(run_dir)
+
+    mock_mail.assert_called_once()
+    assert "Run parameters file not found" in caplog.text
 
     # Stop mocks
     patch.stopall()
