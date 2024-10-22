@@ -52,8 +52,6 @@ nanopore_analysis:
     minknow_reports_dir: {tmp.name}/minknow_reports/
     rsync_options:
         '-Lav': None
-        '--chown': ':ngi2016003'
-        '--chmod': 'Dg+s,g+rw'
         '-r': None
         '--exclude': ['work']"""
 
