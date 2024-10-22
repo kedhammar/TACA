@@ -18,6 +18,9 @@ def get_config(tmp: tempfile.TemporaryDirectory) -> dict:
                 },
             },
         },
+        "mail": {
+            "recipients": ["mock@mock.com"],
+        },
         "statusdb": {},
     }
     return config
@@ -25,6 +28,7 @@ def get_config(tmp: tempfile.TemporaryDirectory) -> dict:
 
 def create_element_run_dir(
     tmp: tempfile.TemporaryDirectory,
+    overwrite: bool = False,
     run_name: str = "20240926_AV242106_A2349523513",
     metadata_files: bool = False,
     lims_manifest: bool = False,
@@ -62,6 +66,11 @@ def create_element_run_dir(
         run_path = f"{tmp.name}/ngi_data/sequencing/AV242106/nosync/{run_name}"
     else:
         run_path = f"{tmp.name}/ngi_data/sequencing/AV242106/{run_name}"
+    if os.path.exists(run_path):
+        if overwrite:
+            os.rmdir(run_path)
+        else:
+            raise FileExistsError(f"Directory {run_path} already exists.")
     os.mkdir(run_path)
 
     # Create LIMS manifest
