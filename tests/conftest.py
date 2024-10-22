@@ -1,3 +1,4 @@
+import logging
 import os
 import shutil
 import tempfile
@@ -115,3 +116,46 @@ def create_dirs():
     yield tmp
 
     tmp.cleanup()
+
+
+@pytest.fixture(autouse=True)
+def configure_logging(create_dirs):
+    """Configure logging for the entire test session."""
+
+    # Use fixture
+    tmp = create_dirs
+
+    # Specify log file path
+    log_file = os.path.join(tmp.name, "log", "taca.log")
+    assert os.path.exists(log_file)
+
+    # Get the root logger
+    logger = logging.getLogger()
+
+    # Clear any existing handlers to avoid duplicate logs
+    if logger.hasHandlers():
+        logger.handlers.clear()
+
+    # Configure logging
+    file_handler = logging.FileHandler(log_file)
+    stream_handler = logging.StreamHandler()
+
+    # Set a common formatter
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
+    file_handler.setFormatter(formatter)
+    stream_handler.setFormatter(formatter)
+
+    # Add handlers to the root logger
+    logger.addHandler(file_handler)
+    logger.addHandler(stream_handler)
+
+    # Set log level
+    logger.setLevel(logging.INFO)
+
+    # Log to confirm the logger is working
+    logger.info(f"Logging is set up. Logs will be stored in {log_file}.")
+
+    # Return the log file path to use in tests if needed
+    return log_file
