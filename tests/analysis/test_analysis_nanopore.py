@@ -15,70 +15,58 @@ from tests.nanopore.test_ONT_run_classes import (
 )
 
 
-def build_run_properties() -> list[dict]:
+def parametrize_testruns() -> list[dict]:
     """In order to parametrize the test in a comprehensive way, the parametrization is
     tabulated as a string here.
     """
 
-    col_names = [
-        "instrument",
-        "qc",
-        "run_finished",
-        "sync_finished",
-        "raw_dirs",
-        "fastq_dirs",
-        "barcode_dirs",
-        "anglerfish_samplesheets",
-        "anglerfish_ongoing",
-        "anglerfish_exit",
-    ]
-
     parameter_string_table = """
-    promethion False False False False False False False False NA
-    promethion False True  False False False False False False NA
-    promethion False True  True  False False False False False NA
-    promethion False True  True  True  False False False False NA
-    promethion False True  True  True  True  False False False NA
-    promethion False True  True  True  True  True  False False NA
-    minion     False False False False False False False False NA
-    minion     False True  False False False False False False NA
-    minion     False True  True  False False False False False NA
-    minion     False True  True  True  False False False False NA
-    minion     False True  True  True  True  False False False NA
-    minion     False True  True  True  True  True  False False NA
-    minion     True  False False False False False False False NA
-    minion     True  True  False False False False False False NA
-    minion     True  True  True  False False False False False NA
-    minion     True  True  True  True  False False False False NA
-    minion     True  True  True  True  True  False False False NA
-    minion     True  True  True  True  True  True  False False NA
-    minion     True  True  True  True  True  True  True  False NA
-    minion     True  True  True  True  True  True  True  True  NA
-    minion     True  True  True  True  True  True  True  False 0
+    desc            instrument qc    run_finished sync_finished raw_dirs fastq_dirs barcode_dirs anglerfish_samplesheets anglerfish_ongoing anglerfish_exit
+    prom_ongoing    promethion False False        False         False    False      False        False                   False              NA
+    prom_done       promethion False True         False         False    False      False        False                   False              NA
+    prom_synced     promethion False True         True          False    False      False        False                   False              NA
+    prom_reads      promethion False True         True          True     False      False        False                   False              NA
+    prom_fastq      promethion False True         True          True     True       False        False                   False              NA
+    prom_bcs        promethion False True         True          True     True       True         False                   False              NA
+    min_ongoing     minion     False False        False         False    False      False        False                   False              NA
+    min_done        minion     False True         False         False    False      False        False                   False              NA
+    min_synced      minion     False True         True          False    False      False        False                   False              NA
+    min_reads       minion     False True         True          True     False      False        False                   False              NA
+    min_fastq       minion     False True         True          True     True       False        False                   False              NA
+    min_bcs         minion     False True         True          True     True       True         False                   False              NA
+    min_qc_ongoing  minion     True  False        False         False    False      False        False                   False              NA
+    min_qc_done     minion     True  True         False         False    False      False        False                   False              NA
+    min_qc_synced   minion     True  True         True          False    False      False        False                   False              NA
+    min_qc_reads    minion     True  True         True          True     False      False        False                   False              NA
+    min_qc_fastq    minion     True  True         True          True     True       False        False                   False              NA
+    min_qc_bcs      minion     True  True         True          True     True       True         False                   False              NA
+    min_qc_ang_ss   minion     True  True         True          True     True       True         True                    False              NA
+    min_qc_ang_run  minion     True  True         True          True     True       True         True                    True               NA
+    min_qc_ang_done minion     True  True         True          True     True       True         True                    False              0
     """
 
+    # Turn string table to datastream
     data = StringIO(parameter_string_table)
 
     # Read data, trimming whitespace
-    df = pd.read_csv(data, header=None, sep=r"\s+")
-    assert len(df.columns) == len(col_names)
-    df.columns = col_names
+    df = pd.read_csv(data, sep=r"\s+")
 
     # Replace nan(s) with None(s)
     df = df.replace(np.nan, None)
 
-    # Convert to dict
-    run_properties = df.to_dict("records")
+    # Drop the "desc" column and retain it as a list
+    testrun_descs = df.pop("desc").tolist()
 
-    # Convert float exit codes to ints
-    for d in run_properties:
-        if d["anglerfish_exit"] == 0.0:
-            d["anglerfish_exit"] = int(d["anglerfish_exit"])
+    # Compile into list of parameters to use
+    testrun_kwargs: list[dict] = df.to_dict(orient="records")
 
-    return run_properties
+    return testrun_kwargs, testrun_descs
 
 
-@pytest.mark.parametrize("run_properties", build_run_properties())
+testrun_kwargs, testrun_descs = parametrize_testruns()
+
+
+@pytest.mark.parametrize("run_properties", testrun_kwargs, ids=testrun_descs)
 def test_ont_transfer(create_dirs, run_properties, caplog):
     """Test the "taca analaysis ont-transfer" subcommand automation from
     start to finish for a variety of runs.
