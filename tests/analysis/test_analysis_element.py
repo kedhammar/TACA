@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 import pandas as pd
 import pytest
+from dirhash import dirhash
 
 from tests.element.test_Element_Runs import create_element_run_dir, get_config
 
@@ -93,7 +94,9 @@ def test_incremental(create_dirs, caplog):
     # Import module to test
     from taca.analysis import analysis_element as to_test
 
-    # Test: Empty dir, should raise error and send mail
+    ### Test: Empty dir, should raise error and send mail
+
+    # Create dir
     run_dir = create_element_run_dir(
         tmp=tmp,
         lims_manifest=False,
@@ -107,11 +110,34 @@ def test_incremental(create_dirs, caplog):
         nosync=False,
     )
 
+    # Run code (1)
     with pytest.raises(FileNotFoundError):
         to_test.run_preprocessing(run_dir)
 
+    # Assertions
     mock_mail.assert_called_once()
     assert "Run parameters file not found" in caplog.text
+
+    # Add metadata files
+    run_dir = create_element_run_dir(
+        tmp=tmp,
+        overwrite=True,
+        lims_manifest=False,
+        metadata_files=True,
+        run_finished=False,
+        outcome_completed=False,
+        demux_dir=False,
+        demux_done=False,
+        rsync_ongoing=False,
+        rsync_exit_status=None,
+        nosync=False,
+    )
+
+    # Run code (2) with snapshots
+    before = dirhash(run_dir, "md5")
+    to_test.run_preprocessing(run_dir)
+    after = dirhash(run_dir, "md5")
+    assert before == after
 
     # Stop mocks
     patch.stopall()

@@ -1,13 +1,13 @@
 -r requirements.txt
-
-nose
+dirhash
+ipdb
+ipython
 mock
-sphinx
-sphinx-rtd-theme
+mypy
+nose
+pipreqs
 pytest
 pytest-cov
-ipython
-ipdb
 ruff
-mypy
-pipreqs
+sphinx
+sphinx-rtd-theme
