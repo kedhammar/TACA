@@ -87,8 +87,7 @@ def aviti_fixture(create_dirs, caplog):
     mock_mail = patch("taca.analysis.analysis_element.send_mail").start()
 
     # Mock subprocess
-    mock_subprocess = patch("subprocess.Popen")
-    mock_subprocess.start()
+    mock_subprocess = patch("subprocess.Popen").start()
 
     # Import module to test
     from taca.analysis import analysis_element as to_test
