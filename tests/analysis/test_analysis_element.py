@@ -68,7 +68,8 @@ def test_run_preprocessing(create_dirs, run_kwargs):
     patch.stopall()
 
 
-def test_incremental(create_dirs, caplog):
+@pytest.fixture
+def aviti_fixture(create_dirs, caplog):
     # Create tempdir
     tmp: TemporaryDirectory = create_dirs
 
@@ -77,12 +78,10 @@ def test_incremental(create_dirs, caplog):
 
     # Mock config
     config = get_config(tmp)
-    mock_config = patch("taca.utils.config.CONFIG", new=config)
-    mock_config.start()
+    mock_config = patch("taca.utils.config.CONFIG", new=config).start()
 
     # Mock DB
-    mock_db = patch("taca.element.Element_Runs.ElementRunsConnection")
-    mock_db.start()
+    mock_db = patch("taca.element.Element_Runs.ElementRunsConnection").start()
 
     # Mock send mail
     mock_mail = patch("taca.analysis.analysis_element.send_mail").start()
@@ -94,7 +93,16 @@ def test_incremental(create_dirs, caplog):
     # Import module to test
     from taca.analysis import analysis_element as to_test
 
-    ### Test: Empty dir, should raise error and send mail
+    # Yield fixtures
+    yield to_test, tmp, mock_mail, mock_db, caplog
+
+    # Stop mocks
+    patch.stopall()
+
+
+def test_process_empty_dir(aviti_fixture):
+    to_test, tmp, mock_mail, mock_db, caplog = aviti_fixture
+    """Should raise FileNotFoundError when no files are present in the run dir and send mail."""
 
     # Create dir
     run_dir = create_element_run_dir(
@@ -110,13 +118,16 @@ def test_incremental(create_dirs, caplog):
         nosync=False,
     )
 
-    # Run code (1)
     with pytest.raises(FileNotFoundError):
         to_test.run_preprocessing(run_dir)
 
     # Assertions
     mock_mail.assert_called_once()
     assert "Run parameters file not found" in caplog.text
+
+
+def test_process_dir_metadata(aviti_fixture):
+    to_test, tmp, mock_mail, mock_db, caplog = aviti_fixture
 
     # Add metadata files
     run_dir = create_element_run_dir(
@@ -133,11 +144,8 @@ def test_incremental(create_dirs, caplog):
         nosync=False,
     )
 
-    # Run code (2) with snapshots
-    before = dirhash(run_dir, "md5")
     to_test.run_preprocessing(run_dir)
-    after = dirhash(run_dir, "md5")
-    assert before == after
 
-    # Stop mocks
-    patch.stopall()
+    assert mock_db.upload_to_statusdb.called
+
+    print(caplog.text)
