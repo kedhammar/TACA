@@ -81,7 +81,10 @@ def aviti_fixture(create_dirs, caplog):
     mock_config = patch("taca.utils.config.CONFIG", new=config).start()
 
     # Mock DB
-    mock_db = patch("taca.element.Element_Runs.ElementRunsConnection").start()
+    mock_db = patch(
+        "taca.element.Element_Runs.ElementRunsConnection", autospec=True
+    ).start()
+    print("BOOYAH", mock_db)
 
     # Mock send mail
     mock_mail = patch("taca.analysis.analysis_element.send_mail").start()
@@ -128,6 +131,10 @@ def test_process_empty_dir(aviti_fixture):
 def test_process_dir_metadata(aviti_fixture):
     to_test, tmp, mock_mail, mock_db, caplog = aviti_fixture
 
+    # Sub-mock configuration
+    mock_db.return_value.check_db_run_status.return_value = "ongoing"
+    mock_db.return_value.upload_to_statusdb.return_value = None
+
     # Add metadata files
     run_dir = create_element_run_dir(
         tmp=tmp,
@@ -145,6 +152,6 @@ def test_process_dir_metadata(aviti_fixture):
 
     to_test.run_preprocessing(run_dir)
 
-    assert mock_db.upload_to_statusdb.called
+    assert mock_db.return_value.upload_to_statusdb.called
 
     print(caplog.text)
