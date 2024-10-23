@@ -76,34 +76,28 @@ def aviti_fixture(create_dirs, caplog):
     # Capture log
     caplog.at_level(logging.INFO)
 
-    # Mock config
-    config = get_config(tmp)
-    mock_config = patch("taca.utils.config.CONFIG", new=config).start()
-
-    # Mock DB
-    mock_db = patch(
-        "taca.element.Element_Runs.ElementRunsConnection", autospec=True
-    ).start()
-    print("BOOYAH", mock_db)
-
-    # Mock send mail
-    mock_mail = patch("taca.analysis.analysis_element.send_mail").start()
-
-    # Mock subprocess
-    mock_subprocess = patch("subprocess.Popen").start()
+    # Mocks
+    mocks = {
+        "mock_config": patch("taca.utils.config.CONFIG", new=get_config(tmp)).start(),
+        "mock_db": patch(
+            "taca.element.Element_Runs.ElementRunsConnection", autospec=True
+        ).start(),
+        "mock_mail": patch("taca.analysis.analysis_element.send_mail").start(),
+        "mock_subprocess": patch("subprocess.Popen").start(),
+    }
 
     # Import module to test
     from taca.analysis import analysis_element as to_test
 
     # Yield fixtures
-    yield to_test, tmp, mock_mail, mock_db, caplog
+    yield to_test, tmp, caplog, mocks
 
     # Stop mocks
     patch.stopall()
 
 
-def test_process_empty_dir(aviti_fixture):
-    to_test, tmp, mock_mail, mock_db, caplog = aviti_fixture
+def test_process_on_empty_dir(aviti_fixture):
+    to_test, tmp, caplog, mocks = aviti_fixture
     """Should raise FileNotFoundError when no files are present in the run dir and send mail."""
 
     # Create dir
@@ -124,16 +118,17 @@ def test_process_empty_dir(aviti_fixture):
         to_test.run_preprocessing(run_dir)
 
     # Assertions
-    mock_mail.assert_called_once()
+    mocks["mock_mail"].assert_called_once()
     assert "Run parameters file not found" in caplog.text
 
 
-def test_process_dir_metadata(aviti_fixture):
-    to_test, tmp, mock_mail, mock_db, caplog = aviti_fixture
+def test_process_on_dir_w_metadata(aviti_fixture):
+    """Should update statusdb."""
+    to_test, tmp, caplog, mocks = aviti_fixture
 
     # Sub-mock configuration
-    mock_db.return_value.check_db_run_status.return_value = "ongoing"
-    mock_db.return_value.upload_to_statusdb.return_value = None
+    mocks["mock_db"].return_value.check_db_run_status.return_value = "ongoing"
+    mocks["mock_db"].return_value.upload_to_statusdb.return_value = None
 
     # Add metadata files
     run_dir = create_element_run_dir(
@@ -152,6 +147,4 @@ def test_process_dir_metadata(aviti_fixture):
 
     to_test.run_preprocessing(run_dir)
 
-    assert mock_db.return_value.upload_to_statusdb.called
-
-    print(caplog.text)
+    assert mocks["mock_db"].return_value.upload_to_statusdb.called
