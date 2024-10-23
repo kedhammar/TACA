@@ -38,7 +38,13 @@ def aviti_fixture(create_dirs, caplog):
     patch.stopall()
 
     # Purge module
-    del sys.modules["taca.analysis.analysis_element"]
+    try:
+        del sys.modules["taca.analysis.analysis_element"]
+    except KeyError:
+        try:
+            del sys.modules["to_test"]
+        except KeyError:
+            pass
 
 
 def test_process_on_empty_dir(aviti_fixture):
