@@ -15,7 +15,7 @@ from tests.nanopore.test_ONT_run_classes import (
 )
 
 
-def parametrize_testruns() -> list[dict]:
+def parametrize_testruns():
     """In order to parametrize the test in a comprehensive way, the parametrization is
     tabulated as a string here.
     """
