@@ -83,7 +83,7 @@ def aviti_fixture(create_dirs, caplog):
             "taca.element.Element_Runs.ElementRunsConnection", autospec=True
         ).start(),
         "mock_mail": patch("taca.analysis.analysis_element.send_mail").start(),
-        "mock_subprocess": patch("subprocess.Popen").start(),
+        "mock_popen": patch("subprocess.Popen").start(),
     }
 
     # Import module to test
@@ -149,9 +149,8 @@ def test_process_on_dir_w_metadata(aviti_fixture):
     assert mocks["mock_db"].return_value.upload_to_statusdb.called
 
 
-@pytest.skip("Not implemented")
+@pytest.mark.skip("Currently a failed run is treated as an ongoing run.")
 def test_process_on_failed_run(aviti_fixture):
-    """"""
     to_test, tmp, caplog, mocks = aviti_fixture
 
     # Sub-mock configuration
@@ -201,3 +200,44 @@ def test_process_on_finished_run_wo_lims_manifest(aviti_fixture):
 
     assert "No manifest found for run" in caplog.text
     mocks["mock_mail"].assert_called_once()
+
+
+def test_process_on_finished_run(aviti_fixture):
+    """Should start demux."""
+    to_test, tmp, caplog, mocks = aviti_fixture
+
+    # Sub-mock configuration
+    mocks["mock_db"].return_value.check_db_run_status.return_value = "ongoing"
+    mocks["mock_db"].return_value.upload_to_statusdb.return_value = None
+
+    # Add metadata files
+    run_dir = create_element_run_dir(
+        tmp=tmp,
+        lims_manifest=True,
+        metadata_files=True,
+        run_finished=True,
+        outcome_completed=True,
+        demux_dir=False,
+        demux_done=False,
+        rsync_ongoing=False,
+        rsync_exit_status=None,
+        nosync=False,
+    )
+
+    to_test.run_preprocessing(run_dir)
+
+    expected_call = " ".join(
+        [
+            "mock_bases2fastq_path",
+            f"{tmp.name}/ngi_data/sequencing/AV242106/20240926_AV242106_A2349523513",
+            f"{tmp.name}/ngi_data/sequencing/AV242106/20240926_AV242106_A2349523513/Demultiplexing_0",
+            "-p 8",
+            "--num-unassigned 500",
+            f"-r {tmp.name}/ngi_data/sequencing/AV242106/20240926_AV242106_A2349523513/20240926_AV242106_A2349523513_demux_0.csv",
+            "--legacy-fastq",
+            "--force-index-orientation",
+        ]
+    )
+    assert mocks["mock_popen"].call_args.args[0] == expected_call
+    assert "Bases2Fastq conversion and demultiplexing started for run " in caplog.text
+    assert mocks["mock_db"].return_value.upload_to_statusdb.called
