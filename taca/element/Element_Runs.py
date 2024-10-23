@@ -270,9 +270,9 @@ class Run:
         demux_command_file = os.path.join(self.run_dir, ".bases2fastq_command")
         if os.path.exists(demux_command_file):
             with open(demux_command_file) as command_file:
-                demux_command = command_file.readlines()[0]
+                demux_commands = command_file.readlines()
         else:
-            demux_command = None
+            demux_commands = None
         demux_version_file = os.path.join(
             self.run_dir, "Demultiplexing_0", "RunStats.json"
         )
@@ -286,7 +286,7 @@ class Run:
         software_info = {
             "Version": demux_version,
             "bin": self.CONFIG.get("element_analysis").get("bases2fastq"),
-            "options": demux_command,
+            "options": demux_commands,
         }
 
         doc_obj = {
@@ -580,9 +580,10 @@ class Run:
                 raise AssertionError("Both I1 and I2 appear to contain UMIs.")
 
             # Unpack settings from LIMS manifest
-            for kv in settings.split(" "):
-                k, v = kv.split(":")
-                settings_kvs[k] = v
+            if settings:
+                for kv in settings.split(" "):
+                    k, v = kv.split(":")
+                    settings_kvs[k] = v
 
             settings_section = "\n".join(
                 [
@@ -641,7 +642,7 @@ class Run:
             + " --force-index-orientation"
         )
         with open(
-            os.path.join(self.run_dir, ".bases2fastq_command"), "w"
+            os.path.join(self.run_dir, ".bases2fastq_command"), "a"
         ) as command_file:
             command_file.write(command)
         return command
@@ -649,7 +650,7 @@ class Run:
     def start_demux(self, run_manifest, demux_dir):
         with chdir(self.run_dir):
             cmd = self.generate_demux_command(run_manifest, demux_dir)
-            stderr_abspath = f"{self.run_dir}/bases2fastq_stderr.txt"
+            stderr_abspath = f"{self.run_dir}/bases2fastq_stderr.txt" #TODO: individual files for each sub-demux
             try:
                 with open(stderr_abspath, "w") as stderr:
                     process = subprocess.Popen(
@@ -1039,25 +1040,11 @@ class Run:
                 # Order: from longer to shorter indexes
                 sub_demux_with_shorter_index_lens = sub_demux_list[1:]
                 for sub_demux in sub_demux_with_shorter_index_lens:
-                    unassigned_csv = os.path.join(
-                        self.run_dir,
-                        f"Demultiplexing_{sub_demux}",
-                        "UnassignedSequences.csv",
-                    )
-                    if os.path.exists(unassigned_csv):
-                        with open(unassigned_csv) as unassigned_file:
-                            reader = csv.DictReader(unassigned_file)
-                            unassigned_indexes = [row for row in reader]
-                    else:
-                        logger.warning(
-                            f"No {os.path.basename(unassigned_csv)} file found for sub-demultiplexing {sub_demux}."
-                        )
-                        continue
-                    # Filter by lane
-                    unassigned_indexes = [
-                        unassigned_index
-                        for unassigned_index in unassigned_indexes
-                        if unassigned_index["Lane"] == lane
+                    sub_demux_assigned_indexes = [
+                        sub_demux_assigned_index
+                        for sub_demux_assigned_index in aggregated_assigned_indexes_filtered_sorted
+                        if sub_demux_assigned_index["sub_demux_count"] == sub_demux
+                        and sub_demux_assigned_index["Lane"] == lane
                     ]
                     # Remove overlapped indexes from the list of max_unassigned_indexes
                     idx1_overlapped_len = min(
@@ -1084,11 +1071,11 @@ class Run:
                             if demux_lens_pair[0] == sub_demux_with_max_index_lens
                         ][0][1],
                     )
-                    for unassigned_index in unassigned_indexes:
-                        idx1_overlapped_seq = unassigned_index["I1"][
+                    for sub_demux_assigned_index in sub_demux_assigned_indexes:
+                        idx1_overlapped_seq = sub_demux_assigned_index["I1"][
                             :idx1_overlapped_len
                         ]
-                        idx2_overlapped_seq = unassigned_index["I2"][
+                        idx2_overlapped_seq = sub_demux_assigned_index["I2"][
                             :idx2_overlapped_len
                         ]
                         # Remove the overlapped record from the max_unassigned_indexes list
@@ -1173,10 +1160,11 @@ class Run:
             )
 
         # Write to a new UnassignedSequences.csv file under demux_dir
-        aggregated_unassigned_csv = os.path.join(
-            self.run_dir, self.demux_dir, "UnassignedSequences.csv"
-        )
-        self.write_to_csv(aggregated_unassigned_indexes, aggregated_unassigned_csv)
+        if aggregated_unassigned_indexes:
+            aggregated_unassigned_csv = os.path.join(
+                self.run_dir, self.demux_dir, "UnassignedSequences.csv"
+            )
+            self.write_to_csv(aggregated_unassigned_indexes, aggregated_unassigned_csv)
 
     # Aggregate demux results
     def aggregate_demux_results(self, demux_results_dirs):
@@ -1210,8 +1198,11 @@ class Run:
         dest = os.path.join(metadata_archive, self.NGI_run_id)
         if not os.path.exists(dest):
             os.makedirs(dest)
-        for f in files_to_copy:
-            shutil.copy(f, dest)
+        for f in files_to_copy: # UnassignedSequences.csv missing in NoIndex case
+            if os.path.exists(f):
+                shutil.copy(f, dest)
+            else:
+                logger.warning(f"File {f} missing for run {self.run}")
 
     def make_transfer_indicator(self):
         transfer_indicator = os.path.join(self.run_dir, ".rsync_ongoing")
