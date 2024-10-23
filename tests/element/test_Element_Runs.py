@@ -17,6 +17,7 @@ def get_config(tmp: tempfile.TemporaryDirectory) -> dict:
                     "transfer_log": f"{tmp.name}/log/transfer_aviti.tsv",
                 },
             },
+            "bases2fastq": "mock_bases2fastq_path",
         },
         "mail": {
             "recipients": ["mock@mock.com"],
