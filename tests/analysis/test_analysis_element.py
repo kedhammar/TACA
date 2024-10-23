@@ -133,7 +133,6 @@ def test_process_on_dir_w_metadata(aviti_fixture):
     # Add metadata files
     run_dir = create_element_run_dir(
         tmp=tmp,
-        overwrite=True,
         lims_manifest=False,
         metadata_files=True,
         run_finished=False,
@@ -148,3 +147,57 @@ def test_process_on_dir_w_metadata(aviti_fixture):
     to_test.run_preprocessing(run_dir)
 
     assert mocks["mock_db"].return_value.upload_to_statusdb.called
+
+
+@pytest.skip("Not implemented")
+def test_process_on_failed_run(aviti_fixture):
+    """"""
+    to_test, tmp, caplog, mocks = aviti_fixture
+
+    # Sub-mock configuration
+    mocks["mock_db"].return_value.check_db_run_status.return_value = "ongoing"
+    mocks["mock_db"].return_value.upload_to_statusdb.return_value = None
+
+    # Add metadata files
+    run_dir = create_element_run_dir(
+        tmp=tmp,
+        lims_manifest=False,
+        metadata_files=True,
+        run_finished=True,
+        outcome_completed=False,
+        demux_dir=False,
+        demux_done=False,
+        rsync_ongoing=False,
+        rsync_exit_status=None,
+        nosync=False,
+    )
+
+    to_test.run_preprocessing(run_dir)
+
+
+def test_process_on_finished_run_wo_lims_manifest(aviti_fixture):
+    """Should fail to find LIMS run manifest and send mail."""
+    to_test, tmp, caplog, mocks = aviti_fixture
+
+    # Sub-mock configuration
+    mocks["mock_db"].return_value.check_db_run_status.return_value = "ongoing"
+    mocks["mock_db"].return_value.upload_to_statusdb.return_value = None
+
+    # Add metadata files
+    run_dir = create_element_run_dir(
+        tmp=tmp,
+        lims_manifest=False,
+        metadata_files=True,
+        run_finished=True,
+        outcome_completed=True,
+        demux_dir=False,
+        demux_done=False,
+        rsync_ongoing=False,
+        rsync_exit_status=None,
+        nosync=False,
+    )
+
+    to_test.run_preprocessing(run_dir)
+
+    assert "No manifest found for run" in caplog.text
+    mocks["mock_mail"].assert_called_once()
