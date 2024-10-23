@@ -4,9 +4,10 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 import pytest
-from dirhash import dirhash
 
 from tests.element.test_Element_Runs import create_element_run_dir, get_config
+
+# from dirhash import dirhash TODO this might be useful for validating dir tree snapshots
 
 
 @pytest.fixture()
