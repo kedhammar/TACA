@@ -39,7 +39,7 @@ def run_preprocessing(given_run):
         sequencing_done = run.check_sequencing_status()
         if not sequencing_done:
             run.status = "sequencing"
-            if run.status_changed:
+            if run.status_changed():
                 run.update_statusdb()
             return
 
