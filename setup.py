@@ -27,6 +27,7 @@ setup(
     keywords="bioinformatics",
     author="NGI-stockholm",
     author_email="ngi_pipeline_operators@scilifelab.se",
+    python_requires=">=3.11.5",
     url="http://taca.readthedocs.org/en/latest/",
     license="MIT",
     packages=find_packages(exclude=["ez_setup", "examples", "tests"]),
