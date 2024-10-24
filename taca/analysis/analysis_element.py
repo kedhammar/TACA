@@ -77,7 +77,7 @@ def run_preprocessing(given_run):
                 return
         elif demultiplexing_status == "ongoing":
             run.status = "demultiplexing"
-            if run.status_changed:
+            if run.status_changed():
                 run.update_statusdb()
             return
 
@@ -100,14 +100,14 @@ def run_preprocessing(given_run):
             run.sync_metadata()
             run.make_transfer_indicator()
             run.status = "transferring"
-            if run.status_changed:
+            if run.status_changed():
                 run.update_statusdb()
                 # TODO: Also update statusdb with a timestamp of when the transfer started
             run.transfer()
             return
         elif transfer_status == "ongoing":
             run.status = "transferring"
-            if run.status_changed:
+            if run.status_changed():
                 run.update_statusdb()
             logger.info(
                 f"{run} is being transferred. Skipping."
@@ -118,12 +118,12 @@ def run_preprocessing(given_run):
                 run.remove_transfer_indicator()
                 run.update_transfer_log()
                 run.status = "transferred"
-                if run.status_changed:
+                if run.status_changed():
                     run.update_statusdb()
                 run.archive()
                 run.status = "archived"
 
-                if run.status_changed:
+                if run.status_changed():
                     run.update_statusdb()
             else:
                 run.status = "transfer failed"
