@@ -1,4 +1,4 @@
-FROM python:3.10 AS base
+FROM python:3.11.5 AS base
 
 # Update pip to latest version
 RUN python -m pip install --upgrade pip
