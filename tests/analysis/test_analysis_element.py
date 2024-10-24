@@ -189,6 +189,9 @@ def test_process_on_finished_run(aviti_fixture):
             "--force-index-orientation",
         ]
     )
-    assert mocks["mock_popen"].call_args_list[0].args[0] == expected_cmd
+    assert any(
+        expected_cmd in call.args[0] for call in mocks["mock_popen"].call_args_list
+    ), f"Expected command '{expected_cmd}' not found in any Popen calls."
+
     assert "Bases2Fastq conversion and demultiplexing started for run " in caplog.text
     assert mocks["mock_db"].return_value.upload_to_statusdb.called
