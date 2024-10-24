@@ -177,7 +177,7 @@ def test_process_on_finished_run(aviti_fixture):
 
     to_test.run_preprocessing(run_dir)
 
-    expected_call = " ".join(
+    expected_cmd = " ".join(
         [
             "mock_bases2fastq_path",
             f"{tmp.name}/ngi_data/sequencing/AV242106/20240926_AV242106_A2349523513",
@@ -189,6 +189,6 @@ def test_process_on_finished_run(aviti_fixture):
             "--force-index-orientation",
         ]
     )
-    assert mocks["mock_popen"].call_args.args[0] == expected_call
+    assert mocks["mock_popen"].call_args_list[0].args[0] == expected_cmd
     assert "Bases2Fastq conversion and demultiplexing started for run " in caplog.text
     assert mocks["mock_db"].return_value.upload_to_statusdb.called
