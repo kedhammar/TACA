@@ -190,9 +190,6 @@ def test_process_on_finished_run(aviti_fixture):
         ]
     )
 
-    for call in mocks["mock_popen"].call_args_list:
-        print(call)
-
     assert any(
         expected_cmd in call.args[0] for call in mocks["mock_popen"].call_args_list
     ), f"Expected command '{expected_cmd}' not found in any Popen calls."
