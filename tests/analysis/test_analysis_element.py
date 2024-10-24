@@ -190,7 +190,7 @@ def test_process_on_finished_run(aviti_fixture):
         ]
     )
 
-    debug_msg = "\n".join([call.args[0] for call in mocks["mock_popen"].call_args_list])
+    debug_msg = "\n".join([call for call in mocks["mock_popen"].call_args_list])
 
     assert any(
         expected_cmd in call.args[0] for call in mocks["mock_popen"].call_args_list
