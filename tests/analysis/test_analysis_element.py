@@ -190,11 +190,12 @@ def test_process_on_finished_run(aviti_fixture):
         ]
     )
 
-    debug_msg = "\n".join([call for call in mocks["mock_popen"].call_args_list])
+    for call in mocks["mock_popen"].call_args_list:
+        print(call)
 
     assert any(
         expected_cmd in call.args[0] for call in mocks["mock_popen"].call_args_list
-    ), f"Expected command '{expected_cmd}' not found in any Popen calls: {debug_msg}"
+    ), f"Expected command '{expected_cmd}' not found in any Popen calls."
 
     assert "Bases2Fastq conversion and demultiplexing started for run " in caplog.text
     assert mocks["mock_db"].return_value.upload_to_statusdb.called
