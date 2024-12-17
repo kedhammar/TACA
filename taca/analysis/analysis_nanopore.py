@@ -91,7 +91,7 @@ def process_user_run(ont_user_run: ONT_user_run):
 
             # Update StatusDB
             logger.info(f"{ont_user_run.run_name}: Updating StatusDB...")
-            ont_user_run.update_db_entry()
+            ont_user_run.update_db_runs_entry()
 
             # Copy HTML report
             logger.info(f"{ont_user_run.run_name}: Putting HTML report on GenStat...")
@@ -166,7 +166,7 @@ def process_qc_run(ont_qc_run: ONT_qc_run):
 
     # Update StatusDB
     logger.info(f"{ont_qc_run.run_name}: Updating StatusDB...")
-    ont_qc_run.update_db_entry()
+    ont_qc_run.update_db_runs_entry()
 
     # Copy HTML report
     logger.info(f"{ont_qc_run.run_name}: Putting HTML report on GenStat...")
@@ -320,4 +320,4 @@ def ont_updatedb(run_abspath: str):
     logger.info(
         f"{ont_run.run_name}: Manually updating StatusDB, ignoring run status..."
     )
-    ont_run.update_db_entry(force_update=True)
+    ont_run.update_db_runs_entry(force_update=True)

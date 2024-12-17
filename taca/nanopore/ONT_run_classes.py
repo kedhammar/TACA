@@ -157,7 +157,7 @@ class ONT_run:
         else:
             logger.info(f"{self.run_name}: Database entry already exists, skipping.")
 
-    def update_db_entry(self, force_update=False):
+    def update_db_runs_entry(self, force_update=False):
         """Check run vs statusdb. Create or update run entry."""
 
         # If no run document exists in the database, create an ongoing run document
@@ -200,6 +200,66 @@ class ONT_run:
             logger.info(
                 f"Run {self.run_name} exists in the database as an finished run, do nothing."
             )
+
+    def update_db_proj_entry(self):
+        """Add sample info to project summary document. Requires a way to identify the project ID."""
+
+        # Start by trying to identify a project based on the info available in the rundir
+        project_id_matches = []
+        project_name_matches = []
+
+        project_id_pattern = r"P|p\d{5,7}"
+        project_name_pattern = r"[A-Z]?[_-]?[a-z]+|_\d{2}_\d{2}[^A-Za-z0-9]"
+
+        # Check MinKNOW experiment name and MinKNOW sample names for project names / IDs
+        for dirname in [self.experiment_name, self.sample_name]:
+            project_id_matches.extend(re.findall(project_id_pattern, dirname))
+            project_name_matches.extend(re.findall(project_name_pattern, dirname))
+
+        # Check MinKNOW samplesheet for project IDs
+        samplesheet_path = self.get_samplesheet_path()
+        if samplesheet_path:
+            ss_df = pd.read_csv(samplesheet_path)
+            if "barcode" in ss_df.columns:
+                ss_barcodes = list(ss_df["barcode"].unique())
+                ss_barcodes.sort()
+                barcode_nums = [int(bc[-2:]) for bc in ss_barcodes]
+                # If barcodes are numbered sequentially, write arg as range
+                if barcode_nums == list(range(1, len(barcode_nums) + 1)):
+                    barcodes_arg = f"{ss_barcodes[0]}:{ss_barcodes[-1]}"
+                else:
+                    barcodes_arg = ":".join(ss_barcodes)
+            else:
+                ss_barcodes = None
+
+        # Assert we found no ambiguity in identifying project ID or name
+        if len(project_id_matches) == set(len(project_id_matches)):
+            project_id = project_id_matches[0]
+        else:
+            assert AssertionError("Multiple project IDs found identified in run dir.")
+
+        if len(project_name_matches) == set(len(project_name_matches)):
+            project_name = project_name_matches[0]
+        else:
+            raise AssertionError("Multiple project names found identified in run dir.")
+
+        # Get document IDs
+        doc_id_from_project_id = (
+            self.db_proj.id_view[project_id] if project_id else None
+        )
+        doc_id_from_project_name = (
+            self.db_proj.name_view[project_name] if project_name else None
+        )
+
+        # Assert we have a single document ID
+        if doc_id_from_project_id and doc_id_from_project_name:
+            assert (
+                doc_id_from_project_id == doc_id_from_project_name
+            ), f"Extracted project ID '{project_id}' and name '{project_name}' do not match."
+            doc_id = doc_id_from_project_id
+        elif not doc_id_from_project_id and not doc_id_from_project_name:
+            raise AssertionError("No project ID or name found from rundir.")
+        doc_id = doc_id_from_project_id or doc_id_from_project_name
 
     def parse_pore_activity(self, db_update):
         logger.info(f"{self.run_name}: Parsing pore activity...")
@@ -353,6 +413,19 @@ class ONT_run:
             logger.error(msg)
             raise RsyncError(msg)
 
+    def get_samplesheet_path(self):
+        # Load samplesheet, if any
+        ss_glob = glob.glob(f"{self.run_abspath}/sample_sheet*.csv")
+        if len(ss_glob) == 0:
+            samplesheet = None
+        elif len(ss_glob) > 1:
+            # If multiple samplesheet, use latest one
+            samplesheet = ss_glob.sort()[-1]
+        else:
+            samplesheet = ss_glob[0]
+
+        return samplesheet
+
     def toulligqc_report(self):
         """Generate a QC report for the run using ToulligQC and publish it to GenStat."""
 
@@ -364,6 +437,8 @@ class ONT_run:
                 f"{self.run_name}: ToulligQC report dir already exists, skipping."
             )
             return None
+
+        samplesheet_path = self.get_samplesheet_path()
 
         # Get sequencing summary file
         glob_summary = glob.glob(f"{self.run_abspath}/sequencing_summary*.txt")
@@ -386,16 +461,6 @@ class ONT_run:
             raise AssertionError(f"No seq data found in {self.run_abspath}")
         raw_data_format = "pod5" if "pod5" in raw_data_dir else "fast5"
 
-        # Load samplesheet, if any
-        ss_glob = glob.glob(f"{self.run_abspath}/sample_sheet*.csv")
-        if len(ss_glob) == 0:
-            samplesheet = None
-        elif len(ss_glob) > 1:
-            # If multiple samplesheet, use latest one
-            samplesheet = ss_glob.sort()[-1]
-        else:
-            samplesheet = ss_glob[0]
-
         # Run has barcode subdirs
         barcode_dirs_glob = glob.glob(f"{self.run_abspath}/{raw_data_dir}/barcode*")
         if len(barcode_dirs_glob) > 0:
@@ -406,8 +471,8 @@ class ONT_run:
             raw_data_path = f"{self.run_abspath}/{raw_data_dir}"
 
         # Determine barcodes
-        if samplesheet:
-            ss_df = pd.read_csv(samplesheet)
+        if samplesheet_path:
+            ss_df = pd.read_csv(samplesheet_path)
             if "barcode" in ss_df.columns:
                 ss_barcodes = list(ss_df["barcode"].unique())
                 ss_barcodes.sort()
@@ -428,8 +493,8 @@ class ONT_run:
         }
         if barcode_dirs:
             command_args["--barcoding"] = ""
-            if samplesheet and ss_barcodes:
-                command_args["--samplesheet"] = samplesheet
+            if samplesheet_path and ss_barcodes:
+                command_args["--samplesheet"] = samplesheet_path
                 command_args["--barcodes"] = barcodes_arg
 
         # Build command list
