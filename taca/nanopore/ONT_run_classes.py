@@ -12,7 +12,7 @@ from typing import Union
 import pandas as pd
 
 from taca.utils.config import CONFIG
-from taca.utils.statusdb import NanoporeRunsConnection
+from taca.utils.statusdb import NanoporeRunsConnection, ProjectSummaryConnection
 from taca.utils.transfer import RsyncAgent, RsyncError
 
 logger = logging.getLogger(__name__)
@@ -72,7 +72,8 @@ class ONT_run:
                 self.rsync_options[k] = None
 
         # Get DB
-        self.db = NanoporeRunsConnection(CONFIG["statusdb"], dbname="nanopore_runs")
+        self.db_runs = NanoporeRunsConnection(CONFIG["statusdb"])
+        self.db_proj = ProjectSummaryConnection(CONFIG["statusdb"])
 
     # Looking for files within the run dir
 
@@ -132,7 +133,7 @@ class ONT_run:
     def touch_db_entry(self):
         """Check run vs statusdb. Create entry if there is none."""
 
-        if not self.db.check_run_exists(self):
+        if not self.db_runs.check_run_exists(self):
             logger.info(
                 f"{self.run_name}: Run does not exist in the database, creating entry for ongoing run."
             )
@@ -147,7 +148,9 @@ class ONT_run:
                 pore_count_history_file
             ), f"Couldn't find {pore_count_history_file}"
 
-            self.db.create_ongoing_run(self, run_path_file, pore_count_history_file)
+            self.db_runs.create_ongoing_run(
+                self, run_path_file, pore_count_history_file
+            )
             logger.info(
                 f"{self.run_name}: Successfully created database entry for ongoing run."
             )
@@ -161,9 +164,9 @@ class ONT_run:
         self.touch_db_entry()
 
         # If the run document is marked as "ongoing" or database is being manually updated
-        if self.db.check_run_status(self) == "ongoing" or force_update is True:
+        if self.db_runs.check_run_status(self) == "ongoing" or force_update is True:
             logger.info(
-                f"{self.run_name}: Run exists in the database with run status: {self.db.check_run_status(self)}."
+                f"{self.run_name}: Run exists in the database with run status: {self.db_runs.check_run_status(self)}."
             )
 
             logger.info(f"{self.run_name}: Updating...")
@@ -190,10 +193,10 @@ class ONT_run:
             self.parse_pore_activity(db_update)
 
             # Update the DB entry
-            self.db.finish_ongoing_run(self, db_update)
+            self.db_runs.finish_ongoing_run(self, db_update)
 
         # If the run document is marked as "finished"
-        elif self.db.check_run_status(self) == "finished":
+        elif self.db_runs.check_run_status(self) == "finished":
             logger.info(
                 f"Run {self.run_name} exists in the database as an finished run, do nothing."
             )
